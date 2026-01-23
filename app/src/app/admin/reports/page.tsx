@@ -3,6 +3,7 @@ import { ReportStatus, ReportTarget } from "@prisma/client";
 import { Fragment } from "react";
 
 import { ReportActions } from "@/components/admin/report-actions";
+import { ReportUpdateBanner } from "@/components/admin/report-update-banner";
 import { listCommentsByIds } from "@/server/queries/comment.queries";
 import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
 import { listReports } from "@/server/queries/report.queries";
@@ -73,9 +74,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </header>
 
         {showUpdated ? (
-          <div className="rounded-2xl border border-[#e3d6c4] bg-[#fdf9f2] px-4 py-3 text-xs text-[#6f6046]">
-            신고 처리 결과가 반영되었습니다.
-          </div>
+          <ReportUpdateBanner message="신고 처리 결과가 반영되었습니다." />
         ) : null}
 
         <section className="flex flex-wrap items-center gap-2 text-xs text-[#6f6046]">
@@ -105,6 +104,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 <tr>
                   <th className="px-4 py-3">대상</th>
                   <th className="px-4 py-3">타입</th>
+                  <th className="px-4 py-3">상태</th>
                   <th className="px-4 py-3">사유</th>
                   <th className="px-4 py-3">설명</th>
                   <th className="px-4 py-3">신고자</th>
@@ -158,6 +158,19 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     </td>
                         <td className="px-4 py-3 text-xs text-[#6f6046]">
                           {targetLabels[report.targetType]}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] ${
+                              report.status === ReportStatus.PENDING
+                                ? "bg-[#f2c07c] text-[#2a241c]"
+                                : report.status === ReportStatus.RESOLVED
+                                  ? "bg-[#2a241c] text-white"
+                                  : "bg-[#cbbba5] text-white"
+                            }`}
+                          >
+                            {statusLabels[report.status]}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-[#6f6046]">
                           {report.reason}
