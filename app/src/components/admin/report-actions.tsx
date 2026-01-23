@@ -6,13 +6,15 @@ import { useState, useTransition } from "react";
 
 type ReportActionsProps = {
   reportId: string;
+  status: ReportStatus;
 };
 
-export function ReportActions({ reportId }: ReportActionsProps) {
+export function ReportActions({ reportId, status }: ReportActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [resolution, setResolution] = useState("");
+  const isLocked = status !== ReportStatus.PENDING;
 
   const handleUpdate = (status: ReportStatus) => {
     setMessage(null);
@@ -45,13 +47,14 @@ export function ReportActions({ reportId }: ReportActionsProps) {
         value={resolution}
         onChange={(event) => setResolution(event.target.value)}
         placeholder="처리 메모(선택)"
+        disabled={isLocked || isPending}
       />
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => handleUpdate(ReportStatus.RESOLVED)}
           className="rounded-md border border-[#e3d6c4] px-3 py-1 text-[#2a241c] hover:bg-[#f7ece0]"
-          disabled={isPending}
+          disabled={isLocked || isPending}
         >
           승인
         </button>
@@ -59,11 +62,14 @@ export function ReportActions({ reportId }: ReportActionsProps) {
           type="button"
           onClick={() => handleUpdate(ReportStatus.DISMISSED)}
           className="rounded-md border border-[#e3d6c4] px-3 py-1 text-[#6f6046] hover:bg-[#f7ece0]"
-          disabled={isPending}
+          disabled={isLocked || isPending}
         >
           기각
         </button>
         {message ? <span className="text-[#9a8462]">{message}</span> : null}
+        {isLocked && !message ? (
+          <span className="text-[#9a8462]">처리 완료</span>
+        ) : null}
       </div>
     </div>
   );

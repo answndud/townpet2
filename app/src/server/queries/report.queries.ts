@@ -16,3 +16,13 @@ export async function listReports({ status }: ReportListOptions = {}) {
     },
   });
 }
+
+export async function getReportById(reportId: string) {
+  return prisma.report.findUnique({
+    where: { id: reportId },
+    include: {
+      reporter: { select: { id: true, email: true, nickname: true } },
+      post: { select: { id: true, title: true, status: true } },
+    },
+  });
+}

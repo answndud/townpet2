@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { PostScope, PostType } from "@prisma/client";
 
+import { postListSchema } from "@/lib/validations/post";
 import { getUserByEmail } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
 
 type MyPostsPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     scope?: "LOCAL" | "GLOBAL";
     type?: PostType;
     q?: string;
-  };
+  }>;
 };
 
 const typeLabels: Record<PostType, string> = {
@@ -42,14 +43,11 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
     );
   }
 
-  const type = Object.values(PostType).includes(searchParams?.type as PostType)
-    ? (searchParams?.type as PostType)
-    : undefined;
-  const scope =
-    searchParams?.scope === "LOCAL" || searchParams?.scope === "GLOBAL"
-      ? searchParams.scope
-      : undefined;
-  const query = searchParams?.q?.trim() ?? "";
+  const resolvedParams = (await searchParams) ?? {};
+  const parsedParams = postListSchema.safeParse(resolvedParams);
+  const type = parsedParams.success ? parsedParams.data.type : undefined;
+  const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+  const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
   const posts = await listUserPosts({
     authorId: user.id,
     scope,
@@ -81,14 +79,14 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
             />
             <button
               type="submit"
-              className="rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs text-[#2a241c]"
+              className="inline-flex min-w-[64px] items-center justify-center whitespace-nowrap rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs font-semibold text-[#2a241c]"
             >
               검색
             </button>
             {query ? (
               <Link
                 href={type || scope ? `/my-posts?${type ? `type=${type}` : ""}${type && scope ? "&" : ""}${scope ? `scope=${scope}` : ""}` : "/my-posts"}
-                className="text-xs text-[#9a8462]"
+                className="inline-flex min-w-[64px] items-center justify-center whitespace-nowrap rounded-md border border-[#e3d6c4] bg-[#fdf9f2] px-3 py-2 text-xs font-semibold text-[#9a8462]"
               >
                 초기화
               </Link>
