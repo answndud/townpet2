@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String             @id @default(cuid())
+  email           String             @unique
+  name            String?
+  nickname        String?            @unique
+  image           String?
+  role            UserRole           @default(USER)
+  neighborhoods   UserNeighborhood[]
+  posts           Post[]
+  comments        Comment[]
+  reports         Report[]           @relation("ReportedBy")
+  receivedReports Report[]           @relation("ReportedUser")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  accounts        Account[]
+  sessions        Session[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+model Neighborhood {
+  id           String             @id @default(cuid())
+  name         String
+  city         String
+  district     String
+  lat          Float?
+  lng          Float?
+  users        UserNeighborhood[]
+  posts        Post[]
+  @@unique([name, city, district], name: "name_city_district")
+}
+
+model UserNeighborhood {
+  id             String       @id @default(cuid())
+  userId         String
+  neighborhoodId String
+  isPrimary      Boolean      @default(false)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  neighborhood   Neighborhood @relation(fields: [neighborhoodId], references: [id])
+  @@unique([userId, neighborhoodId])
+}
+
+model Post {
+  id               String          @id @default(cuid())
+  authorId         String
+  neighborhoodId   String?
+  type             PostType
+  scope            PostScope       @default(LOCAL)
+  status           PostStatus      @default(ACTIVE)
+  title            String
+  content          String          @db.Text
+  viewCount        Int             @default(0)
+  likeCount        Int             @default(0)
+  commentCount     Int             @default(0)
+  author           User            @relation(fields: [authorId], references: [id])
+  neighborhood     Neighborhood?   @relation(fields: [neighborhoodId], references: [id])
+  comments         Comment[]
+  images           PostImage[]
+  reports          Report[]
+  hospitalReview   HospitalReview?
+  placeReview      PlaceReview?
+  walkRoute        WalkRoute?
+  meetup           Meetup?
+  marketListing    MarketListing?
+  lostFoundAlert   LostFoundAlert?
+  qaQuestion       QaQuestion?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  @@index([authorId])
+  @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
+  @@index([type, scope, status])
+}
+
+enum PostType {
+  HOSPITAL_REVIEW
+  PLACE_REVIEW
+  WALK_ROUTE
+  MEETUP
+  MARKET_LISTING
+  LOST_FOUND
+  QA_QUESTION
+  QA_ANSWER
+  FREE_POST
+  FREE_BOARD
+  DAILY_SHARE
+  PRODUCT_REVIEW
+  PET_SHOWCASE
+}
+
+enum PostScope {
+  LOCAL
+  GLOBAL
+}
+
+enum PostStatus {
+  ACTIVE
+  HIDDEN
+  DELETED
+}
+
+model HospitalReview {
+  id            String   @id @default(cuid())
+  postId        String   @unique
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hospitalName  String
+  visitDate     DateTime
+  treatmentType String
+  totalCost     Int?
+  waitTime      Int?
+  rating        Int
+  costBreakdown Json?
+}
+
+model WalkRoute {
+  id              String          @id @default(cuid())
+  postId          String          @unique
+  post            Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  routeName       String
+  distance        Float?
+  duration        Int?
+  difficulty      RouteDifficulty @default(EASY)
+  coordinates     Json
+  hasStreetLights Boolean         @default(false)
+  hasRestroom     Boolean         @default(false)
+  hasParkingLot   Boolean         @default(false)
+  safetyTags      String[]
+}
+
+enum RouteDifficulty {
+  EASY
+  MODERATE
+  HARD
+}
+
+model MarketListing {
+  id            String        @id @default(cuid())
+  postId        String        @unique
+  post          Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  listingType   MarketType
+  price         Int
+  condition     ItemCondition @default(GOOD)
+  depositAmount Int?
+  rentalPeriod  String?
+  status        MarketStatus  @default(AVAILABLE)
+}
+
+enum MarketType {
+  SELL
+  RENT
+  SHARE
+}
+
+enum ItemCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum MarketStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  CANCELLED
+}
+
+model PlaceReview {
+  id           String  @id @default(cuid())
+  postId       String  @unique
+  post         Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  placeName    String
+  placeType    String
+  address      String?
+  isPetAllowed Boolean @default(true)
+  rating       Int
+}
+
+model Meetup {
+  id              String       @id @default(cuid())
+  postId          String       @unique
+  post            Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  meetupDate      DateTime
+  location        String
+  maxParticipants Int          @default(10)
+  currentCount    Int          @default(0)
+  status          MeetupStatus @default(OPEN)
+}
+
+enum MeetupStatus {
+  OPEN
+  FULL
+  CLOSED
+  CANCELLED
+}
+
+model LostFoundAlert {
+  id               String          @id @default(cuid())
+  postId           String          @unique
+  post             Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  alertType        LostFoundType
+  petType          String
+  breed            String?
+  lastSeenAt       DateTime
+  lastSeenLocation String
+  lat              Float?
+  lng              Float?
+  status           LostFoundStatus @default(ACTIVE)
+}
+
+enum LostFoundType {
+  LOST
+  FOUND
+}
+
+enum LostFoundStatus {
+  ACTIVE
+  RESOLVED
+  CLOSED
+}
+
+model QaQuestion {
+  id               String   @id @default(cuid())
+  postId           String   @unique
+  post             Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tags             String[]
+  acceptedAnswerId String?
+  answerCount      Int      @default(0)
+}
+
+model Comment {
+  id        String     @id @default(cuid())
+  postId    String
+  authorId  String
+  parentId  String?
+  content   String     @db.Text
+  status    PostStatus @default(ACTIVE)
+  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id])
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[]  @relation("CommentReplies")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  @@index([postId, createdAt(sort: Desc)])
+}
+
+model PostImage {
+  id     String @id @default(cuid())
+  postId String
+  url    String
+  order  Int    @default(0)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id           String        @id @default(cuid())
+  reporterId   String
+  targetType   ReportTarget
+  targetId     String
+  targetUserId String?
+  reason       ReportReason
+  description  String?
+  status       ReportStatus  @default(PENDING)
+  reporter     User          @relation("ReportedBy", fields: [reporterId], references: [id])
+  targetUser   User?         @relation("ReportedUser", fields: [targetUserId], references: [id])
+  post         Post?         @relation(fields: [targetId], references: [id])
+  resolvedAt   DateTime?
+  resolvedBy   String?
+  resolution   String?
+  createdAt    DateTime      @default(now())
+  @@index([targetType, targetId])
+  @@index([status])
+}
+
+enum ReportTarget {
+  POST
+  COMMENT
+  USER
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE
+  FAKE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}

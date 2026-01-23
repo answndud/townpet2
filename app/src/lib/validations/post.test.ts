@@ -1,0 +1,64 @@
+import { PostScope, PostType } from "@prisma/client";
+import { describe, expect, it } from "vitest";
+
+import {
+  hospitalReviewSchema,
+  placeReviewSchema,
+  postCreateSchema,
+  postListSchema,
+  walkRouteSchema,
+} from "@/lib/validations/post";
+
+describe("post validations", () => {
+  it("accepts a valid post create payload", () => {
+    const result = postCreateSchema.safeParse({
+      title: "테스트",
+      content: "내용",
+      type: PostType.FREE_BOARD,
+      scope: PostScope.LOCAL,
+      neighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7k",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid hospital review rating", () => {
+    const result = hospitalReviewSchema.safeParse({
+      hospitalName: "동물병원",
+      visitDate: "2026-01-01",
+      treatmentType: "검진",
+      rating: 6,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts place review defaults", () => {
+    const result = placeReviewSchema.safeParse({
+      placeName: "펫카페",
+      placeType: "카페",
+      rating: 5,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.isPetAllowed).toBe(true);
+  });
+
+  it("parses walk route defaults", () => {
+    const result = walkRouteSchema.safeParse({
+      routeName: "산책로",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.difficulty).toBe("EASY");
+  });
+
+  it("accepts list filters", () => {
+    const result = postListSchema.safeParse({
+      type: PostType.PET_SHOWCASE,
+      scope: PostScope.GLOBAL,
+    });
+
+    expect(result.success).toBe(true);
+  });
+});

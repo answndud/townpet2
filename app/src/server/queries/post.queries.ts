@@ -1,0 +1,173 @@
+import { PostScope, PostStatus, PostType } from "@prisma/client";
+
+import { prisma } from "@/lib/prisma";
+
+type PostListOptions = {
+  cursor?: string;
+  limit: number;
+  type?: PostType;
+  scope?: PostScope;
+  q?: string;
+};
+
+export async function getPostById(id?: string) {
+  if (!id) {
+    return null;
+  }
+
+  return prisma.post.findUnique({
+    where: { id },
+    include: {
+      author: { select: { id: true, name: true, nickname: true, image: true } },
+      neighborhood: {
+        select: { id: true, name: true, city: true, district: true },
+      },
+      hospitalReview: {
+        select: {
+          hospitalName: true,
+          totalCost: true,
+          waitTime: true,
+          rating: true,
+          treatmentType: true,
+          visitDate: true,
+        },
+      },
+      placeReview: {
+        select: {
+          placeName: true,
+          placeType: true,
+          address: true,
+          isPetAllowed: true,
+          rating: true,
+        },
+      },
+      walkRoute: {
+        select: {
+          routeName: true,
+          distance: true,
+          duration: true,
+          difficulty: true,
+          hasStreetLights: true,
+          hasRestroom: true,
+          hasParkingLot: true,
+          safetyTags: true,
+        },
+      },
+    },
+  });
+}
+
+export async function listPosts({ cursor, limit, type, scope, q }: PostListOptions) {
+  const items = await prisma.post.findMany({
+    where: {
+      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+      ...(type ? { type } : {}),
+      ...(scope ? { scope } : {}),
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { content: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    take: limit + 1,
+    ...(cursor
+      ? {
+          cursor: { id: cursor },
+          skip: 1,
+        }
+      : {}),
+    orderBy: { createdAt: "desc" },
+    include: {
+      author: { select: { id: true, name: true, nickname: true, image: true } },
+      neighborhood: {
+        select: { id: true, name: true, city: true, district: true },
+      },
+      hospitalReview: {
+        select: {
+          hospitalName: true,
+          totalCost: true,
+          waitTime: true,
+          rating: true,
+        },
+      },
+      placeReview: {
+        select: {
+          placeName: true,
+          placeType: true,
+          address: true,
+          isPetAllowed: true,
+          rating: true,
+        },
+      },
+      walkRoute: {
+        select: {
+          routeName: true,
+          distance: true,
+          duration: true,
+          difficulty: true,
+          hasStreetLights: true,
+          hasRestroom: true,
+          hasParkingLot: true,
+          safetyTags: true,
+        },
+      },
+    },
+  });
+
+  let nextCursor: string | null = null;
+  if (items.length > limit) {
+    const nextItem = items.pop();
+    nextCursor = nextItem?.id ?? null;
+  }
+
+  return { items, nextCursor };
+}
+
+type UserPostListOptions = {
+  authorId: string;
+  scope?: PostScope;
+  type?: PostType;
+  q?: string;
+};
+
+export async function listUserPosts({
+  authorId,
+  scope,
+  type,
+  q,
+}: UserPostListOptions) {
+  return prisma.post.findMany({
+    where: {
+      authorId,
+      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+      ...(scope ? { scope } : {}),
+      ...(type ? { type } : {}),
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { content: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      neighborhood: {
+        select: { id: true, name: true, city: true, district: true },
+      },
+      hospitalReview: {
+        select: { hospitalName: true, rating: true },
+      },
+      placeReview: {
+        select: { placeName: true, rating: true, isPetAllowed: true },
+      },
+      walkRoute: {
+        select: { routeName: true, distance: true },
+      },
+    },
+  });
+}
