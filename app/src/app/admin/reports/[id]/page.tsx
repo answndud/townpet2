@@ -67,28 +67,41 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
 
         <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <span className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
                 상태
               </span>
-              <span className="text-lg font-semibold text-[#2a241c]">
-                {statusLabels[report.status]}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    report.status === ReportStatus.PENDING
+                      ? "bg-[#f2c07c] text-[#2a241c]"
+                      : report.status === ReportStatus.RESOLVED
+                        ? "bg-[#2a241c] text-white"
+                        : "bg-[#cbbba5] text-white"
+                  }`}
+                >
+                  {statusLabels[report.status]}
+                </span>
+                <span className="text-xs text-[#9a8462]">
+                  신고 ID: {report.id}
+                </span>
+              </div>
             </div>
-            <div className="text-xs text-[#9a8462]">
-              신고 ID: {report.id}
+            <div className="grid gap-1 text-xs text-[#6f6046]">
+              <span>대상: {targetLabels[report.targetType]}</span>
+              <span>신고 시간: {formatDateTime(report.createdAt)}</span>
             </div>
           </div>
           <div className="mt-6 grid gap-4 text-sm text-[#6f6046]">
             <div>
-              대상: {targetLabels[report.targetType]} / {report.targetId}
+              대상 ID: {report.targetId}
             </div>
             <div>사유: {report.reason}</div>
             <div>설명: {report.description ?? "-"}</div>
             <div>
               신고자: {report.reporter.nickname ?? report.reporter.email}
             </div>
-            <div>신고 시간: {formatDateTime(report.createdAt)}</div>
             <div>
               처리자: {report.resolvedBy ?? "-"}
             </div>
@@ -97,19 +110,67 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
           </div>
         </section>
 
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-[#e3d6c4] bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
+              Reporter
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#2a241c]">
+              {report.reporter.nickname ?? report.reporter.email}
+            </p>
+            <p className="text-xs text-[#6f6046]">신고자</p>
+          </div>
+          <div className="rounded-2xl border border-[#e3d6c4] bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
+              Target
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#2a241c]">
+              {targetLabels[report.targetType]}
+            </p>
+            <p className="text-xs text-[#6f6046]">신고 대상</p>
+          </div>
+          <div className="rounded-2xl border border-[#e3d6c4] bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
+              Resolution
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#2a241c]">
+              {report.resolution ?? "미처리"}
+            </p>
+            <p className="text-xs text-[#6f6046]">처리 메모</p>
+          </div>
+        </section>
+
         <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">대상 정보</h2>
           <div className="mt-4 text-sm text-[#6f6046]">
             {report.post ? (
-              <Link
-                href={`/posts/${report.post.id}`}
-                className="font-semibold text-[#2a241c]"
-              >
-                {report.post.title}
-              </Link>
+              <div className="flex flex-col gap-2 rounded-2xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
+                    게시글
+                  </span>
+                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
+                    {report.post.status}
+                  </span>
+                </div>
+                <Link
+                  href={`/posts/${report.post.id}`}
+                  className="font-semibold text-[#2a241c]"
+                >
+                  {report.post.title}
+                </Link>
+                <span className="text-xs text-[#9a8462]">게시글로 이동</span>
+              </div>
             ) : report.targetType === ReportTarget.COMMENT && comment ? (
-              <div className="flex flex-col gap-1">
-                <span className="font-semibold text-[#2a241c]">댓글 내용</span>
+              <div className="flex flex-col gap-2 rounded-2xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
+                    댓글
+                  </span>
+                  <span className="text-xs text-[#9a8462]">
+                    {comment.author.nickname ?? comment.author.name ?? "익명"}
+                  </span>
+                </div>
                 <span>{comment.content}</span>
                 <Link
                   href={`/posts/${comment.postId}`}
@@ -119,8 +180,16 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
                 </Link>
               </div>
             ) : report.targetType === ReportTarget.USER && targetUser ? (
-              <div>
-                사용자: {targetUser.nickname ?? targetUser.email}
+              <div className="flex flex-col gap-2 rounded-2xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
+                    사용자
+                  </span>
+                </div>
+                <span className="font-semibold text-[#2a241c]">
+                  {targetUser.nickname ?? targetUser.email}
+                </span>
+                <span className="text-xs text-[#9a8462]">신고 대상</span>
               </div>
             ) : (
               <div>대상을 찾을 수 없습니다.</div>
@@ -131,7 +200,11 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
         <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">처리 작업</h2>
           <div className="mt-4">
-            <ReportActions reportId={report.id} status={report.status} />
+            <ReportActions
+              reportId={report.id}
+              status={report.status}
+              redirectTo="/admin/reports?updated=1"
+            />
           </div>
         </section>
 
