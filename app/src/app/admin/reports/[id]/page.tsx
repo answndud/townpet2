@@ -48,6 +48,9 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
   const targetUserIds = report.targetUserId ? [report.targetUserId] : [];
   const targetUsers = await listUsersByIds(targetUserIds);
   const targetUser = targetUsers[0];
+  const resolverIds = report.resolvedBy ? [report.resolvedBy] : [];
+  const resolvers = await listUsersByIds(resolverIds);
+  const resolver = resolvers[0];
 
   const formatDateTime = (date: Date | null) =>
     date ? date.toLocaleString("ko-KR") : "-";
@@ -91,6 +94,12 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
             <div className="grid gap-1 text-xs text-[#6f6046]">
               <span>대상: {targetLabels[report.targetType]}</span>
               <span>신고 시간: {formatDateTime(report.createdAt)}</span>
+              <span className="flex flex-wrap items-center gap-2">
+                처리자:
+                <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
+                  {resolver?.nickname ?? resolver?.email ?? report.resolvedBy ?? "-"}
+                </span>
+              </span>
             </div>
           </div>
           <div className="mt-6 grid gap-4 text-sm text-[#6f6046]">
@@ -101,9 +110,6 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
             <div>설명: {report.description ?? "-"}</div>
             <div>
               신고자: {report.reporter.nickname ?? report.reporter.email}
-            </div>
-            <div>
-              처리자: {report.resolvedBy ?? "-"}
             </div>
             <div>처리 메모: {report.resolution ?? "-"}</div>
             <div>처리 시간: {formatDateTime(report.resolvedAt)}</div>
@@ -146,8 +152,8 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
             {report.post ? (
               <div className="flex flex-col gap-2 rounded-2xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
-                    게시글
+                  <span className="rounded-full border border-[#e3d6c4] bg-[#fff6e7] px-2 py-0.5 text-[10px] text-[#6f6046]">
+                    📝 게시글
                   </span>
                   <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
                     {report.post.status}
@@ -164,8 +170,8 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
             ) : report.targetType === ReportTarget.COMMENT && comment ? (
               <div className="flex flex-col gap-2 rounded-2xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
-                    댓글
+                  <span className="rounded-full border border-[#e3d6c4] bg-[#eef6ff] px-2 py-0.5 text-[10px] text-[#496381]">
+                    💬 댓글
                   </span>
                   <span className="text-xs text-[#9a8462]">
                     {comment.author.nickname ?? comment.author.name ?? "익명"}
@@ -182,11 +188,11 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
             ) : report.targetType === ReportTarget.USER && targetUser ? (
               <div className="flex flex-col gap-2 rounded-2xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
-                    사용자
+                  <span className="rounded-full border border-[#e3d6c4] bg-[#f3f0ff] px-2 py-0.5 text-[10px] text-[#5b5489]">
+                    👤 사용자
                   </span>
                 </div>
-                <span className="font-semibold text-[#2a241c]">
+                <span className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1 text-xs font-semibold text-[#2a241c]">
                   {targetUser.nickname ?? targetUser.email}
                 </span>
                 <span className="text-xs text-[#9a8462]">신고 대상</span>
@@ -210,25 +216,38 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
 
         <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">처리 이력</h2>
-          <div className="mt-4 flex flex-col gap-2 text-sm text-[#6f6046]">
+          <div className="mt-4 text-sm text-[#6f6046]">
             {audits.length > 0 ? (
-              audits.map((audit) => (
-                <div key={audit.id} className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
-                    {statusLabels[audit.status]}
-                  </span>
-                  <span>{audit.resolution ?? "메모 없음"}</span>
-                  <span className="text-xs text-[#9a8462]">
-                    {audit.resolver?.nickname ??
-                      audit.resolver?.email ??
-                      audit.resolvedBy ??
-                      "-"}
-                  </span>
-                  <span className="text-xs text-[#9a8462]">
-                    {formatDateTime(audit.createdAt)}
-                  </span>
-                </div>
-              ))
+              <div className="flex flex-col gap-4 border-l border-[#e3d6c4] pl-4">
+                {audits.map((audit) => (
+                  <div key={audit.id} className="relative pl-2">
+                    <span className="absolute left-[-20px] top-1.5 h-2.5 w-2.5 rounded-full border border-[#e3d6c4] bg-[#fdf9f2]" />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full border border-[#e3d6c4] px-2 py-0.5 text-[10px] ${
+                          audit.status === ReportStatus.PENDING
+                            ? "bg-[#f2c07c] text-[#2a241c]"
+                            : audit.status === ReportStatus.RESOLVED
+                              ? "bg-[#2a241c] text-white"
+                              : "bg-[#cbbba5] text-white"
+                        }`}
+                      >
+                        {statusLabels[audit.status]}
+                      </span>
+                      <span>{audit.resolution ?? "메모 없음"}</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#9a8462]">
+                      <span>
+                        {audit.resolver?.nickname ??
+                          audit.resolver?.email ??
+                          audit.resolvedBy ??
+                          "-"}
+                      </span>
+                      <span>{formatDateTime(audit.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <span className="text-xs text-[#9a8462]">이력 없음</span>
             )}
