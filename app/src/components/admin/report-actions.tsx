@@ -7,9 +7,10 @@ import { useState, useTransition } from "react";
 type ReportActionsProps = {
   reportId: string;
   status: ReportStatus;
+  redirectTo?: string;
 };
 
-export function ReportActions({ reportId, status }: ReportActionsProps) {
+export function ReportActions({ reportId, status, redirectTo }: ReportActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -36,6 +37,10 @@ export function ReportActions({ reportId, status }: ReportActionsProps) {
 
       setMessage("처리 완료");
       setResolution("");
+      if (redirectTo) {
+        router.push(redirectTo);
+        return;
+      }
       router.refresh();
     });
   };

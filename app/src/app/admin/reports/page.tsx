@@ -9,7 +9,7 @@ import { listReports } from "@/server/queries/report.queries";
 import { listUsersByIds } from "@/server/queries/user.queries";
 
 type ReportsPageProps = {
-  searchParams?: Promise<{ status?: ReportStatus }>;
+  searchParams?: Promise<{ status?: ReportStatus; updated?: string }>;
 };
 
 const statusLabels: Record<ReportStatus, string> = {
@@ -31,6 +31,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   )
     ? (resolvedParams.status as ReportStatus)
     : ReportStatus.PENDING;
+  const showUpdated = resolvedParams.updated === "1";
   const reports = await listReports({ status });
   const reportIds = reports.map((report) => report.id);
   const commentIds = reports
@@ -70,6 +71,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             PENDING 상태의 신고를 검토하고 처리합니다.
           </p>
         </header>
+
+        {showUpdated ? (
+          <div className="rounded-2xl border border-[#e3d6c4] bg-[#fdf9f2] px-4 py-3 text-xs text-[#6f6046]">
+            신고 처리 결과가 반영되었습니다.
+          </div>
+        ) : null}
 
         <section className="flex flex-wrap items-center gap-2 text-xs text-[#6f6046]">
           {Object.values(ReportStatus).map((value) => (
