@@ -19,6 +19,7 @@ model User {
   comments        Comment[]
   reports         Report[]           @relation("ReportedBy")
   receivedReports Report[]           @relation("ReportedUser")
+  reportAudits    ReportAudit[]      @relation("ReportAuditResolvedBy")
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   accounts        Account[]
@@ -280,8 +281,21 @@ model Report {
   resolvedBy   String?
   resolution   String?
   createdAt    DateTime      @default(now())
+  audits       ReportAudit[]
   @@index([targetType, targetId])
   @@index([status])
+}
+
+model ReportAudit {
+  id         String       @id @default(cuid())
+  reportId   String
+  status     ReportStatus
+  resolution String?
+  resolvedBy String?
+  report     Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  resolver   User?        @relation("ReportAuditResolvedBy", fields: [resolvedBy], references: [id])
+  createdAt  DateTime     @default(now())
+  @@index([reportId, createdAt(sort: Desc)])
 }
 
 enum ReportTarget {

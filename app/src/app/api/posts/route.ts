@@ -9,23 +9,49 @@ import { ServiceError } from "@/server/services/service-error";
 import { createPost } from "@/server/services/post.service";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const parsed = postListSchema.safeParse({
-    cursor: searchParams.get("cursor") ?? undefined,
-    limit: searchParams.get("limit") ?? undefined,
-    type: searchParams.get("type") ?? undefined,
-    scope: searchParams.get("scope") ?? undefined,
-  });
+  try {
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
+    const headerUserId = request.headers.get("x-user-id");
+    const demoEmail = process.env.DEMO_USER_EMAIL;
+    const demoUser = demoEmail ? await getUserByEmail(demoEmail) : null;
+    const rateKey = headerUserId
+      ? `feed:user:${headerUserId}`
+      : demoUser
+        ? `feed:user:${demoUser.id}`
+        : `feed:ip:${clientIp}`;
+    enforceRateLimit({ key: rateKey, limit: 30, windowMs: 60_000 });
+    const { searchParams } = new URL(request.url);
+    const parsed = postListSchema.safeParse({
+      cursor: searchParams.get("cursor") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      type: searchParams.get("type") ?? undefined,
+      scope: searchParams.get("scope") ?? undefined,
+      q: searchParams.get("q") ?? undefined,
+    });
 
-  if (!parsed.success) {
-    return jsonError(400, {
-      code: "INVALID_QUERY",
-      message: "잘못된 요청 파라미터입니다.",
+    if (!parsed.success) {
+      return jsonError(400, {
+        code: "INVALID_QUERY",
+        message: "잘못된 요청 파라미터입니다.",
+      });
+    }
+
+    const data = await listPosts(parsed.data);
+    return jsonOk(data);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
+    return jsonError(500, {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "서버 오류가 발생했습니다.",
     });
   }
-
-  const data = await listPosts(parsed.data);
-  return jsonOk(data);
 }
 
 export async function POST(request: NextRequest) {

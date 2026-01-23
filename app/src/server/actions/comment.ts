@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { enforceRateLimit } from "@/server/rate-limit";
 import { getUserByEmail } from "@/server/queries/user.queries";
 import { createComment, deleteComment, updateComment } from "@/server/services/comment.service";
 import { ServiceError } from "@/server/services/service-error";
@@ -23,6 +24,7 @@ export async function createCommentAction(
       return { ok: false, code: "USER_NOT_FOUND", message: "작성자를 찾을 수 없습니다." };
     }
 
+    enforceRateLimit({ key: `comments:${user.id}`, limit: 10, windowMs: 60_000 });
     await createComment({ authorId: user.id, postId, input, parentId });
     revalidatePath(`/posts/${postId}`);
     return { ok: true };

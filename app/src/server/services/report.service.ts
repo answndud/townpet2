@@ -98,6 +98,15 @@ export async function updateReport({
       },
     });
 
+    await tx.reportAudit.create({
+      data: {
+        reportId: report.id,
+        status: parsed.data.status,
+        resolution: parsed.data.resolution,
+        resolvedBy: moderatorId,
+      },
+    });
+
     if (report.targetType === ReportTarget.POST && report.post) {
       if (parsed.data.status === ReportStatus.DISMISSED) {
         await tx.post.update({
