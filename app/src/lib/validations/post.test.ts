@@ -25,7 +25,6 @@ describe("post validations", () => {
   it("rejects invalid hospital review rating", () => {
     const result = hospitalReviewSchema.safeParse({
       hospitalName: "동물병원",
-      visitDate: "2026-01-01",
       treatmentType: "검진",
       rating: 6,
     });
@@ -41,7 +40,7 @@ describe("post validations", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.data?.isPetAllowed).toBe(true);
+    expect(result.data?.isPetAllowed).toBeUndefined();
   });
 
   it("parses walk route defaults", () => {
@@ -50,7 +49,7 @@ describe("post validations", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.data?.difficulty).toBe("EASY");
+    expect(result.data?.difficulty).toBeUndefined();
   });
 
   it("accepts list filters", () => {

@@ -14,6 +14,7 @@ type NeighborhoodOption = {
 
 type PostCreateFormProps = {
   neighborhoods: NeighborhoodOption[];
+  defaultNeighborhoodId?: string;
 };
 
 const postTypeOptions = [
@@ -32,7 +33,10 @@ const scopeOptions = [
   { value: PostScope.GLOBAL, label: "온동네" },
 ];
 
-export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
+export function PostCreateForm({
+  neighborhoods,
+  defaultNeighborhoodId = "",
+}: PostCreateFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [formState, setFormState] = useState({
@@ -40,27 +44,26 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
     content: "",
     type: PostType.HOSPITAL_REVIEW,
     scope: PostScope.LOCAL,
-    neighborhoodId: "",
+    neighborhoodId: defaultNeighborhoodId,
     hospitalReview: {
       hospitalName: "",
-      visitDate: "",
       treatmentType: "",
       totalCost: "",
       waitTime: "",
-      rating: "5",
+      rating: "",
     },
     placeReview: {
       placeName: "",
       placeType: "",
       address: "",
-      isPetAllowed: "true",
-      rating: "5",
+      isPetAllowed: "",
+      rating: "",
     },
     walkRoute: {
       routeName: "",
       distance: "",
       duration: "",
-      difficulty: "EASY",
+      difficulty: "",
       hasStreetLights: "false",
       hasRestroom: "false",
       hasParkingLot: "false",
@@ -82,6 +85,33 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
   const showPlaceReview = formState.type === PostType.PLACE_REVIEW;
   const showWalkRoute = formState.type === PostType.WALK_ROUTE;
 
+  const hasHospitalReview =
+    showHospitalReview &&
+    (formState.hospitalReview.hospitalName.trim().length > 0 ||
+      formState.hospitalReview.treatmentType.trim().length > 0 ||
+      formState.hospitalReview.totalCost.trim().length > 0 ||
+      formState.hospitalReview.waitTime.trim().length > 0 ||
+      formState.hospitalReview.rating.trim().length > 0);
+
+  const hasPlaceReview =
+    showPlaceReview &&
+    (formState.placeReview.placeName.trim().length > 0 ||
+      formState.placeReview.placeType.trim().length > 0 ||
+      formState.placeReview.address.trim().length > 0 ||
+      formState.placeReview.isPetAllowed.trim().length > 0 ||
+      formState.placeReview.rating.trim().length > 0);
+
+  const hasWalkRoute =
+    showWalkRoute &&
+    (formState.walkRoute.routeName.trim().length > 0 ||
+      formState.walkRoute.distance.trim().length > 0 ||
+      formState.walkRoute.duration.trim().length > 0 ||
+      formState.walkRoute.difficulty.trim().length > 0 ||
+      formState.walkRoute.safetyTags.trim().length > 0 ||
+      formState.walkRoute.hasStreetLights === "true" ||
+      formState.walkRoute.hasRestroom === "true" ||
+      formState.walkRoute.hasParkingLot === "true");
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -93,11 +123,24 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
         type: formState.type,
         scope: formState.scope,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : undefined,
-        hospitalReview: showHospitalReview ? formState.hospitalReview : undefined,
-        placeReview: showPlaceReview ? formState.placeReview : undefined,
-        walkRoute: showWalkRoute
+        hospitalReview: hasHospitalReview
+          ? {
+              ...formState.hospitalReview,
+              totalCost: formState.hospitalReview.totalCost || undefined,
+              waitTime: formState.hospitalReview.waitTime || undefined,
+            }
+          : undefined,
+        placeReview: hasPlaceReview
+          ? {
+              ...formState.placeReview,
+              isPetAllowed: formState.placeReview.isPetAllowed || undefined,
+            }
+          : undefined,
+        walkRoute: hasWalkRoute
           ? {
               ...formState.walkRoute,
+              distance: formState.walkRoute.distance || undefined,
+              duration: formState.walkRoute.duration || undefined,
               safetyTags: formState.walkRoute.safetyTags
                 .split(",")
                 .map((tag) => tag.trim())
@@ -118,22 +161,25 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
         hospitalReview: {
           ...prev.hospitalReview,
           hospitalName: "",
-          visitDate: "",
           treatmentType: "",
           totalCost: "",
           waitTime: "",
+          rating: "",
         },
         placeReview: {
           ...prev.placeReview,
           placeName: "",
           placeType: "",
           address: "",
+          isPetAllowed: "",
+          rating: "",
         },
         walkRoute: {
           ...prev.walkRoute,
           routeName: "",
           distance: "",
           duration: "",
+          difficulty: "",
           safetyTags: "",
         },
       }));
@@ -206,7 +252,11 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
         <label className="flex flex-col gap-2 text-sm font-medium">
           동네
           <select
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className={`rounded-lg border px-3 py-2 text-sm transition ${
+              showNeighborhood
+                ? "border-[#e3d6c4] bg-white"
+                : "cursor-not-allowed border-[#e1e1e1] bg-[#f1f1f1] text-[#9a9a9a]"
+            }`}
             value={formState.neighborhoodId}
             onChange={(event) =>
               setFormState((prev) => ({
@@ -245,8 +295,8 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
           <label className="flex flex-col gap-2 text-sm font-medium">
             병원명
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
-              value={formState.hospitalReview.hospitalName}
+            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            value={formState.hospitalReview.hospitalName}
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -257,26 +307,6 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
               placeholder="예: 서초동 24시 동물병원"
-              required
-            />
-          </label>
-
-          <label className="flex flex-col gap-2 text-sm font-medium">
-            방문일
-            <input
-              type="date"
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
-              value={formState.hospitalReview.visitDate}
-              onChange={(event) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  hospitalReview: {
-                    ...prev.hospitalReview,
-                    visitDate: event.target.value,
-                  },
-                }))
-              }
-              required
             />
           </label>
 
@@ -295,7 +325,6 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
               placeholder="예: 피부염 검사"
-              required
             />
           </label>
 
@@ -354,6 +383,7 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
             >
+              <option value="">선택 안함</option>
               {[5, 4, 3, 2, 1].map((value) => (
                 <option key={value} value={value}>
                   {value}점
@@ -381,7 +411,6 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
               placeholder="예: 연남동 펫카페"
-              required
             />
           </label>
 
@@ -400,7 +429,6 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
               placeholder="예: 카페"
-              required
             />
           </label>
 
@@ -437,6 +465,7 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
             >
+              <option value="">선택 안함</option>
               <option value="true">가능</option>
               <option value="false">불가</option>
             </select>
@@ -457,6 +486,7 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
             >
+              <option value="">선택 안함</option>
               {[5, 4, 3, 2, 1].map((value) => (
                 <option key={value} value={value}>
                   {value}점
@@ -484,7 +514,6 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
               placeholder="예: 양재천 산책 코스"
-              required
             />
           </label>
 
@@ -544,6 +573,7 @@ export function PostCreateForm({ neighborhoods }: PostCreateFormProps) {
                 }))
               }
             >
+              <option value="">선택 안함</option>
               <option value="EASY">쉬움</option>
               <option value="MODERATE">보통</option>
               <option value="HARD">어려움</option>

@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PostScope, PostType } from "@prisma/client";
 
+import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { auth } from "@/lib/auth";
 import { postListSchema } from "@/lib/validations/post";
-import { getUserByEmail } from "@/server/queries/user.queries";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
 
 type MyPostsPageProps = {
@@ -30,16 +33,24 @@ const typeLabels: Record<PostType, string> = {
 };
 
 export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
-  const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-  const user = await getUserByEmail(email);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    redirect("/login");
+  }
 
+  const user = await getUserWithNeighborhoods(userId);
   if (!user) {
+    redirect("/login");
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood) {
     return (
-      <div className="min-h-screen">
-        <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
-          <p className="text-sm text-[#6f6046]">사용자를 찾을 수 없습니다.</p>
-        </main>
-      </div>
+      <NeighborhoodGateNotice
+        title="내 작성글을 보려면 동네 설정이 필요합니다."
+        description="대표 동네를 설정하면 작성 내역을 확인할 수 있습니다."
+      />
     );
   }
 

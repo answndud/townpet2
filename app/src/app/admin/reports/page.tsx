@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ReportStatus, ReportTarget } from "@prisma/client";
+import { redirect } from "next/navigation";
+import { ReportStatus, ReportTarget, UserRole } from "@prisma/client";
 import { Fragment } from "react";
 
 import { ReportActions } from "@/components/admin/report-actions";
 import { ReportUpdateBanner } from "@/components/admin/report-update-banner";
+import { getCurrentUser } from "@/server/auth";
 import { listCommentsByIds } from "@/server/queries/comment.queries";
 import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
 import { listReports } from "@/server/queries/report.queries";
@@ -26,6 +28,30 @@ const targetLabels: Record<ReportTarget, string> = {
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const isModerator =
+    user.role === UserRole.ADMIN || user.role === UserRole.MODERATOR;
+
+  if (!isModerator) {
+    return (
+      <div className="min-h-screen">
+        <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-12">
+          <h1 className="text-xl font-semibold">접근 권한이 없습니다.</h1>
+          <p className="text-sm text-[#6f6046]">
+            신고 큐는 관리자 또는 운영자만 접근할 수 있습니다.
+          </p>
+          <Link href="/" className="text-xs text-[#9a8462]">
+            홈으로 돌아가기
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
   const resolvedParams = (await searchParams) ?? {};
   const status = Object.values(ReportStatus).includes(
     resolvedParams.status as ReportStatus,

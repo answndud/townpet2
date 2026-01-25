@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
+import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostDetailEditForm } from "@/components/posts/post-detail-edit-form";
+import { auth } from "@/lib/auth";
 import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
 import { getPostById } from "@/server/queries/post.queries";
-import { getUserByEmail } from "@/server/queries/user.queries";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 type PostEditPageProps = {
   params?: Promise<{ id?: string }>;
@@ -12,14 +14,33 @@ type PostEditPageProps = {
 
 export default async function PostEditPage({ params }: PostEditPageProps) {
   const resolvedParams = (await params) ?? {};
-  const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-  const [post, neighborhoods, user] = await Promise.all([
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    redirect("/login");
+  }
+
+  const user = await getUserWithNeighborhoods(userId);
+  if (!user) {
+    redirect("/login");
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood) {
+    return (
+      <NeighborhoodGateNotice
+        title="수정하려면 동네 설정이 필요합니다."
+        description="대표 동네를 설정하면 게시물을 수정할 수 있습니다."
+      />
+    );
+  }
+
+  const [post, neighborhoods] = await Promise.all([
     getPostById(resolvedParams.id),
     listNeighborhoods(),
-    getUserByEmail(email),
   ]);
 
-  if (!post || !user || post.authorId !== user.id) {
+  if (!post || post.authorId !== user.id) {
     notFound();
   }
 

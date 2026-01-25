@@ -116,12 +116,12 @@ model HospitalReview {
   id            String   @id @default(cuid())
   postId        String   @unique
   post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  hospitalName  String
-  visitDate     DateTime
-  treatmentType String
+  hospitalName  String?
+  visitDate     DateTime?
+  treatmentType String?
   totalCost     Int?
   waitTime      Int?
-  rating        Int
+  rating        Int?
   costBreakdown Json?
 }
 
@@ -129,15 +129,15 @@ model WalkRoute {
   id              String          @id @default(cuid())
   postId          String          @unique
   post            Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
-  routeName       String
+  routeName       String?
   distance        Float?
   duration        Int?
-  difficulty      RouteDifficulty @default(EASY)
+  difficulty      RouteDifficulty?
   coordinates     Json
-  hasStreetLights Boolean         @default(false)
-  hasRestroom     Boolean         @default(false)
-  hasParkingLot   Boolean         @default(false)
-  safetyTags      String[]
+  hasStreetLights Boolean?
+  hasRestroom     Boolean?
+  hasParkingLot   Boolean?
+  safetyTags      String[] @default([])
 }
 
 enum RouteDifficulty {
@@ -182,11 +182,11 @@ model PlaceReview {
   id           String  @id @default(cuid())
   postId       String  @unique
   post         Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  placeName    String
-  placeType    String
+  placeName    String?
+  placeType    String?
   address      String?
-  isPetAllowed Boolean @default(true)
-  rating       Int
+  isPetAllowed Boolean?
+  rating       Int?
 }
 
 model Meetup {

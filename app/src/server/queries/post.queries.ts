@@ -29,7 +29,6 @@ export async function getPostById(id?: string) {
           waitTime: true,
           rating: true,
           treatmentType: true,
-          visitDate: true,
         },
       },
       placeReview: {

@@ -1,9 +1,34 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCreateForm } from "@/components/posts/post-create-form";
+import { auth } from "@/lib/auth";
 import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 export default async function NewPostPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    redirect("/login");
+  }
+
+  const user = await getUserWithNeighborhoods(userId);
+  if (!user) {
+    redirect("/login");
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood) {
+    return (
+      <NeighborhoodGateNotice
+        title="글쓰기를 하려면 동네 설정이 필요합니다."
+        description="대표 동네를 선택하면 로컬 정보를 작성할 수 있습니다."
+      />
+    );
+  }
+
   const neighborhoods = await listNeighborhoods();
 
   return (
@@ -23,7 +48,10 @@ export default async function NewPostPage() {
               템플릿에 맞춰 작성하면 로컬 정보 품질이 올라갑니다.
             </p>
           </div>
-          <PostCreateForm neighborhoods={neighborhoods} />
+          <PostCreateForm
+            neighborhoods={neighborhoods}
+            defaultNeighborhoodId={primaryNeighborhood.neighborhood.id}
+          />
         </section>
       </main>
     </div>
