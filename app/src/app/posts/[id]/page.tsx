@@ -31,6 +31,23 @@ const typeLabels: Record<PostType, string> = {
   PET_SHOWCASE: "내 반려동물 자랑",
 };
 
+const emptyValue = <span className="text-[#b7a68b]">비워둠</span>;
+
+const renderTextValue = (value: string | null | undefined) =>
+  value && value.trim().length > 0 ? value : emptyValue;
+
+const renderNumberValue = (
+  value: number | null | undefined,
+  suffix = "",
+) =>
+  value !== null && value !== undefined ? `${value}${suffix}` : emptyValue;
+
+const renderBooleanValue = (
+  value: boolean | null | undefined,
+  trueLabel: string,
+  falseLabel: string,
+) => (value === null || value === undefined ? emptyValue : value ? trueLabel : falseLabel);
+
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = (await params) ?? {};
   const session = await auth();
@@ -145,7 +162,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Hospital
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.hospitalName ?? "미기재"}
+                  {renderTextValue(post.hospitalReview.hospitalName)}
                 </p>
               </div>
               <div>
@@ -153,7 +170,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Treatment
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.treatmentType ?? "미기재"}
+                  {renderTextValue(post.hospitalReview.treatmentType)}
                 </p>
               </div>
               <div>
@@ -161,10 +178,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Rating
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.rating !== null &&
-                  post.hospitalReview.rating !== undefined
-                    ? `${post.hospitalReview.rating}점`
-                    : "미기재"}
+                  {renderNumberValue(post.hospitalReview.rating, "점")}
                 </p>
               </div>
               <div>
@@ -175,7 +189,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   {post.hospitalReview.totalCost !== null &&
                   post.hospitalReview.totalCost !== undefined
                     ? `${post.hospitalReview.totalCost.toLocaleString()}원`
-                    : "미기재"}
+                    : emptyValue}
                 </p>
               </div>
               <div>
@@ -183,10 +197,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Waiting
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.waitTime !== null &&
-                  post.hospitalReview.waitTime !== undefined
-                    ? `${post.hospitalReview.waitTime}분`
-                    : "미기재"}
+                  {renderNumberValue(post.hospitalReview.waitTime, "분")}
                 </p>
               </div>
             </div>
@@ -202,7 +213,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Place
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.placeName ?? "미기재"}
+                  {renderTextValue(post.placeReview.placeName)}
                 </p>
               </div>
               <div>
@@ -210,7 +221,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Type
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.placeType ?? "미기재"}
+                  {renderTextValue(post.placeReview.placeType)}
                 </p>
               </div>
               <div>
@@ -218,7 +229,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Address
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.address ?? "미기재"}
+                  {renderTextValue(post.placeReview.address)}
                 </p>
               </div>
               <div>
@@ -226,12 +237,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Pet Friendly
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.isPetAllowed === null ||
-                  post.placeReview.isPetAllowed === undefined
-                    ? "미기재"
-                    : post.placeReview.isPetAllowed
-                      ? "가능"
-                      : "불가"}
+                  {renderBooleanValue(post.placeReview.isPetAllowed, "가능", "불가")}
                 </p>
               </div>
               <div>
@@ -239,10 +245,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Rating
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.rating !== null &&
-                  post.placeReview.rating !== undefined
-                    ? `${post.placeReview.rating}점`
-                    : "미기재"}
+                  {renderNumberValue(post.placeReview.rating, "점")}
                 </p>
               </div>
             </div>
@@ -258,7 +261,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Route
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.routeName ?? "미기재"}
+                  {renderTextValue(post.walkRoute.routeName)}
                 </p>
               </div>
               <div>
@@ -266,10 +269,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Distance
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.distance !== null &&
-                  post.walkRoute.distance !== undefined
-                    ? `${post.walkRoute.distance}km`
-                    : "미기재"}
+                  {renderNumberValue(post.walkRoute.distance, "km")}
                 </p>
               </div>
               <div>
@@ -277,10 +277,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Duration
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.duration !== null &&
-                  post.walkRoute.duration !== undefined
-                    ? `${post.walkRoute.duration}분`
-                    : "미기재"}
+                  {renderNumberValue(post.walkRoute.duration, "분")}
                 </p>
               </div>
               <div>
@@ -288,7 +285,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Difficulty
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.difficulty ?? "미기재"}
+                  {renderTextValue(post.walkRoute.difficulty)}
                 </p>
               </div>
               <div>
