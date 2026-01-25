@@ -1,18 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ReportStatus, ReportTarget, UserRole } from "@prisma/client";
-import { Fragment } from "react";
+import { ReportReason, ReportStatus, ReportTarget, UserRole } from "@prisma/client";
 
-import { ReportActions } from "@/components/admin/report-actions";
+import { ReportQueueTable } from "@/components/admin/report-queue-table";
 import { ReportUpdateBanner } from "@/components/admin/report-update-banner";
 import { getCurrentUser } from "@/server/auth";
 import { listCommentsByIds } from "@/server/queries/comment.queries";
 import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
-import { listReports } from "@/server/queries/report.queries";
+import { getReportStats, listReports } from "@/server/queries/report.queries";
 import { listUsersByIds } from "@/server/queries/user.queries";
 
 type ReportsPageProps = {
-  searchParams?: Promise<{ status?: ReportStatus; updated?: string }>;
+  searchParams?: Promise<{ status?: string; target?: string; updated?: string }>;
 };
 
 const statusLabels: Record<ReportStatus, string> = {
@@ -25,6 +24,14 @@ const targetLabels: Record<ReportTarget, string> = {
   POST: "게시글",
   COMMENT: "댓글",
   USER: "사용자",
+};
+
+const reasonLabels: Record<ReportReason, string> = {
+  SPAM: "스팸",
+  HARASSMENT: "괴롭힘",
+  INAPPROPRIATE: "부적절",
+  FAKE: "허위",
+  OTHER: "기타",
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -53,13 +60,21 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   const resolvedParams = (await searchParams) ?? {};
-  const status = Object.values(ReportStatus).includes(
-    resolvedParams.status as ReportStatus,
-  )
-    ? (resolvedParams.status as ReportStatus)
-    : ReportStatus.PENDING;
+  const statusParam = resolvedParams.status ?? ReportStatus.PENDING;
+  const status =
+    statusParam === "ALL" || Object.values(ReportStatus).includes(statusParam as ReportStatus)
+      ? (statusParam as ReportStatus | "ALL")
+      : ReportStatus.PENDING;
+  const targetParam = resolvedParams.target ?? "ALL";
+  const targetType =
+    targetParam === "ALL" || Object.values(ReportTarget).includes(targetParam as ReportTarget)
+      ? (targetParam as ReportTarget | "ALL")
+      : "ALL";
   const showUpdated = resolvedParams.updated === "1";
-  const reports = await listReports({ status });
+  const [reports, stats] = await Promise.all([
+    listReports({ status, targetType }),
+    getReportStats(7),
+  ]);
   const reportIds = reports.map((report) => report.id);
   const commentIds = reports
     .filter((report) => report.targetType === ReportTarget.COMMENT)
@@ -86,6 +101,66 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const formatResolvedAt = (date: Date | null) =>
     date ? date.toLocaleString("ko-KR") : "-";
 
+  const reportRows = reports.map((report) => {
+    const targetTitle = report.post
+      ? report.post.title
+      : report.targetType === ReportTarget.COMMENT
+        ? commentMap.get(report.targetId)
+          ? `댓글: ${commentMap.get(report.targetId)?.content.slice(0, 40)}`
+          : report.targetId
+        : report.targetId;
+    const targetHref = report.post
+      ? `/posts/${report.post.id}`
+      : report.targetType === ReportTarget.COMMENT
+        ? commentMap.get(report.targetId)
+          ? `/posts/${commentMap.get(report.targetId)?.postId}`
+          : undefined
+        : undefined;
+    const auditsForReport = auditMap.get(report.id) ?? [];
+
+    return {
+      id: report.id,
+      targetType: report.targetType,
+      targetTitle,
+      targetHref,
+      status: report.status,
+      reason: reasonLabels[report.reason] ?? report.reason,
+      description: report.description ?? null,
+      reporterLabel: report.reporter.nickname ?? report.reporter.email,
+      resolution: report.resolution ?? null,
+      resolvedByLabel: report.resolvedBy
+        ? resolverMap.get(report.resolvedBy)?.nickname ??
+          resolverMap.get(report.resolvedBy)?.email ??
+          report.resolvedBy
+        : null,
+      resolvedAtLabel: formatResolvedAt(report.resolvedAt),
+      audits: auditsForReport.map((audit) => ({
+        id: audit.id,
+        status: audit.status,
+        resolution: audit.resolution ?? null,
+        resolverLabel:
+          audit.resolver?.nickname ??
+          audit.resolver?.email ??
+          audit.resolvedBy ??
+          "-",
+        createdAt: formatResolvedAt(audit.createdAt),
+      })),
+    };
+  });
+
+  const buildLink = (nextStatus: ReportStatus | "ALL", nextTarget: ReportTarget | "ALL") => {
+    const params = new URLSearchParams();
+    params.set("status", nextStatus);
+    if (nextTarget !== "ALL") {
+      params.set("target", nextTarget);
+    }
+    return `/admin/reports?${params.toString()}`;
+  };
+
+  const averageResolutionLabel = stats.averageResolutionHours
+    ? `${stats.averageResolutionHours.toFixed(1)}시간`
+    : "-";
+
   return (
     <div className="min-h-screen">
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -103,173 +178,121 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <ReportUpdateBanner message="신고 처리 결과가 반영되었습니다." />
         ) : null}
 
-        <section className="flex flex-wrap items-center gap-2 text-xs text-[#6f6046]">
-          {Object.values(ReportStatus).map((value) => (
-            <Link
-              key={value}
-              href={`/admin/reports?status=${value}`}
-              className={`rounded-md border px-2.5 py-1 transition ${
-                status === value
-                  ? "border-[#2a241c] bg-[#2a241c] text-white"
-                  : "border-[#e3d6c4] bg-white"
-              }`}
-            >
-              {statusLabels[value]}
-            </Link>
-          ))}
-        </section>
-
-        <section className="overflow-hidden rounded-2xl border border-[#e3d6c4] bg-white shadow-sm">
-          {reports.length === 0 ? (
-            <div className="px-6 py-10 text-center text-sm text-[#9a8462]">
-              선택한 상태의 신고가 없습니다.
+        <section className="grid gap-4 rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm md:grid-cols-3">
+          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">전체 신고</p>
+            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+              {stats.totalCount}
+            </p>
+            <p className="text-xs text-[#6f6046]">누적 신고 수</p>
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">미처리</p>
+            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+              {stats.statusCounts[ReportStatus.PENDING]}
+            </p>
+            <p className="text-xs text-[#6f6046]">대기 중 신고</p>
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">승인</p>
+            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+              {stats.statusCounts[ReportStatus.RESOLVED]}
+            </p>
+            <p className="text-xs text-[#6f6046]">처리 완료</p>
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">기각</p>
+            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+              {stats.statusCounts[ReportStatus.DISMISSED]}
+            </p>
+            <p className="text-xs text-[#6f6046]">기각 완료</p>
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">평균 처리</p>
+            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+              {averageResolutionLabel}
+            </p>
+            <p className="text-xs text-[#6f6046]">처리까지 평균 시간</p>
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">사유 분포</p>
+            <div className="mt-3 flex flex-col gap-2 text-xs text-[#6f6046]">
+              {Object.entries(stats.reasonCounts).map(([reason, count]) => (
+                <div key={reason} className="flex items-center justify-between">
+                  <span>{reasonLabels[reason as ReportReason]}</span>
+                  <span className="font-semibold text-[#2a241c]">{count}</span>
+                </div>
+              ))}
             </div>
-          ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-[#fdf9f2] text-xs uppercase tracking-[0.2em] text-[#9a8462]">
-                <tr>
-                  <th className="px-4 py-3">대상</th>
-                  <th className="px-4 py-3">타입</th>
-                  <th className="px-4 py-3">상태</th>
-                  <th className="px-4 py-3">사유</th>
-                  <th className="px-4 py-3">설명</th>
-                  <th className="px-4 py-3">신고자</th>
-                  <th className="px-4 py-3">처리</th>
-                  <th className="px-4 py-3">처리 메모</th>
-                  <th className="px-4 py-3">처리자</th>
-                  <th className="px-4 py-3">처리 시간</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => {
-                  const reportAudits = auditMap.get(report.id) ?? [];
-
-                  return (
-                    <Fragment key={report.id}>
-                      <tr className="border-t border-[#efe4d4]">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        {report.post ? (
-                          <Link
-                            href={`/posts/${report.post.id}`}
-                            className="font-semibold text-[#2a241c]"
-                          >
-                            {report.post.title}
-                          </Link>
-                        ) : report.targetType === ReportTarget.COMMENT ? (
-                          <Link
-                            href={
-                              commentMap.get(report.targetId)
-                                ? `/posts/${commentMap.get(report.targetId)?.postId}`
-                                : `/posts/${report.targetId}`
-                            }
-                            className="font-semibold text-[#2a241c]"
-                          >
-                            {commentMap.get(report.targetId)
-                              ? `댓글: ${commentMap
-                                  .get(report.targetId)
-                                  ?.content.slice(0, 40)}`
-                              : report.targetId}
-                          </Link>
-                        ) : (
-                          <span className="text-[#6f6046]">{report.targetId}</span>
-                        )}
-                        <Link
-                          href={`/admin/reports/${report.id}`}
-                          className="text-[10px] text-[#9a8462]"
-                        >
-                          상세 보기
-                        </Link>
-                      </div>
-                    </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {targetLabels[report.targetType]}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] ${
-                              report.status === ReportStatus.PENDING
-                                ? "bg-[#f2c07c] text-[#2a241c]"
-                                : report.status === ReportStatus.RESOLVED
-                                  ? "bg-[#2a241c] text-white"
-                                  : "bg-[#cbbba5] text-white"
-                            }`}
-                          >
-                            {statusLabels[report.status]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {report.reason}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {report.description ?? "-"}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {report.reporter.nickname ?? report.reporter.email}
-                        </td>
-                        <td className="px-4 py-3">
-                          <ReportActions reportId={report.id} status={report.status} />
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {report.resolution ?? "-"}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {report.resolvedBy
-                            ? resolverMap.get(report.resolvedBy)?.nickname ??
-                              resolverMap.get(report.resolvedBy)?.email ??
-                              report.resolvedBy
-                            : "-"}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#6f6046]">
-                          {formatResolvedAt(report.resolvedAt)}
-                        </td>
-                      </tr>
-                      <tr className="border-t border-[#efe4d4] bg-[#fdf9f2]">
-                        <td colSpan={9} className="px-4 py-3 text-xs text-[#6f6046]">
-                          <div className="flex flex-col gap-2">
-                            <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
-                              처리 이력
-                            </span>
-                            {reportAudits.length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                {reportAudits.map((audit) => (
-                                  <div
-                                    key={audit.id}
-                                    className="flex flex-wrap items-center gap-2"
-                                  >
-                                    <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
-                                      {statusLabels[audit.status]}
-                                    </span>
-                                    <span className="text-xs text-[#6f6046]">
-                                      {audit.resolution ?? "메모 없음"}
-                                    </span>
-                                    <span className="text-xs text-[#9a8462]">
-                                      {audit.resolver?.nickname ??
-                                        audit.resolver?.email ??
-                                        audit.resolvedBy ??
-                                        "-"}
-                                    </span>
-                                    <span className="text-xs text-[#9a8462]">
-                                      {formatResolvedAt(audit.createdAt)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-[#9a8462]">
-                                이력 없음
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">대상 분포</p>
+            <div className="mt-3 flex flex-col gap-2 text-xs text-[#6f6046]">
+              {Object.entries(stats.targetCounts).map(([target, count]) => (
+                <div key={target} className="flex items-center justify-between">
+                  <span>{targetLabels[target as ReportTarget]}</span>
+                  <span className="font-semibold text-[#2a241c]">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[#efe4d4] bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
+              최근 {stats.dailyCounts.length}일
+            </p>
+            <div className="mt-3 flex flex-col gap-2 text-xs text-[#6f6046]">
+              {stats.dailyCounts.map((entry) => (
+                <div key={entry.date} className="flex items-center justify-between">
+                  <span>{entry.date.slice(5)}</span>
+                  <span className="font-semibold text-[#2a241c]">{entry.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
+
+        <section className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c4] bg-white p-4 text-xs text-[#6f6046]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
+              상태 필터
+            </span>
+            {["ALL", ...Object.values(ReportStatus)].map((value) => (
+              <Link
+                key={value}
+                href={buildLink(value as ReportStatus | "ALL", targetType)}
+                className={`rounded-md border px-2.5 py-1 transition ${
+                  status === value
+                    ? "border-[#2a241c] bg-[#2a241c] text-white"
+                    : "border-[#e3d6c4] bg-white"
+                }`}
+              >
+                {value === "ALL" ? "전체" : statusLabels[value as ReportStatus]}
+              </Link>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
+              타입 필터
+            </span>
+            {["ALL", ...Object.values(ReportTarget)].map((value) => (
+              <Link
+                key={value}
+                href={buildLink(status, value as ReportTarget | "ALL")}
+                className={`rounded-md border px-2.5 py-1 transition ${
+                  targetType === value
+                    ? "border-[#2a241c] bg-[#2a241c] text-white"
+                    : "border-[#e3d6c4] bg-white"
+                }`}
+              >
+                {value === "ALL"
+                  ? "전체"
+                  : targetLabels[value as ReportTarget]}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <ReportQueueTable reports={reportRows} />
       </main>
     </div>
   );

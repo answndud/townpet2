@@ -5,12 +5,13 @@ import { ReportStatus, ReportTarget, UserRole } from "@prisma/client";
 import { ReportActions } from "@/components/admin/report-actions";
 import { getCurrentUser } from "@/server/auth";
 import { listCommentsByIds } from "@/server/queries/comment.queries";
-import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
+import { listReportAudits } from "@/server/queries/report-audit.queries";
 import { getReportById } from "@/server/queries/report.queries";
 import { listUsersByIds } from "@/server/queries/user.queries";
 
 type ReportDetailPageProps = {
   params: { id: string };
+  searchParams?: Promise<{ q?: string; order?: string }>;
 };
 
 const statusLabels: Record<ReportStatus, string> = {
@@ -25,7 +26,7 @@ const targetLabels: Record<ReportTarget, string> = {
   USER: "사용자",
 };
 
-export default async function ReportDetailPage({ params }: ReportDetailPageProps) {
+export default async function ReportDetailPage({ params, searchParams }: ReportDetailPageProps) {
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
@@ -70,7 +71,14 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
   const comments = await listCommentsByIds(commentTargetIds);
   const comment = comments[0];
 
-  const audits = await listReportAuditsByReportIds([report.id]);
+  const resolvedParams = (await searchParams) ?? {};
+  const query = resolvedParams.q?.trim() ?? "";
+  const order = resolvedParams.order === "asc" ? "asc" : "desc";
+  const audits = await listReportAudits({
+    reportId: report.id,
+    query: query || undefined,
+    order,
+  });
   const targetUserIds = report.targetUserId ? [report.targetUserId] : [];
   const targetUsers = await listUsersByIds(targetUserIds);
   const targetUser = targetUsers[0];
@@ -242,6 +250,33 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
 
         <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">처리 이력</h2>
+          <form className="mt-4 flex flex-wrap items-center gap-2 text-xs" action="">
+            <input
+              name="q"
+              defaultValue={query}
+              placeholder="처리자/메모/ID 검색"
+              className="w-full max-w-xs rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs"
+            />
+            <select
+              name="order"
+              defaultValue={order}
+              className="rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs"
+            >
+              <option value="desc">최신순</option>
+              <option value="asc">오래된순</option>
+            </select>
+            <button
+              type="submit"
+              className="rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs"
+            >
+              검색
+            </button>
+            {query ? (
+              <Link href={`/admin/reports/${report.id}`} className="text-xs text-[#9a8462]">
+                초기화
+              </Link>
+            ) : null}
+          </form>
           <div className="mt-4 text-sm text-[#6f6046]">
             {audits.length > 0 ? (
               <div className="flex flex-col gap-4 border-l border-[#e3d6c4] pl-4">

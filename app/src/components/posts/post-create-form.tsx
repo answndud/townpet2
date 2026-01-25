@@ -2,6 +2,7 @@
 
 import { PostScope, PostType } from "@prisma/client";
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { createPostAction } from "@/server/actions/post";
 
@@ -37,6 +38,7 @@ export function PostCreateForm({
   neighborhoods,
   defaultNeighborhoodId = "",
 }: PostCreateFormProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [formState, setFormState] = useState({
@@ -154,6 +156,8 @@ export function PostCreateForm({
         return;
       }
 
+      router.push("/");
+      router.refresh();
       setFormState((prev) => ({
         ...prev,
         title: "",
