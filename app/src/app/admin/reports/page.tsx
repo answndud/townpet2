@@ -102,20 +102,24 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     date ? date.toLocaleString("ko-KR") : "-";
 
   const reportRows = reports.map((report) => {
-    const targetTitle = report.post
-      ? report.post.title
-      : report.targetType === ReportTarget.COMMENT
-        ? commentMap.get(report.targetId)
-          ? `댓글: ${commentMap.get(report.targetId)?.content.slice(0, 40)}`
-          : report.targetId
-        : report.targetId;
-    const targetHref = report.post
-      ? `/posts/${report.post.id}`
-      : report.targetType === ReportTarget.COMMENT
-        ? commentMap.get(report.targetId)
-          ? `/posts/${commentMap.get(report.targetId)?.postId}`
+    const targetTitle =
+      report.targetType === ReportTarget.POST
+        ? report.post?.title ?? report.targetId
+        : report.targetType === ReportTarget.COMMENT
+          ? commentMap.get(report.targetId)
+            ? `댓글: ${commentMap.get(report.targetId)?.content.slice(0, 40)}`
+            : report.targetId
+          : report.targetId;
+    const targetHref =
+      report.targetType === ReportTarget.POST
+        ? report.post
+          ? `/posts/${report.post.id}`
           : undefined
-        : undefined;
+        : report.targetType === ReportTarget.COMMENT
+          ? commentMap.get(report.targetId)
+            ? `/posts/${commentMap.get(report.targetId)?.postId}`
+            : undefined
+          : undefined;
     const auditsForReport = auditMap.get(report.id) ?? [];
 
     return {
