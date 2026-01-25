@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import { UserRole } from "@prisma/client";
 
+import { AuthControls } from "@/components/auth/auth-controls";
+import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -20,11 +24,21 @@ export const metadata: Metadata = {
   description: "Local-first pet community workspace",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth().catch(() => null);
+  const currentUser = await getCurrentUser();
+  const canModerate =
+    currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MODERATOR;
+  const userLabel =
+    session?.user?.nickname ??
+    session?.user?.name ??
+    session?.user?.email ??
+    null;
+
   return (
     <html lang="en">
       <body
@@ -47,22 +61,34 @@ export default function RootLayout({
               </Link>
               <Link
                 href="/my-posts"
-                className="rounded-full border border-[#e3d6c4] px-3 py-1"
+                className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
               >
                 내 작성글
               </Link>
               <Link
                 href="/profile"
-                className="rounded-full border border-[#e3d6c4] px-3 py-1"
+                className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
               >
                 내 프로필
               </Link>
-              <Link
-                href="/admin/reports"
-                className="rounded-full border border-[#e3d6c4] px-3 py-1"
-              >
-                신고 큐
-              </Link>
+              {canModerate ? (
+                <Link
+                  href="/admin/reports"
+                  className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
+                >
+                  신고 큐
+                </Link>
+              ) : null}
+              {session?.user ? (
+                <AuthControls label={userLabel ? `${userLabel} 로그아웃` : "로그아웃"} />
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
+                >
+                  로그인
+                </Link>
+              )}
             </nav>
           </header>
           {children}

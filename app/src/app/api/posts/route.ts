@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 import { postListSchema } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
-import { getUserByEmail } from "@/server/queries/user.queries";
+import { getCurrentUser, requireCurrentUser } from "@/server/auth";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 import { ServiceError } from "@/server/services/service-error";
@@ -13,12 +13,11 @@ export async function GET(request: NextRequest) {
     const forwardedFor = request.headers.get("x-forwarded-for");
     const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
     const headerUserId = request.headers.get("x-user-id");
-    const demoEmail = process.env.DEMO_USER_EMAIL;
-    const demoUser = demoEmail ? await getUserByEmail(demoEmail) : null;
+    const currentUser = await getCurrentUser();
     const rateKey = headerUserId
       ? `feed:user:${headerUserId}`
-      : demoUser
-        ? `feed:user:${demoUser.id}`
+      : currentUser
+        ? `feed:user:${currentUser.id}`
         : `feed:ip:${clientIp}`;
     enforceRateLimit({ key: rateKey, limit: 30, windowMs: 60_000 });
     const { searchParams } = new URL(request.url);
@@ -57,16 +56,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-    enforceRateLimit({ key: `posts:${email}`, limit: 5, windowMs: 60_000 });
-    const user = await getUserByEmail(email);
-
-    if (!user) {
-      return jsonError(404, {
-        code: "USER_NOT_FOUND",
-        message: "작성자 정보를 찾을 수 없습니다.",
-      });
-    }
+    const user = await requireCurrentUser();
+    enforceRateLimit({ key: `posts:${user.id}`, limit: 5, windowMs: 60_000 });
 
     const post = await createPost({ authorId: user.id, input: body });
     return jsonOk(post, { status: 201 });

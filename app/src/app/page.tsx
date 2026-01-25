@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PostType } from "@prisma/client";
 
+import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { auth } from "@/lib/auth";
 import { postListSchema } from "@/lib/validations/post";
-import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
 import { listPosts } from "@/server/queries/post.queries";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -30,6 +33,27 @@ const typeLabels: Record<PostType, string> = {
 };
 
 export default async function Home({ searchParams }: HomePageProps) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    redirect("/login");
+  }
+
+  const user = await getUserWithNeighborhoods(userId);
+  if (!user) {
+    redirect("/login");
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood) {
+    return (
+      <NeighborhoodGateNotice
+        title="동네 설정이 필요합니다."
+        description="동네를 설정해야 로컬 피드를 확인할 수 있습니다."
+      />
+    );
+  }
+
   const resolvedParams = (await searchParams) ?? {};
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
@@ -37,10 +61,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const cursor = parsedParams.success ? parsedParams.data.cursor : undefined;
   const limit = parsedParams.success ? parsedParams.data.limit : 20;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
-  const [posts, neighborhoods] = await Promise.all([
-    listPosts({ limit, cursor, type, scope, q: query || undefined }),
-    listNeighborhoods(),
-  ]);
+  const posts = await listPosts({ limit, cursor, type, scope, q: query || undefined });
   const items = posts.items;
   const params = new URLSearchParams();
   if (type) params.set("type", type);

@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requireCurrentUser } from "@/server/auth";
 import { enforceRateLimit } from "@/server/rate-limit";
-import { getUserByEmail } from "@/server/queries/user.queries";
 import { createComment, deleteComment, updateComment } from "@/server/services/comment.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -14,15 +14,10 @@ type CommentActionResult =
 export async function createCommentAction(
   postId: string,
   input: unknown,
-  parentId?: string,
+    parentId?: string,
 ): Promise<CommentActionResult> {
   try {
-    const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-    const user = await getUserByEmail(email);
-
-    if (!user) {
-      return { ok: false, code: "USER_NOT_FOUND", message: "작성자를 찾을 수 없습니다." };
-    }
+    const user = await requireCurrentUser();
 
     enforceRateLimit({ key: `comments:${user.id}`, limit: 10, windowMs: 60_000 });
     await createComment({ authorId: user.id, postId, input, parentId });
@@ -47,12 +42,7 @@ export async function updateCommentAction(
   input: unknown,
 ): Promise<CommentActionResult> {
   try {
-    const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-    const user = await getUserByEmail(email);
-
-    if (!user) {
-      return { ok: false, code: "USER_NOT_FOUND", message: "작성자를 찾을 수 없습니다." };
-    }
+    const user = await requireCurrentUser();
 
     await updateComment({ commentId, authorId: user.id, input });
     revalidatePath(`/posts/${postId}`);
@@ -75,12 +65,7 @@ export async function deleteCommentAction(
   commentId: string,
 ): Promise<CommentActionResult> {
   try {
-    const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-    const user = await getUserByEmail(email);
-
-    if (!user) {
-      return { ok: false, code: "USER_NOT_FOUND", message: "작성자를 찾을 수 없습니다." };
-    }
+    const user = await requireCurrentUser();
 
     await deleteComment({ commentId, authorId: user.id });
     revalidatePath(`/posts/${postId}`);

@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PostType } from "@prisma/client";
 
+import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
 import { PostReportForm } from "@/components/posts/post-report-form";
-import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
+import { auth } from "@/lib/auth";
 import { listComments } from "@/server/queries/comment.queries";
 import { getPostById } from "@/server/queries/post.queries";
-import { getUserByEmail } from "@/server/queries/user.queries";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 type PostDetailPageProps = {
   params?: Promise<{ id?: string }>;
@@ -32,12 +33,30 @@ const typeLabels: Record<PostType, string> = {
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = (await params) ?? {};
-  const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-  const [post, neighborhoods, comments, user] = await Promise.all([
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    redirect("/login");
+  }
+
+  const user = await getUserWithNeighborhoods(userId);
+  if (!user) {
+    redirect("/login");
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood) {
+    return (
+      <NeighborhoodGateNotice
+        title="동네 설정이 필요합니다."
+        description="동네를 설정해야 게시물 상세를 볼 수 있습니다."
+      />
+    );
+  }
+
+  const [post, comments] = await Promise.all([
     getPostById(resolvedParams.id),
-    listNeighborhoods(),
     resolvedParams.id ? listComments(resolvedParams.id) : Promise.resolve([]),
-    getUserByEmail(email),
   ]);
 
   if (!post) {
@@ -126,15 +145,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Hospital
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.hospitalName}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">
-                  Visit
-                </p>
-                <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.visitDate.toLocaleDateString("ko-KR")}
+                  {post.hospitalReview.hospitalName ?? "미기재"}
                 </p>
               </div>
               <div>
@@ -142,7 +153,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Treatment
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.treatmentType}
+                  {post.hospitalReview.treatmentType ?? "미기재"}
                 </p>
               </div>
               <div>
@@ -150,7 +161,10 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Rating
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.rating}점
+                  {post.hospitalReview.rating !== null &&
+                  post.hospitalReview.rating !== undefined
+                    ? `${post.hospitalReview.rating}점`
+                    : "미기재"}
                 </p>
               </div>
               <div>
@@ -158,7 +172,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Cost
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.totalCost !== null
+                  {post.hospitalReview.totalCost !== null &&
+                  post.hospitalReview.totalCost !== undefined
                     ? `${post.hospitalReview.totalCost.toLocaleString()}원`
                     : "미기재"}
                 </p>
@@ -168,7 +183,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Waiting
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.hospitalReview.waitTime !== null
+                  {post.hospitalReview.waitTime !== null &&
+                  post.hospitalReview.waitTime !== undefined
                     ? `${post.hospitalReview.waitTime}분`
                     : "미기재"}
                 </p>
@@ -186,7 +202,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Place
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.placeName}
+                  {post.placeReview.placeName ?? "미기재"}
                 </p>
               </div>
               <div>
@@ -194,7 +210,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Type
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.placeType}
+                  {post.placeReview.placeType ?? "미기재"}
                 </p>
               </div>
               <div>
@@ -210,7 +226,12 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Pet Friendly
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.isPetAllowed ? "가능" : "불가"}
+                  {post.placeReview.isPetAllowed === null ||
+                  post.placeReview.isPetAllowed === undefined
+                    ? "미기재"
+                    : post.placeReview.isPetAllowed
+                      ? "가능"
+                      : "불가"}
                 </p>
               </div>
               <div>
@@ -218,7 +239,10 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Rating
                 </p>
                 <p className="mt-1 font-medium text-zinc-900">
-                  {post.placeReview.rating}점
+                  {post.placeReview.rating !== null &&
+                  post.placeReview.rating !== undefined
+                    ? `${post.placeReview.rating}점`
+                    : "미기재"}
                 </p>
               </div>
             </div>
@@ -234,7 +258,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Route
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.routeName}
+                  {post.walkRoute.routeName ?? "미기재"}
                 </p>
               </div>
               <div>
@@ -242,7 +266,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Distance
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.distance !== null
+                  {post.walkRoute.distance !== null &&
+                  post.walkRoute.distance !== undefined
                     ? `${post.walkRoute.distance}km`
                     : "미기재"}
                 </p>
@@ -252,7 +277,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Duration
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.duration !== null
+                  {post.walkRoute.duration !== null &&
+                  post.walkRoute.duration !== undefined
                     ? `${post.walkRoute.duration}분`
                     : "미기재"}
                 </p>
@@ -262,7 +288,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Difficulty
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.difficulty}
+                  {post.walkRoute.difficulty ?? "미기재"}
                 </p>
               </div>
               <div>
@@ -284,7 +310,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   Safety Tags
                 </p>
                 <p className="mt-1 font-medium text-[#2a241c]">
-                  {post.walkRoute.safetyTags.length > 0
+                  {post.walkRoute.safetyTags && post.walkRoute.safetyTags.length > 0
                     ? post.walkRoute.safetyTags.join(", ")
                     : "없음"}
                 </p>

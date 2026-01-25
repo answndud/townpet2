@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { deletePost, createPost, updatePost } from "@/server/services/post.service";
 import { ServiceError } from "@/server/services/service-error";
-import { getUserByEmail } from "@/server/queries/user.queries";
+import { requireCurrentUser } from "@/server/auth";
 
 type PostActionResult =
   | { ok: true }
@@ -12,12 +12,7 @@ type PostActionResult =
 
 export async function createPostAction(input: unknown): Promise<PostActionResult> {
   try {
-    const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-    const user = await getUserByEmail(email);
-
-    if (!user) {
-      return { ok: false, code: "USER_NOT_FOUND", message: "작성자를 찾을 수 없습니다." };
-    }
+    const user = await requireCurrentUser();
 
     await createPost({ authorId: user.id, input });
     revalidatePath("/");
@@ -37,7 +32,8 @@ export async function createPostAction(input: unknown): Promise<PostActionResult
 
 export async function deletePostAction(postId: string): Promise<PostActionResult> {
   try {
-    await deletePost({ postId });
+    const user = await requireCurrentUser();
+    await deletePost({ postId, authorId: user.id });
     revalidatePath("/");
     revalidatePath(`/posts/${postId}`);
     return { ok: true };
@@ -59,7 +55,8 @@ export async function updatePostAction(
   input: unknown,
 ): Promise<PostActionResult> {
   try {
-    await updatePost({ postId, input });
+    const user = await requireCurrentUser();
+    await updatePost({ postId, authorId: user.id, input });
     revalidatePath("/");
     revalidatePath(`/posts/${postId}`);
     return { ok: true };

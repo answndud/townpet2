@@ -1,19 +1,30 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { getUserByEmail } from "@/server/queries/user.queries";
+import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { auth } from "@/lib/auth";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
 
 export default async function ProfilePage() {
-  const email = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-  const user = await getUserByEmail(email);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    redirect("/login");
+  }
 
+  const user = await getUserWithNeighborhoods(userId);
   if (!user) {
+    redirect("/login");
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood) {
     return (
-      <div className="min-h-screen">
-        <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
-          <p className="text-sm text-[#6f6046]">사용자를 찾을 수 없습니다.</p>
-        </main>
-      </div>
+      <NeighborhoodGateNotice
+        title="프로필을 보려면 동네 설정이 필요합니다."
+        description="대표 동네를 설정하면 프로필 요약을 확인할 수 있습니다."
+      />
     );
   }
 
@@ -71,6 +82,11 @@ export default async function ProfilePage() {
           <div className="mt-4 grid gap-2 text-sm text-[#6f6046]">
             <div>닉네임: {user.nickname ?? "미설정"}</div>
             <div>이메일: {user.email}</div>
+            <div>온보딩 상태: 완료</div>
+            <div>
+              대표 동네: {primaryNeighborhood.neighborhood.city}{" "}
+              {primaryNeighborhood.neighborhood.name}
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#6f6046]">
             <Link
