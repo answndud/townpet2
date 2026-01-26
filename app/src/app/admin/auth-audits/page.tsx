@@ -63,6 +63,15 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
     return `/admin/auth-audits?${params.toString()}`;
   };
 
+  const exportParams = new URLSearchParams();
+  if (action !== "ALL") {
+    exportParams.set("action", action);
+  }
+  if (query) {
+    exportParams.set("q", query);
+  }
+  const exportLink = `/api/admin/auth-audits/export?${exportParams.toString()}`;
+
   const formatDateTime = (date: Date) => date.toLocaleString("ko-KR");
 
   return (
@@ -97,6 +106,12 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
                 초기화
               </Link>
             ) : null}
+            <Link
+              href={exportLink}
+              className="rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs"
+            >
+              CSV 내보내기
+            </Link>
           </form>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
