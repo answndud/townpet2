@@ -72,12 +72,20 @@ export default async function RootLayout({
                 내 프로필
               </Link>
               {canModerate ? (
-                <Link
-                  href="/admin/reports"
-                  className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
-                >
-                  신고 큐
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/admin/reports"
+                    className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
+                  >
+                    신고 큐
+                  </Link>
+                  <Link
+                    href="/admin/auth-audits"
+                    className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
+                  >
+                    인증 로그
+                  </Link>
+                </div>
               ) : null}
               {session?.user ? (
                 <AuthControls label={userLabel ? `${userLabel} 로그아웃` : "로그아웃"} />
