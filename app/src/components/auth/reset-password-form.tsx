@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 type ResetPasswordFormProps = {
@@ -10,6 +11,7 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(false);
   const [email, setEmail] = useState("");
   const [token, setToken] = useState(initialToken ?? "");
   const [password, setPassword] = useState("");
@@ -21,6 +23,7 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
     setError(null);
     setSuccess(false);
     setIssuedToken(null);
+    setRequestSuccess(false);
 
     startTransition(async () => {
       const response = await fetch("/api/auth/password/reset/request", {
@@ -41,6 +44,7 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
       if (newToken && !initialToken) {
         setToken(newToken);
       }
+      setRequestSuccess(true);
     });
   };
 
@@ -75,6 +79,11 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      {initialToken ? (
+        <div className="rounded-xl border border-[#e3d6c4] bg-[#fdf9f2] p-3 text-xs text-[#6f6046]">
+          메일에서 받은 토큰을 확인했습니다. 아래에서 새 비밀번호를 설정해 주세요.
+        </div>
+      ) : null}
       <form onSubmit={handleRequest} className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">재설정 토큰 발급</h2>
         <p className="text-xs text-[#6f6046]">
@@ -95,6 +104,9 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
           <div className="rounded-xl border border-[#e3d6c4] bg-[#fdf9f2] p-3 text-xs text-[#6f6046]">
             발급된 토큰: <span className="font-mono">{issuedToken}</span>
           </div>
+        ) : null}
+        {requestSuccess ? (
+          <p className="text-xs text-emerald-600">이메일을 확인해 주세요.</p>
         ) : null}
         <button
           type="submit"
@@ -141,7 +153,12 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
         </label>
         {error ? <p className="text-xs text-red-500">{error}</p> : null}
         {success ? (
-          <p className="text-xs text-emerald-600">비밀번호가 재설정되었습니다.</p>
+          <div className="flex items-center justify-between text-xs text-emerald-600">
+            <span>비밀번호가 재설정되었습니다.</span>
+            <Link href="/login" className="text-xs text-[#9a8462]">
+              로그인으로 이동
+            </Link>
+          </div>
         ) : null}
         <button
           type="submit"

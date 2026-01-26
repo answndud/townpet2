@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 export function SetPasswordForm() {
@@ -79,7 +80,12 @@ export function SetPasswordForm() {
       </label>
       {error ? <p className="text-xs text-red-500">{error}</p> : null}
       {success ? (
-        <p className="text-xs text-emerald-600">비밀번호가 업데이트되었습니다.</p>
+        <div className="flex items-center justify-between text-xs text-emerald-600">
+          <span>비밀번호가 업데이트되었습니다.</span>
+          <Link href="/profile" className="text-xs text-[#9a8462]">
+            프로필로 이동
+          </Link>
+        </div>
       ) : null}
       <button
         type="submit"
