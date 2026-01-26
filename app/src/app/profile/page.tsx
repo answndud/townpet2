@@ -96,6 +96,12 @@ export default async function ProfilePage() {
               내 작성글 보기
             </Link>
             <Link
+              href="/password/setup"
+              className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
+            >
+              비밀번호 설정
+            </Link>
+            <Link
               href="/my-posts?scope=LOCAL"
               className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
             >

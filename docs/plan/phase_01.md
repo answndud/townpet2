@@ -44,6 +44,7 @@ Phase 0) 프로젝트 초기 스캐폴딩
 - [~] 기본 디렉터리 구조 정리
 - [~] ESLint/TypeScript strict 확인
 - [x] 환경 변수 기본 템플릿 정리
+- [x] 로컬 인증 env 값 등록 (NEXTAUTH_URL/SECRET)
 
 Phase 0.5) DB/Prisma 초기화
 - [x] Docker Postgres 구성
@@ -66,12 +67,14 @@ Phase 0.5) DB/Prisma 초기화
 - [ ] NextAuth v5 기본 로그인 플로우
 - [ ] 사용자 프로필 설정/편집
 - [ ] 동네 선택(대표/보조) 및 정책 반영
+- [x] 동네 미설정 접근 안내 메시지
+- [x] 프로필 온보딩 완료 표시
 
 4) 게시물 코어 (Post 다형성)
 - [x] Post 기본 스키마/상태/인덱스
 - [x] 공통 작성/수정/삭제 Service
 - [x] 기본 피드(커서 pagination)
-- [~] 댓글 작성/리스트
+- [x] 댓글 작성/리스트
 
 5) 병원/장소 리뷰 (Local)
 - [x] 템플릿 기반 폼 필드 정의
