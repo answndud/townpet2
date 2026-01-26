@@ -61,16 +61,6 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     redirect("/login");
   }
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood) {
-    return (
-      <NeighborhoodGateNotice
-        title="동네 설정이 필요합니다."
-        description="동네를 설정해야 게시물 상세를 볼 수 있습니다."
-      />
-    );
-  }
-
   const [post, comments] = await Promise.all([
     getPostById(resolvedParams.id),
     resolvedParams.id ? listComments(resolvedParams.id) : Promise.resolve([]),
@@ -78,6 +68,18 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
 
   if (!post) {
     notFound();
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood && post.scope !== "GLOBAL") {
+    return (
+      <NeighborhoodGateNotice
+        title="동네 설정이 필요합니다."
+        description="동네를 설정해야 로컬 게시물을 볼 수 있습니다."
+        secondaryLink="/?scope=GLOBAL"
+        secondaryLabel="온동네 피드 보기"
+      />
+    );
   }
 
   const isAuthor = user?.id === post.authorId;

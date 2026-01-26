@@ -3,11 +3,15 @@ import Link from "next/link";
 type NeighborhoodGateNoticeProps = {
   title?: string;
   description?: string;
+  secondaryLink?: string;
+  secondaryLabel?: string;
 };
 
 export function NeighborhoodGateNotice({
   title = "동네 설정이 필요합니다.",
   description = "동네를 설정해야 로컬 피드와 작성 기능을 사용할 수 있습니다.",
+  secondaryLink,
+  secondaryLabel,
 }: NeighborhoodGateNoticeProps) {
   return (
     <div className="min-h-screen">
@@ -24,6 +28,14 @@ export function NeighborhoodGateNotice({
           >
             온보딩으로 이동
           </Link>
+          {secondaryLink && secondaryLabel ? (
+            <Link
+              href={secondaryLink}
+              className="rounded-full border border-[#e3d6c4] px-4 py-2"
+            >
+              {secondaryLabel}
+            </Link>
+          ) : null}
           <Link href="/" className="rounded-full border border-[#e3d6c4] px-4 py-2">
             홈으로 돌아가기
           </Link>
