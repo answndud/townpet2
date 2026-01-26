@@ -44,20 +44,22 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
     redirect("/login");
   }
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood) {
-    return (
-      <NeighborhoodGateNotice
-        title="내 작성글을 보려면 동네 설정이 필요합니다."
-        description="대표 동네를 설정하면 작성 내역을 확인할 수 있습니다."
-      />
-    );
-  }
-
   const resolvedParams = (await searchParams) ?? {};
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood && scope !== PostScope.GLOBAL) {
+    return (
+      <NeighborhoodGateNotice
+        title="내 작성글을 보려면 동네 설정이 필요합니다."
+        description="대표 동네를 설정하면 작성 내역을 확인할 수 있습니다."
+        secondaryLink="/my-posts?scope=GLOBAL"
+        secondaryLabel="온동네 글 보기"
+      />
+    );
+  }
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
   const posts = await listUserPosts({
     authorId: user.id,

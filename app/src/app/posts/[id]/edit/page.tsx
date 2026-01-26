@@ -25,16 +25,6 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
     redirect("/login");
   }
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood) {
-    return (
-      <NeighborhoodGateNotice
-        title="수정하려면 동네 설정이 필요합니다."
-        description="대표 동네를 설정하면 게시물을 수정할 수 있습니다."
-      />
-    );
-  }
-
   const [post, neighborhoods] = await Promise.all([
     getPostById(resolvedParams.id),
     listNeighborhoods(),
@@ -42,6 +32,18 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
 
   if (!post || post.authorId !== user.id) {
     notFound();
+  }
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood && post.scope !== "GLOBAL") {
+    return (
+      <NeighborhoodGateNotice
+        title="수정하려면 동네 설정이 필요합니다."
+        description="대표 동네를 설정하면 로컬 게시물을 수정할 수 있습니다."
+        secondaryLink="/onboarding"
+        secondaryLabel="동네 설정하기"
+      />
+    );
   }
 
   return (

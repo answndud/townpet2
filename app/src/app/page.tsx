@@ -44,20 +44,22 @@ export default async function Home({ searchParams }: HomePageProps) {
     redirect("/login");
   }
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood) {
-    return (
-      <NeighborhoodGateNotice
-        title="동네 설정이 필요합니다."
-        description="동네를 설정해야 로컬 피드를 확인할 수 있습니다."
-      />
-    );
-  }
-
   const resolvedParams = (await searchParams) ?? {};
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+
+  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
+  if (!primaryNeighborhood && scope !== "GLOBAL") {
+    return (
+      <NeighborhoodGateNotice
+        title="동네 설정이 필요합니다."
+        description="동네를 설정해야 로컬 피드를 확인할 수 있습니다."
+        secondaryLink="/?scope=GLOBAL"
+        secondaryLabel="온동네 피드 보기"
+      />
+    );
+  }
   const cursor = parsedParams.success ? parsedParams.data.cursor : undefined;
   const limit = parsedParams.success ? parsedParams.data.limit : 20;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
