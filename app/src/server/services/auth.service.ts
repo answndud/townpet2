@@ -2,6 +2,8 @@ import { randomBytes } from "crypto";
 
 import { prisma } from "@/lib/prisma";
 import {
+  emailVerificationConfirmSchema,
+  emailVerificationRequestSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   passwordSetupSchema,
@@ -44,6 +46,94 @@ export async function registerUser({ input }: RegisterUserParams) {
       nickname: true,
     },
   });
+}
+
+type EmailVerificationRequestParams = {
+  input: unknown;
+};
+
+export async function requestEmailVerification({
+  input,
+}: EmailVerificationRequestParams) {
+  const parsed = emailVerificationRequestSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: parsed.data.email },
+    select: { id: true, emailVerified: true },
+  });
+
+  if (!user || user.emailVerified) {
+    return { token: null } as const;
+  }
+
+  await prisma.verificationToken.deleteMany({
+    where: {
+      identifier: parsed.data.email,
+      OR: [{ expires: { lt: new Date() } }],
+    },
+  });
+
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = hashToken(token);
+  const expires = new Date(Date.now() + 60 * 60 * 1000);
+
+  await prisma.verificationToken.create({
+    data: {
+      identifier: parsed.data.email,
+      token: tokenHash,
+      expires,
+    },
+  });
+
+  return { token } as const;
+}
+
+type EmailVerificationConfirmParams = {
+  input: unknown;
+};
+
+export async function confirmEmailVerification({
+  input,
+}: EmailVerificationConfirmParams) {
+  const parsed = emailVerificationConfirmSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  const tokenHash = hashToken(parsed.data.token);
+  const tokenEntry = await prisma.verificationToken.findFirst({
+    where: { token: tokenHash, expires: { gt: new Date() } },
+    select: { identifier: true },
+  });
+
+  if (!tokenEntry) {
+    throw new ServiceError("유효하지 않거나 만료된 토큰입니다.", "INVALID_TOKEN", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: tokenEntry.identifier },
+    select: { id: true, emailVerified: true },
+  });
+
+  if (!user) {
+    throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+  }
+
+  if (!user.emailVerified) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: new Date() },
+    });
+  }
+
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: tokenEntry.identifier },
+  });
+
+  return { email: tokenEntry.identifier } as const;
 }
 
 type SetPasswordParams = {

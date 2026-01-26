@@ -12,7 +12,7 @@ export default function LoginPage() {
           </p>
           <h1 className="text-3xl font-semibold">로그인</h1>
           <p className="text-sm text-[#6f6046]">
-            이메일로 시작하고 동네 설정을 완료해 주세요.
+            이메일 인증을 완료한 후 로그인해 주세요.
           </p>
         </header>
 
@@ -20,9 +20,14 @@ export default function LoginPage() {
           <LoginForm />
         </section>
 
-        <Link href="/" className="text-xs text-[#9a8462]">
-          홈으로 돌아가기
-        </Link>
+        <div className="flex items-center justify-between text-xs text-[#9a8462]">
+          <Link href="/register">처음이신가요? 회원가입</Link>
+          <div className="flex items-center gap-4">
+            <Link href="/verify-email">이메일 인증</Link>
+            <Link href="/password/reset">비밀번호 재설정</Link>
+            <Link href="/">홈으로 돌아가기</Link>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -7,7 +7,7 @@ export function LoginForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -16,13 +16,13 @@ export function LoginForm() {
     startTransition(async () => {
       const result = await signIn("credentials", {
         email,
-        name: name || undefined,
+        password,
         redirect: true,
         callbackUrl: "/onboarding",
       });
 
       if (result?.error) {
-        setError("로그인에 실패했습니다. 이메일을 확인해 주세요.");
+        setError("로그인에 실패했습니다. 이메일 인증 여부를 확인해 주세요.");
       }
     });
   };
@@ -41,12 +41,14 @@ export function LoginForm() {
         />
       </label>
       <label className="flex flex-col gap-2 text-sm font-medium">
-        이름(선택)
+        비밀번호
         <input
+          type="password"
           className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="표시 이름"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="********"
+          required
         />
       </label>
       {error ? <p className="text-xs text-red-500">{error}</p> : null}

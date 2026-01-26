@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/server/password";
 
 const prisma = new PrismaClient();
 
@@ -10,6 +11,12 @@ const neighborhoods = [
 ];
 
 async function main() {
+  const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
+  if (!seedPassword) {
+    throw new Error("SEED_DEFAULT_PASSWORD is required.");
+  }
+  const passwordHash = await hashPassword(seedPassword);
+
   for (const neighborhood of neighborhoods) {
     await prisma.neighborhood.upsert({
       where: {
@@ -31,6 +38,8 @@ async function main() {
       email: "demo@townpet.dev",
       name: "TownPet Demo",
       nickname: "townpet-demo",
+      passwordHash,
+      emailVerified: new Date(),
     },
   });
 
