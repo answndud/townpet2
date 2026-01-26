@@ -1,41 +1,30 @@
 import { NextRequest } from "next/server";
 
-import { registerSchema } from "@/lib/validations/auth";
-import { sendVerificationEmail } from "@/server/email";
+import { emailVerificationConfirmSchema } from "@/lib/validations/auth";
+import { sendWelcomeEmail } from "@/server/email";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
-import { registerUser, requestEmailVerification } from "@/server/services/auth.service";
+import { confirmEmailVerification } from "@/server/services/auth.service";
 import { ServiceError } from "@/server/services/service-error";
 
 export async function POST(request: NextRequest) {
   try {
     const forwardedFor = request.headers.get("x-forwarded-for");
     const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
-    enforceRateLimit({
-      key: `auth:register:${clientIp}`,
-      limit: 5,
-      windowMs: 60_000,
-    });
+    enforceRateLimit({ key: `auth:verify-confirm:${clientIp}`, limit: 5, windowMs: 60_000 });
 
     const body = await request.json();
-    const parsed = registerSchema.safeParse(body);
+    const parsed = emailVerificationConfirmSchema.safeParse(body);
     if (!parsed.success) {
       return jsonError(400, {
         code: "INVALID_INPUT",
-        message: "회원가입 입력값이 올바르지 않습니다.",
+        message: "입력값이 올바르지 않습니다.",
       });
     }
 
-    const user = await registerUser({ input: parsed.data });
-    const verification = await requestEmailVerification({
-      input: { email: user.email },
-    });
-
-    if (verification.token) {
-      await sendVerificationEmail({ email: user.email, token: verification.token });
-    }
-
-    return jsonOk(user, { status: 201 });
+    const result = await confirmEmailVerification({ input: parsed.data });
+    await sendWelcomeEmail(result.email);
+    return jsonOk({ ok: true });
   } catch (error) {
     if (error instanceof ServiceError) {
       return jsonError(error.status, {

@@ -27,8 +27,22 @@ export const passwordResetConfirmSchema = z.object({
   password: passwordSchema,
 });
 
+export const emailVerificationRequestSchema = z.object({
+  email: z.string().email(),
+});
+
+export const emailVerificationConfirmSchema = z.object({
+  token: z.string().min(32),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type PasswordSetupInput = z.infer<typeof passwordSetupSchema>;
 export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema>;
+export type EmailVerificationRequestInput = z.infer<
+  typeof emailVerificationRequestSchema
+>;
+export type EmailVerificationConfirmInput = z.infer<
+  typeof emailVerificationConfirmSchema
+>;

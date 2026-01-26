@@ -1,16 +1,13 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { loginSchema } from "@/lib/validations/auth";
+import { verifyPassword } from "@/server/password";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 const isProd = process.env.NODE_ENV === "production";
-
-const credentialsSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1).max(40).optional(),
-});
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
@@ -31,24 +28,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
-        name: { label: "Name", type: "text" },
+        password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
-        const parsed = credentialsSchema.safeParse(credentials);
+      async authorize(credentials, request) {
+        const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) {
           return null;
         }
 
-        const { email, name } = parsed.data;
-        const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (existingUser) {
-          return existingUser;
+        try {
+          const forwardedFor = request?.headers?.get("x-forwarded-for");
+          const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
+          enforceRateLimit({
+            key: `auth:login:${clientIp}`,
+            limit: 5,
+            windowMs: 60_000,
+          });
+        } catch {
+          return null;
         }
 
-        const created = await prisma.user.create({
-          data: { email, name },
+        const existingUser = await prisma.user.findUnique({
+          where: { email: parsed.data.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            nickname: true,
+            image: true,
+            passwordHash: true,
+            emailVerified: true,
+          },
         });
-        return created;
+
+        if (!existingUser?.passwordHash || !existingUser.emailVerified) {
+          return null;
+        }
+
+        const isValid = await verifyPassword(
+          parsed.data.password,
+          existingUser.passwordHash,
+        );
+        if (!isValid) {
+          return null;
+        }
+
+        return {
+          id: existingUser.id,
+          email: existingUser.email,
+          name: existingUser.name,
+          nickname: existingUser.nickname,
+          image: existingUser.image,
+        };
       },
     }),
   ],

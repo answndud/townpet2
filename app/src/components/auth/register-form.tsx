@@ -1,15 +1,17 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const router = useRouter();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -37,16 +39,8 @@ export function RegisterForm() {
         return;
       }
 
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: true,
-        callbackUrl: "/onboarding",
-      });
-
-      if (result?.error) {
-        setError("로그인에 실패했습니다. 다시 시도해 주세요.");
-      }
+      setSuccess(true);
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     });
   };
 
@@ -95,6 +89,11 @@ export function RegisterForm() {
         />
       </label>
       {error ? <p className="text-xs text-red-500">{error}</p> : null}
+      {success ? (
+        <p className="text-xs text-emerald-600">
+          인증 메일을 보냈습니다. 메일함을 확인해 주세요.
+        </p>
+      ) : null}
       <button
         type="submit"
         className="rounded-full bg-[#2a241c] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/server/password";
 
 const prisma = new PrismaClient();
 
@@ -10,6 +11,12 @@ const seedUsers = [
 ];
 
 async function main() {
+  const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
+  if (!seedPassword) {
+    throw new Error("SEED_DEFAULT_PASSWORD is required.");
+  }
+  const passwordHash = await hashPassword(seedPassword);
+
   for (const user of seedUsers) {
     await prisma.user.upsert({
       where: { email: user.email },
@@ -18,6 +25,8 @@ async function main() {
         email: user.email,
         name: user.name,
         nickname: user.nickname,
+        passwordHash,
+        emailVerified: new Date(),
       },
     });
   }
