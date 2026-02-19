@@ -26,10 +26,11 @@ cd "$TOWNPET_HOME/app" && ./node_modules/.bin/tsx scripts/seed-reports.ts
 
 ## 2. 개발 서버 실행 (본인 새 터미널)
 
-아래 한 줄을 그대로 실행하세요.
+아래 한 줄을 그대로 실행하세요.  
+(`Prisma Client`를 먼저 갱신해서 `Unknown field ...` 오류를 예방합니다)
 
 ```bash
-cd /Users/alex/project/townpet2/app && ./node_modules/.bin/next dev -p 3000
+cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/next dev -p 3000
 ```
 
 접속 주소:
@@ -45,6 +46,16 @@ pwd
 ls -la ./node_modules/.bin/next
 ./node_modules/.bin/next --version
 ```
+
+### 3-1-1) `Unknown field reactions for include statement` 에러가 날 때
+
+```bash
+cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/prisma db push
+```
+
+그 다음 개발 서버를 완전히 재시작하세요.
+- 기존 서버 종료: `Ctrl + C`
+- 재실행: `cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/next dev -p 3000`
 
 - `ls`에서 `No such file`이면 의존성이 없는 상태입니다.
 - 설치:

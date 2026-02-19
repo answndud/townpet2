@@ -435,3 +435,25 @@
 - `app/prisma/seed.ts`
 - `docs/GUIDE.md`
 - `docs/plan/todo.md`
+
+## Cycle 14: Prisma 클라이언트 불일치 런타임 오류 방지 (완료)
+
+### Plan
+- [x] `Unknown field reactions` 런타임 오류 원인 정리
+- [x] 개발 서버 실행 전 Prisma Client 재생성 루틴 반영
+- [x] GUIDE에 복구 절차(명령어 복붙) 추가
+
+### Build
+- [x] `app/package.json`의 `dev` 스크립트를 `prisma generate && next dev`로 변경
+- [x] `docs/GUIDE.md`의 개발 서버 명령/에러 대응 절차 갱신
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 14 결과
+- 변경 파일
+- `app/package.json`
+- `docs/GUIDE.md`
+- `docs/plan/todo.md`
