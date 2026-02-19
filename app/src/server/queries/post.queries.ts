@@ -6,8 +6,9 @@ type PostListOptions = {
   cursor?: string;
   limit: number;
   type?: PostType;
-  scope?: PostScope;
+  scope: PostScope;
   q?: string;
+  neighborhoodId?: string;
 };
 
 export async function getPostById(id?: string) {
@@ -56,12 +57,24 @@ export async function getPostById(id?: string) {
   });
 }
 
-export async function listPosts({ cursor, limit, type, scope, q }: PostListOptions) {
+export async function listPosts({
+  cursor,
+  limit,
+  type,
+  scope,
+  q,
+  neighborhoodId,
+}: PostListOptions) {
   const items = await prisma.post.findMany({
     where: {
       status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
       ...(type ? { type } : {}),
-      ...(scope ? { scope } : {}),
+      scope,
+      ...(scope === PostScope.LOCAL && neighborhoodId
+        ? { neighborhoodId }
+        : scope === PostScope.LOCAL
+          ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
+          : {}),
       ...(q
         ? {
             OR: [

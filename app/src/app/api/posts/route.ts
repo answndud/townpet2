@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { PostScope } from "@prisma/client";
 
 import { postListSchema } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
@@ -7,6 +8,7 @@ import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 import { ServiceError } from "@/server/services/service-error";
 import { createPost } from "@/server/services/post.service";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +38,37 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const data = await listPosts(parsed.data);
+    const scope = parsed.data.scope ?? PostScope.LOCAL;
+    let neighborhoodId: string | undefined;
+
+    if (scope === PostScope.LOCAL) {
+      if (!currentUser) {
+        return jsonError(401, {
+          code: "AUTH_REQUIRED",
+          message: "로컬 피드는 로그인 후 이용할 수 있습니다.",
+        });
+      }
+
+      const userWithNeighborhoods = await getUserWithNeighborhoods(currentUser.id);
+      const primaryNeighborhood = userWithNeighborhoods?.neighborhoods.find(
+        (item) => item.isPrimary,
+      );
+
+      if (!primaryNeighborhood) {
+        return jsonError(400, {
+          code: "NEIGHBORHOOD_REQUIRED",
+          message: "로컬 피드를 보려면 대표 동네를 설정해 주세요.",
+        });
+      }
+
+      neighborhoodId = primaryNeighborhood.neighborhood.id;
+    }
+
+    const data = await listPosts({
+      ...parsed.data,
+      scope,
+      neighborhoodId,
+    });
     return jsonOk(data);
   } catch (error) {
     if (error instanceof ServiceError) {
