@@ -65,6 +65,12 @@ export default async function RootLayout({
                   내 작성글
                 </Link>
                 <Link
+                  href="/best"
+                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
+                >
+                  베스트
+                </Link>
+                <Link
                   href="/profile"
                   className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                 >

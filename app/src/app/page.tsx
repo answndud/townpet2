@@ -4,8 +4,9 @@ import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { auth } from "@/lib/auth";
+import { formatCount, formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
 import { postListSchema } from "@/lib/validations/post";
-import { listPosts } from "@/server/queries/post.queries";
+import { listBestPosts, listPosts } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 type HomePageProps = {
@@ -15,100 +16,6 @@ type HomePageProps = {
     q?: string;
   }>;
 };
-
-const typeMeta: Record<
-  PostType,
-  { label: string; chipClass: string; icon: string }
-> = {
-  HOSPITAL_REVIEW: {
-    label: "병원",
-    chipClass: "border-sky-200 bg-sky-50 text-sky-700",
-    icon: "H",
-  },
-  PLACE_REVIEW: {
-    label: "장소",
-    chipClass: "border-blue-200 bg-blue-50 text-blue-700",
-    icon: "P",
-  },
-  WALK_ROUTE: {
-    label: "산책",
-    chipClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
-    icon: "W",
-  },
-  MEETUP: {
-    label: "번개",
-    chipClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
-    icon: "M",
-  },
-  MARKET_LISTING: {
-    label: "마켓",
-    chipClass: "border-slate-300 bg-slate-100 text-slate-700",
-    icon: "K",
-  },
-  LOST_FOUND: {
-    label: "실종",
-    chipClass: "border-rose-200 bg-rose-50 text-rose-700",
-    icon: "L",
-  },
-  QA_QUESTION: {
-    label: "Q&A",
-    chipClass: "border-teal-200 bg-teal-50 text-teal-700",
-    icon: "Q",
-  },
-  QA_ANSWER: {
-    label: "답변",
-    chipClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
-    icon: "A",
-  },
-  FREE_POST: {
-    label: "자유",
-    chipClass: "border-zinc-300 bg-zinc-100 text-zinc-700",
-    icon: "F",
-  },
-  FREE_BOARD: {
-    label: "자유게시판",
-    chipClass: "border-zinc-300 bg-zinc-100 text-zinc-700",
-    icon: "B",
-  },
-  DAILY_SHARE: {
-    label: "일상공유",
-    chipClass: "border-slate-300 bg-slate-100 text-slate-700",
-    icon: "D",
-  },
-  PRODUCT_REVIEW: {
-    label: "제품리뷰",
-    chipClass: "border-blue-200 bg-blue-50 text-blue-700",
-    icon: "R",
-  },
-  PET_SHOWCASE: {
-    label: "반려동물 자랑",
-    chipClass: "border-sky-200 bg-sky-50 text-sky-700",
-    icon: "S",
-  },
-};
-
-function formatRelativeDate(date: Date) {
-  const diffMs = Date.now() - date.getTime();
-  const minutes = Math.floor(diffMs / (1000 * 60));
-
-  if (minutes < 1) return "방금 전";
-  if (minutes < 60) return `${minutes}분 전`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간 전`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}일 전`;
-
-  return date.toLocaleDateString("ko-KR");
-}
-
-function formatCount(value: number) {
-  return new Intl.NumberFormat("ko-KR", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
 
 export default async function Home({ searchParams }: HomePageProps) {
   const session = await auth();
@@ -155,6 +62,17 @@ export default async function Home({ searchParams }: HomePageProps) {
         ? primaryNeighborhood?.neighborhood.id
         : undefined,
   });
+  const bestPreview = await listBestPosts({
+    limit: 5,
+    days: 7,
+    type,
+    scope: effectiveScope,
+    neighborhoodId:
+      effectiveScope === PostScope.LOCAL
+        ? primaryNeighborhood?.neighborhood.id
+        : undefined,
+    minLikes: 1,
+  });
 
   const items = posts.items;
   const selectedScope = scope ?? PostScope.LOCAL;
@@ -184,6 +102,24 @@ export default async function Home({ searchParams }: HomePageProps) {
 
     const serialized = params.toString();
     return serialized ? `/?${serialized}` : "/";
+  };
+  const makeBestHref = ({
+    nextType,
+    nextScope,
+  }: {
+    nextType?: PostType | null;
+    nextScope?: PostScope | null;
+  }) => {
+    const params = new URLSearchParams();
+    const resolvedType = nextType === undefined ? type : nextType;
+    const resolvedScope = nextScope === undefined ? selectedScope : nextScope;
+
+    if (resolvedType) params.set("type", resolvedType);
+    if (resolvedScope) params.set("scope", resolvedScope);
+    params.set("days", "7");
+
+    const serialized = params.toString();
+    return serialized ? `/best?${serialized}` : "/best";
   };
 
   return (
@@ -215,6 +151,73 @@ export default async function Home({ searchParams }: HomePageProps) {
             </div>
           </div>
         </header>
+
+        <section className="animate-fade-up border border-[#c8d7ef] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d9e4f4] px-4 py-3 sm:px-5">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">베스트</p>
+              <h2 className="text-lg font-bold tracking-tight text-[#10284a]">좋아요 베스트</h2>
+            </div>
+            <Link
+              href={makeBestHref({})}
+              className="inline-flex h-9 items-center justify-center border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+            >
+              베스트 게시판 전체보기
+            </Link>
+          </div>
+          {bestPreview.length === 0 ? (
+            <div className="px-5 py-8 text-sm text-[#5a7398]">
+              최근 7일 내 좋아요가 1개 이상인 게시글이 아직 없습니다.
+            </div>
+          ) : (
+            <div className="divide-y divide-[#e1e9f5]">
+              {bestPreview.map((post, index) => {
+                const meta = postTypeMeta[post.type];
+
+                return (
+                  <article
+                    key={post.id}
+                    className="grid gap-3 px-4 py-3 sm:px-5 md:grid-cols-[44px_minmax(0,1fr)_220px] md:items-center"
+                  >
+                    <div className="border border-[#a9c0e4] bg-[#f0f5ff] px-2 py-1 text-center text-sm font-bold text-[#20447a]">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span
+                          className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
+                        >
+                          <span>{meta.icon}</span>
+                          {meta.label}
+                        </span>
+                        <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                          {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/posts/${post.id}`}
+                        className="block truncate text-sm font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-base"
+                      >
+                        {post.title}
+                        {post.commentCount > 0 ? ` [${post.commentCount}]` : ""}
+                      </Link>
+                    </div>
+                    <div className="text-xs text-[#4f678d] md:text-right">
+                      <p className="font-semibold text-[#1f3f71]">
+                        {post.author.nickname ?? post.author.name ?? "익명"}
+                      </p>
+                      <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
+                      <p className="mt-1 text-[11px] text-[#6a84ab]">
+                        좋아요 {formatCount(post.likeCount)} · 댓글 {formatCount(post.commentCount)} · 조회{" "}
+                        {formatCount(post.viewCount)}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         <section className="animate-fade-up border border-[#c8d7ef] bg-white p-4 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -271,7 +274,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                           : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
                       }`}
                     >
-                      {typeMeta[value].label}
+                      {postTypeMeta[value].label}
                     </Link>
                   ))}
                 </div>
@@ -322,7 +325,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           ) : (
             <div className="divide-y divide-[#e1e9f5]">
               {items.map((post) => {
-                const meta = typeMeta[post.type];
+                const meta = postTypeMeta[post.type];
                 const excerpt =
                   post.content.length > 120
                     ? `${post.content.slice(0, 120)}...`
