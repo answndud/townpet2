@@ -69,32 +69,32 @@ export function OnboardingForm({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
+    <div className="flex flex-col gap-5">
+      <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
-            Profile
+          <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">
+            프로필
           </p>
-          <h2 className="text-xl font-semibold">닉네임 설정</h2>
-          <p className="text-sm text-[#6f6046]">
+          <h2 className="text-xl font-semibold text-[#153a6a]">닉네임 설정</h2>
+          <p className="text-sm text-[#4f678d]">
             동네 활동에 표시될 닉네임을 설정해 주세요.
           </p>
         </div>
         <form onSubmit={handleProfile} className="mt-4 flex flex-col gap-3">
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             닉네임
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={profileName}
               onChange={(event) => setProfileName(event.target.value)}
               placeholder="예: townpet-user"
               required
             />
           </label>
-          <p className="text-xs text-[#9a8462]">로그인 이메일: {email}</p>
+          <p className="text-xs text-[#5a7398]">로그인 이메일: {email}</p>
           <button
             type="submit"
-            className="self-start rounded-full bg-[#2a241c] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"
+            className="self-start border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
             disabled={isPending}
           >
             닉네임 저장
@@ -102,24 +102,24 @@ export function OnboardingForm({
         </form>
       </section>
 
-      <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
+      <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
-            Neighborhood
+          <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">
+            동네
           </p>
-          <h2 className="text-xl font-semibold">대표 동네 선택</h2>
-          <p className="text-sm text-[#6f6046]">
-            Local 피드를 보기 위해 동네를 선택해 주세요.
+          <h2 className="text-xl font-semibold text-[#153a6a]">대표 동네 선택</h2>
+          <p className="text-sm text-[#4f678d]">
+            동네 피드를 보기 위해 대표 동네를 선택해 주세요.
           </p>
         </div>
         <form
           onSubmit={handleNeighborhood}
           className="mt-4 flex flex-col gap-3"
         >
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             동네
             <select
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={selectedNeighborhood}
               onChange={(event) => setSelectedNeighborhood(event.target.value)}
               required
@@ -134,7 +134,7 @@ export function OnboardingForm({
           </label>
           <button
             type="submit"
-            className="self-start rounded-full bg-[#2a241c] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"
+            className="self-start border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
             disabled={isPending}
           >
             동네 저장
@@ -143,7 +143,7 @@ export function OnboardingForm({
       </section>
 
       {message ? (
-        <div className="rounded-2xl border border-[#e3d6c4] bg-[#fdf9f2] px-4 py-3 text-xs text-[#6f6046]">
+        <div className="border border-[#bfd0ec] bg-[#f6f9ff] px-4 py-3 text-xs text-[#4f678d]">
           {message}
         </div>
       ) : null}

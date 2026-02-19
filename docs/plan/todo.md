@@ -248,3 +248,58 @@
 - `app/src/components/auth/auth-controls.tsx`
 - `app/src/app/globals.css`
 - `docs/plan/todo.md`
+
+## Cycle 9: 사용자 동선 UI 전면 통일 2차 (완료)
+
+### Plan
+- [x] 로고 영역 정리 (`Local Knowledge Desk` 제거, 로고 클릭 시 홈 이동)
+- [x] 헤더 `홈` 버튼 제거 및 내비게이션 단순화
+- [x] 홈 필터 영역(범위/카테고리) 비율/위치 전면 재구성
+- [x] 글쓰기 페이지 및 작성 폼의 구버전 스타일 전면 교체
+- [x] 한국어 우선 문구로 교체(영문 UI 최소화)
+- [x] 사용자 핵심 화면 디자인 시스템 통일(내 작성글/프로필/온보딩/로그인/회원가입/수정)
+
+### Build
+- [x] `app/src/app/layout.tsx` 로고 링크 구조로 수정, 홈 버튼 제거
+- [x] `app/src/app/page.tsx` 필터 레이아웃 재설계(카테고리 대면적 + 범위 사이드 패널)
+- [x] `app/src/app/posts/new/page.tsx`, `app/src/components/posts/post-create-form.tsx` 전면 스타일 교체
+- [x] `app/src/app/posts/[id]/edit/page.tsx`, `app/src/components/posts/post-detail-edit-form.tsx` 스타일 통일
+- [x] `app/src/app/my-posts/page.tsx`, `app/src/app/profile/page.tsx` 재구성
+- [x] `app/src/components/neighborhood/neighborhood-gate-notice.tsx` 스타일/문구 교체
+- [x] `app/src/app/onboarding/page.tsx`, `app/src/components/onboarding/onboarding-form.tsx` 통일
+- [x] `app/src/app/login/page.tsx`, `app/src/components/auth/login-form.tsx` 통일
+- [x] `app/src/app/register/page.tsx`, `app/src/components/auth/register-form.tsx` 통일
+- [x] `app/src/app/verify-email/page.tsx`, `app/src/components/auth/verify-email-form.tsx` 통일
+- [x] `app/src/app/password/reset/page.tsx`, `app/src/components/auth/reset-password-form.tsx` 통일
+- [x] `app/src/app/password/setup/page.tsx`, `app/src/components/auth/set-password-form.tsx` 통일
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (10 files / 29 tests)
+
+### Cycle 9 결과
+- 변경 파일
+- `app/src/app/layout.tsx`
+- `app/src/app/page.tsx`
+- `app/src/app/posts/new/page.tsx`
+- `app/src/components/posts/post-create-form.tsx`
+- `app/src/app/posts/[id]/edit/page.tsx`
+- `app/src/components/posts/post-detail-edit-form.tsx`
+- `app/src/app/my-posts/page.tsx`
+- `app/src/app/profile/page.tsx`
+- `app/src/components/neighborhood/neighborhood-gate-notice.tsx`
+- `app/src/app/onboarding/page.tsx`
+- `app/src/components/onboarding/onboarding-form.tsx`
+- `app/src/app/login/page.tsx`
+- `app/src/components/auth/login-form.tsx`
+- `app/src/app/register/page.tsx`
+- `app/src/components/auth/register-form.tsx`
+- `app/src/app/verify-email/page.tsx`
+- `app/src/components/auth/verify-email-form.tsx`
+- `app/src/app/password/reset/page.tsx`
+- `app/src/components/auth/reset-password-form.tsx`
+- `app/src/app/password/setup/page.tsx`
+- `app/src/components/auth/set-password-form.tsx`
+- `app/src/app/posts/[id]/page.tsx`
+- `docs/plan/todo.md`

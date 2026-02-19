@@ -15,28 +15,31 @@ export function NeighborhoodGateNotice({
 }: NeighborhoodGateNoticeProps) {
   return (
     <div className="min-h-screen">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-12">
-        <span className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
-          Neighborhood Gate
+      <main className="mx-auto flex w-full max-w-[980px] flex-col gap-4 px-4 py-10 sm:px-6">
+        <span className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">
+          접근 안내
         </span>
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="text-sm text-[#6f6046]">{description}</p>
+        <h1 className="text-2xl font-semibold text-[#10284a]">{title}</h1>
+        <p className="text-sm text-[#4f678d]">{description}</p>
         <div className="flex flex-wrap gap-2 text-xs">
           <Link
             href="/onboarding"
-            className="rounded-full bg-[#f0b66b] px-4 py-2 font-semibold text-[#2a241c]"
+            className="border border-[#3567b5] bg-[#3567b5] px-4 py-2 font-semibold text-white transition hover:bg-[#2f5da4]"
           >
             온보딩으로 이동
           </Link>
           {secondaryLink && secondaryLabel ? (
             <Link
               href={secondaryLink}
-              className="rounded-full border border-[#e3d6c4] px-4 py-2"
+              className="border border-[#bfd0ec] bg-white px-4 py-2 text-[#315484] transition hover:bg-[#f3f7ff]"
             >
               {secondaryLabel}
             </Link>
           ) : null}
-          <Link href="/" className="rounded-full border border-[#e3d6c4] px-4 py-2">
+          <Link
+            href="/"
+            className="border border-[#bfd0ec] bg-white px-4 py-2 text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
             홈으로 돌아가기
           </Link>
         </div>

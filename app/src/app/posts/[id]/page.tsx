@@ -203,7 +203,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           <aside className="space-y-4">
             <section className="border border-[#c8d7ef] bg-[#f7fbff] p-4">
               <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[#4f6f9f]">
-                Post Info
+                게시글 정보
               </h2>
               <dl className="mt-3 space-y-2 text-sm text-[#355988]">
                 <div className="flex items-center justify-between border-b border-[#dde7f5] pb-2">

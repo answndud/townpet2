@@ -48,12 +48,12 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
 
   return (
     <div className="min-h-screen">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-14">
+      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
         <Link
           href={`/posts/${post.id}`}
-          className="text-xs uppercase tracking-[0.3em] text-[#9a8462]"
+          className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]"
         >
-          Back to post
+          게시글로 돌아가기
         </Link>
         <PostDetailEditForm
           postId={post.id}
