@@ -130,4 +130,13 @@
 
 ### Check
 - [x] 문서 반영 완료
-- [ ] Cycle 4 커밋/푸시
+- [x] Cycle 4 커밋/푸시
+
+### Cycle 4 결과
+- 변경 파일
+- `docs/GUIDE.md`
+- `app/src/server/queries/post.queries.test.ts`
+- 검증 결과
+- `tsc --noEmit`: 통과
+- `eslint src --max-warnings=0`: 통과
+- `vitest run`: 10 files / 29 tests 통과
