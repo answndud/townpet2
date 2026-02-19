@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f1e8;
-  --foreground: #2a241c;
-  --muted: #9a8462;
+  --background: #eaf2eb;
+  --foreground: #12251b;
+  --muted: #4c6d5b;
   --surface: #ffffff;
-  --border: #e3d6c4;
+  --border: #cfe1d2;
 }
 
 @theme inline {
@@ -19,4 +19,34 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float-in {
+  animation: floatIn 0.55s ease-out both;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.45s ease-out both;
 }
