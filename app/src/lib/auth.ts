@@ -87,7 +87,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.nickname = user.nickname ?? null;
+        token.nickname =
+          "nickname" in user && user.nickname ? String(user.nickname) : null;
       }
       return token;
     },

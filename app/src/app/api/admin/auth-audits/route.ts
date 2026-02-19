@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { UserRole } from "@prisma/client";
+import { AuthAuditAction, UserRole } from "@prisma/client";
 
 import { getCurrentUser } from "@/server/auth";
 import { listAuthAuditLogs } from "@/server/queries/auth-audit.queries";
@@ -36,8 +36,14 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const action = Object.values(AuthAuditAction).includes(
+    parsed.data.action as AuthAuditAction,
+  )
+    ? (parsed.data.action as AuthAuditAction)
+    : null;
+
   const audits = await listAuthAuditLogs({
-    action: parsed.data.action ?? null,
+    action,
     query: parsed.data.q ?? null,
     limit: parsed.data.limit,
   });

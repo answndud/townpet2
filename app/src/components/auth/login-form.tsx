@@ -1,9 +1,11 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 export function LoginForm() {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -17,13 +19,17 @@ export function LoginForm() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: true,
+        redirect: false,
         callbackUrl: "/onboarding",
       });
 
       if (result?.error) {
         setError("로그인에 실패했습니다. 이메일 인증 여부를 확인해 주세요.");
+        return;
       }
+
+      router.push(result?.url ?? "/onboarding");
+      router.refresh();
     });
   };
 

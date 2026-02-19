@@ -18,6 +18,38 @@ type PostCreateFormProps = {
   defaultNeighborhoodId?: string;
 };
 
+type PostCreateFormState = {
+  title: string;
+  content: string;
+  type: PostType;
+  scope: PostScope;
+  neighborhoodId: string;
+  hospitalReview: {
+    hospitalName: string;
+    treatmentType: string;
+    totalCost: string;
+    waitTime: string;
+    rating: string;
+  };
+  placeReview: {
+    placeName: string;
+    placeType: string;
+    address: string;
+    isPetAllowed: string;
+    rating: string;
+  };
+  walkRoute: {
+    routeName: string;
+    distance: string;
+    duration: string;
+    difficulty: string;
+    hasStreetLights: string;
+    hasRestroom: string;
+    hasParkingLot: string;
+    safetyTags: string;
+  };
+};
+
 const postTypeOptions = [
   { value: PostType.HOSPITAL_REVIEW, label: "병원 리뷰" },
   { value: PostType.PLACE_REVIEW, label: "장소 리뷰" },
@@ -41,7 +73,7 @@ export function PostCreateForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [formState, setFormState] = useState({
+  const [formState, setFormState] = useState<PostCreateFormState>({
     title: "",
     content: "",
     type: PostType.HOSPITAL_REVIEW,

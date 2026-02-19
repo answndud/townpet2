@@ -43,14 +43,17 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
       prisma.report.count(),
       prisma.report.groupBy({
         by: ["status"],
+        orderBy: { status: "asc" },
         _count: { _all: true },
       }),
       prisma.report.groupBy({
         by: ["reason"],
+        orderBy: { reason: "asc" },
         _count: { _all: true },
       }),
       prisma.report.groupBy({
         by: ["targetType"],
+        orderBy: { targetType: "asc" },
         _count: { _all: true },
       }),
       prisma.report.findMany({
@@ -67,8 +70,11 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
     (acc, value) => ({ ...acc, [value]: 0 }),
     {} as Record<ReportStatus, number>,
   );
+  const getGroupCount = (count: true | { _all?: number } | undefined) =>
+    typeof count === "object" && count ? count._all ?? 0 : 0;
+
   for (const group of statusGroups) {
-    statusCounts[group.status] = group._count._all;
+    statusCounts[group.status] = getGroupCount(group._count);
   }
 
   const reasonCounts = Object.values(ReportReason).reduce(
@@ -76,7 +82,7 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
     {} as Record<ReportReason, number>,
   );
   for (const group of reasonGroups) {
-    reasonCounts[group.reason] = group._count._all;
+    reasonCounts[group.reason] = getGroupCount(group._count);
   }
 
   const targetCounts = Object.values(ReportTarget).reduce(
@@ -84,7 +90,7 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
     {} as Record<ReportTarget, number>,
   );
   for (const group of targetGroups) {
-    targetCounts[group.targetType] = group._count._all;
+    targetCounts[group.targetType] = getGroupCount(group._count);
   }
 
   const dailyMap = new Map<string, number>();

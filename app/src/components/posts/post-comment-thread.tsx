@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportReason, ReportTarget } from "@prisma/client";
+import { PostStatus, ReportReason, ReportTarget } from "@prisma/client";
 import { useMemo, useState, useTransition } from "react";
 
 import {
@@ -14,7 +14,7 @@ type CommentItem = {
   content: string;
   createdAt: Date;
   parentId: string | null;
-  status: "ACTIVE" | "DELETED";
+  status: PostStatus;
   author: { id: string; name: string | null; nickname: string | null };
 };
 
