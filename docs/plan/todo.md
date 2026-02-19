@@ -555,3 +555,28 @@
 - `app/src/server/actions/post.ts`
 - `docs/GUIDE.md`
 - `docs/plan/todo.md`
+
+## Cycle 19: 피드 내 카테고리별 베스트(개념글) 전환 추가 (완료)
+
+### Plan
+- [x] `/feed`에서 전체글/베스트글 모드를 같은 화면에서 전환
+- [x] 카테고리/범위를 유지한 상태로 베스트글 조회 가능하게 구현
+- [x] 베스트글 모드에서 기간 필터(3/7/30일) 제공
+
+### Build
+- [x] `app/src/app/feed/page.tsx`를 모드 기반 구조로 재구성
+- [x] `mode=ALL|BEST`, `days` 쿼리 파라미터 처리 추가
+- [x] `mode=BEST`일 때 `listBestPosts` + 카테고리(type) 필터 적용
+- [x] `mode=ALL`일 때 기존 `listPosts` + 커서 페이지네이션 유지
+- [x] `app/src/server/queries/post.queries.ts`의 `listBestPosts`에 검색어(`q`) 필터 지원 추가
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 19 결과
+- 변경 파일
+- `app/src/app/feed/page.tsx`
+- `app/src/server/queries/post.queries.ts`
+- `docs/plan/todo.md`
