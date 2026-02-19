@@ -8,7 +8,9 @@ import { getCurrentUser } from "@/server/auth";
 import { listCommentsByIds } from "@/server/queries/comment.queries";
 import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
 import { getReportStats, listReports } from "@/server/queries/report.queries";
+import { listRecentSanctions } from "@/server/queries/sanction.queries";
 import { listUsersByIds } from "@/server/queries/user.queries";
+import { formatSanctionLevelLabel } from "@/server/services/sanction.service";
 
 type ReportsPageProps = {
   searchParams?: Promise<{ status?: string; target?: string; updated?: string }>;
@@ -72,9 +74,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       : "ALL";
   const showUpdated = resolvedParams.updated === "1";
 
-  const [reports, stats] = await Promise.all([
+  const [reports, stats, sanctions] = await Promise.all([
     listReports({ status, targetType }),
     getReportStats(7),
+    listRecentSanctions(15),
   ]);
 
   const reportIds = reports.map((report) => report.id);
@@ -294,6 +297,70 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               </Link>
             ))}
           </div>
+        </section>
+
+        <section className="border border-[#c8d7ef] bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[#153a6a]">최근 제재 이력</h2>
+            <span className="text-[11px] text-[#5a7398]">
+              단계적 제재 흐름: 경고 → 7일 정지 → 30일 정지 → 영구 정지
+            </span>
+          </div>
+          {sanctions.length === 0 ? (
+            <p className="mt-3 text-xs text-[#5a7398]">아직 기록된 제재가 없습니다.</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-xs">
+                <thead className="bg-[#f6f9ff] text-[10px] uppercase tracking-[0.16em] text-[#5b78a1]">
+                  <tr>
+                    <th className="px-3 py-2">대상 사용자</th>
+                    <th className="px-3 py-2">제재 단계</th>
+                    <th className="px-3 py-2">사유</th>
+                    <th className="px-3 py-2">처리자</th>
+                    <th className="px-3 py-2">신고 ID</th>
+                    <th className="px-3 py-2">만료</th>
+                    <th className="px-3 py-2">생성일</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sanctions.map((sanction) => (
+                    <tr key={sanction.id} className="border-t border-[#e1e9f5] text-[#27466f]">
+                      <td className="px-3 py-2">
+                        {sanction.user.nickname ?? sanction.user.email}
+                      </td>
+                      <td className="px-3 py-2 font-semibold text-[#163462]">
+                        {formatSanctionLevelLabel(sanction.level)}
+                      </td>
+                      <td className="max-w-[260px] truncate px-3 py-2" title={sanction.reason}>
+                        {sanction.reason}
+                      </td>
+                      <td className="px-3 py-2">
+                        {sanction.moderator.nickname ?? sanction.moderator.email}
+                      </td>
+                      <td className="px-3 py-2">
+                        {sanction.sourceReportId ? (
+                          <Link
+                            href={`/admin/reports/${sanction.sourceReportId}`}
+                            className="text-[#2f5da4] hover:underline"
+                          >
+                            {sanction.sourceReportId}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {sanction.expiresAt
+                          ? sanction.expiresAt.toLocaleString("ko-KR")
+                          : "없음"}
+                      </td>
+                      <td className="px-3 py-2">{sanction.createdAt.toLocaleString("ko-KR")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <ReportQueueTable reports={reportRows} />

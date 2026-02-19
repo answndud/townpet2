@@ -18,6 +18,7 @@ type NeighborhoodOption = {
 type OnboardingFormProps = {
   email: string;
   nickname: string | null;
+  bio: string | null;
   primaryNeighborhoodId: string | null;
   neighborhoods: NeighborhoodOption[];
 };
@@ -25,6 +26,7 @@ type OnboardingFormProps = {
 export function OnboardingForm({
   email,
   nickname,
+  bio,
   primaryNeighborhoodId,
   neighborhoods,
 }: OnboardingFormProps) {
@@ -32,6 +34,7 @@ export function OnboardingForm({
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [profileName, setProfileName] = useState(nickname ?? "");
+  const [profileBio, setProfileBio] = useState(bio ?? "");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(
     primaryNeighborhoodId ?? "",
   );
@@ -41,12 +44,15 @@ export function OnboardingForm({
     setMessage(null);
 
     startTransition(async () => {
-      const result = await updateProfileAction({ nickname: profileName });
+      const result = await updateProfileAction({
+        nickname: profileName,
+        bio: profileBio,
+      });
       if (!result.ok) {
         setMessage(result.message);
         return;
       }
-      setMessage("닉네임이 저장되었습니다.");
+      setMessage("프로필이 저장되었습니다.");
       router.refresh();
     });
   };
@@ -84,6 +90,7 @@ export function OnboardingForm({
           <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             닉네임
             <input
+              data-testid="onboarding-nickname"
               className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={profileName}
               onChange={(event) => setProfileName(event.target.value)}
@@ -92,7 +99,19 @@ export function OnboardingForm({
             />
           </label>
           <p className="text-xs text-[#5a7398]">로그인 이메일: {email}</p>
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+            소개(선택)
+            <textarea
+              className="min-h-[96px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+              value={profileBio}
+              onChange={(event) => setProfileBio(event.target.value)}
+              placeholder="나와 반려동물을 간단히 소개해 주세요."
+              maxLength={240}
+            />
+            <span className="text-[11px] text-[#5a7398]">{profileBio.length}/240</span>
+          </label>
           <button
+            data-testid="onboarding-profile-submit"
             type="submit"
             className="self-start border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
             disabled={isPending}
@@ -119,6 +138,7 @@ export function OnboardingForm({
           <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             동네
             <select
+              data-testid="onboarding-neighborhood"
               className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={selectedNeighborhood}
               onChange={(event) => setSelectedNeighborhood(event.target.value)}
@@ -133,6 +153,7 @@ export function OnboardingForm({
             </select>
           </label>
           <button
+            data-testid="onboarding-neighborhood-submit"
             type="submit"
             className="self-start border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
             disabled={isPending}

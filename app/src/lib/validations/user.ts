@@ -6,6 +6,7 @@ export const profileUpdateSchema = z.object({
     .min(2)
     .max(20)
     .regex(/^[a-zA-Z0-9가-힣_-]+$/, "닉네임은 한글/영문/숫자/특수기호(-,_)만 가능합니다."),
+  bio: z.string().trim().max(240).optional(),
 });
 
 export const neighborhoodSelectSchema = z.object({

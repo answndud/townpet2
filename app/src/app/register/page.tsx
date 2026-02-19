@@ -23,6 +23,9 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
   const naverEnabledByDevFlag =
     process.env.NODE_ENV !== "production" && resolvedParams.devShowNaver === "1";
   const naverEnabled = naverEnabledByEnv || naverEnabledByDevFlag;
+  const socialDevEnabled =
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_SOCIAL_DEV_LOGIN === "1";
 
   return (
     <div className="min-h-screen">
@@ -43,6 +46,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             kakaoDevMode={kakaoEnabledByDevFlag && !kakaoEnabledByEnv}
             naverEnabled={naverEnabled}
             naverDevMode={naverEnabledByDevFlag && !naverEnabledByEnv}
+            socialDevEnabled={socialDevEnabled}
           />
         </section>
 

@@ -1,12 +1,18 @@
 import { PostStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.queries";
 
 const NO_VIEWER_ID = "__NO_VIEWER__";
 
 export async function listComments(postId: string, viewerId?: string) {
+  const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
   return prisma.comment.findMany({
-    where: { postId, status: { in: [PostStatus.ACTIVE, PostStatus.DELETED] } },
+    where: {
+      postId,
+      status: { in: [PostStatus.ACTIVE, PostStatus.DELETED] },
+      ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
+    },
     orderBy: { createdAt: "asc" },
     include: {
       author: { select: { id: true, name: true, nickname: true } },

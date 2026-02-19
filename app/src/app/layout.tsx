@@ -6,6 +6,7 @@ import { UserRole } from "@prisma/client";
 import { AuthControls } from "@/components/auth/auth-controls";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { auth } from "@/lib/auth";
+import { getSiteOrigin } from "@/lib/site-url";
 import { getCurrentUser } from "@/server/auth";
 import { countUnreadNotifications } from "@/server/queries/notification.queries";
 import "./globals.css";
@@ -21,9 +22,34 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+const siteOrigin = getSiteOrigin();
+
 export const metadata: Metadata = {
-  title: "TownPet",
-  description: "동네 기반 반려동물 커뮤니티",
+  metadataBase: new URL(siteOrigin),
+  title: {
+    default: "TownPet | 동네 기반 반려동물 커뮤니티",
+    template: "%s | TownPet",
+  },
+  description:
+    "우리 동네 반려생활을 나누는 커뮤니티. 병원 후기, 산책 코스, 질문/답변, 실종 제보까지 한 곳에서.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: siteOrigin,
+    siteName: "TownPet",
+    title: "TownPet | 동네 기반 반려동물 커뮤니티",
+    description:
+      "우리 동네 반려생활을 나누는 커뮤니티. 병원 후기, 산책 코스, 질문/답변, 실종 제보까지 한 곳에서.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TownPet | 동네 기반 반려동물 커뮤니티",
+    description:
+      "우리 동네 반려생활을 나누는 커뮤니티. 병원 후기, 산책 코스, 질문/답변, 실종 제보까지 한 곳에서.",
+  },
 };
 
 export default async function RootLayout({

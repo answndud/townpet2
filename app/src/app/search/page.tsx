@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { PostScope, PostType } from "@prisma/client";
 
 import { HighlightText } from "@/components/content/highlight-text";
@@ -24,6 +25,19 @@ type SearchPageProps = {
     searchIn?: string;
     limit?: string;
   }>;
+};
+
+export const metadata: Metadata = {
+  title: "검색",
+  description: "제목/내용/작성자 기준으로 게시글을 빠르게 찾으세요.",
+  alternates: {
+    canonical: "/search",
+  },
+  openGraph: {
+    title: "TownPet 검색",
+    description: "제목/내용/작성자 기준으로 게시글을 빠르게 찾으세요.",
+    url: "/search",
+  },
 };
 
 function toFeedSearchIn(value?: string): FeedSearchIn {
@@ -179,7 +193,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       <HighlightText text={excerpt} query={query} />
                     </p>
                     <div className="mt-2 text-xs text-[#5f79a0]">
-                      {post.author.nickname ?? post.author.name ?? "익명"} ·{" "}
+                      <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                        {post.author.nickname ?? post.author.name ?? "익명"}
+                      </Link>{" "}
+                      ·{" "}
                       {formatRelativeDate(post.createdAt)} · 댓글 {post.commentCount}
                     </div>
                   </article>

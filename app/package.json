@@ -7,8 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:unit": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "ENABLE_SOCIAL_DEV_LOGIN=1 playwright test e2e/feed-loading-skeleton.spec.ts e2e/kakao-login-entry.spec.ts e2e/naver-login-entry.spec.ts e2e/social-onboarding-flow.spec.ts --project=chromium",
+    "quality:check": "pnpm lint && pnpm typecheck && pnpm test:unit",
+    "quality:gate": "pnpm quality:check && pnpm test:e2e:smoke",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -25,7 +30,8 @@
     "test:e2e:upload": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/image-upload-flow.spec.ts --project=chromium",
     "test:e2e:feed-loading": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/feed-loading-skeleton.spec.ts --project=chromium",
     "test:e2e:kakao-entry": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/kakao-login-entry.spec.ts --project=chromium",
-    "test:e2e:naver-entry": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/naver-login-entry.spec.ts --project=chromium"
+    "test:e2e:naver-entry": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/naver-login-entry.spec.ts --project=chromium",
+    "test:e2e:social-onboarding": "ENABLE_SOCIAL_DEV_LOGIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/social-onboarding-flow.spec.ts --project=chromium"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

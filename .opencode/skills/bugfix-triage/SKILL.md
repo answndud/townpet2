@@ -21,6 +21,7 @@ metadata:
 - 예상 vs 실제
 - 관련 경로(페이지/액션/API) 또는 파일 후보
 - 재현 steps (가능하면)
+- 유사 이슈 기록(`docs/agent-memory/research-index.md`)
 
 ## Workflow
 1) Reproduce
@@ -68,4 +69,4 @@ metadata:
 - (필수) 에러 해결 기록 문서 1개:
   - docs/errors/YYYY-MM-DD_<slug>.md
   - 예: docs/errors/2026-01-21_prisma-node-version.md
-
+- (권장) 재발 방지 포인트를 `docs/agent-memory/research-log.md`에 추가

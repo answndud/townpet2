@@ -5,6 +5,7 @@ import { ServiceError } from "@/server/services/service-error";
 import { getCurrentUser, requireCurrentUser, requireModerator } from "@/server/auth";
 import { auth } from "@/lib/auth";
 import { getUserByEmail, getUserById } from "@/server/queries/user.queries";
+import { getActiveInteractionSanction } from "@/server/services/sanction.service";
 
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
@@ -15,9 +16,15 @@ vi.mock("@/server/queries/user.queries", () => ({
   getUserById: vi.fn(),
 }));
 
+vi.mock("@/server/services/sanction.service", () => ({
+  getActiveInteractionSanction: vi.fn(),
+  formatSanctionLevelLabel: vi.fn().mockReturnValue("7일 정지"),
+}));
+
 const mockAuth = vi.mocked(auth);
 const mockGetUserByEmail = vi.mocked(getUserByEmail);
 const mockGetUserById = vi.mocked(getUserById);
+const mockGetActiveInteractionSanction = vi.mocked(getActiveInteractionSanction);
 
 describe("auth helpers", () => {
   const demoEmail = "demo@townpet.dev";
@@ -26,6 +33,8 @@ describe("auth helpers", () => {
     mockAuth.mockReset();
     mockGetUserByEmail.mockReset();
     mockGetUserById.mockReset();
+    mockGetActiveInteractionSanction.mockReset();
+    mockGetActiveInteractionSanction.mockResolvedValue(null);
     delete process.env.DEMO_USER_EMAIL;
   });
 
@@ -40,6 +49,7 @@ describe("auth helpers", () => {
       email: "user@townpet.dev",
       name: null,
       nickname: null,
+      bio: null,
       image: null,
       role: UserRole.USER,
     });
@@ -59,6 +69,7 @@ describe("auth helpers", () => {
       email: demoEmail,
       name: "Demo",
       nickname: "demo",
+      bio: null,
       image: null,
       role: UserRole.USER,
     });
@@ -82,6 +93,7 @@ describe("auth helpers", () => {
       email: "admin@townpet.dev",
       name: "Admin",
       nickname: "admin",
+      bio: null,
       image: null,
       role: UserRole.ADMIN,
     });
@@ -98,10 +110,36 @@ describe("auth helpers", () => {
       email: "user2@townpet.dev",
       name: "User",
       nickname: "user",
+      bio: null,
       image: null,
       role: UserRole.USER,
     });
 
     await expect(requireModerator()).rejects.toBeInstanceOf(ServiceError);
+  });
+
+  it("requireCurrentUser rejects suspended user", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-3" } } as never);
+    mockGetUserById.mockResolvedValue({
+      id: "user-3",
+      email: "user3@townpet.dev",
+      name: "User3",
+      nickname: "user3",
+      bio: null,
+      image: null,
+      role: UserRole.USER,
+    });
+    mockGetActiveInteractionSanction.mockResolvedValue({
+      id: "sanction-1",
+      userId: "user-3",
+      moderatorId: "mod-1",
+      level: "SUSPEND_7D",
+      reason: "테스트 제재",
+      sourceReportId: "report-1",
+      expiresAt: new Date("2026-03-01T00:00:00.000Z"),
+      createdAt: new Date("2026-02-19T00:00:00.000Z"),
+    } as never);
+
+    await expect(requireCurrentUser()).rejects.toBeInstanceOf(ServiceError);
   });
 });

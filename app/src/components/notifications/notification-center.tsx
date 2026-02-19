@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -29,6 +29,22 @@ type NotificationCenterProps = {
   nextCursor: string | null;
 };
 
+type NotificationApiSuccess = {
+  ok: true;
+  data: {
+    items: NotificationCenterItem[];
+    nextCursor: string | null;
+  };
+};
+
+type NotificationApiError = {
+  ok: false;
+  error: {
+    code: string;
+    message: string;
+  };
+};
+
 function buildNotificationHref(notification: {
   postId: string | null;
   commentId: string | null;
@@ -48,9 +64,13 @@ export function NotificationCenter({
 }: NotificationCenterProps) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
+  const [cursor, setCursor] = useState(nextCursor);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingMap, setPendingMap] = useState<Record<string, boolean>>({});
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [isMarkAllPending, startMarkAllTransition] = useTransition();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const unreadCount = useMemo(
     () => items.filter((item) => !item.isRead).length,
@@ -69,6 +89,80 @@ export function NotificationCenter({
       prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
     );
   };
+
+  const loadMore = useCallback(async () => {
+    if (!cursor || isLoadingMore) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const params = new URLSearchParams();
+      params.set("cursor", cursor);
+      params.set("limit", "20");
+
+      const response = await fetch(`/api/notifications?${params.toString()}`, {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as NotificationApiSuccess | NotificationApiError;
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.ok ? "알림을 불러오지 못했습니다." : payload.error.message);
+      }
+
+      setItems((prev) => {
+        const merged = [...prev];
+        const seen = new Set(prev.map((item) => item.id));
+
+        for (const item of payload.data.items) {
+          if (seen.has(item.id)) {
+            continue;
+          }
+          merged.push(item);
+          seen.add(item.id);
+        }
+
+        return merged;
+      });
+      setCursor(payload.data.nextCursor);
+    } catch (error) {
+      const nextMessage =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : "알림을 더 불러오지 못했습니다.";
+      setLoadMoreError(nextMessage);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [cursor, isLoadingMore]);
+
+  useEffect(() => {
+    if (!cursor) {
+      return;
+    }
+
+    const node = sentinelRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target?.isIntersecting) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [cursor, loadMore]);
 
   const handleMarkRead = async (id: string) => {
     setMessage(null);
@@ -218,10 +312,21 @@ export function NotificationCenter({
         )}
       </section>
 
-      {nextCursor ? (
-        <p className="text-xs text-[#5f79a0]">
-          다음 페이지 커서가 준비되어 있습니다. (Cycle 26 후속에서 무한 스크롤 연결 예정)
-        </p>
+      {cursor ? (
+        <div className="flex flex-col items-start gap-2">
+          <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            disabled={isLoadingMore}
+            className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f3f7ff]"
+          >
+            {isLoadingMore ? "알림 불러오는 중..." : "알림 더 보기"}
+          </button>
+          {loadMoreError ? <p className="text-xs text-rose-600">{loadMoreError}</p> : null}
+        </div>
+      ) : items.length > 0 ? (
+        <p className="text-xs text-[#5f79a0]">마지막 알림까지 모두 확인했습니다.</p>
       ) : null}
     </>
   );

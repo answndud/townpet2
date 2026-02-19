@@ -1,6 +1,11 @@
 import { PostType } from "@prisma/client";
 
 import {
+  DEFAULT_FORBIDDEN_KEYWORDS,
+  FORBIDDEN_KEYWORDS_POLICY_KEY,
+  normalizeForbiddenKeywords,
+} from "@/lib/forbidden-keyword-policy";
+import {
   DEFAULT_LOGIN_REQUIRED_POST_TYPES,
   GUEST_READ_POLICY_KEY,
   normalizeLoginRequiredPostTypes,
@@ -77,6 +82,44 @@ export async function setGuestReadLoginRequiredPostTypes(types: PostType[]) {
     where: { key: GUEST_READ_POLICY_KEY },
     update: { value: normalized },
     create: { key: GUEST_READ_POLICY_KEY, value: normalized },
+  });
+
+  return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
+}
+
+export async function getForbiddenKeywords() {
+  const delegate = getSiteSettingDelegate();
+  if (!delegate) {
+    return [...DEFAULT_FORBIDDEN_KEYWORDS];
+  }
+
+  const setting = await delegate.findUnique({
+    where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
+    select: { value: true },
+  });
+
+  return normalizeForbiddenKeywords(
+    setting?.value,
+    DEFAULT_FORBIDDEN_KEYWORDS,
+  );
+}
+
+export async function setForbiddenKeywords(keywords: string[]) {
+  const normalized = normalizeForbiddenKeywords(
+    keywords,
+    DEFAULT_FORBIDDEN_KEYWORDS,
+    { allowEmpty: true },
+  );
+
+  const delegate = getSiteSettingDelegate();
+  if (!delegate) {
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
+
+  const setting = await delegate.upsert({
+    where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
+    update: { value: normalized },
+    create: { key: FORBIDDEN_KEYWORDS_POLICY_KEY, value: normalized },
   });
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;

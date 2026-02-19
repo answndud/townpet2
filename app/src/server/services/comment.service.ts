@@ -1,9 +1,12 @@
 import { CommentReactionType, PostStatus } from "@prisma/client";
 
 import { moderateContactContent } from "@/lib/contact-policy";
+import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { commentCreateSchema, commentUpdateSchema } from "@/lib/validations/comment";
 import { logger, serializeError } from "@/server/logger";
+import { getForbiddenKeywords } from "@/server/queries/policy.queries";
+import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
 import {
   notifyCommentOnPost,
   notifyReplyToComment,
@@ -49,6 +52,20 @@ export async function createComment({
     );
   }
   const safeContent = contactPolicy.sanitizedText;
+  const forbiddenKeywords = await getForbiddenKeywords();
+  const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
+    safeContent,
+    forbiddenKeywords,
+  );
+  if (matchedForbiddenKeywords.length > 0) {
+    throw new ServiceError(
+      `금칙어가 포함되어 댓글을 저장할 수 없습니다. (${matchedForbiddenKeywords
+        .slice(0, 3)
+        .join(", ")})`,
+      "FORBIDDEN_KEYWORD_DETECTED",
+      400,
+    );
+  }
 
   const transactionResult = await prisma.$transaction(async (tx) => {
     const post = await tx.post.findUnique({
@@ -58,6 +75,14 @@ export async function createComment({
 
     if (!post || post.status === PostStatus.DELETED) {
       throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
+    }
+
+    if (await hasBlockingRelation(authorId, post.authorId)) {
+      throw new ServiceError(
+        "차단 관계에서는 댓글을 작성할 수 없습니다.",
+        "USER_BLOCK_RELATION",
+        403,
+      );
     }
 
     let parentAuthorId: string | null = null;
@@ -70,6 +95,14 @@ export async function createComment({
 
       if (!parent || parent.postId !== postId || parent.status !== PostStatus.ACTIVE) {
         throw new ServiceError("대댓글을 달 수 없습니다.", "INVALID_PARENT", 400);
+      }
+
+      if (await hasBlockingRelation(authorId, parent.authorId)) {
+        throw new ServiceError(
+          "차단 관계에서는 대댓글을 작성할 수 없습니다.",
+          "USER_BLOCK_RELATION",
+          403,
+        );
       }
 
       parentAuthorId = parent.authorId;
@@ -182,6 +215,20 @@ export async function updateComment({
     );
   }
   const safeContent = contactPolicy.sanitizedText;
+  const forbiddenKeywords = await getForbiddenKeywords();
+  const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
+    safeContent,
+    forbiddenKeywords,
+  );
+  if (matchedForbiddenKeywords.length > 0) {
+    throw new ServiceError(
+      `금칙어가 포함되어 댓글을 수정할 수 없습니다. (${matchedForbiddenKeywords
+        .slice(0, 3)
+        .join(", ")})`,
+      "FORBIDDEN_KEYWORD_DETECTED",
+      400,
+    );
+  }
 
   return prisma.$transaction(async (tx) => {
     const comment = await tx.comment.findUnique({
@@ -279,11 +326,19 @@ export async function toggleCommentReaction({
   return prisma.$transaction(async (tx) => {
     const comment = await tx.comment.findUnique({
       where: { id: commentId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, authorId: true },
     });
 
     if (!comment || comment.status !== PostStatus.ACTIVE) {
       throw new ServiceError("댓글을 찾을 수 없습니다.", "COMMENT_NOT_FOUND", 404);
+    }
+
+    if (await hasBlockingRelation(userId, comment.authorId)) {
+      throw new ServiceError(
+        "차단 관계에서는 반응할 수 없습니다.",
+        "USER_BLOCK_RELATION",
+        403,
+      );
     }
 
     const existing = await tx.commentReaction.findUnique({

@@ -2,6 +2,7 @@ import { PostReactionType, PostScope, PostStatus } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
 
 import { runtimeEnv } from "@/lib/env";
+import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { moderateContactContent } from "@/lib/contact-policy";
 import { evaluateNewUserPostWritePolicy } from "@/lib/post-write-policy";
@@ -13,6 +14,8 @@ import {
   walkRouteSchema,
 } from "@/lib/validations/post";
 import { logger, serializeError } from "@/server/logger";
+import { getForbiddenKeywords } from "@/server/queries/policy.queries";
+import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
 import { notifyReactionOnPost } from "@/server/services/notification.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -198,6 +201,20 @@ export async function createPost({ authorId, input }: CreatePostParams) {
   };
   delete postData.imageUrls;
   const rawInput = input as Record<string, unknown>;
+  const forbiddenKeywords = await getForbiddenKeywords();
+  const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
+    `${postData.title}\n${postData.content}`,
+    forbiddenKeywords,
+  );
+  if (matchedForbiddenKeywords.length > 0) {
+    throw new ServiceError(
+      `금칙어가 포함되어 게시글을 저장할 수 없습니다. (${matchedForbiddenKeywords
+        .slice(0, 3)
+        .join(", ")})`,
+      "FORBIDDEN_KEYWORD_DETECTED",
+      400,
+    );
+  }
 
   const author = await prisma.user.findUnique({
     where: { id: authorId },
@@ -517,6 +534,23 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
     postData.content = contactPolicy.sanitizedText;
   }
 
+  if (postData.title !== undefined || postData.content !== undefined) {
+    const forbiddenKeywords = await getForbiddenKeywords();
+    const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
+      `${postData.title ?? ""}\n${postData.content ?? ""}`,
+      forbiddenKeywords,
+    );
+    if (matchedForbiddenKeywords.length > 0) {
+      throw new ServiceError(
+        `금칙어가 포함되어 게시글을 수정할 수 없습니다. (${matchedForbiddenKeywords
+          .slice(0, 3)
+          .join(", ")})`,
+        "FORBIDDEN_KEYWORD_DETECTED",
+        400,
+      );
+    }
+  }
+
   const existing = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, status: true, authorId: true },
@@ -745,6 +779,14 @@ export async function togglePostReaction({
 
   if (!existingPost || existingPost.status === PostStatus.DELETED) {
     throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
+  }
+
+  if (await hasBlockingRelation(userId, existingPost.authorId)) {
+    throw new ServiceError(
+      "차단 관계에서는 반응할 수 없습니다.",
+      "USER_BLOCK_RELATION",
+      403,
+    );
   }
 
   const result = await prisma.$transaction(async (tx) => {

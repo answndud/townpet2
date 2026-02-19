@@ -11,6 +11,7 @@ type RegisterFormProps = {
   kakaoDevMode?: boolean;
   naverEnabled?: boolean;
   naverDevMode?: boolean;
+  socialDevEnabled?: boolean;
 };
 
 export function RegisterForm({
@@ -18,6 +19,7 @@ export function RegisterForm({
   kakaoDevMode = false,
   naverEnabled = false,
   naverDevMode = false,
+  socialDevEnabled = false,
 }: RegisterFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -121,10 +123,18 @@ export function RegisterForm({
           <div className="my-1 border-t border-[#d8e4f6]" />
           <div className="flex flex-col gap-2">
             {kakaoEnabled ? (
-              <KakaoSignInButton label="카카오로 빠르게 가입" devMode={kakaoDevMode} />
+              <KakaoSignInButton
+                label="카카오로 빠르게 가입"
+                devMode={kakaoDevMode}
+                socialDevEnabled={socialDevEnabled}
+              />
             ) : null}
             {naverEnabled ? (
-              <NaverSignInButton label="네이버로 빠르게 가입" devMode={naverDevMode} />
+              <NaverSignInButton
+                label="네이버로 빠르게 가입"
+                devMode={naverDevMode}
+                socialDevEnabled={socialDevEnabled}
+              />
             ) : null}
           </div>
         </>

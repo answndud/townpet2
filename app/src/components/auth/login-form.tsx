@@ -12,6 +12,7 @@ type LoginFormProps = {
   kakaoDevMode?: boolean;
   naverEnabled?: boolean;
   naverDevMode?: boolean;
+  socialDevEnabled?: boolean;
 };
 
 export function LoginForm({
@@ -19,6 +20,7 @@ export function LoginForm({
   kakaoDevMode = false,
   naverEnabled = false,
   naverDevMode = false,
+  socialDevEnabled = false,
 }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,6 +110,7 @@ export function LoginForm({
                 label="카카오로 1초 로그인"
                 callbackUrl={callbackUrl}
                 devMode={kakaoDevMode}
+                socialDevEnabled={socialDevEnabled}
               />
             ) : null}
             {naverEnabled ? (
@@ -115,6 +118,7 @@ export function LoginForm({
                 label="네이버로 1초 로그인"
                 callbackUrl={callbackUrl}
                 devMode={naverDevMode}
+                socialDevEnabled={socialDevEnabled}
               />
             ) : null}
           </div>

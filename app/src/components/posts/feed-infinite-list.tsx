@@ -33,6 +33,7 @@ export type FeedPostItem = {
   viewCount: number;
   createdAt: string;
   author: {
+    id: string;
     name: string | null;
     nickname: string | null;
     image?: string | null;
@@ -452,7 +453,9 @@ export function FeedInfiniteList({
 
               <div className="text-xs text-[#4f678d] md:text-right">
                 <p className="font-semibold text-[#1f3f71]">
-                  {post.author.nickname ?? post.author.name ?? "익명"}
+                  <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                    {post.author.nickname ?? post.author.name ?? "익명"}
+                  </Link>
                 </p>
                 <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
                 <p className="mt-2 text-[11px] text-[#6a84ab]">

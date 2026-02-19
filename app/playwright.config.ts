@@ -2,6 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.PLAYWRIGHT_BASE_PORT ?? 3000);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === "1";
+const webServerCommand =
+  process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ??
+  `./node_modules/.bin/next dev --port ${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -13,17 +17,19 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
   },
-  webServer: {
-    command: `./node_modules/.bin/next dev --port ${port}`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: {
-      ...process.env,
-      DEMO_USER_EMAIL:
-        process.env.E2E_RECIPIENT_EMAIL ?? "power.reviewer@townpet.dev",
+  webServer: skipWebServer
+    ? undefined
+    : {
+        command: webServerCommand,
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        env: {
+          ...process.env,
+          DEMO_USER_EMAIL:
+            process.env.E2E_RECIPIENT_EMAIL ?? "power.reviewer@townpet.dev",
+        },
     },
-  },
   projects: [
     {
       name: "chromium",

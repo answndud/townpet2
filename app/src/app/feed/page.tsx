@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
@@ -28,6 +29,19 @@ const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
   { value: "COMMENT", label: "댓글순" },
 ];
 type BestDay = (typeof BEST_DAY_OPTIONS)[number];
+
+export const metadata: Metadata = {
+  title: "피드",
+  description: "동네와 온동네 게시글을 최신순/인기순으로 확인하세요.",
+  alternates: {
+    canonical: "/feed",
+  },
+  openGraph: {
+    title: "TownPet 피드",
+    description: "동네와 온동네 게시글을 최신순/인기순으로 확인하세요.",
+    url: "/feed",
+  },
+};
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -186,6 +200,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     viewCount: post.viewCount,
     createdAt: post.createdAt.toISOString(),
     author: {
+      id: post.author.id,
       name: post.author.name,
       nickname: post.author.nickname,
       image: post.author.image,

@@ -13,6 +13,9 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findUnique: vi.fn(),
     },
+    siteSetting: {
+      findUnique: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -26,6 +29,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   user: {
     findUnique: ReturnType<typeof vi.fn>;
   };
+  siteSetting: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   $transaction: ReturnType<typeof vi.fn>;
 };
 
@@ -35,6 +41,8 @@ const mockNotifyReplyToComment = vi.mocked(notifyReplyToComment);
 describe("comment service notification flow", () => {
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
+    mockPrisma.siteSetting.findUnique.mockReset();
+    mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
     mockPrisma.$transaction.mockReset();
     mockNotifyCommentOnPost.mockReset();
     mockNotifyReplyToComment.mockReset();

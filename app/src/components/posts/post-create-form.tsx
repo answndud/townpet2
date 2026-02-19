@@ -1,10 +1,11 @@
 "use client";
 
 import { PostScope, PostType } from "@prisma/client";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ImageUploadField } from "@/components/ui/image-upload-field";
+import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { createPostAction } from "@/server/actions/post";
 
 type NeighborhoodOption = {
@@ -68,13 +69,41 @@ const scopeOptions = [
   { value: PostScope.GLOBAL, label: "온동네" },
 ];
 
+const DRAFT_STORAGE_KEY = "townpet:post-create-draft:v1";
+
+type EditorTab = "write" | "preview";
+
+function isDraftFormState(value: unknown): value is PostCreateFormState {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<PostCreateFormState>;
+  return (
+    typeof candidate.title === "string" &&
+    typeof candidate.content === "string" &&
+    typeof candidate.type === "string" &&
+    typeof candidate.scope === "string" &&
+    typeof candidate.neighborhoodId === "string" &&
+    Array.isArray(candidate.imageUrls) &&
+    !!candidate.hospitalReview &&
+    !!candidate.placeReview &&
+    !!candidate.walkRoute
+  );
+}
+
 export function PostCreateForm({
   neighborhoods,
   defaultNeighborhoodId = "",
 }: PostCreateFormProps) {
   const router = useRouter();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [editorTab, setEditorTab] = useState<EditorTab>("write");
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [formState, setFormState] = useState<PostCreateFormState>({
     title: "",
     content: "",
@@ -107,6 +136,59 @@ export function PostCreateForm({
     },
     imageUrls: [],
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!stored) {
+      setDraftLoaded(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as {
+        savedAt?: string;
+        form?: unknown;
+      };
+      if (isDraftFormState(parsed.form)) {
+        setFormState(parsed.form);
+      }
+      if (parsed.savedAt) {
+        setDraftSavedAt(parsed.savedAt);
+      }
+      setDraftMessage("임시저장을 불러왔습니다.");
+    } catch {
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      setDraftMessage("임시저장을 읽을 수 없어 초기화했습니다.");
+    } finally {
+      setDraftLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftLoaded || typeof window === "undefined") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const savedAt = new Date().toISOString();
+      window.localStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify({
+          savedAt,
+          form: formState,
+        }),
+      );
+      setDraftSavedAt(savedAt);
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [draftLoaded, formState]);
 
   const neighborhoodOptions = useMemo(
     () =>
@@ -148,6 +230,76 @@ export function PostCreateForm({
       formState.walkRoute.hasStreetLights === "true" ||
       formState.walkRoute.hasRestroom === "true" ||
       formState.walkRoute.hasParkingLot === "true");
+  const previewHtml = useMemo(
+    () => renderLiteMarkdown(formState.content),
+    [formState.content],
+  );
+
+  const applyContentPatch = (nextValue: string, selectionStart?: number, selectionEnd?: number) => {
+    setFormState((prev) => ({ ...prev, content: nextValue }));
+
+    if (selectionStart === undefined || selectionEnd === undefined) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const element = contentRef.current;
+      if (!element) {
+        return;
+      }
+      element.focus();
+      element.setSelectionRange(selectionStart, selectionEnd);
+    });
+  };
+
+  const wrapSelection = (prefix: string, suffix = prefix, placeholder = "텍스트") => {
+    const element = contentRef.current;
+    if (!element) {
+      return;
+    }
+
+    const start = element.selectionStart;
+    const end = element.selectionEnd;
+    const selected = formState.content.slice(start, end);
+    const value = selected.length > 0 ? selected : placeholder;
+    const nextValue =
+      formState.content.slice(0, start) +
+      prefix +
+      value +
+      suffix +
+      formState.content.slice(end);
+    const caretStart = start + prefix.length;
+    const caretEnd = caretStart + value.length;
+    applyContentPatch(nextValue, caretStart, caretEnd);
+  };
+
+  const prefixSelectionLines = (prefix: string) => {
+    const element = contentRef.current;
+    if (!element) {
+      return;
+    }
+
+    const start = element.selectionStart;
+    const end = element.selectionEnd;
+    const selected = formState.content.slice(start, end);
+    const source = selected.length > 0 ? selected : "내용";
+    const nextLines = source
+      .split("\n")
+      .map((line) => `${prefix}${line}`)
+      .join("\n");
+    const nextValue =
+      formState.content.slice(0, start) + nextLines + formState.content.slice(end);
+    applyContentPatch(nextValue, start, start + nextLines.length);
+  };
+
+  const clearDraft = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+    setDraftSavedAt(null);
+    setDraftMessage("임시저장을 삭제했습니다.");
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -192,6 +344,11 @@ export function PostCreateForm({
         return;
       }
 
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      }
+      setDraftSavedAt(null);
+      setDraftMessage("게시글을 등록해 임시저장을 비웠습니다.");
       router.push("/feed");
       router.refresh();
       setFormState((prev) => ({
@@ -319,18 +476,119 @@ export function PostCreateForm({
         </label>
       </div>
 
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-        내용
-        <textarea
-          className="min-h-[130px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-          value={formState.content}
-          onChange={(event) =>
-            setFormState((prev) => ({ ...prev, content: event.target.value }))
-          }
-          placeholder="핵심 내용을 적어주세요."
-          required
-        />
-      </label>
+      <section className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span>내용</span>
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setEditorTab("write")}
+              className={`border px-2.5 py-1 ${
+                editorTab === "write"
+                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                  : "border-[#bfd0ec] bg-white text-[#315484]"
+              }`}
+            >
+              작성
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditorTab("preview")}
+              className={`border px-2.5 py-1 ${
+                editorTab === "preview"
+                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                  : "border-[#bfd0ec] bg-white text-[#315484]"
+              }`}
+            >
+              미리보기
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border border-[#c8d7ef] bg-[#f8fbff] px-2 py-2 text-xs">
+          <button
+            type="button"
+            onClick={() => wrapSelection("**")}
+            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+          >
+            굵게
+          </button>
+          <button
+            type="button"
+            onClick={() => wrapSelection("*")}
+            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+          >
+            기울임
+          </button>
+          <button
+            type="button"
+            onClick={() => wrapSelection("`")}
+            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+          >
+            코드
+          </button>
+          <button
+            type="button"
+            onClick={() => wrapSelection("[", "](https://example.com)", "링크텍스트")}
+            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+          >
+            링크
+          </button>
+          <button
+            type="button"
+            onClick={() => prefixSelectionLines("- ")}
+            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+          >
+            목록
+          </button>
+          <button
+            type="button"
+            onClick={() => prefixSelectionLines("> ")}
+            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+          >
+            인용
+          </button>
+          <span className="ml-auto text-[#5a7398]">
+            {formState.content.length.toLocaleString("ko-KR")}자
+          </span>
+        </div>
+
+        {editorTab === "write" ? (
+          <textarea
+            ref={contentRef}
+            className="min-h-[180px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+            value={formState.content}
+            onChange={(event) =>
+              setFormState((prev) => ({ ...prev, content: event.target.value }))
+            }
+            placeholder="핵심 내용을 적어주세요. (굵게: **텍스트**, 링크: [텍스트](https://url))"
+            required
+          />
+        ) : (
+          <div className="min-h-[180px] border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]">
+            <div
+              className="prose prose-sm max-w-none space-y-2 text-[#1f3f71]"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={clearDraft}
+            className="border border-[#bfd0ec] bg-white px-2.5 py-1 text-[#315484]"
+          >
+            임시저장 삭제
+          </button>
+          <span className="text-[#5a7398]">
+            {draftSavedAt
+              ? `임시저장: ${new Date(draftSavedAt).toLocaleString("ko-KR")}`
+              : "임시저장 없음"}
+          </span>
+          {draftMessage ? <span className="text-[#3567b5]">{draftMessage}</span> : null}
+        </div>
+      </section>
 
       <ImageUploadField
         value={formState.imageUrls}

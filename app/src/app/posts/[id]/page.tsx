@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PostType } from "@prisma/client";
@@ -10,12 +11,16 @@ import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
 import { PostReactionControls } from "@/components/posts/post-reaction-controls";
 import { PostReportForm } from "@/components/posts/post-report-form";
+import { PostShareControls } from "@/components/posts/post-share-controls";
+import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
 import { canGuestReadPost } from "@/lib/post-access";
 import { formatRelativeDate } from "@/lib/post-presenter";
+import { toAbsoluteUrl } from "@/lib/site-url";
 import { listComments } from "@/server/queries/comment.queries";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
+import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { getClientIp } from "@/server/request-context";
 import { registerPostView } from "@/server/services/post.service";
@@ -23,6 +28,67 @@ import { registerPostView } from "@/server/services/post.service";
 type PostDetailPageProps = {
   params?: Promise<{ id?: string }>;
 };
+
+function buildExcerpt(text: string, maxLength = 160) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}...`;
+}
+
+export async function generateMetadata({
+  params,
+}: PostDetailPageProps): Promise<Metadata> {
+  const resolvedParams = (await params) ?? {};
+  const post = await getPostById(resolvedParams.id);
+  if (!post) {
+    return {
+      title: "게시글을 찾을 수 없습니다",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
+  const guestReadable = canGuestReadPost({
+    scope: post.scope,
+    type: post.type,
+    loginRequiredTypes,
+  });
+  const isIndexable = post.status === "ACTIVE" && guestReadable;
+  const description = buildExcerpt(post.content);
+  const url = toAbsoluteUrl(`/posts/${post.id}`);
+  const imageUrl = post.images[0]?.url
+    ? toAbsoluteUrl(post.images[0].url)
+    : undefined;
+
+  return {
+    title: post.title,
+    description,
+    alternates: {
+      canonical: `/posts/${post.id}`,
+    },
+    robots: {
+      index: isIndexable,
+      follow: isIndexable,
+    },
+    openGraph: {
+      type: "article",
+      url,
+      title: post.title,
+      description,
+      publishedTime: post.createdAt.toISOString(),
+      modifiedTime: post.updatedAt.toISOString(),
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: post.title,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  };
+}
 
 const typeMeta: Record<PostType, { label: string; chipClass: string }> = {
   HOSPITAL_REVIEW: {
@@ -143,6 +209,17 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const canInteract = Boolean(user);
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
   const isAuthor = user?.id === post.authorId;
+  const relationState =
+    canInteract && !isAuthor
+      ? await getUserRelationState(user?.id, post.authorId)
+      : {
+          isBlockedByMe: false,
+          hasBlockedMe: false,
+          isMutedByMe: false,
+        };
+  const canInteractWithPostOwner =
+    isAuthor || (!relationState.isBlockedByMe && !relationState.hasBlockedMe);
+  const postUrl = toAbsoluteUrl(`/posts/${post.id}`);
   const meta = typeMeta[post.type];
   const requestHeaders = await headers();
   const didCountView = await registerPostView({
@@ -163,9 +240,41 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const safeCommentCount = Number.isFinite(post.commentCount)
     ? Number(post.commentCount)
     : 0;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SocialMediaPosting",
+    headline: post.title,
+    articleBody: buildExcerpt(post.content, 320),
+    datePublished: post.createdAt.toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    mainEntityOfPage: postUrl,
+    author: {
+      "@type": "Person",
+      name: post.author.nickname ?? post.author.name ?? "익명",
+    },
+    image: post.images.map((image) => toAbsoluteUrl(image.url)),
+    interactionStatistic: [
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/LikeAction",
+        userInteractionCount: safeLikeCount,
+      },
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/CommentAction",
+        userInteractionCount: safeCommentCount,
+      },
+    ],
+  };
 
   return (
     <div className="min-h-screen pb-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
         <Link href="/feed" className="text-xs font-medium uppercase tracking-[0.24em] text-[#4e6f9f]">
           목록으로
@@ -201,13 +310,24 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
               <div className="text-sm text-[#4f678d] md:text-right">
                 <p className="font-semibold text-[#1f3f71]">
-                  {post.author.nickname ?? post.author.name ?? "익명"}
+                  <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                    {post.author.nickname ?? post.author.name ?? "익명"}
+                  </Link>
                 </p>
                 <p className="mt-1">{formatRelativeDate(post.createdAt)}</p>
                 <p className="mt-3 text-xs text-[#6883ab]">
                   조회 {safeViewCount.toLocaleString()} · 좋아요 {safeLikeCount.toLocaleString()} · 싫어요{" "}
                   {safeDislikeCount.toLocaleString()} · 댓글 {safeCommentCount.toLocaleString()}
                 </p>
+                {canInteract && !isAuthor ? (
+                  <div className="mt-3 md:flex md:justify-end">
+                    <UserRelationControls
+                      targetUserId={post.authorId}
+                      initialState={relationState}
+                      compact
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -217,10 +337,17 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 likeCount={safeLikeCount}
                 dislikeCount={safeDislikeCount}
                 currentReaction={post.reactions?.[0]?.type ?? null}
-                canReact={canInteract}
+                canReact={canInteract && canInteractWithPostOwner}
                 loginHref={loginHref}
               />
+              <PostShareControls url={postUrl} title={post.title} />
             </div>
+
+            {canInteract && !isAuthor && !canInteractWithPostOwner ? (
+              <div className="mt-4 border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                차단 관계에서는 댓글/반응/신고 기능을 사용할 수 없습니다.
+              </div>
+            ) : null}
 
             {isAuthor ? (
               <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
@@ -294,7 +421,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </dl>
             </section>
 
-            {canInteract && !isAuthor ? (
+            {canInteract && !isAuthor && canInteractWithPostOwner ? (
               <details className="border border-[#c8d7ef] bg-white p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-[#1f3f71]">
                   게시글 신고
@@ -415,8 +542,13 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           postId={post.id}
           comments={comments}
           currentUserId={user?.id}
-          canInteract={canInteract}
+          canInteract={canInteract && canInteractWithPostOwner}
           loginHref={loginHref}
+          interactionDisabledMessage={
+            canInteract && !canInteractWithPostOwner
+              ? "차단 관계에서는 댓글 작성/답글/신고를 사용할 수 없습니다."
+              : undefined
+          }
         />
       </main>
     </div>

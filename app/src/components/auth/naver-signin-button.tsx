@@ -7,16 +7,28 @@ type NaverSignInButtonProps = {
   label?: string;
   callbackUrl?: string;
   devMode?: boolean;
+  socialDevEnabled?: boolean;
 };
 
 export function NaverSignInButton({
   label = "네이버로 시작",
   callbackUrl = "/onboarding",
   devMode = false,
+  socialDevEnabled = false,
 }: NaverSignInButtonProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleClick = () => {
+    if (devMode && socialDevEnabled) {
+      startTransition(async () => {
+        await signIn("social-dev", {
+          provider: "naver",
+          callbackUrl,
+        });
+      });
+      return;
+    }
+
     if (devMode) {
       const query = new URLSearchParams({ callbackUrl });
       window.location.assign(`/api/auth/signin/naver?${query.toString()}`);
