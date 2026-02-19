@@ -93,7 +93,7 @@
 - [x] 홈 피드 기본 scope를 `LOCAL`로 고정
 - [x] 로컬 피드 조회 시 대표 동네 필터 강제
 - [x] `/api/posts` GET에서도 로컬 조회 정책 동일 적용
-- [ ] 간단 회귀 테스트(LOCAL/GLOBAL 시나리오) 추가
+- [x] 간단 회귀 테스트(LOCAL/GLOBAL 시나리오) 추가
 
 ### Build
 - [x] `listPosts` 조회 조건에 `scope`, `neighborhoodId` 반영
@@ -103,4 +103,31 @@
 
 ### Check
 - [x] 변경/검증 결과 문서 반영
-- [ ] Cycle 3 커밋/푸시
+- [x] Cycle 3 커밋/푸시
+
+### Cycle 3 결과
+- 변경 파일
+- `app/src/server/queries/post.queries.ts`
+- `app/src/app/page.tsx`
+- `app/src/app/api/posts/route.ts`
+- `app/src/server/queries/post.queries.test.ts`
+- 검증 결과
+- `tsc --noEmit`: 통과
+- `eslint src --max-warnings=0`: 통과
+- `vitest run`: 10 files / 29 tests 통과
+
+## Cycle 4: 운영 가시성/실행 가이드 (진행 중)
+
+### Plan
+- [x] Docker + Next 로컬 실행 경로를 초보자용으로 문서화
+- [x] 운영 중 점검/복구 명령어(상태, 로그, 재시작) 정리
+- [x] 자주 나는 오류 사례와 해결 절차 포함
+- [ ] 스크린샷 기반 체크리스트(향후)
+
+### Build
+- [x] `docs/GUIDE.md` 작성
+- [x] 실환경 검증: Docker 기동, DB sync, seed, 웹 응답 확인
+
+### Check
+- [x] 문서 반영 완료
+- [ ] Cycle 4 커밋/푸시
