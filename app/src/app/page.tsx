@@ -128,7 +128,7 @@ export default async function Home({ searchParams }: HomePageProps) {
             </form>
             {query ? (
               <div className="text-xs text-[#9a8462]">
-                "{query}" 검색 결과 {items.length}건
+                &quot;{query}&quot; 검색 결과 {items.length}건
               </div>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">

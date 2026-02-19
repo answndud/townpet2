@@ -6,16 +6,17 @@ import { ServiceError } from "@/server/services/service-error";
 import { updateReport } from "@/server/services/report.service";
 
 type RouteParams = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const user = await requireModerator();
 
     const report = await updateReport({
-      reportId: params.id,
+      reportId: id,
       input: body,
       moderatorId: user.id,
     });

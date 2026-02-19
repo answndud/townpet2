@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const forwardedFor = request.headers.get("x-forwarded-for");
     const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
+    const userAgent = request.headers.get("user-agent") ?? undefined;
     enforceRateLimit({
       key: `auth:password:confirm:${clientIp}`,
       limit: 5,
@@ -25,9 +26,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
-    const userAgent = request.headers.get("user-agent") ?? undefined;
     await confirmPasswordReset({
       input: parsed.data,
       meta: { ipAddress: clientIp, userAgent },
