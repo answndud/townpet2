@@ -15,13 +15,14 @@ import { requireCurrentUser } from "@/server/auth";
 type PostActionResult =
   | { ok: true }
   | { ok: false; code: string; message: string };
+type PostReactionInput = "LIKE" | "DISLIKE";
 
 type PostReactionActionResult =
   | {
       ok: true;
       likeCount: number;
       dislikeCount: number;
-      reaction: PostReactionType | null;
+      reaction: PostReactionInput | null;
     }
   | { ok: false; code: string; message: string };
 
@@ -93,14 +94,22 @@ export async function updatePostAction(
 
 export async function togglePostReactionAction(
   postId: string,
-  type: PostReactionType,
+  type: PostReactionInput,
 ): Promise<PostReactionActionResult> {
   try {
+    if (type !== "LIKE" && type !== "DISLIKE") {
+      return {
+        ok: false,
+        code: "INVALID_INPUT",
+        message: "반응 값이 올바르지 않습니다.",
+      };
+    }
+
     const user = await requireCurrentUser();
     const result = await togglePostReaction({
       postId,
       userId: user.id,
-      type,
+      type: type as PostReactionType,
     });
     revalidatePath("/feed");
     revalidatePath("/best");

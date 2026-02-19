@@ -1,26 +1,32 @@
 "use client";
 
-import { PostReactionType } from "@prisma/client";
 import { useState, useTransition } from "react";
 
 import { togglePostReactionAction } from "@/server/actions/post";
+
+const REACTION_TYPE = {
+  LIKE: "LIKE",
+  DISLIKE: "DISLIKE",
+} as const;
+
+type ReactionType = (typeof REACTION_TYPE)[keyof typeof REACTION_TYPE];
 
 type PostReactionControlsProps = {
   postId: string;
   likeCount?: number | null;
   dislikeCount?: number | null;
-  currentReaction: PostReactionType | null;
+  currentReaction: ReactionType | null;
   compact?: boolean;
 };
 
 function getNextState(
-  current: PostReactionType | null,
-  target: PostReactionType,
+  current: ReactionType | null,
+  target: ReactionType,
   likeCount: number,
   dislikeCount: number,
 ) {
   if (current === target) {
-    if (target === PostReactionType.LIKE) {
+    if (target === REACTION_TYPE.LIKE) {
       return {
         reaction: null,
         likeCount: Math.max(0, likeCount - 1),
@@ -35,21 +41,21 @@ function getNextState(
     };
   }
 
-  if (target === PostReactionType.LIKE) {
+  if (target === REACTION_TYPE.LIKE) {
     return {
-      reaction: PostReactionType.LIKE,
+      reaction: REACTION_TYPE.LIKE,
       likeCount: likeCount + 1,
       dislikeCount:
-        current === PostReactionType.DISLIKE
+        current === REACTION_TYPE.DISLIKE
           ? Math.max(0, dislikeCount - 1)
           : dislikeCount,
     };
   }
 
   return {
-    reaction: PostReactionType.DISLIKE,
+    reaction: REACTION_TYPE.DISLIKE,
     likeCount:
-      current === PostReactionType.LIKE ? Math.max(0, likeCount - 1) : likeCount,
+      current === REACTION_TYPE.LIKE ? Math.max(0, likeCount - 1) : likeCount,
     dislikeCount: dislikeCount + 1,
   };
 }
@@ -64,7 +70,7 @@ export function PostReactionControls({
   const initialLikeCount = Number.isFinite(likeCount) ? Number(likeCount) : 0;
   const initialDislikeCount = Number.isFinite(dislikeCount) ? Number(dislikeCount) : 0;
 
-  const [reaction, setReaction] = useState<PostReactionType | null>(currentReaction);
+  const [reaction, setReaction] = useState<ReactionType | null>(currentReaction);
   const [likes, setLikes] = useState(initialLikeCount);
   const [dislikes, setDislikes] = useState(initialDislikeCount);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +79,7 @@ export function PostReactionControls({
   const buttonClass =
     "inline-flex items-center justify-center border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
-  const handleToggle = (target: PostReactionType) => {
+  const handleToggle = (target: ReactionType) => {
     const previous = { reaction, likes, dislikes };
     const optimistic = getNextState(reaction, target, likes, dislikes);
 
@@ -102,10 +108,10 @@ export function PostReactionControls({
     <div className="flex flex-wrap items-center gap-1.5">
       <button
         type="button"
-        onClick={() => handleToggle(PostReactionType.LIKE)}
+        onClick={() => handleToggle(REACTION_TYPE.LIKE)}
         disabled={isPending}
         className={`${buttonClass} ${
-          reaction === PostReactionType.LIKE
+          reaction === REACTION_TYPE.LIKE
             ? "border-[#3567b5] bg-[#3567b5] text-white"
             : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
         }`}
@@ -114,10 +120,10 @@ export function PostReactionControls({
       </button>
       <button
         type="button"
-        onClick={() => handleToggle(PostReactionType.DISLIKE)}
+        onClick={() => handleToggle(REACTION_TYPE.DISLIKE)}
         disabled={isPending}
         className={`${buttonClass} ${
-          reaction === PostReactionType.DISLIKE
+          reaction === REACTION_TYPE.DISLIKE
             ? "border-[#5e7396] bg-[#5e7396] text-white"
             : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
         }`}

@@ -504,3 +504,24 @@
 - `app/src/app/feed/page.tsx`
 - `app/src/app/best/page.tsx`
 - `docs/plan/todo.md`
+
+## Cycle 17: 클라이언트 Prisma enum 참조 런타임 오류 수정 (완료)
+
+### Plan
+- [x] `PostReactionControls` 런타임 `PostReactionType.LIKE` 오류 제거
+- [x] 클라이언트 컴포넌트에서 Prisma enum 런타임 의존 제거
+
+### Build
+- [x] `app/src/components/posts/post-reaction-controls.tsx`를 문자열 리터럴 기반 반응 타입으로 전환
+- [x] `app/src/server/actions/post.ts` 입력 타입을 문자열 리터럴로 정리하고 서버 단 검증 추가
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 17 결과
+- 변경 파일
+- `app/src/components/posts/post-reaction-controls.tsx`
+- `app/src/server/actions/post.ts`
+- `docs/plan/todo.md`
