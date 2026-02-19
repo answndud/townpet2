@@ -29,8 +29,24 @@ const typeLabels: Record<PostType, string> = {
   FREE_BOARD: "자유게시판",
   DAILY_SHARE: "일상공유",
   PRODUCT_REVIEW: "제품리뷰",
-  PET_SHOWCASE: "내 반려동물 자랑",
+  PET_SHOWCASE: "반려동물 자랑",
 };
+
+function formatRelativeDate(date: Date) {
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.floor(diffMs / (1000 * 60));
+
+  if (minutes < 1) return "방금 전";
+  if (minutes < 60) return `${minutes}분 전`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}일 전`;
+
+  return date.toLocaleDateString("ko-KR");
+}
 
 export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
   const session = await auth();
@@ -60,6 +76,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
       />
     );
   }
+
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
   const posts = await listUserPosts({
     authorId: user.id,
@@ -68,162 +85,187 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
     q: query || undefined,
   });
 
+  const makeHref = ({
+    nextType,
+    nextScope,
+    nextQuery,
+  }: {
+    nextType?: PostType | null;
+    nextScope?: PostScope | null;
+    nextQuery?: string | null;
+  }) => {
+    const params = new URLSearchParams();
+    const resolvedType = nextType === undefined ? type : nextType;
+    const resolvedScope = nextScope === undefined ? scope : nextScope;
+    const resolvedQuery = nextQuery === undefined ? query : nextQuery;
+
+    if (resolvedType) params.set("type", resolvedType);
+    if (resolvedScope) params.set("scope", resolvedScope);
+    if (resolvedQuery) params.set("q", resolvedQuery);
+
+    const serialized = params.toString();
+    return serialized ? `/my-posts?${serialized}` : "/my-posts";
+  };
+
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
-        <header className="flex flex-col gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-[#9a8462]">
-              My Posts
-            </p>
-            <h1 className="text-2xl font-semibold">내 작성글</h1>
-            <p className="text-sm text-[#6f6046]">
-              전체글, 동네 글, 온동네 글을 확인합니다.
-            </p>
-          </div>
-          <form className="flex w-full max-w-md items-center gap-2 text-xs" action="/my-posts">
-            {type ? <input type="hidden" name="type" value={type} /> : null}
-            {scope ? <input type="hidden" name="scope" value={scope} /> : null}
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="제목이나 내용 검색"
-              className="w-full rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs"
-            />
-            <button
-              type="submit"
-              className="inline-flex min-w-[64px] items-center justify-center whitespace-nowrap rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs font-semibold text-[#2a241c]"
-            >
-              검색
-            </button>
-            {query ? (
-              <Link
-                href={type || scope ? `/my-posts?${type ? `type=${type}` : ""}${type && scope ? "&" : ""}${scope ? `scope=${scope}` : ""}` : "/my-posts"}
-                className="inline-flex min-w-[64px] items-center justify-center whitespace-nowrap rounded-md border border-[#e3d6c4] bg-[#fdf9f2] px-3 py-2 text-xs font-semibold text-[#9a8462]"
-              >
-                초기화
-              </Link>
-            ) : null}
-          </form>
-          <div className="flex flex-col gap-2 text-xs text-[#6f6046]">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
-                카테고리
-              </span>
-              <Link
-                href="/my-posts"
-                className={`rounded-md border px-2.5 py-1 transition ${
-                  !type && !scope
-                    ? "border-[#e2a763] bg-[#f2c07c] text-[#2a241c]"
-                    : "border-[#e3d6c4] bg-white"
-                }`}
-              >
-                전체
-              </Link>
-              {Object.values(PostType).map((value) => (
-                <Link
-                  key={value}
-                  href={`/my-posts?type=${value}`}
-                  className={`rounded-md border px-2.5 py-1 transition ${
-                    type === value
-                      ? "border-[#e2a763] bg-[#f2c07c] text-[#2a241c]"
-                      : "border-[#e3d6c4] bg-white"
-                  }`}
-                >
-                  {typeLabels[value] ?? value}
-                </Link>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
-                범위
-              </span>
-              <Link
-                href="/my-posts?scope=LOCAL"
-                className={`rounded-md border px-2.5 py-1 transition ${
-                  scope === PostScope.LOCAL
-                    ? "border-[#e2a763] bg-[#f2c07c] text-[#2a241c]"
-                    : "border-[#e3d6c4] bg-white"
-                }`}
-              >
-                동네 글
-              </Link>
-              <Link
-                href="/my-posts?scope=GLOBAL"
-                className={`rounded-md border px-2.5 py-1 transition ${
-                  scope === PostScope.GLOBAL
-                    ? "border-[#e2a763] bg-[#f2c07c] text-[#2a241c]"
-                    : "border-[#e3d6c4] bg-white"
-                }`}
-              >
-                온동네 글
-              </Link>
-            </div>
-          </div>
+    <div className="min-h-screen pb-16">
+      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
+        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">내 작성글</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
+            내가 올린 게시글
+          </h1>
+          <p className="mt-2 text-sm text-[#4f678d]">
+            카테고리와 범위를 조합해 내 글을 빠르게 확인할 수 있습니다.
+          </p>
         </header>
 
-        <section className="overflow-hidden rounded-2xl border border-[#e3d6c4] bg-white shadow-sm">
-          {posts.length === 0 ? (
-            <div className="px-6 py-10 text-center text-sm text-[#9a8462]">
-              아직 작성한 게시물이 없습니다.
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-[#fdf9f2] text-xs uppercase tracking-[0.2em] text-[#9a8462]">
-                <tr>
-                  <th className="px-4 py-3">타입</th>
-                  <th className="px-4 py-3">제목</th>
-                  <th className="px-4 py-3">동네</th>
-                  <th className="px-4 py-3">범위</th>
-                  <th className="px-4 py-3 text-right">작성일</th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts.map((post) => (
-                  <tr
-                    key={post.id}
-                    className={`border-t border-[#efe4d4] text-[#2a241c] ${
-                      post.status === "HIDDEN" ? "bg-[#f7ece0]" : ""
+        <section className="border border-[#c8d7ef] bg-white p-4 sm:p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+            <div className="space-y-3">
+              <form action="/my-posts" className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {type ? <input type="hidden" name="type" value={type} /> : null}
+                {scope ? <input type="hidden" name="scope" value={scope} /> : null}
+                <input
+                  name="q"
+                  defaultValue={query}
+                  placeholder="제목, 내용 검색"
+                  className="h-10 w-full border border-[#b9cbeb] bg-white px-3 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
+                />
+                <button
+                  type="submit"
+                  className="h-10 min-w-[76px] border border-[#3567b5] bg-[#3567b5] px-3 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+                >
+                  검색
+                </button>
+                {query ? (
+                  <Link
+                    href={makeHref({ nextQuery: null })}
+                    className="inline-flex h-10 min-w-[76px] items-center justify-center border border-[#b9cbeb] bg-white px-3 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+                  >
+                    초기화
+                  </Link>
+                ) : null}
+              </form>
+
+              <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                  카테고리
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={makeHref({ nextType: null })}
+                    className={`border px-3 py-1 text-xs font-medium transition ${
+                      !type
+                        ? "border-[#3567b5] bg-[#3567b5] text-white"
+                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
                     }`}
                   >
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-semibold text-[#2a241c]">
-                        {typeLabels[post.type] ?? post.type}
+                    전체
+                  </Link>
+                  {Object.values(PostType).map((value) => (
+                    <Link
+                      key={value}
+                      href={makeHref({ nextType: value })}
+                      className={`border px-3 py-1 text-xs font-medium transition ${
+                        type === value
+                          ? "border-[#3567b5] bg-[#3567b5] text-white"
+                          : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                      }`}
+                    >
+                      {typeLabels[value]}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <aside className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                범위
+              </div>
+              <div className="mt-2 grid gap-2">
+                <Link
+                  href={makeHref({ nextScope: PostScope.LOCAL })}
+                  className={`border px-3 py-2 text-center text-xs font-semibold transition ${
+                    scope === PostScope.LOCAL
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                  }`}
+                >
+                  동네 글
+                </Link>
+                <Link
+                  href={makeHref({ nextScope: PostScope.GLOBAL })}
+                  className={`border px-3 py-2 text-center text-xs font-semibold transition ${
+                    scope === PostScope.GLOBAL
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                  }`}
+                >
+                  온동네 글
+                </Link>
+              </div>
+              <p className="mt-3 border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">
+                총 {posts.length}건
+              </p>
+            </aside>
+          </div>
+        </section>
+
+        <section className="border border-[#c8d7ef] bg-white">
+          {posts.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-[#5d769d]">
+              아직 작성한 게시글이 없습니다.
+            </div>
+          ) : (
+            <div className="divide-y divide-[#e1e9f5]">
+              {posts.map((post) => (
+                <article
+                  key={post.id}
+                  className={`grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-center ${
+                    post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                        {typeLabels[post.type]}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/posts/${post.id}`}
-                        className="font-semibold text-[#2a241c] hover:text-[#3a3228]"
-                      >
-                        {post.title}
-                      </Link>
-                      {post.commentCount > 0 ? (
-                        <span className="ml-2 text-xs font-semibold text-red-500">
-                          [{post.commentCount}]
-                        </span>
-                      ) : null}
+                      <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                        {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
+                      </span>
+                      <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
+                        {post.neighborhood
+                          ? `${post.neighborhood.city} ${post.neighborhood.name}`
+                          : "전체"}
+                      </span>
                       {post.status === "HIDDEN" ? (
-                        <span className="ml-2 rounded-full bg-[#cbbba5] px-2 py-0.5 text-[10px] uppercase text-white">
+                        <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
                           숨김
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#6f6046]">
-                      {post.neighborhood
-                        ? `${post.neighborhood.city} ${post.neighborhood.name}`
-                        : "온동네"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#6f6046]">
-                      {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs text-[#9a8462]">
-                      {post.createdAt.toLocaleDateString("ko-KR")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+
+                    <Link
+                      href={`/posts/${post.id}`}
+                      className="block truncate text-base font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-lg"
+                    >
+                      {post.title}
+                      {post.commentCount > 0 ? ` [${post.commentCount}]` : ""}
+                    </Link>
+                    <p className="mt-1 truncate text-sm text-[#4c6488]">{post.content}</p>
+                  </div>
+
+                  <div className="text-xs text-[#4f678d] md:text-right">
+                    <p>{formatRelativeDate(post.createdAt)}</p>
+                    <p className="mt-2 text-[11px] text-[#6a84ab]">
+                      조회 {post.viewCount.toLocaleString()} · 좋아요 {post.likeCount.toLocaleString()}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
         </section>
       </main>

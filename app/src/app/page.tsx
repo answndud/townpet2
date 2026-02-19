@@ -81,7 +81,7 @@ const typeMeta: Record<
     icon: "R",
   },
   PET_SHOWCASE: {
-    label: "내 반려동물 자랑",
+    label: "반려동물 자랑",
     chipClass: "border-sky-200 bg-sky-50 text-sky-700",
     icon: "S",
   },
@@ -143,6 +143,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const cursor = parsedParams.success ? parsedParams.data.cursor : undefined;
   const limit = parsedParams.success ? parsedParams.data.limit : 20;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
+
   const posts = await listPosts({
     limit,
     cursor,
@@ -187,23 +188,37 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   return (
     <div className="min-h-screen pb-16">
-      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f3f8ff_0%,#eef5ff_100%)] p-5 sm:p-6">
-          <div className="grid gap-6 lg:grid-cols-[1.45fr_0.85fr] lg:items-start">
-            <div className="space-y-5">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-[#3b5b8a]">
-                  TOWNPET BOARD
-                </p>
-                <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-4xl">
-                  동네 반려동물 커뮤니티
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#3e5679] sm:text-base">
-                  정보 밀도 높은 게시판 구조로 다시 구성했습니다. 제목 중심 탐색,
-                  빠른 필터링, 작성자 메타를 한 화면에서 바로 확인할 수 있습니다.
-                </p>
+      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
+        <header className="animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">
+                타운펫 커뮤니티
+              </p>
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-4xl">
+                동네 반려동물 게시판
+              </h1>
+              <p className="mt-2 text-sm text-[#4f678d] sm:text-base">
+                카테고리와 범위를 빠르게 조합해 필요한 글을 즉시 찾을 수 있습니다.
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-2 text-xs text-[#4f678d]">
+              <div className="border border-[#d4e1f3] bg-white px-3 py-1.5">
+                현재 글 {items.length}건
               </div>
+              <Link
+                href="/posts/new"
+                className="inline-flex h-10 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-4 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+              >
+                글쓰기
+              </Link>
+            </div>
+          </div>
+        </header>
 
+        <section className="animate-fade-up border border-[#c8d7ef] bg-white p-4 sm:p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+            <div className="space-y-3">
               <form action="/" className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {type ? <input type="hidden" name="type" value={type} /> : null}
                 {selectedScope ? (
@@ -212,56 +227,33 @@ export default async function Home({ searchParams }: HomePageProps) {
                 <input
                   name="q"
                   defaultValue={query}
-                  placeholder="검색어 입력"
-                  className="h-11 w-full border border-[#b9cbeb] bg-white px-3 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
+                  placeholder="제목, 내용 검색"
+                  className="h-10 w-full border border-[#b9cbeb] bg-white px-3 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
                 />
                 <button
                   type="submit"
-                  className="h-11 min-w-[80px] border border-[#3567b5] bg-[#3567b5] px-4 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+                  className="h-10 min-w-[76px] border border-[#3567b5] bg-[#3567b5] px-3 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
                 >
                   검색
                 </button>
                 {query ? (
                   <Link
                     href={makeHref({ nextQuery: null, nextCursor: null })}
-                    className="inline-flex h-11 min-w-[80px] items-center justify-center border border-[#b9cbeb] bg-white px-4 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+                    className="inline-flex h-10 min-w-[76px] items-center justify-center border border-[#b9cbeb] bg-white px-3 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
                   >
                     초기화
                   </Link>
                 ) : null}
               </form>
 
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4b6b9b]">
-                    범위
-                  </span>
-                  <Link
-                    href={makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })}
-                    className={`border px-3 py-1 text-xs font-semibold transition ${
-                      selectedScope === PostScope.LOCAL
-                        ? "border-[#3567b5] bg-[#3567b5] text-white"
-                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                    }`}
-                  >
-                    동네
-                  </Link>
-                  <Link
-                    href={makeHref({ nextScope: PostScope.GLOBAL, nextCursor: null })}
-                    className={`border px-3 py-1 text-xs font-semibold transition ${
-                      selectedScope === PostScope.GLOBAL
-                        ? "border-[#3567b5] bg-[#3567b5] text-white"
-                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                    }`}
-                  >
-                    온동네
-                  </Link>
+              <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                  카테고리
                 </div>
-
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={makeHref({ nextType: null, nextCursor: null })}
-                    className={`shrink-0 border px-3 py-1 text-xs font-medium transition ${
+                    className={`border px-3 py-1 text-xs font-medium transition ${
                       !type
                         ? "border-[#3567b5] bg-[#3567b5] text-white"
                         : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -273,7 +265,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     <Link
                       key={value}
                       href={makeHref({ nextType: value, nextCursor: null })}
-                      className={`shrink-0 border px-3 py-1 text-xs font-medium transition ${
+                      className={`border px-3 py-1 text-xs font-medium transition ${
                         type === value
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
                           : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -286,35 +278,45 @@ export default async function Home({ searchParams }: HomePageProps) {
               </div>
             </div>
 
-            <aside className="border border-[#c8d7ef] bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-[#5a78a5]">
-                Feed Snapshot
-              </p>
-              <p className="mt-1 text-2xl font-bold text-[#122748]">{items.length}건</p>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                <div className="border border-[#d7e3f4] bg-[#f6f9ff] px-3 py-2 text-[#2d4f88]">
-                  동네 {localCount}
-                </div>
-                <div className="border border-[#d7e3f4] bg-[#f6f9ff] px-3 py-2 text-[#2d4f88]">
-                  온동네 {items.length - localCount}
-                </div>
+            <aside className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                범위
               </div>
-              <Link
-                href="/posts/new"
-                className="mt-4 inline-flex h-10 w-full items-center justify-center border border-[#3567b5] bg-[#3567b5] px-4 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
-              >
-                글쓰기
-              </Link>
+              <div className="mt-2 grid gap-2">
+                <Link
+                  href={makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })}
+                  className={`border px-3 py-2 text-center text-xs font-semibold transition ${
+                    selectedScope === PostScope.LOCAL
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                  }`}
+                >
+                  동네
+                </Link>
+                <Link
+                  href={makeHref({ nextScope: PostScope.GLOBAL, nextCursor: null })}
+                  className={`border px-3 py-2 text-center text-xs font-semibold transition ${
+                    selectedScope === PostScope.GLOBAL
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                  }`}
+                >
+                  온동네
+                </Link>
+              </div>
+              <div className="mt-3 border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">
+                동네 글 {localCount}건 · 온동네 글 {items.length - localCount}건
+              </div>
             </aside>
           </div>
-        </header>
+        </section>
 
         <section className="animate-fade-up border border-[#c8d7ef] bg-white">
           {items.length === 0 ? (
             <div className="px-6 py-14 text-center">
               <h2 className="text-lg font-semibold text-[#1d3660]">게시글이 없습니다</h2>
               <p className="mt-2 text-sm text-[#5a7397]">
-                첫 글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인하세요.
+                글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인해 주세요.
               </p>
             </div>
           ) : (
@@ -335,7 +337,9 @@ export default async function Home({ searchParams }: HomePageProps) {
                   >
                     <div className="min-w-0">
                       <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
-                        <span className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}>
+                        <span
+                          className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
+                        >
                           <span>{meta.icon}</span>
                           {meta.label}
                         </span>

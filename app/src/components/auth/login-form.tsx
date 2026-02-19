@@ -35,32 +35,32 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-2 text-sm font-medium">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
         이메일
         <input
           type="email"
-          className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+          className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@townpet.dev"
           required
         />
       </label>
-      <label className="flex flex-col gap-2 text-sm font-medium">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
         비밀번호
         <input
           type="password"
-          className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+          className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="********"
           required
         />
       </label>
-      {error ? <p className="text-xs text-red-500">{error}</p> : null}
+      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
       <button
         type="submit"
-        className="rounded-full bg-[#2a241c] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"
+        className="border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
         disabled={isPending}
       >
         {isPending ? "로그인 중..." : "이메일로 시작"}

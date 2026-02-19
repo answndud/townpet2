@@ -33,19 +33,19 @@ export default async function NewPostPage() {
 
   return (
     <div className="min-h-screen">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-12">
+      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
         <Link
           href="/"
-          className="text-xs uppercase tracking-[0.3em] text-[#9a8462]"
+          className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]"
         >
-          Back to feed
+          목록으로
         </Link>
 
-        <section className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
-          <div className="mb-4 flex flex-col gap-2">
-            <h1 className="text-2xl font-semibold">새 글 작성</h1>
-            <p className="text-sm text-[#6f6046]">
-              템플릿에 맞춰 작성하면 로컬 정보 품질이 올라갑니다.
+        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <div className="mb-5 flex flex-col gap-2 border-b border-[#dde7f5] pb-4">
+            <h1 className="text-2xl font-semibold text-[#10284a]">새 글 작성</h1>
+            <p className="text-sm text-[#4f678d]">
+              핵심 정보 위주로 작성해 커뮤니티 피드 품질을 높여 주세요.
             </p>
           </div>
           <PostCreateForm

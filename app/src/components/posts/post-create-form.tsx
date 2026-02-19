@@ -223,19 +223,19 @@ export function PostCreateForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-[0.3em] text-zinc-500">
-          New Post
+        <span className="text-xs uppercase tracking-[0.24em] text-[#4f6f9f]">
+          글 작성
         </span>
-        <h2 className="text-lg font-semibold">게시물 작성</h2>
+        <h2 className="text-lg font-semibold text-[#153a6a]">게시물 작성</h2>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           제목
           <input
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.title}
             onChange={(event) =>
               setFormState((prev) => ({ ...prev, title: event.target.value }))
@@ -245,10 +245,10 @@ export function PostCreateForm({
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           타입
           <select
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.type}
             onChange={(event) =>
               setFormState((prev) => ({
@@ -265,10 +265,10 @@ export function PostCreateForm({
           </select>
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           범위
           <select
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.scope}
             onChange={(event) =>
               setFormState((prev) => ({
@@ -285,13 +285,13 @@ export function PostCreateForm({
           </select>
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           동네
           <select
-            className={`rounded-lg border px-3 py-2 text-sm transition ${
+            className={`border px-3 py-2 text-sm text-[#1f3f71] transition ${
               showNeighborhood
-                ? "border-[#e3d6c4] bg-white"
-                : "cursor-not-allowed border-[#e1e1e1] bg-[#f1f1f1] text-[#9a9a9a]"
+                ? "border-[#bfd0ec] bg-[#f8fbff]"
+                : "cursor-not-allowed border-[#d6deea] bg-[#eef2f8] text-[#8ea1bd]"
             }`}
             value={formState.neighborhoodId}
             onChange={(event) =>
@@ -313,10 +313,10 @@ export function PostCreateForm({
         </label>
       </div>
 
-      <label className="flex flex-col gap-2 text-sm font-medium">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
         내용
         <textarea
-          className="min-h-[120px] rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+          className="min-h-[130px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
           value={formState.content}
           onChange={(event) =>
             setFormState((prev) => ({ ...prev, content: event.target.value }))
@@ -327,11 +327,11 @@ export function PostCreateForm({
       </label>
 
       {showHospitalReview ? (
-        <div className="grid gap-4 rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm font-medium">
+        <div className="grid gap-4 border border-[#d8e4f6] bg-[#f4f8ff] p-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             병원명
             <input
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.hospitalReview.hospitalName}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -346,10 +346,10 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             진료 항목
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.hospitalReview.treatmentType}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -364,11 +364,11 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             비용(원)
             <input
               type="number"
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.hospitalReview.totalCost}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -384,11 +384,11 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             대기시간(분)
             <input
               type="number"
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.hospitalReview.waitTime}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -404,10 +404,10 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             만족도
             <select
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.hospitalReview.rating}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -431,11 +431,11 @@ export function PostCreateForm({
       ) : null}
 
       {showPlaceReview ? (
-        <div className="grid gap-4 rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm font-medium">
+        <div className="grid gap-4 border border-[#d8e4f6] bg-[#f4f8ff] p-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             장소명
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.placeReview.placeName}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -450,10 +450,10 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             장소 유형
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.placeReview.placeType}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -468,10 +468,10 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             주소
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.placeReview.address}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -486,10 +486,10 @@ export function PostCreateForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             동반 가능 여부
             <select
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.placeReview.isPetAllowed}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -507,10 +507,10 @@ export function PostCreateForm({
             </select>
           </label>
 
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             만족도
             <select
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.placeReview.rating}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -534,11 +534,11 @@ export function PostCreateForm({
       ) : null}
 
       {showWalkRoute ? (
-        <div className="grid gap-4 rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm font-medium">
+        <div className="grid gap-4 border border-[#d8e4f6] bg-[#f4f8ff] p-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             코스 이름
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.walkRoute.routeName}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -558,7 +558,7 @@ export function PostCreateForm({
             <input
               type="number"
               step="0.1"
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.walkRoute.distance}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -578,7 +578,7 @@ export function PostCreateForm({
             소요시간(분)
             <input
               type="number"
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.walkRoute.duration}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -597,7 +597,7 @@ export function PostCreateForm({
           <label className="flex flex-col gap-2 text-sm font-medium">
             난이도
             <select
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.walkRoute.difficulty}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -619,7 +619,7 @@ export function PostCreateForm({
           <label className="flex flex-col gap-2 text-sm font-medium">
             안전 태그(콤마)
             <input
-              className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={formState.walkRoute.safetyTags}
               onChange={(event) =>
                 setFormState((prev) => ({
@@ -635,13 +635,13 @@ export function PostCreateForm({
           </label>
 
 
-          <div className="flex flex-col gap-2 text-sm font-medium">
+          <div className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
             편의 시설
-            <div className="flex flex-wrap gap-3 text-xs text-[#6f6046]">
+            <div className="flex flex-wrap gap-3 text-xs text-[#4f678d]">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="accent-[#2a241c]"
+                  className="accent-[#3567b5]"
                   checked={formState.walkRoute.hasStreetLights === "true"}
                   onChange={(event) =>
                     setFormState((prev) => ({
@@ -658,7 +658,7 @@ export function PostCreateForm({
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="accent-[#2a241c]"
+                  className="accent-[#3567b5]"
                   checked={formState.walkRoute.hasRestroom === "true"}
                   onChange={(event) =>
                     setFormState((prev) => ({
@@ -675,7 +675,7 @@ export function PostCreateForm({
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="accent-[#2a241c]"
+                  className="accent-[#3567b5]"
                   checked={formState.walkRoute.hasParkingLot === "true"}
                   onChange={(event) =>
                     setFormState((prev) => ({
@@ -694,15 +694,15 @@ export function PostCreateForm({
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-400">
-          Local 게시물은 동네 선택이 필요합니다.
+        <p className="text-xs text-[#5d769d]">
+          동네 범위 글은 대표 동네 선택이 필요합니다.
         </p>
         <button
           type="submit"
-          className="rounded-full bg-[#2a241c] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"
+          className="border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
           disabled={isPending}
         >
           {isPending ? "저장 중..." : "게시하기"}

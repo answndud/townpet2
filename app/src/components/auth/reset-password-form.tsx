@@ -80,20 +80,20 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
   return (
     <div className="flex flex-col gap-6">
       {initialToken ? (
-        <div className="rounded-xl border border-[#e3d6c4] bg-[#fdf9f2] p-3 text-xs text-[#6f6046]">
+        <div className="border border-[#bfd0ec] bg-[#f6f9ff] p-3 text-xs text-[#4f678d]">
           메일에서 받은 토큰을 확인했습니다. 아래에서 새 비밀번호를 설정해 주세요.
         </div>
       ) : null}
       <form onSubmit={handleRequest} className="flex flex-col gap-3">
-        <h2 className="text-base font-semibold">재설정 토큰 발급</h2>
-        <p className="text-xs text-[#6f6046]">
+        <h2 className="text-base font-semibold text-[#153a6a]">재설정 토큰 발급</h2>
+        <p className="text-xs text-[#4f678d]">
           이메일로 토큰을 발급합니다. 개발 환경에서는 토큰을 화면에 표시합니다.
         </p>
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           이메일
           <input
             type="email"
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@townpet.dev"
@@ -101,7 +101,7 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
           />
         </label>
         {issuedToken ? (
-          <div className="rounded-xl border border-[#e3d6c4] bg-[#fdf9f2] p-3 text-xs text-[#6f6046]">
+          <div className="border border-[#bfd0ec] bg-[#f6f9ff] p-3 text-xs text-[#4f678d]">
             발급된 토큰: <span className="font-mono">{issuedToken}</span>
           </div>
         ) : null}
@@ -110,7 +110,7 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
         ) : null}
         <button
           type="submit"
-          className="rounded-full border border-[#e3d6c4] bg-white px-4 py-2 text-xs font-semibold"
+          className="border border-[#bfd0ec] bg-white px-4 py-2 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           disabled={isPending}
         >
           {isPending ? "발급 중..." : "토큰 발급"}
@@ -118,51 +118,51 @@ export function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
       </form>
 
       <form onSubmit={handleReset} className="flex flex-col gap-4">
-        <h2 className="text-base font-semibold">비밀번호 재설정</h2>
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <h2 className="text-base font-semibold text-[#153a6a]">비밀번호 재설정</h2>
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           토큰
           <input
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={token}
             onChange={(event) => setToken(event.target.value)}
             placeholder="토큰을 입력하세요"
             required
           />
         </label>
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           새 비밀번호
           <input
             type="password"
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="최소 8자"
             required
           />
         </label>
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           새 비밀번호 확인
           <input
             type="password"
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={passwordConfirm}
             onChange={(event) => setPasswordConfirm(event.target.value)}
             placeholder="다시 입력"
             required
           />
         </label>
-        {error ? <p className="text-xs text-red-500">{error}</p> : null}
+        {error ? <p className="text-xs text-rose-600">{error}</p> : null}
         {success ? (
           <div className="flex items-center justify-between text-xs text-emerald-600">
             <span>비밀번호가 재설정되었습니다.</span>
-            <Link href="/login" className="text-xs text-[#9a8462]">
+            <Link href="/login" className="text-xs text-[#5a7398]">
               로그인으로 이동
             </Link>
           </div>
         ) : null}
         <button
           type="submit"
-          className="rounded-full bg-[#2a241c] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"
+          className="border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
           disabled={isPending}
         >
           {isPending ? "재설정 중..." : "비밀번호 재설정"}

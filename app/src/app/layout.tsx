@@ -21,7 +21,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "TownPet",
-  description: "Local-first pet community workspace",
+  description: "동네 기반 반려동물 커뮤니티",
 };
 
 export default async function RootLayout({
@@ -40,7 +40,7 @@ export default async function RootLayout({
     null;
 
   return (
-    <html lang="en">
+    <html lang="ko">
       <body
         className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[#edf3fb] text-[#10284a] antialiased`}
       >
@@ -49,21 +49,15 @@ export default async function RootLayout({
 
           <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
             <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-col">
+              <Link href="/" className="inline-flex flex-col">
                 <span className="text-xs uppercase tracking-[0.4em] text-[#4a6797]">
                   TownPet
                 </span>
                 <span className="text-xl font-bold tracking-tight text-[#10284a]">
-                  Local Knowledge Desk
+                  타운펫
                 </span>
-              </div>
+              </Link>
               <nav className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#315484] sm:text-sm">
-                <Link
-                  href="/"
-                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                >
-                  홈
-                </Link>
                 <Link
                   href="/my-posts"
                   className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"

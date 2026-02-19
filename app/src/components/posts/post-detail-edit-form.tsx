@@ -76,13 +76,13 @@ export function PostDetailEditForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full rounded-2xl border border-[#e3d6c4] bg-white p-8 shadow-sm"
+      className="w-full border border-[#c8d7ef] bg-white p-5 sm:p-6"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">게시물 수정</h2>
+        <h2 className="text-lg font-semibold text-[#153a6a]">게시물 수정</h2>
         <button
           type="submit"
-          className="rounded-full bg-[#2a241c] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#3a3228] disabled:cursor-not-allowed disabled:bg-[#cbbba5]"
+          className="border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
           disabled={isPending}
         >
           {isPending ? "저장 중..." : "수정 저장"}
@@ -90,10 +90,10 @@ export function PostDetailEditForm({
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           제목
           <input
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.title}
             onChange={(event) =>
               setFormState((prev) => ({ ...prev, title: event.target.value }))
@@ -102,10 +102,10 @@ export function PostDetailEditForm({
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           범위
           <select
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.scope}
             onChange={(event) =>
               setFormState((prev) => ({
@@ -122,10 +122,10 @@ export function PostDetailEditForm({
           </select>
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           동네
           <select
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={formState.neighborhoodId}
             onChange={(event) =>
               setFormState((prev) => ({
@@ -146,10 +146,10 @@ export function PostDetailEditForm({
         </label>
       </div>
 
-      <label className="mt-6 flex flex-col gap-2 text-sm font-medium">
+      <label className="mt-6 flex flex-col gap-2 text-sm font-medium text-[#355988]">
         내용
         <textarea
-          className="min-h-[220px] rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+          className="min-h-[220px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
           value={formState.content}
           onChange={(event) =>
             setFormState((prev) => ({ ...prev, content: event.target.value }))
@@ -158,7 +158,7 @@ export function PostDetailEditForm({
         />
       </label>
 
-      {error ? <p className="mt-3 text-sm text-red-500">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
     </form>
   );
 }
