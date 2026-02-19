@@ -100,15 +100,15 @@ cd /Users/alex/project/townpet2 && docker compose exec -T postgres psql -U townp
 ## 5. 게시글이 안 보이는 이유 (중요)
 
 현재 메인 페이지(`/`)는 `베스트 게시판`입니다.
-일반 피드는 `/feed`에서 확인합니다.
+`전체 게시판`은 `/feed`에서 확인합니다.
 
-일반 피드(`/feed`)의 기본 범위는 `LOCAL`이라,
+`전체 게시판`(`/feed`)의 기본 범위는 `LOCAL`이라,
 로그인한 유저의 대표 동네와 같은 동네 글만 기본으로 보입니다.
 
 즉시 확인:
 - 베스트 메인: `http://localhost:3000/`
-- 일반 피드: `http://localhost:3000/feed`
-- 글로벌 피드: `http://localhost:3000/feed?scope=GLOBAL`
+- 전체 게시판: `http://localhost:3000/feed`
+- 전체 게시판 글로벌 범위: `http://localhost:3000/feed?scope=GLOBAL`
 - 테스트 계정 로그인: `demo@townpet.dev` / `dev-password-1234`
 
 샘플 계정:

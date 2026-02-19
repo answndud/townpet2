@@ -7,7 +7,7 @@ import { PostReactionControls } from "@/components/posts/post-reaction-controls"
 import { auth } from "@/lib/auth";
 import { formatCount, formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
 import { postListSchema } from "@/lib/validations/post";
-import { listBestPosts, listPosts } from "@/server/queries/post.queries";
+import { listPosts } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 type HomePageProps = {
@@ -64,19 +64,6 @@ export default async function Home({ searchParams }: HomePageProps) {
         : undefined,
     viewerId: user.id,
   });
-  const bestPreview = await listBestPosts({
-    limit: 5,
-    days: 7,
-    type,
-    scope: effectiveScope,
-    neighborhoodId:
-      effectiveScope === PostScope.LOCAL
-        ? primaryNeighborhood?.neighborhood.id
-        : undefined,
-    minLikes: 1,
-    viewerId: user.id,
-  });
-
   const items = posts.items;
   const selectedScope = scope ?? PostScope.LOCAL;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
@@ -106,24 +93,6 @@ export default async function Home({ searchParams }: HomePageProps) {
     const serialized = params.toString();
     return serialized ? `/feed?${serialized}` : "/feed";
   };
-  const makeBestHref = ({
-    nextType,
-    nextScope,
-  }: {
-    nextType?: PostType | null;
-    nextScope?: PostScope | null;
-  }) => {
-    const params = new URLSearchParams();
-    const resolvedType = nextType === undefined ? type : nextType;
-    const resolvedScope = nextScope === undefined ? selectedScope : nextScope;
-
-    if (resolvedType) params.set("type", resolvedType);
-    if (resolvedScope) params.set("scope", resolvedScope);
-    params.set("days", "7");
-
-    const serialized = params.toString();
-    return serialized ? `/best?${serialized}` : "/best";
-  };
 
   return (
     <div className="min-h-screen pb-16">
@@ -135,7 +104,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 타운펫 커뮤니티
               </p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-4xl">
-                동네 반려동물 게시판
+                전체 게시판
               </h1>
               <p className="mt-2 text-sm text-[#4f678d] sm:text-base">
                 카테고리와 범위를 빠르게 조합해 필요한 글을 즉시 찾을 수 있습니다.
@@ -154,82 +123,6 @@ export default async function Home({ searchParams }: HomePageProps) {
             </div>
           </div>
         </header>
-
-        <section className="animate-fade-up border border-[#c8d7ef] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d9e4f4] px-4 py-3 sm:px-5">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">베스트</p>
-              <h2 className="text-lg font-bold tracking-tight text-[#10284a]">좋아요 베스트</h2>
-            </div>
-            <Link
-              href={makeBestHref({})}
-              className="inline-flex h-9 items-center justify-center border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
-            >
-              베스트 게시판 전체보기
-            </Link>
-          </div>
-          {bestPreview.length === 0 ? (
-            <div className="px-5 py-8 text-sm text-[#5a7398]">
-              최근 7일 내 좋아요가 1개 이상인 게시글이 아직 없습니다.
-            </div>
-          ) : (
-            <div className="divide-y divide-[#e1e9f5]">
-              {bestPreview.map((post, index) => {
-                const meta = postTypeMeta[post.type];
-
-                return (
-                  <article
-                    key={post.id}
-                    className="grid gap-3 px-4 py-3 sm:px-5 md:grid-cols-[44px_minmax(0,1fr)_220px] md:items-center"
-                  >
-                    <div className="border border-[#a9c0e4] bg-[#f0f5ff] px-2 py-1 text-center text-sm font-bold text-[#20447a]">
-                      {index + 1}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-                        <span
-                          className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
-                        >
-                          <span>{meta.icon}</span>
-                          {meta.label}
-                        </span>
-                        <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                          {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
-                        </span>
-                      </div>
-                      <Link
-                        href={`/posts/${post.id}`}
-                        className="block truncate text-sm font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-base"
-                      >
-                        {post.title}
-                        {post.commentCount > 0 ? ` [${post.commentCount}]` : ""}
-                      </Link>
-                    </div>
-                    <div className="text-xs text-[#4f678d] md:text-right">
-                      <p className="font-semibold text-[#1f3f71]">
-                        {post.author.nickname ?? post.author.name ?? "익명"}
-                      </p>
-                      <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
-                      <p className="mt-1 text-[11px] text-[#6a84ab]">
-                        좋아요 {formatCount(post.likeCount)} · 싫어요 {formatCount(post.dislikeCount)} · 댓글{" "}
-                        {formatCount(post.commentCount)} · 조회 {formatCount(post.viewCount)}
-                      </p>
-                      <div className="mt-2 md:ml-auto md:flex md:justify-end">
-                        <PostReactionControls
-                          postId={post.id}
-                          likeCount={post.likeCount}
-                          dislikeCount={post.dislikeCount}
-                          currentReaction={post.reactions?.[0]?.type ?? null}
-                          compact
-                        />
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
 
         <section className="animate-fade-up border border-[#c8d7ef] bg-white p-4 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -267,7 +160,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
-                    href={makeBestHref({})}
+                    href={selectedScope === PostScope.GLOBAL ? "/?scope=GLOBAL" : "/"}
                     className="border border-[#b9cbeb] bg-white px-3 py-1 text-xs font-medium text-[#2f548f] transition hover:bg-[#f3f7ff]"
                   >
                     베스트

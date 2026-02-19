@@ -525,3 +525,33 @@
 - `app/src/components/posts/post-reaction-controls.tsx`
 - `app/src/server/actions/post.ts`
 - `docs/plan/todo.md`
+
+## Cycle 18: 베스트/전체 2축 동선 단순화 (완료)
+
+### Plan
+- [x] 시작 페이지를 베스트 게시판으로 고정
+- [x] 상단 메뉴를 `베스트` + `전체` 중심으로 단순화
+- [x] `일반피드` 용어 제거 및 베스트/전체 전환 흐름 정리
+
+### Build
+- [x] `app/src/app/page.tsx`를 베스트 메인 페이지로 운영
+- [x] `app/src/app/best/page.tsx`를 `/` 리다이렉트 별칭으로 변경
+- [x] `app/src/app/layout.tsx` 메뉴를 `베스트(/)`, `전체(/feed)`로 정리
+- [x] `app/src/app/feed/page.tsx`에서 베스트 미리보기 섹션 제거(중복 동선 제거)
+- [x] `app/src/server/actions/post.ts`의 베스트 재검증 경로를 `/`로 변경
+- [x] `docs/GUIDE.md` 용어를 `전체 게시판` 기준으로 업데이트
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 18 결과
+- 변경 파일
+- `app/src/app/page.tsx`
+- `app/src/app/best/page.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/src/app/layout.tsx`
+- `app/src/server/actions/post.ts`
+- `docs/GUIDE.md`
+- `docs/plan/todo.md`
