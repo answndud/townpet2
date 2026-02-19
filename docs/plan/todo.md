@@ -478,3 +478,29 @@
 - 변경 파일
 - `app/src/server/queries/post.queries.ts`
 - `docs/plan/todo.md`
+
+## Cycle 16: 반응 카운트 undefined 크래시 방지 (완료)
+
+### Plan
+- [x] `/feed` 런타임 `toLocaleString` 크래시 원인(카운트 undefined) 제거
+- [x] 반응 컴포넌트/표시 유틸/상세 화면을 모두 방어형 처리
+
+### Build
+- [x] `app/src/components/posts/post-reaction-controls.tsx`에서 카운트 초기값 안전 보정
+- [x] `app/src/lib/post-presenter.ts`의 `formatCount`를 nullable/undefined 안전 처리
+- [x] `app/src/app/posts/[id]/page.tsx`에서 상세 카운트 안전 보정
+- [x] `app/src/app/feed/page.tsx`, `app/src/app/best/page.tsx`, `app/src/app/posts/[id]/page.tsx`의 `reactions` 접근을 optional chaining으로 강화
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 16 결과
+- 변경 파일
+- `app/src/components/posts/post-reaction-controls.tsx`
+- `app/src/lib/post-presenter.ts`
+- `app/src/app/posts/[id]/page.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/src/app/best/page.tsx`
+- `docs/plan/todo.md`

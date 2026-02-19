@@ -87,9 +87,11 @@ export function formatRelativeDate(date: Date) {
   return date.toLocaleDateString("ko-KR");
 }
 
-export function formatCount(value: number) {
+export function formatCount(value?: number | null) {
+  const safeValue = Number.isFinite(value) ? Number(value) : 0;
+
   return new Intl.NumberFormat("ko-KR", {
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(value);
+  }).format(safeValue);
 }

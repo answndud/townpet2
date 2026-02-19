@@ -7,8 +7,8 @@ import { togglePostReactionAction } from "@/server/actions/post";
 
 type PostReactionControlsProps = {
   postId: string;
-  likeCount: number;
-  dislikeCount: number;
+  likeCount?: number | null;
+  dislikeCount?: number | null;
   currentReaction: PostReactionType | null;
   compact?: boolean;
 };
@@ -61,9 +61,12 @@ export function PostReactionControls({
   currentReaction,
   compact = false,
 }: PostReactionControlsProps) {
+  const initialLikeCount = Number.isFinite(likeCount) ? Number(likeCount) : 0;
+  const initialDislikeCount = Number.isFinite(dislikeCount) ? Number(dislikeCount) : 0;
+
   const [reaction, setReaction] = useState<PostReactionType | null>(currentReaction);
-  const [likes, setLikes] = useState(likeCount);
-  const [dislikes, setDislikes] = useState(dislikeCount);
+  const [likes, setLikes] = useState(initialLikeCount);
+  const [dislikes, setDislikes] = useState(initialDislikeCount);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
