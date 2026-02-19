@@ -32,7 +32,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
           <p className="text-sm text-[#4f678d]">
             보안 감사 로그는 관리자 또는 운영자만 접근할 수 있습니다.
           </p>
-          <Link href="/" className="text-xs text-[#5a7398]">
+          <Link href="/feed" className="text-xs text-[#5a7398]">
             홈으로 돌아가기
           </Link>
         </main>
