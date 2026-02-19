@@ -42,64 +42,75 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[#f6f1e8] text-[#2a241c] antialiased`}
+        className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[#eaf2eb] text-[#12251b] antialiased`}
       >
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fefaf4,_#f6f1e8_60%)]">
-          <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
-            <div className="flex flex-col">
-              <span className="text-xs uppercase tracking-[0.35em] text-[#9a8462]">
-                TownPet
-              </span>
-              <span className="text-lg font-semibold">Local Knowledge Desk</span>
-            </div>
-            <nav className="flex items-center gap-3 text-xs text-[#6f6046]">
-              <Link
-                href="/"
-                className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
-              >
-                홈
-              </Link>
-              <Link
-                href="/my-posts"
-                className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
-              >
-                내 작성글
-              </Link>
-              <Link
-                href="/profile"
-                className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
-              >
-                내 프로필
-              </Link>
-              {canModerate ? (
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/admin/reports"
-                    className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
-                  >
-                    신고 큐
-                  </Link>
-                  <Link
-                    href="/admin/auth-audits"
-                    className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
-                  >
-                    인증 로그
-                  </Link>
-                </div>
-              ) : null}
-              {session?.user ? (
-                <AuthControls label={userLabel ? `${userLabel} 로그아웃` : "로그아웃"} />
-              ) : (
+        <div className="relative min-h-screen bg-[radial-gradient(circle_at_5%_10%,#f8fff8_0%,transparent_42%),radial-gradient(circle_at_100%_0%,#d9ecd9_0%,transparent_30%),linear-gradient(180deg,#edf6ee_0%,#e7f0e8_100%)]">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(27,80,53,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(27,80,53,0.04)_1px,transparent_1px)] bg-[size:28px_28px] opacity-35" />
+
+          <header className="sticky top-0 z-40 border-b border-[#cfe1d2] bg-[#edf6eecc] backdrop-blur-sm">
+            <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs uppercase tracking-[0.4em] text-[#427256]">
+                  TownPet
+                </span>
+                <span className="text-xl font-bold tracking-tight text-[#112a1f]">
+                  Local Knowledge Desk
+                </span>
+              </div>
+              <nav className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#35644a] sm:text-sm">
                 <Link
-                  href="/login"
-                  className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1"
+                  href="/"
+                  className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
                 >
-                  로그인
+                  홈
                 </Link>
-              )}
-            </nav>
+                <Link
+                  href="/my-posts"
+                  className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                >
+                  내 작성글
+                </Link>
+                <Link
+                  href="/profile"
+                  className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                >
+                  내 프로필
+                </Link>
+                {canModerate ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href="/admin/reports"
+                      className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                    >
+                      신고 큐
+                    </Link>
+                    <Link
+                      href="/admin/auth-audits"
+                      className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                    >
+                      인증 로그
+                    </Link>
+                  </div>
+                ) : null}
+                {session?.user ? (
+                  <AuthControls
+                    label={userLabel ? `${userLabel} 로그아웃` : "로그아웃"}
+                  />
+                ) : (
+                  <Link
+                    href="/login"
+                    className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                  >
+                    로그인
+                  </Link>
+                )}
+              </nav>
+            </div>
           </header>
-          {children}
+
+          <div className="relative z-10">
+            {children}
+          </div>
         </div>
       </body>
     </html>

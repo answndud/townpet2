@@ -189,3 +189,28 @@
 - 변경 파일
 - `docs/GUIDE.md`
 - `docs/plan/todo.md`
+
+## Cycle 7: 홈 피드 디자인 전면 개편 (완료)
+
+### Plan
+- [x] 홈 피드 테이블 레이아웃을 카드형 피드로 전환
+- [x] 화면 비율 확장(`max-w-5xl` -> 넓은 컨테이너) 및 모바일 대응 강화
+- [x] 헤더/배경/타이포 톤 통일로 "개인 프로젝트 느낌" 제거
+- [x] 피드 정보 밀도 개선(범위/동네/댓글/조회/좋아요/상대시간 표시)
+
+### Build
+- [x] `app/src/app/page.tsx` 전면 리디자인 (히어로, 검색, 필터칩, 카드 피드)
+- [x] `app/src/app/layout.tsx` 네비게이션/폭/배경 스타일 개편
+- [x] `app/src/app/globals.css` 색상 토큰 및 애니메이션 유틸 추가
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (10 files / 29 tests)
+
+### Cycle 7 결과
+- 변경 파일
+- `app/src/app/page.tsx`
+- `app/src/app/layout.tsx`
+- `app/src/app/globals.css`
+- `docs/plan/todo.md`
