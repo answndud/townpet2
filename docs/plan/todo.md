@@ -303,3 +303,24 @@
 - `app/src/components/auth/set-password-form.tsx`
 - `app/src/app/posts/[id]/page.tsx`
 - `docs/plan/todo.md`
+
+## Cycle 10: 글쓰기 타입 기본/정렬 개선 (완료)
+
+### Plan
+- [x] 글 작성 기본 타입을 `자유게시판`으로 변경
+- [x] 타입 드롭다운을 가벼운 주제 우선 순서로 재정렬
+
+### Build
+- [x] `app/src/components/posts/post-create-form.tsx`에서 타입 옵션 순서 조정
+- [x] `formState.type` 기본값을 `PostType.FREE_BOARD`로 변경
+- [x] 제출 후 상태 초기화 시 타입도 `FREE_BOARD`로 복귀하도록 정리
+
+### Check
+- [x] `eslint src --max-warnings=0`
+- [x] `tsc --noEmit`
+- [x] `vitest run`
+
+### Cycle 10 결과
+- 변경 파일
+- `app/src/components/posts/post-create-form.tsx`
+- `docs/plan/todo.md`
