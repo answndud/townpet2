@@ -1,12 +1,25 @@
 .DS_Store
 .env
 .env.*
+.envrc
 node_modules
 app/node_modules
 app/.next
 app/out
 app/.env
 app/.env.*
+app/.envrc
 app/.turbo
 app/.swc
 app/.vercel
+
+# credentials / keys
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+.npmrc
+app/.npmrc
