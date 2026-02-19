@@ -324,3 +324,33 @@
 - 변경 파일
 - `app/src/components/posts/post-create-form.tsx`
 - `docs/plan/todo.md`
+
+## Cycle 11: 프로필/관리자 화면 디자인 통일 (완료)
+
+### Plan
+- [x] `/profile`, `/admin/reports`, `/admin/auth-audits` 잔여 구 디자인 제거
+- [x] 관리자 하위 컴포넌트(`report-queue-table`, `report-actions`, `report-update-banner`) 톤 통일
+- [x] 관리자 상세(`/admin/reports/[id]`)까지 동일 시스템 적용
+
+### Build
+- [x] `app/src/app/admin/reports/page.tsx` 블루 dense 레이아웃으로 재구성
+- [x] `app/src/app/admin/auth-audits/page.tsx` 블루 dense 레이아웃으로 재구성
+- [x] `app/src/components/admin/report-queue-table.tsx` 전면 스타일 교체
+- [x] `app/src/components/admin/report-actions.tsx` 스타일 교체
+- [x] `app/src/components/admin/report-update-banner.tsx` 스타일 교체
+- [x] `app/src/app/admin/reports/[id]/page.tsx` 상세 화면 통일
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (10 files / 29 tests)
+
+### Cycle 11 결과
+- 변경 파일
+- `app/src/app/admin/reports/page.tsx`
+- `app/src/app/admin/auth-audits/page.tsx`
+- `app/src/app/admin/reports/[id]/page.tsx`
+- `app/src/components/admin/report-queue-table.tsx`
+- `app/src/components/admin/report-actions.tsx`
+- `app/src/components/admin/report-update-banner.tsx`
+- `docs/plan/todo.md`

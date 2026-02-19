@@ -46,12 +46,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   if (!isModerator) {
     return (
       <div className="min-h-screen">
-        <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-12">
-          <h1 className="text-xl font-semibold">접근 권한이 없습니다.</h1>
-          <p className="text-sm text-[#6f6046]">
+        <main className="mx-auto flex w-full max-w-[980px] flex-col gap-4 px-4 py-10 sm:px-6">
+          <h1 className="text-xl font-semibold text-[#10284a]">접근 권한이 없습니다.</h1>
+          <p className="text-sm text-[#4f678d]">
             신고 큐는 관리자 또는 운영자만 접근할 수 있습니다.
           </p>
-          <Link href="/" className="text-xs text-[#9a8462]">
+          <Link href="/" className="text-xs text-[#5a7398]">
             홈으로 돌아가기
           </Link>
         </main>
@@ -71,16 +71,19 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       ? (targetParam as ReportTarget | "ALL")
       : "ALL";
   const showUpdated = resolvedParams.updated === "1";
+
   const [reports, stats] = await Promise.all([
     listReports({ status, targetType }),
     getReportStats(7),
   ]);
+
   const reportIds = reports.map((report) => report.id);
   const commentIds = reports
     .filter((report) => report.targetType === ReportTarget.COMMENT)
     .map((report) => report.targetId);
   const comments = await listCommentsByIds(commentIds);
   const commentMap = new Map(comments.map((comment) => [comment.id, comment]));
+
   const audits = await listReportAuditsByReportIds(reportIds);
   const auditMap = new Map<string, typeof audits>();
   for (const audit of audits) {
@@ -88,6 +91,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     existing.push(audit);
     auditMap.set(audit.reportId, existing);
   }
+
   const resolvedByIds = Array.from(
     new Set(
       reports
@@ -96,7 +100,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     ),
   );
   const resolvers = await listUsersByIds(resolvedByIds);
-  const resolverMap = new Map(resolvers.map((user) => [user.id, user]));
+  const resolverMap = new Map(resolvers.map((resolver) => [resolver.id, resolver]));
 
   const formatResolvedAt = (date: Date | null) =>
     date ? date.toLocaleString("ko-KR") : "-";
@@ -110,6 +114,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             ? `댓글: ${commentMap.get(report.targetId)?.content.slice(0, 40)}`
             : report.targetId
           : report.targetId;
+
     const targetHref =
       report.targetType === ReportTarget.POST
         ? report.post
@@ -120,6 +125,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             ? `/posts/${commentMap.get(report.targetId)?.postId}`
             : undefined
           : undefined;
+
     const auditsForReport = auditMap.get(report.id) ?? [];
 
     return {
@@ -166,15 +172,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     : "-";
 
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
-        <header className="flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[#9a8462]">
-            Moderation
-          </p>
-          <h1 className="text-2xl font-semibold">신고 큐</h1>
-          <p className="text-sm text-[#6f6046]">
-            PENDING 상태의 신고를 검토하고 처리합니다.
+    <div className="min-h-screen pb-16">
+      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
+        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">운영 관리</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
+            신고 큐
+          </h1>
+          <p className="mt-2 text-sm text-[#4f678d]">
+            신고 접수 현황을 확인하고 대기 건을 처리합니다.
           </p>
         </header>
 
@@ -182,92 +188,88 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <ReportUpdateBanner message="신고 처리 결과가 반영되었습니다." />
         ) : null}
 
-        <section className="grid gap-4 rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm md:grid-cols-3">
-          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">전체 신고</p>
-            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
-              {stats.totalCount}
-            </p>
-            <p className="text-xs text-[#6f6046]">누적 신고 수</p>
+        <section className="grid gap-3 border border-[#c8d7ef] bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="border border-[#d8e4f6] bg-[#f8fbff] p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">전체 신고</p>
+            <p className="mt-2 text-2xl font-bold text-[#10284a]">{stats.totalCount}</p>
+            <p className="text-xs text-[#4f678d]">누적 신고 수</p>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">미처리</p>
-            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+          <div className="border border-[#d8e4f6] bg-[#f8fbff] p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">미처리</p>
+            <p className="mt-2 text-2xl font-bold text-[#10284a]">
               {stats.statusCounts[ReportStatus.PENDING]}
             </p>
-            <p className="text-xs text-[#6f6046]">대기 중 신고</p>
+            <p className="text-xs text-[#4f678d]">대기 중 신고</p>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">승인</p>
-            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+          <div className="border border-[#d8e4f6] bg-[#f8fbff] p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">승인</p>
+            <p className="mt-2 text-2xl font-bold text-[#10284a]">
               {stats.statusCounts[ReportStatus.RESOLVED]}
             </p>
-            <p className="text-xs text-[#6f6046]">처리 완료</p>
+            <p className="text-xs text-[#4f678d]">처리 완료</p>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">기각</p>
-            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
+          <div className="border border-[#d8e4f6] bg-[#f8fbff] p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">기각</p>
+            <p className="mt-2 text-2xl font-bold text-[#10284a]">
               {stats.statusCounts[ReportStatus.DISMISSED]}
             </p>
-            <p className="text-xs text-[#6f6046]">기각 완료</p>
+            <p className="text-xs text-[#4f678d]">기각 완료</p>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-[#fdf9f2] p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">평균 처리</p>
-            <p className="mt-2 text-2xl font-semibold text-[#2a241c]">
-              {averageResolutionLabel}
-            </p>
-            <p className="text-xs text-[#6f6046]">처리까지 평균 시간</p>
+          <div className="border border-[#d8e4f6] bg-white p-3 sm:col-span-2 lg:col-span-1">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">평균 처리</p>
+            <p className="mt-2 text-2xl font-bold text-[#10284a]">{averageResolutionLabel}</p>
+            <p className="text-xs text-[#4f678d]">처리 평균 시간</p>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-white p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">사유 분포</p>
-            <div className="mt-3 flex flex-col gap-2 text-xs text-[#6f6046]">
+          <div className="border border-[#d8e4f6] bg-white p-3 sm:col-span-2 lg:col-span-1">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">사유 분포</p>
+            <div className="mt-2 flex flex-col gap-1.5 text-xs text-[#4f678d]">
               {Object.entries(stats.reasonCounts).map(([reason, count]) => (
                 <div key={reason} className="flex items-center justify-between">
                   <span>{reasonLabels[reason as ReportReason]}</span>
-                  <span className="font-semibold text-[#2a241c]">{count}</span>
+                  <span className="font-semibold text-[#163462]">{count}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-white p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">대상 분포</p>
-            <div className="mt-3 flex flex-col gap-2 text-xs text-[#6f6046]">
+          <div className="border border-[#d8e4f6] bg-white p-3 sm:col-span-2 lg:col-span-1">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">대상 분포</p>
+            <div className="mt-2 flex flex-col gap-1.5 text-xs text-[#4f678d]">
               {Object.entries(stats.targetCounts).map(([target, count]) => (
                 <div key={target} className="flex items-center justify-between">
                   <span>{targetLabels[target as ReportTarget]}</span>
-                  <span className="font-semibold text-[#2a241c]">{count}</span>
+                  <span className="font-semibold text-[#163462]">{count}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-[#efe4d4] bg-white p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#9a8462]">
+          <div className="border border-[#d8e4f6] bg-white p-3 sm:col-span-2 lg:col-span-1">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">
               최근 {stats.dailyCounts.length}일
             </p>
-            <div className="mt-3 flex flex-col gap-2 text-xs text-[#6f6046]">
+            <div className="mt-2 flex flex-col gap-1.5 text-xs text-[#4f678d]">
               {stats.dailyCounts.map((entry) => (
                 <div key={entry.date} className="flex items-center justify-between">
                   <span>{entry.date.slice(5)}</span>
-                  <span className="font-semibold text-[#2a241c]">{entry.count}</span>
+                  <span className="font-semibold text-[#163462]">{entry.count}</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c4] bg-white p-4 text-xs text-[#6f6046]">
+        <section className="flex flex-col gap-3 border border-[#c8d7ef] bg-white p-4 text-xs text-[#4f678d]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
+            <span className="text-[10px] uppercase tracking-[0.24em] text-[#5b78a1]">
               상태 필터
             </span>
             {["ALL", ...Object.values(ReportStatus)].map((value) => (
               <Link
                 key={value}
                 href={buildLink(value as ReportStatus | "ALL", targetType)}
-                className={`rounded-md border px-2.5 py-1 transition ${
+                className={`border px-2.5 py-1 transition ${
                   status === value
-                    ? "border-[#2a241c] bg-[#2a241c] text-white"
-                    : "border-[#e3d6c4] bg-white"
+                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                    : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
                 }`}
               >
                 {value === "ALL" ? "전체" : statusLabels[value as ReportStatus]}
@@ -275,22 +277,20 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
+            <span className="text-[10px] uppercase tracking-[0.24em] text-[#5b78a1]">
               타입 필터
             </span>
             {["ALL", ...Object.values(ReportTarget)].map((value) => (
               <Link
                 key={value}
                 href={buildLink(status, value as ReportTarget | "ALL")}
-                className={`rounded-md border px-2.5 py-1 transition ${
+                className={`border px-2.5 py-1 transition ${
                   targetType === value
-                    ? "border-[#2a241c] bg-[#2a241c] text-white"
-                    : "border-[#e3d6c4] bg-white"
+                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                    : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
                 }`}
               >
-                {value === "ALL"
-                  ? "전체"
-                  : targetLabels[value as ReportTarget]}
+                {value === "ALL" ? "전체" : targetLabels[value as ReportTarget]}
               </Link>
             ))}
           </div>
