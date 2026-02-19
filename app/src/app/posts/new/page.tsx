@@ -35,7 +35,7 @@ export default async function NewPostPage() {
     <div className="min-h-screen">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
         <Link
-          href="/"
+          href="/feed"
           className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]"
         >
           목록으로

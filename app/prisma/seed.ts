@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient, PostReactionType } from "@prisma/client";
 import { hashPassword } from "../src/server/password";
 
 const prisma = new PrismaClient();
@@ -307,6 +307,128 @@ async function main() {
         },
       });
     }
+  }
+
+  const reactionUsers = await prisma.user.findMany({
+    where: {
+      email: {
+        in: [
+          "demo@townpet.dev",
+          "power.reviewer@townpet.dev",
+          "hospital.geek@townpet.dev",
+          "place.hunter@townpet.dev",
+          "route.runner@townpet.dev",
+        ],
+      },
+    },
+    select: { id: true, email: true },
+  });
+
+  const reactionUserByEmail = new Map(
+    reactionUsers.map((reactionUser) => [reactionUser.email, reactionUser.id]),
+  );
+
+  const reactionPlan: Array<{
+    title: string;
+    likes: string[];
+    dislikes: string[];
+  }> = [
+    {
+      title: "서초동 병원 첫 후기",
+      likes: ["demo@townpet.dev", "power.reviewer@townpet.dev", "hospital.geek@townpet.dev"],
+      dislikes: [],
+    },
+    {
+      title: "연남동 카페 리뷰",
+      likes: ["demo@townpet.dev", "place.hunter@townpet.dev"],
+      dislikes: [],
+    },
+    {
+      title: "양재천 산책 루트",
+      likes: ["demo@townpet.dev", "route.runner@townpet.dev"],
+      dislikes: [],
+    },
+    {
+      title: "동네 자유게시판 첫 글",
+      likes: ["demo@townpet.dev"],
+      dislikes: ["route.runner@townpet.dev"],
+    },
+  ];
+
+  for (const reactionTarget of reactionPlan) {
+    const targetPost = await prisma.post.findFirst({
+      where: { title: reactionTarget.title, authorId: user.id },
+      select: { id: true },
+    });
+
+    if (!targetPost) {
+      continue;
+    }
+
+    for (const email of reactionTarget.likes) {
+      const reactionUserId = reactionUserByEmail.get(email);
+      if (!reactionUserId) {
+        continue;
+      }
+
+      await prisma.postReaction.upsert({
+        where: {
+          postId_userId: {
+            postId: targetPost.id,
+            userId: reactionUserId,
+          },
+        },
+        update: { type: PostReactionType.LIKE },
+        create: {
+          postId: targetPost.id,
+          userId: reactionUserId,
+          type: PostReactionType.LIKE,
+        },
+      });
+    }
+
+    for (const email of reactionTarget.dislikes) {
+      const reactionUserId = reactionUserByEmail.get(email);
+      if (!reactionUserId) {
+        continue;
+      }
+
+      await prisma.postReaction.upsert({
+        where: {
+          postId_userId: {
+            postId: targetPost.id,
+            userId: reactionUserId,
+          },
+        },
+        update: { type: PostReactionType.DISLIKE },
+        create: {
+          postId: targetPost.id,
+          userId: reactionUserId,
+          type: PostReactionType.DISLIKE,
+        },
+      });
+    }
+
+    const groupedReactions = await prisma.postReaction.groupBy({
+      by: ["type"],
+      where: { postId: targetPost.id },
+      _count: { _all: true },
+    });
+
+    const likeCount =
+      groupedReactions.find((group) => group.type === PostReactionType.LIKE)?._count
+        ._all ?? 0;
+    const dislikeCount =
+      groupedReactions.find((group) => group.type === PostReactionType.DISLIKE)?._count
+        ._all ?? 0;
+
+    await prisma.post.update({
+      where: { id: targetPost.id },
+      data: {
+        likeCount,
+        dislikeCount,
+      },
+    });
   }
 }
 

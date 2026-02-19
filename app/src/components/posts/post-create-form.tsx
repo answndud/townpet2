@@ -188,7 +188,7 @@ export function PostCreateForm({
         return;
       }
 
-      router.push("/");
+      router.push("/feed");
       router.refresh();
       setFormState((prev) => ({
         ...prev,

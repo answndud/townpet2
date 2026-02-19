@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       ...parsed.data,
       scope,
       neighborhoodId,
+      viewerId: currentUser?.id,
     });
     return jsonOk(data);
   } catch (error) {

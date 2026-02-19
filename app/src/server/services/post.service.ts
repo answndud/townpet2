@@ -1,4 +1,4 @@
-import { PostScope, PostStatus } from "@prisma/client";
+import { PostReactionType, PostScope, PostStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -314,5 +314,89 @@ export async function deletePost({ postId, authorId }: DeletePostParams) {
     where: { id: postId },
     data: { status: PostStatus.DELETED },
     select: { id: true, status: true },
+  });
+}
+
+type TogglePostReactionParams = {
+  postId: string;
+  userId: string;
+  type: PostReactionType;
+};
+
+type TogglePostReactionResult = {
+  likeCount: number;
+  dislikeCount: number;
+  reaction: PostReactionType | null;
+};
+
+export async function togglePostReaction({
+  postId,
+  userId,
+  type,
+}: TogglePostReactionParams): Promise<TogglePostReactionResult> {
+  const existingPost = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { id: true, status: true },
+  });
+
+  if (!existingPost || existingPost.status === PostStatus.DELETED) {
+    throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const existingReaction = await tx.postReaction.findUnique({
+      where: {
+        postId_userId: {
+          postId,
+          userId,
+        },
+      },
+      select: { id: true, type: true },
+    });
+
+    let reaction: PostReactionType | null = type;
+
+    if (existingReaction?.type === type) {
+      await tx.postReaction.delete({
+        where: { id: existingReaction.id },
+      });
+      reaction = null;
+    } else if (existingReaction) {
+      await tx.postReaction.update({
+        where: { id: existingReaction.id },
+        data: { type },
+      });
+    } else {
+      await tx.postReaction.create({
+        data: {
+          postId,
+          userId,
+          type,
+        },
+      });
+    }
+
+    const reactionGroups = await tx.postReaction.groupBy({
+      by: ["type"],
+      where: { postId },
+      _count: { _all: true },
+    });
+
+    const likeCount =
+      reactionGroups.find((group) => group.type === PostReactionType.LIKE)?._count
+        ._all ?? 0;
+    const dislikeCount =
+      reactionGroups.find((group) => group.type === PostReactionType.DISLIKE)?._count
+        ._all ?? 0;
+
+    await tx.post.update({
+      where: { id: postId },
+      data: {
+        likeCount,
+        dislikeCount,
+      },
+    });
+
+    return { likeCount, dislikeCount, reaction };
   });
 }
