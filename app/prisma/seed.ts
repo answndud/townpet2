@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/server/password";
 
 const prisma = new PrismaClient();
@@ -200,7 +200,17 @@ async function main() {
     });
   }
 
-  const categoryPosts = [
+  type SeedCategoryPost = {
+    title: string;
+    content: string;
+    type: Prisma.PostCreateInput["type"];
+    scope: Prisma.PostCreateInput["scope"];
+    walkRoute?: Prisma.WalkRouteCreateNestedOneWithoutPostInput;
+    hospitalReview?: Prisma.HospitalReviewCreateNestedOneWithoutPostInput;
+    placeReview?: Prisma.PlaceReviewCreateNestedOneWithoutPostInput;
+  };
+
+  const categoryPosts: SeedCategoryPost[] = [
     {
       title: "자유게시판 테스트",
       content: "동네 질문이나 수다를 자유롭게 나눠요.",
