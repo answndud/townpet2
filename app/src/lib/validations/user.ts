@@ -12,5 +12,20 @@ export const neighborhoodSelectSchema = z.object({
   neighborhoodId: z.string().cuid(),
 });
 
+export const profileImageUpdateSchema = z.object({
+  imageUrl: z
+    .string()
+    .min(1)
+    .max(2048)
+    .refine(
+      (value) =>
+        value.startsWith("/uploads/") ||
+        value.startsWith("https://") ||
+        value.startsWith("http://"),
+      "프로필 이미지 URL 형식이 올바르지 않습니다.",
+    ),
+});
+
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export type NeighborhoodSelectInput = z.infer<typeof neighborhoodSelectSchema>;
+export type ProfileImageUpdateInput = z.infer<typeof profileImageUpdateSchema>;

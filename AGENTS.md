@@ -16,6 +16,17 @@ Key documents to read first
 - `docs/business/competitive_landscape.md`
 - `docs/business/monetization_pricing.md`
 - `docs/business/personas.md.md`
+- `docs/agent-memory/README.md` (research save/read protocol)
+- `docs/agent-memory/research-index.md` (quick lookup for prior findings)
+- `PLAN.md` (current plan, ownership, next tasks)
+- `PROGRESS.md` (execution status, updates, blockers)
+
+Multi-agent coordination rules
+- Use `PLAN.md` to manage what needs to be done: scope, task breakdown, owner agent, and planned order.
+- Use `PROGRESS.md` to manage what has been done: in-progress items, completed work, blockers, and handoff notes.
+- When work is split across multiple agents, keep both files updated as part of normal workflow (plan -> implement -> fix).
+- At the start of every new session/task, read both `PLAN.md` and `PROGRESS.md` first before making changes.
+- If either file is missing, create it with minimal structure before starting implementation.
 
 Cursor/Copilot rules
 - No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md` found
@@ -125,13 +136,3 @@ Development workflow (from SPEC)
 Notes on repo state
 - There is no real codebase yet; treat this as a blueprint repo
 - Update AGENTS.md when actual scripts or style rules are added
-
----
-
-"For every project, write a detailed FOR[yourname].md file that explains the whole project in plain language. 
-
-Explain the technical architecture, the structure of the codebase and how the various parts are connected, the technologies used, why we made these technical decisions, and lessons I can learn from it (this should include the bugs we ran into and how we fixed them, potential pitfalls and how to avoid them in the future, new technologies used, how good engineers think and work, best practices, etc). 
-
-It should be very engaging to read; don't make it sound like boring technical documentation/textbook. Where appropriate, use analogies and anecdotes to make it more understandable and memorable."
-
----

@@ -39,7 +39,7 @@ export default async function OnboardingPage() {
           </p>
           <h1 className="text-3xl font-semibold text-[#10284a]">환영합니다</h1>
           <p className="text-sm text-[#4f678d]">
-            닉네임과 대표 동네를 설정하고 동네 피드를 시작하세요.
+            닉네임과 대표 동네를 설정하고 바로 동네 피드를 시작하세요.
           </p>
         </header>
 

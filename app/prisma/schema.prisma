@@ -25,6 +25,9 @@ model User {
   passwordResets  PasswordResetToken[]
   authAudits      AuthAuditLog[]
   postReactions   PostReaction[]
+  commentReactions CommentReaction[]
+  notifications   Notification[]     @relation("NotificationRecipient")
+  actions         Notification[]     @relation("NotificationActor")
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   accounts        Account[]
@@ -78,6 +81,7 @@ model Post {
   images           PostImage[]
   reports          Report[]
   reactions        PostReaction[]
+  notifications    Notification[]
   hospitalReview   HospitalReview?
   placeReview      PlaceReview?
   walkRoute        WalkRoute?
@@ -107,6 +111,11 @@ model PostReaction {
 }
 
 enum PostReactionType {
+  LIKE
+  DISLIKE
+}
+
+enum CommentReactionType {
   LIKE
   DISLIKE
 }
@@ -268,19 +277,37 @@ model QaQuestion {
 }
 
 model Comment {
-  id        String     @id @default(cuid())
-  postId    String
-  authorId  String
-  parentId  String?
-  content   String     @db.Text
-  status    PostStatus @default(ACTIVE)
-  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User       @relation(fields: [authorId], references: [id])
-  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   Comment[]  @relation("CommentReplies")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id             String            @id @default(cuid())
+  postId         String
+  authorId       String
+  parentId       String?
+  content        String            @db.Text
+  status         PostStatus        @default(ACTIVE)
+  likeCount      Int               @default(0)
+  dislikeCount   Int               @default(0)
+  post           Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author         User              @relation(fields: [authorId], references: [id])
+  parent         Comment?          @relation("CommentReplies", fields: [parentId], references: [id])
+  replies        Comment[]         @relation("CommentReplies")
+  reactions      CommentReaction[]
+  notifications  Notification[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   @@index([postId, createdAt(sort: Desc)])
+}
+
+model CommentReaction {
+  id        String              @id @default(cuid())
+  commentId String
+  userId    String
+  type      CommentReactionType
+  comment   Comment             @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  @@unique([commentId, userId])
+  @@index([commentId, type])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model PostImage {
@@ -400,8 +427,64 @@ model AuthAuditLog {
   @@index([action])
 }
 
+model SiteSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SearchTermStat {
+  termNormalized String   @id
+  termDisplay    String
+  count          Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([count(sort: Desc), updatedAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+}
+
+model Notification {
+  id         String                 @id @default(cuid())
+  userId     String
+  actorId    String?
+  type       NotificationType
+  entityType NotificationEntityType
+  entityId   String
+  postId     String?
+  commentId  String?
+  title      String
+  body       String?
+  metadata   Json?
+  isRead     Boolean                @default(false)
+  readAt     DateTime?
+  user       User                   @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor      User?                  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  post       Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
+  comment    Comment?               @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+}
+
 enum AuthAuditAction {
   PASSWORD_SET
   PASSWORD_CHANGE
   PASSWORD_RESET
+}
+
+enum NotificationType {
+  COMMENT_ON_POST
+  REPLY_TO_COMMENT
+  REACTION_ON_POST
+  SYSTEM
+}
+
+enum NotificationEntityType {
+  POST
+  COMMENT
+  REACTION
+  SYSTEM
 }

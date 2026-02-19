@@ -1,16 +1,24 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { PostType } from "@prisma/client";
 
+import { LinkifiedContent } from "@/components/content/linkified-content";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
 import { PostReactionControls } from "@/components/posts/post-reaction-controls";
 import { PostReportForm } from "@/components/posts/post-report-form";
 import { auth } from "@/lib/auth";
+import { canGuestReadPost } from "@/lib/post-access";
+import { formatRelativeDate } from "@/lib/post-presenter";
 import { listComments } from "@/server/queries/comment.queries";
+import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
+import { getClientIp } from "@/server/request-context";
+import { registerPostView } from "@/server/services/post.service";
 
 type PostDetailPageProps = {
   params?: Promise<{ id?: string }>;
@@ -85,46 +93,43 @@ const renderBooleanValue = (
   falseLabel: string,
 ) => (value === null || value === undefined ? emptyValue : value ? trueLabel : falseLabel);
 
-function formatRelativeDate(date: Date) {
-  const diffMs = Date.now() - date.getTime();
-  const minutes = Math.floor(diffMs / (1000 * 60));
-
-  if (minutes < 1) return "방금 전";
-  if (minutes < 60) return `${minutes}분 전`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간 전`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}일 전`;
-
-  return date.toLocaleDateString("ko-KR");
-}
-
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = (await params) ?? {};
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) {
-    redirect("/login");
-  }
+  const user = userId ? await getUserWithNeighborhoods(userId) : null;
 
-  const user = await getUserWithNeighborhoods(userId);
-  if (!user) {
-    redirect("/login");
-  }
-
-  const [post, comments] = await Promise.all([
-    getPostById(resolvedParams.id, user.id),
-    resolvedParams.id ? listComments(resolvedParams.id) : Promise.resolve([]),
+  const [post, loginRequiredTypes] = await Promise.all([
+    getPostById(resolvedParams.id, user?.id),
+    getGuestReadLoginRequiredPostTypes(),
   ]);
 
   if (!post) {
     notFound();
   }
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood && post.scope !== "GLOBAL") {
+  if (
+    !user &&
+    !canGuestReadPost({
+      scope: post.scope,
+      type: post.type,
+      loginRequiredTypes: loginRequiredTypes,
+    })
+  ) {
+    return (
+      <NeighborhoodGateNotice
+        title="로그인이 필요한 게시글입니다."
+        description="이 게시글은 로그인 사용자에게만 공개됩니다."
+        secondaryLink={`/login?next=${encodeURIComponent(`/posts/${post.id}`)}`}
+        secondaryLabel="로그인하기"
+      />
+    );
+  }
+
+  const comments = resolvedParams.id ? await listComments(resolvedParams.id, user?.id) : [];
+
+  const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
+  if (user && !primaryNeighborhood && post.scope !== "GLOBAL") {
     return (
       <NeighborhoodGateNotice
         title="동네 설정이 필요합니다."
@@ -135,9 +140,22 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     );
   }
 
-  const isAuthor = user.id === post.authorId;
+  const canInteract = Boolean(user);
+  const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
+  const isAuthor = user?.id === post.authorId;
   const meta = typeMeta[post.type];
-  const safeViewCount = Number.isFinite(post.viewCount) ? Number(post.viewCount) : 0;
+  const requestHeaders = await headers();
+  const didCountView = await registerPostView({
+    postId: post.id,
+    userId: user?.id,
+    clientIp: getClientIp(requestHeaders),
+    userAgent: requestHeaders.get("user-agent") ?? undefined,
+  });
+  const safeViewCount = Number.isFinite(post.viewCount)
+    ? Number(post.viewCount) + (didCountView ? 1 : 0)
+    : didCountView
+      ? 1
+      : 0;
   const safeLikeCount = Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0;
   const safeDislikeCount = Number.isFinite(post.dislikeCount)
     ? Number(post.dislikeCount)
@@ -199,6 +217,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 likeCount={safeLikeCount}
                 dislikeCount={safeDislikeCount}
                 currentReaction={post.reactions?.[0]?.type ?? null}
+                canReact={canInteract}
+                loginHref={loginHref}
               />
             </div>
 
@@ -214,9 +234,35 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             ) : null}
 
-            <article className="mt-6 whitespace-pre-line text-[15px] leading-8 text-[#1b3157]">
-              {post.content}
+            <article className="mt-6 text-[15px] leading-8 text-[#1b3157]">
+              <LinkifiedContent text={post.content} showYoutubeEmbeds />
             </article>
+
+            {post.images.length > 0 ? (
+              <div className="mt-6 border-t border-[#e0e9f5] pt-5">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#4f6f9f]">
+                  첨부 이미지
+                </h3>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {post.images.map((image, index) => (
+                    <Link
+                      key={image.id}
+                      href={image.url}
+                      target="_blank"
+                      className="overflow-hidden border border-[#dbe6f6] bg-[#f8fbff] transition hover:opacity-90"
+                    >
+                      <Image
+                        src={image.url}
+                        alt={`첨부 이미지 ${index + 1}`}
+                        width={900}
+                        height={640}
+                        className="h-56 w-full object-cover"
+                      />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <aside className="space-y-4">
@@ -248,7 +294,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </dl>
             </section>
 
-            {!isAuthor ? (
+            {canInteract && !isAuthor ? (
               <details className="border border-[#c8d7ef] bg-white p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-[#1f3f71]">
                   게시글 신고
@@ -365,7 +411,13 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           </section>
         ) : null}
 
-        <PostCommentThread postId={post.id} comments={comments} currentUserId={user.id} />
+        <PostCommentThread
+          postId={post.id}
+          comments={comments}
+          currentUserId={user?.id}
+          canInteract={canInteract}
+          loginHref={loginHref}
+        />
       </main>
     </div>
   );

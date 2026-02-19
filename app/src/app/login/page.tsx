@@ -2,7 +2,28 @@ import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/login-form";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    devShowKakao?: string;
+    devShowNaver?: string;
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const resolvedParams = (await searchParams) ?? {};
+  const kakaoEnabledByEnv = Boolean(
+    process.env.KAKAO_CLIENT_ID && process.env.KAKAO_CLIENT_SECRET,
+  );
+  const kakaoEnabledByDevFlag =
+    process.env.NODE_ENV !== "production" && resolvedParams.devShowKakao === "1";
+  const kakaoEnabled = kakaoEnabledByEnv || kakaoEnabledByDevFlag;
+  const naverEnabledByEnv = Boolean(
+    process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET,
+  );
+  const naverEnabledByDevFlag =
+    process.env.NODE_ENV !== "production" && resolvedParams.devShowNaver === "1";
+  const naverEnabled = naverEnabledByEnv || naverEnabledByDevFlag;
+
   return (
     <div className="min-h-screen">
       <main className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-8 sm:px-6">
@@ -17,7 +38,12 @@ export default function LoginPage() {
         </header>
 
         <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
-          <LoginForm />
+          <LoginForm
+            kakaoEnabled={kakaoEnabled}
+            kakaoDevMode={kakaoEnabledByDevFlag && !kakaoEnabledByEnv}
+            naverEnabled={naverEnabled}
+            naverDevMode={naverEnabledByDevFlag && !naverEnabledByEnv}
+          />
         </section>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#5a7398]">

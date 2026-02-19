@@ -1,5 +1,9 @@
 import { PostType } from "@prisma/client";
 
+export type PostSignal = "image" | "twitter" | "instagram" | "link";
+
+const URL_REGEX = /https?:\/\/[^\s)]+/gi;
+
 export const postTypeMeta: Record<
   PostType,
   { label: string; chipClass: string; icon: string }
@@ -71,8 +75,13 @@ export const postTypeMeta: Record<
   },
 };
 
-export function formatRelativeDate(date: Date) {
-  const diffMs = Date.now() - date.getTime();
+export function formatRelativeDate(date: Date | string | number) {
+  const targetDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(targetDate.getTime())) {
+    return "";
+  }
+
+  const diffMs = Date.now() - targetDate.getTime();
   const minutes = Math.floor(diffMs / (1000 * 60));
 
   if (minutes < 1) return "방금 전";
@@ -84,7 +93,7 @@ export function formatRelativeDate(date: Date) {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}일 전`;
 
-  return date.toLocaleDateString("ko-KR");
+  return targetDate.toLocaleDateString("ko-KR");
 }
 
 export function formatCount(value?: number | null) {
@@ -94,4 +103,49 @@ export function formatCount(value?: number | null) {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(safeValue);
+}
+
+type PostSignalInput = {
+  title?: string | null;
+  content?: string | null;
+  imageCount?: number | null;
+};
+
+export function getPostSignals({
+  title,
+  content,
+  imageCount,
+}: PostSignalInput): PostSignal[] {
+  const signals: PostSignal[] = [];
+  const safeImageCount = Number.isFinite(imageCount) ? Number(imageCount) : 0;
+  const text = `${title ?? ""}\n${content ?? ""}`;
+  const urls = text.match(URL_REGEX)?.map((url) => url.toLowerCase()) ?? [];
+
+  const hasTwitter = urls.some(
+    (url) =>
+      url.includes("twitter.com") ||
+      url.includes("x.com") ||
+      url.includes("t.co/"),
+  );
+  const hasInstagram = urls.some(
+    (url) => url.includes("instagram.com") || url.includes("instagr.am"),
+  );
+
+  if (safeImageCount > 0) {
+    signals.push("image");
+  }
+
+  if (hasTwitter) {
+    signals.push("twitter");
+  }
+
+  if (hasInstagram) {
+    signals.push("instagram");
+  }
+
+  if (urls.length > 0 && !hasTwitter && !hasInstagram) {
+    signals.push("link");
+  }
+
+  return signals;
 }

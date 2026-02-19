@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { PostSignalIcons } from "@/components/posts/post-signal-icons";
+import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
+import { getPostSignals } from "@/lib/post-presenter";
 import { postListSchema } from "@/lib/validations/post";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
@@ -215,56 +218,74 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
 
         <section className="border border-[#c8d7ef] bg-white">
           {posts.length === 0 ? (
-            <div className="px-6 py-12 text-center text-sm text-[#5d769d]">
-              아직 작성한 게시글이 없습니다.
-            </div>
+            <EmptyState
+              title="작성한 게시글이 없습니다"
+              description="첫 게시글을 작성하고 피드에서 반응을 확인해 보세요."
+              actionHref="/posts/new"
+              actionLabel="첫 글 작성하기"
+            />
           ) : (
             <div className="divide-y divide-[#e1e9f5]">
-              {posts.map((post) => (
-                <article
-                  key={post.id}
-                  className={`grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-center ${
-                    post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                        {typeLabels[post.type]}
-                      </span>
-                      <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                        {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
-                      </span>
-                      <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
-                        {post.neighborhood
-                          ? `${post.neighborhood.city} ${post.neighborhood.name}`
-                          : "전체"}
-                      </span>
-                      {post.status === "HIDDEN" ? (
-                        <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
-                          숨김
+              {posts.map((post) => {
+                const signals = getPostSignals({
+                  title: post.title,
+                  content: post.content,
+                  imageCount: post.images.length,
+                });
+
+                return (
+                  <article
+                    key={post.id}
+                    className={`grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-center ${
+                      post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                          {typeLabels[post.type]}
                         </span>
-                      ) : null}
+                        <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                          {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
+                        </span>
+                        <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
+                          {post.neighborhood
+                            ? `${post.neighborhood.city} ${post.neighborhood.name}`
+                            : "전체"}
+                        </span>
+                        {post.status === "HIDDEN" ? (
+                          <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
+                            숨김
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <Link
+                        href={`/posts/${post.id}`}
+                        className="flex min-w-0 items-center gap-1 text-base font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-lg"
+                      >
+                        <span className="truncate">{post.title}</span>
+                        <PostSignalIcons signals={signals} />
+                        {post.commentCount > 0 ? (
+                          <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
+                        ) : null}
+                      </Link>
+                      <p className="mt-1 truncate text-sm text-[#4c6488]">
+                        {post.content.length > 120
+                          ? `${post.content.slice(0, 120)}...`
+                          : post.content}
+                      </p>
                     </div>
 
-                    <Link
-                      href={`/posts/${post.id}`}
-                      className="block truncate text-base font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-lg"
-                    >
-                      {post.title}
-                      {post.commentCount > 0 ? ` [${post.commentCount}]` : ""}
-                    </Link>
-                    <p className="mt-1 truncate text-sm text-[#4c6488]">{post.content}</p>
-                  </div>
-
-                  <div className="text-xs text-[#4f678d] md:text-right">
-                    <p>{formatRelativeDate(post.createdAt)}</p>
-                    <p className="mt-2 text-[11px] text-[#6a84ab]">
-                      조회 {post.viewCount.toLocaleString()} · 좋아요 {post.likeCount.toLocaleString()}
-                    </p>
-                  </div>
-                </article>
-              ))}
+                    <div className="text-xs text-[#4f678d] md:text-right">
+                      <p>{formatRelativeDate(post.createdAt)}</p>
+                      <p className="mt-2 text-[11px] text-[#6a84ab]">
+                        조회 {post.viewCount.toLocaleString()} · 좋아요 {post.likeCount.toLocaleString()}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>

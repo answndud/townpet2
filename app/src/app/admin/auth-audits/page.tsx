@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthAuditAction, UserRole } from "@prisma/client";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { getCurrentUser } from "@/server/auth";
 import { listAuthAuditLogs } from "@/server/queries/auth-audit.queries";
 
@@ -171,7 +172,10 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
               </table>
             </div>
           ) : (
-            <p className="text-xs text-[#5a7398]">기록이 없습니다.</p>
+            <EmptyState
+              title="인증 감사 로그가 없습니다"
+              description="필터 조건을 바꾸거나 다른 기간에서 다시 확인해 주세요."
+            />
           )}
         </section>
 

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PostScope } from "@prisma/client";
+import { PostScope, PostType } from "@prisma/client";
 
-import { listBestPosts, listPosts } from "@/server/queries/post.queries";
+import {
+  listBestPosts,
+  listPostSearchSuggestions,
+  listPosts,
+} from "@/server/queries/post.queries";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -69,6 +73,84 @@ describe("post queries", () => {
     expect(args.where.neighborhoodId).toBeUndefined();
   });
 
+  it("applies requested sorting to feed queries", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      sort: "COMMENT",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.orderBy).toEqual([
+      { commentCount: "desc" },
+      { likeCount: "desc" },
+      { createdAt: "desc" },
+    ]);
+  });
+
+  it("applies author search filter when searchIn is AUTHOR", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      q: "alex",
+      searchIn: "AUTHOR",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.author).toEqual({
+      OR: [
+        { nickname: { contains: "alex", mode: "insensitive" } },
+        { name: { contains: "alex", mode: "insensitive" } },
+      ],
+    });
+    expect(args.where.OR).toBeUndefined();
+  });
+
+  it("applies full search filter when searchIn is ALL", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      q: "산책",
+      searchIn: "ALL",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.OR).toHaveLength(3);
+  });
+
+  it("excludes configured post types for guest feeds", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      excludeTypes: [PostType.HOSPITAL_REVIEW, PostType.MEETUP],
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.type).toEqual({
+      notIn: [PostType.HOSPITAL_REVIEW, PostType.MEETUP],
+    });
+  });
+
+  it("returns empty when requested type is excluded", async () => {
+    const result = await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      type: PostType.HOSPITAL_REVIEW,
+      excludeTypes: [PostType.HOSPITAL_REVIEW],
+    });
+
+    expect(result).toEqual({ items: [], nextCursor: null });
+    expect(mockPrisma.post.findMany).not.toHaveBeenCalled();
+  });
+
   it("builds best feed with likes and recency ordering", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
@@ -105,5 +187,27 @@ describe("post queries", () => {
     expect(args.where.scope).toBe(PostScope.LOCAL);
     expect(args.where.neighborhoodId).toBe("__NO_NEIGHBORHOOD__");
     expect(args.where.likeCount).toEqual({ gte: 1 });
+  });
+
+  it("builds search suggestions with unique matching values", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        title: "강남 산책 코스 추천",
+        author: { nickname: "강남견주", name: "Alex" },
+      },
+      {
+        title: "주말 산책 후기",
+        author: { nickname: "산책러버", name: "Kim" },
+      },
+    ]);
+
+    const items = await listPostSearchSuggestions({
+      q: "산책",
+      limit: 5,
+      scope: PostScope.GLOBAL,
+      searchIn: "ALL",
+    });
+
+    expect(items).toEqual(["강남 산책 코스 추천", "주말 산책 후기", "산책러버"]);
   });
 });

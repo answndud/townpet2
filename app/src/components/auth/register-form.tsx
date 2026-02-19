@@ -3,7 +3,22 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-export function RegisterForm() {
+import { KakaoSignInButton } from "@/components/auth/kakao-signin-button";
+import { NaverSignInButton } from "@/components/auth/naver-signin-button";
+
+type RegisterFormProps = {
+  kakaoEnabled?: boolean;
+  kakaoDevMode?: boolean;
+  naverEnabled?: boolean;
+  naverDevMode?: boolean;
+};
+
+export function RegisterForm({
+  kakaoEnabled = false,
+  kakaoDevMode = false,
+  naverEnabled = false,
+  naverDevMode = false,
+}: RegisterFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -101,6 +116,19 @@ export function RegisterForm() {
       >
         {isPending ? "가입 중..." : "이메일로 가입"}
       </button>
+      {kakaoEnabled || naverEnabled ? (
+        <>
+          <div className="my-1 border-t border-[#d8e4f6]" />
+          <div className="flex flex-col gap-2">
+            {kakaoEnabled ? (
+              <KakaoSignInButton label="카카오로 빠르게 가입" devMode={kakaoDevMode} />
+            ) : null}
+            {naverEnabled ? (
+              <NaverSignInButton label="네이버로 빠르게 가입" devMode={naverDevMode} />
+            ) : null}
+          </div>
+        </>
+      ) : null}
     </form>
   );
 }

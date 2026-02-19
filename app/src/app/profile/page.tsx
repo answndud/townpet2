@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
 import { auth } from "@/lib/auth";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
@@ -45,6 +47,23 @@ export default async function ProfilePage() {
           <p className="mt-2 text-sm text-[#4f678d]">
             작성 내역과 동네 설정 상태를 한눈에 확인할 수 있습니다.
           </p>
+
+          <div className="mt-4 flex items-center gap-3">
+            {user.image ? (
+              <Image
+                src={user.image}
+                alt="프로필 이미지"
+                width={56}
+                height={56}
+                className="h-14 w-14 rounded-full border border-[#bfd0ec] object-cover"
+              />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#bfd0ec] bg-white text-xs font-semibold text-[#5b78a1]">
+                NO IMG
+              </div>
+            )}
+            <p className="text-xs text-[#5a7398]">프로필 사진은 내 프로필 섹션에서 수정할 수 있습니다.</p>
+          </div>
         </header>
 
         <section className="grid gap-3 md:grid-cols-3">
@@ -103,6 +122,8 @@ export default async function ProfilePage() {
             </Link>
           </div>
         </section>
+
+        <ProfileImageUploader initialImageUrl={user.image} />
       </main>
     </div>
   );

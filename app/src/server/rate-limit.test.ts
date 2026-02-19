@@ -13,21 +13,21 @@ describe("rate limit", () => {
     vi.useRealTimers();
   });
 
-  it("blocks when limit exceeded", () => {
+  it("blocks when limit exceeded", async () => {
     const options = { key: "test", limit: 2, windowMs: 1000 };
 
-    enforceRateLimit(options);
-    enforceRateLimit(options);
+    await enforceRateLimit(options);
+    await enforceRateLimit(options);
 
-    expect(() => enforceRateLimit(options)).toThrow(ServiceError);
+    await expect(enforceRateLimit(options)).rejects.toBeInstanceOf(ServiceError);
   });
 
-  it("resets after window", () => {
+  it("resets after window", async () => {
     const options = { key: "window", limit: 1, windowMs: 1000 };
 
-    enforceRateLimit(options);
+    await enforceRateLimit(options);
     vi.advanceTimersByTime(1001);
 
-    expect(() => enforceRateLimit(options)).not.toThrow();
+    await expect(enforceRateLimit(options)).resolves.toBeUndefined();
   });
 });

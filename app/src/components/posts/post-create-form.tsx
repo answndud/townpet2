@@ -4,6 +4,7 @@ import { PostScope, PostType } from "@prisma/client";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import { createPostAction } from "@/server/actions/post";
 
 type NeighborhoodOption = {
@@ -48,6 +49,7 @@ type PostCreateFormState = {
     hasParkingLot: string;
     safetyTags: string;
   };
+  imageUrls: string[];
 };
 
 const postTypeOptions = [
@@ -103,6 +105,7 @@ export function PostCreateForm({
       hasParkingLot: "false",
       safetyTags: "",
     },
+    imageUrls: [],
   });
 
   const neighborhoodOptions = useMemo(
@@ -156,6 +159,7 @@ export function PostCreateForm({
         content: formState.content,
         type: formState.type,
         scope: formState.scope,
+        imageUrls: formState.imageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : undefined,
         hospitalReview: hasHospitalReview
           ? {
@@ -219,6 +223,7 @@ export function PostCreateForm({
           difficulty: "",
           safetyTags: "",
         },
+        imageUrls: [],
       }));
     });
   };
@@ -326,6 +331,14 @@ export function PostCreateForm({
           required
         />
       </label>
+
+      <ImageUploadField
+        value={formState.imageUrls}
+        onChange={(nextUrls) =>
+          setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
+        }
+        label="게시글 이미지"
+      />
 
       {showHospitalReview ? (
         <div className="grid gap-4 border border-[#d8e4f6] bg-[#f4f8ff] p-4 md:grid-cols-2">

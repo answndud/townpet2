@@ -3,14 +3,14 @@ import { prisma } from "@/lib/prisma";
 export async function getUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true, nickname: true, role: true },
+    select: { id: true, email: true, name: true, nickname: true, image: true, role: true },
   });
 }
 
 export async function getUserById(id: string) {
   return prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, name: true, nickname: true, role: true },
+    select: { id: true, email: true, name: true, nickname: true, image: true, role: true },
   });
 }
 
@@ -22,6 +22,7 @@ export async function getUserWithNeighborhoods(id: string) {
       email: true,
       name: true,
       nickname: true,
+      image: true,
       neighborhoods: {
         select: {
           id: true,
