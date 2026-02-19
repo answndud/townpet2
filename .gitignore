@@ -12,6 +12,7 @@ app/.envrc
 app/.turbo
 app/.swc
 app/.vercel
+tmp-*.log
 
 # credentials / keys
 *.key
