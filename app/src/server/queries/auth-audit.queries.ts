@@ -1,7 +1,9 @@
+import { AuthAuditAction } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
 type AuthAuditListOptions = {
-  action?: string | null;
+  action?: AuthAuditAction | null;
   query?: string | null;
   limit?: number;
 };

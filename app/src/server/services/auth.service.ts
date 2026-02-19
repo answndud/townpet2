@@ -163,6 +163,7 @@ export async function setPasswordForUser({ userId, input, meta }: SetPasswordPar
   const hadPassword = Boolean(user.passwordHash);
 
   if (hadPassword) {
+    const currentPasswordHash = user.passwordHash;
     if (!parsed.data.currentPassword) {
       throw new ServiceError(
         "현재 비밀번호를 입력해 주세요.",
@@ -171,9 +172,13 @@ export async function setPasswordForUser({ userId, input, meta }: SetPasswordPar
       );
     }
 
+    if (!currentPasswordHash) {
+      throw new ServiceError("현재 비밀번호 정보가 없습니다.", "INVALID_PASSWORD", 400);
+    }
+
     const isValid = await verifyPassword(
       parsed.data.currentPassword,
-      user.passwordHash,
+      currentPasswordHash,
     );
     if (!isValid) {
       throw new ServiceError("현재 비밀번호가 올바르지 않습니다.", "INVALID_PASSWORD", 401);

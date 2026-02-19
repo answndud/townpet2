@@ -1,3 +1,5 @@
+import { ReportStatus } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
 type ReportAuditListOptions = {
@@ -23,9 +25,9 @@ export async function listReportAuditsByReportIds(reportIds: string[]) {
 export async function listReportAudits({ reportId, query, order }: ReportAuditListOptions) {
   const trimmedQuery = query?.trim();
   const statusQuery = trimmedQuery?.toUpperCase();
-  const statusFilter =
+  const statusFilter: ReportStatus | null =
     statusQuery === "PENDING" || statusQuery === "RESOLVED" || statusQuery === "DISMISSED"
-      ? statusQuery
+      ? (statusQuery as ReportStatus)
       : null;
 
   return prisma.reportAudit.findMany({
