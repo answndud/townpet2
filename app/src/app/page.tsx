@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PostType } from "@prisma/client";
+import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { auth } from "@/lib/auth";
@@ -48,9 +48,10 @@ export default async function Home({ searchParams }: HomePageProps) {
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+  const effectiveScope = scope ?? PostScope.LOCAL;
 
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood && scope !== "GLOBAL") {
+  if (!primaryNeighborhood && effectiveScope !== PostScope.GLOBAL) {
     return (
       <NeighborhoodGateNotice
         title="동네 설정이 필요합니다."
@@ -63,7 +64,17 @@ export default async function Home({ searchParams }: HomePageProps) {
   const cursor = parsedParams.success ? parsedParams.data.cursor : undefined;
   const limit = parsedParams.success ? parsedParams.data.limit : 20;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
-  const posts = await listPosts({ limit, cursor, type, scope, q: query || undefined });
+  const posts = await listPosts({
+    limit,
+    cursor,
+    type,
+    scope: effectiveScope,
+    q: query || undefined,
+    neighborhoodId:
+      effectiveScope === PostScope.LOCAL
+        ? primaryNeighborhood?.neighborhood.id
+        : undefined,
+  });
   const items = posts.items;
   const params = new URLSearchParams();
   if (type) params.set("type", type);
