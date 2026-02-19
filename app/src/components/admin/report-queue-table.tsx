@@ -101,14 +101,14 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#e3d6c4] bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#efe4d4] bg-[#fdf9f2] px-6 py-4 text-xs">
+    <section className="overflow-hidden border border-[#c8d7ef] bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dde7f5] bg-[#f6f9ff] px-4 py-3 text-xs sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-[#e3d6c4] bg-white px-3 py-1">
+          <span className="border border-[#bfd0ec] bg-white px-3 py-1 text-[#315484]">
             선택 {selectedIds.length}건
           </span>
           <input
-            className="rounded-md border border-[#e3d6c4] bg-white px-3 py-1 text-xs"
+            className="border border-[#bfd0ec] bg-white px-3 py-1 text-xs text-[#1f3f71]"
             placeholder="일괄 처리 메모(선택)"
             value={bulkResolution}
             onChange={(event) => setBulkResolution(event.target.value)}
@@ -119,7 +119,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("RESOLVE")}
-            className="rounded-md border border-[#e3d6c4] px-3 py-1 text-[#2a241c] hover:bg-[#f7ece0] disabled:cursor-not-allowed disabled:opacity-60"
+            className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
             disabled={isPending || selectedIds.length === 0}
           >
             일괄 승인
@@ -127,7 +127,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("DISMISS")}
-            className="rounded-md border border-[#e3d6c4] px-3 py-1 text-[#6f6046] hover:bg-[#f7ece0] disabled:cursor-not-allowed disabled:opacity-60"
+            className="border border-rose-300 bg-white px-3 py-1 text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedIds.length === 0}
           >
             일괄 기각
@@ -135,7 +135,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("HIDE_POST")}
-            className="rounded-md border border-[#e3d6c4] px-3 py-1 text-[#2a241c] hover:bg-[#f7ece0] disabled:cursor-not-allowed disabled:opacity-60"
+            className="border border-[#bfd0ec] bg-white px-3 py-1 text-[#315484] transition hover:bg-[#f3f7ff] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedIds.length === 0}
           >
             게시글 숨김
@@ -143,149 +143,151 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("UNHIDE_POST")}
-            className="rounded-md border border-[#e3d6c4] px-3 py-1 text-[#2a241c] hover:bg-[#f7ece0] disabled:cursor-not-allowed disabled:opacity-60"
+            className="border border-[#bfd0ec] bg-white px-3 py-1 text-[#315484] transition hover:bg-[#f3f7ff] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedIds.length === 0}
           >
             숨김 해제
           </button>
-          {message ? <span className="text-[#9a8462]">{message}</span> : null}
+          {message ? <span className="text-[#5a7398]">{message}</span> : null}
         </div>
       </div>
 
       {reports.length === 0 ? (
-        <div className="px-6 py-10 text-center text-sm text-[#9a8462]">
+        <div className="px-6 py-10 text-center text-sm text-[#5a7398]">
           선택한 상태의 신고가 없습니다.
         </div>
       ) : (
-        <table className="w-full text-left text-sm">
-          <thead className="bg-[#fdf9f2] text-xs uppercase tracking-[0.2em] text-[#9a8462]">
-            <tr>
-              <th className="px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="전체 선택"
-                />
-              </th>
-              <th className="px-4 py-3">대상</th>
-              <th className="px-4 py-3">타입</th>
-              <th className="px-4 py-3">상태</th>
-              <th className="px-4 py-3">사유</th>
-              <th className="px-4 py-3">설명</th>
-              <th className="px-4 py-3">신고자</th>
-              <th className="px-4 py-3">처리</th>
-              <th className="px-4 py-3">처리 메모</th>
-              <th className="px-4 py-3">처리자</th>
-              <th className="px-4 py-3">처리 시간</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((report) => (
-              <Fragment key={report.id}>
-                <tr className="border-t border-[#efe4d4]">
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(report.id)}
-                      onChange={() => toggleSelection(report.id)}
-                      aria-label={`신고 ${report.id} 선택`}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1">
-                      {report.targetHref ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1200px] text-left text-sm">
+            <thead className="bg-[#f6f9ff] text-xs uppercase tracking-[0.2em] text-[#5b78a1]">
+              <tr>
+                <th className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    aria-label="전체 선택"
+                  />
+                </th>
+                <th className="px-4 py-3">대상</th>
+                <th className="px-4 py-3">타입</th>
+                <th className="px-4 py-3">상태</th>
+                <th className="px-4 py-3">사유</th>
+                <th className="px-4 py-3">설명</th>
+                <th className="px-4 py-3">신고자</th>
+                <th className="px-4 py-3">처리</th>
+                <th className="px-4 py-3">처리 메모</th>
+                <th className="px-4 py-3">처리자</th>
+                <th className="px-4 py-3">처리 시간</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map((report) => (
+                <Fragment key={report.id}>
+                  <tr className="border-t border-[#e1e9f5] text-[#1f3f71]">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(report.id)}
+                        onChange={() => toggleSelection(report.id)}
+                        aria-label={`신고 ${report.id} 선택`}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        {report.targetHref ? (
+                          <Link
+                            href={report.targetHref}
+                            className="font-semibold text-[#163462] hover:text-[#2f5da4]"
+                          >
+                            {report.targetTitle}
+                          </Link>
+                        ) : (
+                          <span className="text-[#4f678d]">{report.targetTitle}</span>
+                        )}
                         <Link
-                          href={report.targetHref}
-                          className="font-semibold text-[#2a241c]"
+                          href={`/admin/reports/${report.id}`}
+                          className="text-[10px] text-[#5a7398]"
                         >
-                          {report.targetTitle}
+                          상세 보기
                         </Link>
-                      ) : (
-                        <span className="text-[#6f6046]">{report.targetTitle}</span>
-                      )}
-                      <Link
-                        href={`/admin/reports/${report.id}`}
-                        className="text-[10px] text-[#9a8462]"
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                      {targetLabels[report.targetType]}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`border px-2 py-0.5 text-[10px] font-semibold ${
+                          report.status === ReportStatus.PENDING
+                            ? "border-amber-300 bg-amber-50 text-amber-700"
+                            : report.status === ReportStatus.RESOLVED
+                              ? "border-[#3567b5] bg-[#3567b5] text-white"
+                              : "border-rose-300 bg-rose-50 text-rose-700"
+                        }`}
                       >
-                        상세 보기
-                      </Link>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">
-                    {targetLabels[report.targetType]}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] ${
-                        report.status === ReportStatus.PENDING
-                          ? "bg-[#f2c07c] text-[#2a241c]"
-                          : report.status === ReportStatus.RESOLVED
-                            ? "bg-[#2a241c] text-white"
-                            : "bg-[#cbbba5] text-white"
-                      }`}
-                    >
-                      {statusLabels[report.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">{report.reason}</td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">
-                    {report.description ?? "-"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">
-                    {report.reporterLabel}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ReportActions reportId={report.id} status={report.status} />
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">
-                    {report.resolution ?? "-"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">
-                    {report.resolvedByLabel ?? "-"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6f6046]">
-                    {report.resolvedAtLabel ?? "-"}
-                  </td>
-                </tr>
-                <tr className="border-t border-[#efe4d4] bg-[#fdf9f2]">
-                  <td colSpan={11} className="px-4 py-3 text-xs text-[#6f6046]">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] uppercase tracking-[0.3em] text-[#9a8462]">
-                        처리 이력
+                        {statusLabels[report.status]}
                       </span>
-                      {report.audits.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {report.audits.map((audit) => (
-                            <div
-                              key={audit.id}
-                              className="flex flex-wrap items-center gap-2"
-                            >
-                              <span className="rounded-full border border-[#e3d6c4] bg-white px-2 py-0.5 text-[10px] text-[#6f6046]">
-                                {statusLabels[audit.status]}
-                              </span>
-                              <span className="text-xs text-[#6f6046]">
-                                {audit.resolution ?? "메모 없음"}
-                              </span>
-                              <span className="text-xs text-[#9a8462]">
-                                {audit.resolverLabel}
-                              </span>
-                              <span className="text-xs text-[#9a8462]">
-                                {audit.createdAt ?? "-"}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-[#9a8462]">이력 없음</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">{report.reason}</td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                      {report.description ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                      {report.reporterLabel}
+                    </td>
+                    <td className="px-4 py-3">
+                      <ReportActions reportId={report.id} status={report.status} />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                      {report.resolution ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                      {report.resolvedByLabel ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                      {report.resolvedAtLabel ?? "-"}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-[#e1e9f5] bg-[#f8fbff]">
+                    <td colSpan={11} className="px-4 py-3 text-xs text-[#4f678d]">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-[#5b78a1]">
+                          처리 이력
+                        </span>
+                        {report.audits.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {report.audits.map((audit) => (
+                              <div
+                                key={audit.id}
+                                className="flex flex-wrap items-center gap-2"
+                              >
+                                <span className="border border-[#bfd0ec] bg-white px-2 py-0.5 text-[10px] text-[#355988]">
+                                  {statusLabels[audit.status]}
+                                </span>
+                                <span className="text-xs text-[#355988]">
+                                  {audit.resolution ?? "메모 없음"}
+                                </span>
+                                <span className="text-xs text-[#5a7398]">
+                                  {audit.resolverLabel}
+                                </span>
+                                <span className="text-xs text-[#5a7398]">
+                                  {audit.createdAt ?? "-"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[#5a7398]">이력 없음</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
