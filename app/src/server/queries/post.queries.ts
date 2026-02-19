@@ -1,4 +1,10 @@
-import { PostScope, PostStatus, PostType } from "@prisma/client";
+import {
+  PostReactionType,
+  PostScope,
+  PostStatus,
+  PostType,
+  Prisma,
+} from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -15,6 +21,43 @@ const buildPostListInclude = (viewerId?: string) =>
         userId: viewerId ?? NO_VIEWER_ID,
       },
       select: { type: true },
+    },
+    hospitalReview: {
+      select: {
+        hospitalName: true,
+        totalCost: true,
+        waitTime: true,
+        rating: true,
+      },
+    },
+    placeReview: {
+      select: {
+        placeName: true,
+        placeType: true,
+        address: true,
+        isPetAllowed: true,
+        rating: true,
+      },
+    },
+    walkRoute: {
+      select: {
+        routeName: true,
+        distance: true,
+        duration: true,
+        difficulty: true,
+        hasStreetLights: true,
+        hasRestroom: true,
+        hasParkingLot: true,
+        safetyTags: true,
+      },
+    },
+  }) as const;
+
+const buildPostListIncludeWithoutReactions = () =>
+  ({
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
     },
     hospitalReview: {
       select: {
@@ -91,6 +134,66 @@ const buildPostDetailInclude = (viewerId?: string) =>
     },
   }) as const;
 
+const buildPostDetailIncludeWithoutReactions = () =>
+  ({
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
+    },
+    hospitalReview: {
+      select: {
+        hospitalName: true,
+        totalCost: true,
+        waitTime: true,
+        rating: true,
+        treatmentType: true,
+      },
+    },
+    placeReview: {
+      select: {
+        placeName: true,
+        placeType: true,
+        address: true,
+        isPetAllowed: true,
+        rating: true,
+      },
+    },
+    walkRoute: {
+      select: {
+        routeName: true,
+        distance: true,
+        duration: true,
+        difficulty: true,
+        hasStreetLights: true,
+        hasRestroom: true,
+        hasParkingLot: true,
+        safetyTags: true,
+      },
+    },
+  }) as const;
+
+function isUnknownReactionsIncludeError(error: unknown) {
+  return error instanceof Error && error.message.includes("Unknown field `reactions`");
+}
+
+function withEmptyReactions<T extends Record<string, unknown>>(items: T[]) {
+  return items.map((item) => ({
+    ...item,
+    reactions: [] as Array<{ type: PostReactionType }>,
+  }));
+}
+
+function withEmptyReactionsOne<T extends Record<string, unknown> | null>(item: T) {
+  if (!item) {
+    return null;
+  }
+
+  return {
+    ...item,
+    reactions: [] as Array<{ type: PostReactionType }>,
+  };
+}
+
 type PostListOptions = {
   cursor?: string;
   limit: number;
@@ -116,10 +219,22 @@ export async function getPostById(id?: string, viewerId?: string) {
     return null;
   }
 
-  return prisma.post.findUnique({
-    where: { id },
-    include: buildPostDetailInclude(viewerId),
-  });
+  try {
+    return await prisma.post.findUnique({
+      where: { id },
+      include: buildPostDetailInclude(viewerId),
+    });
+  } catch (error) {
+    if (!isUnknownReactionsIncludeError(error)) {
+      throw error;
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id },
+      include: buildPostDetailIncludeWithoutReactions(),
+    });
+    return withEmptyReactionsOne(post);
+  }
 }
 
 export async function listPosts({
@@ -131,7 +246,7 @@ export async function listPosts({
   neighborhoodId,
   viewerId,
 }: PostListOptions) {
-  const items = await prisma.post.findMany({
+  const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
     where: {
       status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
       ...(type ? { type } : {}),
@@ -158,8 +273,24 @@ export async function listPosts({
         }
       : {}),
     orderBy: { createdAt: "desc" },
-    include: buildPostListInclude(viewerId),
-  });
+  };
+
+  const items = await prisma.post
+    .findMany({
+      ...baseArgs,
+      include: buildPostListInclude(viewerId),
+    })
+    .catch(async (error) => {
+      if (!isUnknownReactionsIncludeError(error)) {
+        throw error;
+      }
+
+      const fallbackItems = await prisma.post.findMany({
+        ...baseArgs,
+        include: buildPostListIncludeWithoutReactions(),
+      });
+      return withEmptyReactions(fallbackItems);
+    });
 
   let nextCursor: string | null = null;
   if (items.length > limit) {
@@ -181,7 +312,7 @@ export async function listBestPosts({
 }: BestPostListOptions) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  return prisma.post.findMany({
+  const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
     where: {
       status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
       ...(type ? { type } : {}),
@@ -201,8 +332,24 @@ export async function listBestPosts({
       { viewCount: "desc" },
       { createdAt: "desc" },
     ],
-    include: buildPostListInclude(viewerId),
-  });
+  };
+
+  return prisma.post
+    .findMany({
+      ...baseArgs,
+      include: buildPostListInclude(viewerId),
+    })
+    .catch(async (error) => {
+      if (!isUnknownReactionsIncludeError(error)) {
+        throw error;
+      }
+
+      const fallbackItems = await prisma.post.findMany({
+        ...baseArgs,
+        include: buildPostListIncludeWithoutReactions(),
+      });
+      return withEmptyReactions(fallbackItems);
+    });
 }
 
 type UserPostListOptions = {

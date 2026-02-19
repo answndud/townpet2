@@ -457,3 +457,24 @@
 - `app/package.json`
 - `docs/GUIDE.md`
 - `docs/plan/todo.md`
+
+## Cycle 15: 반응 include 런타임 호환 fallback (완료)
+
+### Plan
+- [x] `Unknown field reactions` 런타임 오류의 즉시 우회 경로 추가
+- [x] Prisma Client 불일치 상태에서도 페이지가 죽지 않도록 쿼리 fallback 구현
+
+### Build
+- [x] `app/src/server/queries/post.queries.ts`에 `reactions` include 실패 감지 로직 추가
+- [x] 실패 시 `reactions` 제외 재조회 + `reactions: []` 보정 반환 구현
+- [x] `getPostById`, `listPosts`, `listBestPosts` 모두 동일 fallback 적용
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 15 결과
+- 변경 파일
+- `app/src/server/queries/post.queries.ts`
+- `docs/plan/todo.md`
