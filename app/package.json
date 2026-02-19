@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -15,12 +16,20 @@
     "db:seed:reports": "tsx scripts/seed-reports.ts",
     "db:seed:admin": "tsx scripts/seed-admin.ts",
     "db:seed:users": "tsx scripts/seed-users.ts",
+    "db:seed:search-cases": "tsx scripts/seed-search-cases.ts",
     "db:seed:passwords": "tsx scripts/seed-passwords.ts",
-    "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts"
+    "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
+    "search:check:cases": "tsx scripts/check-search-cases.ts",
+    "test:flow:notification-comment": "tsx scripts/e2e-notification-comment-flow.ts",
+    "perf:feed:scroll": "playwright test e2e/feed-scroll-performance.spec.ts --project=chromium",
+    "test:e2e:upload": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/image-upload-flow.spec.ts --project=chromium",
+    "test:e2e:feed-loading": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/feed-loading-skeleton.spec.ts --project=chromium",
+    "test:e2e:kakao-entry": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/kakao-login-entry.spec.ts --project=chromium",
+    "test:e2e:naver-entry": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/naver-login-entry.spec.ts --project=chromium"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
     "@auth/prisma-adapter": "^2.7.4",
+    "@prisma/client": "^5.22.0",
     "next": "16.1.4",
     "next-auth": "5.0.0-beta.30",
     "react": "19.2.3",
@@ -29,10 +38,12 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.3.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "prisma": "^5.22.0",

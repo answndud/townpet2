@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 
 import { passwordSetupSchema } from "@/lib/validations/auth";
 import { requireCurrentUser } from "@/server/auth";
+import { monitorUnhandledError } from "@/server/error-monitor";
+import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 import { setPasswordForUser } from "@/server/services/auth.service";
@@ -10,7 +12,7 @@ import { ServiceError } from "@/server/services/service-error";
 export async function POST(request: NextRequest) {
   try {
     const user = await requireCurrentUser();
-    enforceRateLimit({
+    await enforceRateLimit({
       key: `auth:password:setup:${user.id}`,
       limit: 5,
       windowMs: 60_000,
@@ -25,8 +27,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
+    const clientIp = getClientIp(request);
     const userAgent = request.headers.get("user-agent") ?? undefined;
 
     await setPasswordForUser({
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await monitorUnhandledError(error, { route: "POST /api/auth/password/setup", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",

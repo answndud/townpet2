@@ -40,6 +40,7 @@ describe("auth helpers", () => {
       email: "user@townpet.dev",
       name: null,
       nickname: null,
+      image: null,
       role: UserRole.USER,
     });
 
@@ -58,6 +59,7 @@ describe("auth helpers", () => {
       email: demoEmail,
       name: "Demo",
       nickname: "demo",
+      image: null,
       role: UserRole.USER,
     });
 
@@ -80,6 +82,7 @@ describe("auth helpers", () => {
       email: "admin@townpet.dev",
       name: "Admin",
       nickname: "admin",
+      image: null,
       role: UserRole.ADMIN,
     });
 
@@ -95,6 +98,7 @@ describe("auth helpers", () => {
       email: "user2@townpet.dev",
       name: "User",
       nickname: "user",
+      image: null,
       role: UserRole.USER,
     });
 

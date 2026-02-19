@@ -61,6 +61,7 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
           content={post.content}
           scope={post.scope}
           neighborhoodId={post.neighborhood?.id ?? null}
+          imageUrls={post.images.map((image) => image.url)}
           neighborhoods={neighborhoods}
         />
       </main>

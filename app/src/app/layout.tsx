@@ -4,8 +4,10 @@ import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { UserRole } from "@prisma/client";
 
 import { AuthControls } from "@/components/auth/auth-controls";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { auth } from "@/lib/auth";
 import { getCurrentUser } from "@/server/auth";
+import { countUnreadNotifications } from "@/server/queries/notification.queries";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -33,6 +35,9 @@ export default async function RootLayout({
   const currentUser = await getCurrentUser();
   const canModerate =
     currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MODERATOR;
+  const unreadNotificationCount = currentUser
+    ? await countUnreadNotifications(currentUser.id)
+    : 0;
   const userLabel =
     session?.user?.nickname ??
     session?.user?.name ??
@@ -65,6 +70,12 @@ export default async function RootLayout({
                   피드
                 </Link>
                 <Link
+                  href="/search"
+                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
+                >
+                  검색
+                </Link>
+                <Link
                   href="/my-posts"
                   className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                 >
@@ -76,6 +87,9 @@ export default async function RootLayout({
                 >
                   내 프로필
                 </Link>
+                {currentUser ? (
+                  <NotificationBell unreadCount={unreadNotificationCount} />
+                ) : null}
                 {canModerate ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -89,6 +103,12 @@ export default async function RootLayout({
                       className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                     >
                       인증 로그
+                    </Link>
+                    <Link
+                      href="/admin/policies"
+                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
+                    >
+                      권한 정책
                     </Link>
                   </div>
                 ) : null}

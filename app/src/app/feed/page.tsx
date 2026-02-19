@@ -1,17 +1,32 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
-import { PostReactionControls } from "@/components/posts/post-reaction-controls";
+import {
+  FeedInfiniteList,
+  type FeedPostItem,
+} from "@/components/posts/feed-infinite-list";
+import { FeedSearchForm } from "@/components/posts/feed-search-form";
+import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
-import { formatCount, formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
+import { isLoginRequiredPostType } from "@/lib/post-access";
+import { postTypeMeta } from "@/lib/post-presenter";
 import { postListSchema } from "@/lib/validations/post";
+import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listBestPosts, listPosts } from "@/server/queries/post.queries";
+import { getPopularSearchTerms } from "@/server/queries/search.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 type FeedMode = "ALL" | "BEST";
+type FeedSort = "LATEST" | "LIKE" | "COMMENT";
+type FeedSearchIn = "ALL" | "TITLE" | "CONTENT" | "AUTHOR";
 const BEST_DAY_OPTIONS = [3, 7, 30] as const;
+const MAX_DEBUG_DELAY_MS = 5_000;
+const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
+  { value: "LATEST", label: "최신순" },
+  { value: "LIKE", label: "좋아요순" },
+  { value: "COMMENT", label: "댓글순" },
+];
 type BestDay = (typeof BEST_DAY_OPTIONS)[number];
 
 type HomePageProps = {
@@ -21,8 +36,25 @@ type HomePageProps = {
     q?: string;
     mode?: string;
     days?: string;
+    sort?: string;
+    searchIn?: string;
+    debugDelayMs?: string;
   }>;
 };
+
+async function maybeDebugDelay(value?: string) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return;
+  }
+
+  const delayMs = Math.min(MAX_DEBUG_DELAY_MS, Math.floor(numeric));
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
 
 function toFeedMode(value?: string): FeedMode {
   return value === "BEST" ? "BEST" : "ALL";
@@ -35,28 +67,46 @@ function toBestDay(value?: string): BestDay {
     : 7;
 }
 
+function toFeedSort(value?: string): FeedSort {
+  if (value === "LIKE" || value === "COMMENT") {
+    return value;
+  }
+  return "LATEST";
+}
+
+function toFeedSearchIn(value?: string): FeedSearchIn {
+  if (value === "TITLE" || value === "CONTENT" || value === "AUTHOR") {
+    return value;
+  }
+  return "ALL";
+}
+
 export default async function Home({ searchParams }: HomePageProps) {
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) {
-    redirect("/login");
-  }
-
-  const user = await getUserWithNeighborhoods(userId);
-  if (!user) {
-    redirect("/login");
-  }
+  const user = userId ? await getUserWithNeighborhoods(userId) : null;
+  const isAuthenticated = Boolean(user);
+  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
+  const popularSearchTerms = await getPopularSearchTerms(8);
+  const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
   const resolvedParams = (await searchParams) ?? {};
+  await maybeDebugDelay(resolvedParams.debugDelayMs);
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
-  const effectiveScope = scope ?? PostScope.LOCAL;
+  const selectedScope = scope ?? (isAuthenticated ? PostScope.LOCAL : PostScope.GLOBAL);
+  const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const mode = toFeedMode(resolvedParams.mode);
   const bestDays = toBestDay(resolvedParams.days);
+  const selectedSort = toFeedSort(resolvedParams.sort);
+  const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);
+  const isGuestLocalBlocked = !isAuthenticated && selectedScope === PostScope.LOCAL;
+  const isGuestTypeBlocked =
+    !isAuthenticated && isLoginRequiredPostType(type, loginRequiredTypes);
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood && effectiveScope !== PostScope.GLOBAL) {
+  const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
+  if (isAuthenticated && !primaryNeighborhood && effectiveScope !== PostScope.GLOBAL) {
     return (
       <NeighborhoodGateNotice
         title="동네 설정이 필요합니다."
@@ -77,36 +127,84 @@ export default async function Home({ searchParams }: HomePageProps) {
       : undefined;
 
   const posts =
-    mode === "ALL"
+    mode === "ALL" && !isGuestTypeBlocked
       ? await listPosts({
           limit,
           cursor,
           type,
           scope: effectiveScope,
           q: query || undefined,
+          searchIn: selectedSearchIn,
+          sort: selectedSort,
+          excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
           neighborhoodId,
-          viewerId: user.id,
+          viewerId: user?.id,
         })
-      : null;
+      : { items: [], nextCursor: null };
 
   const bestItems =
-    mode === "BEST"
+    mode === "BEST" && !isGuestTypeBlocked
       ? await listBestPosts({
           limit,
           days: bestDays,
           type,
           scope: effectiveScope,
           q: query || undefined,
+          searchIn: selectedSearchIn,
+          excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
           neighborhoodId,
           minLikes: 1,
-          viewerId: user.id,
+          viewerId: user?.id,
         })
-      : null;
+      : [];
 
-  const items = mode === "BEST" ? (bestItems ?? []) : (posts?.items ?? []);
-  const nextCursor = mode === "ALL" ? posts?.nextCursor ?? null : null;
-  const selectedScope = scope ?? PostScope.LOCAL;
+  const items = mode === "BEST" ? bestItems : posts.items;
+  const nextCursor = mode === "ALL" ? posts.nextCursor : null;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
+  const loginHref = (nextPath: string) =>
+    `/login?next=${encodeURIComponent(nextPath)}`;
+  const feedQueryKey = [
+    mode,
+    effectiveScope,
+    type ?? "ALL",
+    selectedSort,
+    selectedSearchIn,
+    bestDays,
+    query || "__EMPTY__",
+    limit,
+  ].join("|");
+  const initialFeedItems: FeedPostItem[] = items.map((post) => ({
+    id: post.id,
+    type: post.type,
+    scope: post.scope,
+    status: post.status,
+    title: post.title,
+    content: post.content,
+    commentCount: post.commentCount,
+    likeCount: post.likeCount,
+    dislikeCount: post.dislikeCount,
+    viewCount: post.viewCount,
+    createdAt: post.createdAt.toISOString(),
+    author: {
+      name: post.author.name,
+      nickname: post.author.nickname,
+      image: post.author.image,
+    },
+    neighborhood: post.neighborhood
+      ? {
+          id: post.neighborhood.id,
+          name: post.neighborhood.name,
+          city: post.neighborhood.city,
+          district: post.neighborhood.district,
+        }
+      : null,
+    images: post.images.map((image) => ({
+      id: image.id,
+      url: image.url,
+      order: image.order,
+    })),
+    reactions: post.reactions?.map((reaction) => ({ type: reaction.type })) ?? [],
+  }));
 
   const makeHref = ({
     nextType,
@@ -115,6 +213,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextCursor,
     nextMode,
     nextDays,
+    nextSort,
+    nextSearchIn,
   }: {
     nextType?: PostType | null;
     nextScope?: PostScope | null;
@@ -122,6 +222,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextCursor?: string | null;
     nextMode?: FeedMode | null;
     nextDays?: BestDay | null;
+    nextSort?: FeedSort | null;
+    nextSearchIn?: FeedSearchIn | null;
   }) => {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
@@ -129,13 +231,21 @@ export default async function Home({ searchParams }: HomePageProps) {
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
     const resolvedMode = nextMode === undefined ? mode : nextMode;
     const resolvedDays = nextDays === undefined ? bestDays : nextDays;
+    const resolvedSort = nextSort === undefined ? selectedSort : nextSort;
+    const resolvedSearchIn =
+      nextSearchIn === undefined ? selectedSearchIn : nextSearchIn;
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
     if (resolvedQuery) params.set("q", resolvedQuery);
+    if (resolvedSearchIn && resolvedSearchIn !== "ALL") {
+      params.set("searchIn", resolvedSearchIn);
+    }
     if (resolvedMode === "BEST") {
       params.set("mode", "BEST");
       params.set("days", String(resolvedDays));
+    } else if (resolvedSort && resolvedSort !== "LATEST") {
+      params.set("sort", resolvedSort);
     }
     if (limit) params.set("limit", String(limit));
     if (resolvedMode === "ALL" && nextCursor) params.set("cursor", nextCursor);
@@ -165,97 +275,129 @@ export default async function Home({ searchParams }: HomePageProps) {
                 {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
               </div>
               <Link
-                href="/posts/new"
+                href={isAuthenticated ? "/posts/new" : loginHref("/posts/new")}
                 className="inline-flex h-10 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-4 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
               >
-                글쓰기
+                {isAuthenticated ? "글쓰기" : "로그인 후 글쓰기"}
               </Link>
             </div>
           </div>
         </header>
 
         <section className="animate-fade-up border border-[#c8d7ef] bg-white p-4 sm:p-5">
+          {isGuestLocalBlocked ? (
+            <div className="mb-4 border border-[#d9c38b] bg-[#fff8e5] px-4 py-3 text-sm text-[#6c5319]">
+              동네(Local) 피드는 로그인 후 이용할 수 있습니다.{" "}
+              <Link
+                href={loginHref("/feed?scope=LOCAL")}
+                className="font-semibold text-[#2f5da4] underline underline-offset-2"
+              >
+                로그인하기
+              </Link>
+            </div>
+          ) : null}
+          {isGuestTypeBlocked && type ? (
+            <div className="mb-4 border border-[#d9c38b] bg-[#fff8e5] px-4 py-3 text-sm text-[#6c5319]">
+              선택한 카테고리({postTypeMeta[type].label})는 로그인 후 열람할 수 있습니다.{" "}
+              <Link
+                href={loginHref(`/feed?type=${type}`)}
+                className="font-semibold text-[#2f5da4] underline underline-offset-2"
+              >
+                로그인하기
+              </Link>
+            </div>
+          ) : null}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
             <div className="space-y-3">
-              <form action="/feed" className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                {type ? <input type="hidden" name="type" value={type} /> : null}
-                {selectedScope ? (
-                  <input type="hidden" name="scope" value={selectedScope} />
-                ) : null}
-                {mode === "BEST" ? <input type="hidden" name="mode" value="BEST" /> : null}
-                {mode === "BEST" ? (
-                  <input type="hidden" name="days" value={String(bestDays)} />
-                ) : null}
-                <input
-                  name="q"
-                  defaultValue={query}
-                  placeholder="제목, 내용 검색"
-                  className="h-10 w-full border border-[#b9cbeb] bg-white px-3 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
-                />
-                <button
-                  type="submit"
-                  className="h-10 min-w-[76px] border border-[#3567b5] bg-[#3567b5] px-3 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
-                >
-                  검색
-                </button>
-                {query ? (
-                  <Link
-                    href={makeHref({ nextQuery: null, nextCursor: null })}
-                    className="inline-flex h-10 min-w-[76px] items-center justify-center border border-[#b9cbeb] bg-white px-3 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
-                  >
-                    초기화
-                  </Link>
-                ) : null}
-              </form>
+              <FeedSearchForm
+                actionPath="/feed"
+                query={query}
+                searchIn={selectedSearchIn}
+                type={type}
+                scope={selectedScope}
+                mode={mode}
+                days={bestDays}
+                sort={selectedSort}
+                resetHref={makeHref({ nextQuery: null, nextCursor: null })}
+                popularTerms={popularSearchTerms}
+              />
 
               <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                  피드
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={makeHref({ nextMode: "ALL", nextCursor: null })}
-                    className={`border px-3 py-1 text-xs font-semibold transition ${
-                      mode === "ALL"
-                        ? "border-[#3567b5] bg-[#3567b5] text-white"
-                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                    }`}
-                  >
-                    전체글
-                  </Link>
-                  <Link
-                    href={makeHref({ nextMode: "BEST", nextCursor: null })}
-                    className={`border px-3 py-1 text-xs font-semibold transition ${
-                      mode === "BEST"
-                        ? "border-[#3567b5] bg-[#3567b5] text-white"
-                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                    }`}
-                  >
-                    베스트글
-                  </Link>
-                </div>
-                {mode === "BEST" ? (
-                  <div className="mt-3 border-t border-[#dbe6f6] pt-3">
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                      베스트 기간
+                <div className="grid gap-3 md:grid-cols-2 md:divide-x md:divide-[#dbe6f6]">
+                  <div className="space-y-2 md:pr-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                      피드
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {BEST_DAY_OPTIONS.map((day) => (
-                        <Link
-                          key={day}
-                          href={makeHref({ nextDays: day, nextCursor: null })}
-                          className={`border px-2 py-2 text-center text-xs font-semibold transition ${
-                            bestDays === day
-                              ? "border-[#3567b5] bg-[#3567b5] text-white"
-                              : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                          }`}
-                        >
-                          최근 {day}일
-                        </Link>
-                      ))}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={makeHref({ nextMode: "ALL", nextCursor: null })}
+                        className={`border px-3 py-1 text-xs font-semibold transition ${
+                          mode === "ALL"
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        전체글
+                      </Link>
+                      <Link
+                        href={makeHref({ nextMode: "BEST", nextCursor: null })}
+                        className={`border px-3 py-1 text-xs font-semibold transition ${
+                          mode === "BEST"
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        베스트글
+                      </Link>
                     </div>
                   </div>
-                ) : null}
+
+                  <div className="border-t border-[#dbe6f6] pt-3 md:border-t-0 md:pl-4 md:pt-0">
+                    {mode === "BEST" ? (
+                      <>
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                          베스트 기간
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {BEST_DAY_OPTIONS.map((day) => (
+                            <Link
+                              key={day}
+                              href={makeHref({ nextDays: day, nextCursor: null })}
+                              className={`border px-2 py-2 text-center text-xs font-semibold transition ${
+                                bestDays === day
+                                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                  : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                              }`}
+                            >
+                              최근 {day}일
+                            </Link>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                          정렬
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {FEED_SORT_OPTIONS.map((option) => (
+                            <Link
+                              key={option.value}
+                              href={makeHref({ nextSort: option.value, nextCursor: null })}
+                              className={`border px-3 py-1 text-xs font-semibold transition ${
+                                selectedSort === option.value
+                                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                  : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                              }`}
+                            >
+                              {option.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
@@ -273,10 +415,15 @@ export default async function Home({ searchParams }: HomePageProps) {
                   >
                     전체
                   </Link>
-                  {Object.values(PostType).map((value) => (
+                  {Object.values(PostType).map((value) => {
+                    const isRestricted =
+                      !isAuthenticated &&
+                      isLoginRequiredPostType(value, loginRequiredTypes);
+                    const targetHref = makeHref({ nextType: value, nextCursor: null });
+                    return (
                     <Link
                       key={value}
-                      href={makeHref({ nextType: value, nextCursor: null })}
+                      href={isRestricted ? loginHref(targetHref) : targetHref}
                       className={`border px-3 py-1 text-xs font-medium transition ${
                         type === value
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -284,8 +431,10 @@ export default async function Home({ searchParams }: HomePageProps) {
                       }`}
                     >
                       {postTypeMeta[value].label}
+                      {isRestricted ? " (로그인)" : ""}
                     </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -296,7 +445,11 @@ export default async function Home({ searchParams }: HomePageProps) {
               </div>
               <div className="mt-2 grid gap-2">
                 <Link
-                  href={makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })}
+                  href={
+                    isAuthenticated
+                      ? makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })
+                      : loginHref("/feed?scope=LOCAL")
+                  }
                   className={`border px-3 py-2 text-center text-xs font-semibold transition ${
                     selectedScope === PostScope.LOCAL
                       ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -325,100 +478,51 @@ export default async function Home({ searchParams }: HomePageProps) {
 
         <section className="animate-fade-up border border-[#c8d7ef] bg-white">
           {items.length === 0 ? (
-            <div className="px-6 py-14 text-center">
-              <h2 className="text-lg font-semibold text-[#1d3660]">
-                {mode === "BEST" ? "베스트글이 없습니다" : "게시글이 없습니다"}
-              </h2>
-              <p className="mt-2 text-sm text-[#5a7397]">
-                {mode === "BEST"
+            <EmptyState
+              title={mode === "BEST" ? "베스트글이 없습니다" : "게시글이 없습니다"}
+              description={
+                isGuestTypeBlocked
+                  ? "해당 카테고리는 로그인 후 확인할 수 있습니다."
+                  : mode === "BEST"
                   ? "선택한 카테고리/범위에서 좋아요가 1개 이상인 글이 아직 없습니다."
-                  : "글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인해 주세요."}
-              </p>
-            </div>
+                  : "글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인해 주세요."
+              }
+              actionHref={
+                isGuestTypeBlocked
+                  ? loginHref(`/feed${type ? `?type=${type}` : ""}`)
+                  : mode === "BEST"
+                    ? "/feed?mode=ALL"
+                    : isAuthenticated
+                      ? "/posts/new"
+                      : loginHref("/posts/new")
+              }
+              actionLabel={
+                isGuestTypeBlocked
+                  ? "로그인하고 보기"
+                  : mode === "BEST"
+                    ? "전체글 보기"
+                    : isAuthenticated
+                      ? "첫 글 작성하기"
+                      : "로그인하고 글쓰기"
+              }
+            />
           ) : (
-            <div className="divide-y divide-[#e1e9f5]">
-              {items.map((post) => {
-                const meta = postTypeMeta[post.type];
-                const excerpt =
-                  post.content.length > 120
-                    ? `${post.content.slice(0, 120)}...`
-                    : post.content;
-
-                return (
-                  <article
-                    key={post.id}
-                    className={`grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-center ${
-                      post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
-                        <span
-                          className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
-                        >
-                          <span>{meta.icon}</span>
-                          {meta.label}
-                        </span>
-                        <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                          {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
-                        </span>
-                        <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
-                          {post.neighborhood
-                            ? `${post.neighborhood.city} ${post.neighborhood.name}`
-                            : "전체"}
-                        </span>
-                        {post.status === "HIDDEN" ? (
-                          <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
-                            숨김
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <Link
-                        href={`/posts/${post.id}`}
-                        className="block truncate text-base font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-lg"
-                      >
-                        {post.title}
-                        {post.commentCount > 0 ? ` [${post.commentCount}]` : ""}
-                      </Link>
-                      <p className="mt-1 truncate text-sm text-[#4c6488]">{excerpt}</p>
-                    </div>
-
-                    <div className="text-xs text-[#4f678d] md:text-right">
-                      <p className="font-semibold text-[#1f3f71]">
-                        {post.author.nickname ?? post.author.name ?? "익명"}
-                      </p>
-                      <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
-                      <p className="mt-2 text-[11px] text-[#6a84ab]">
-                        조회 {formatCount(post.viewCount)} · 좋아요 {formatCount(post.likeCount)} · 싫어요{" "}
-                        {formatCount(post.dislikeCount)}
-                      </p>
-                      <div className="mt-2 md:ml-auto md:flex md:justify-end">
-                        <PostReactionControls
-                          postId={post.id}
-                          likeCount={post.likeCount}
-                          dislikeCount={post.dislikeCount}
-                          currentReaction={post.reactions?.[0]?.type ?? null}
-                          compact
-                        />
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+            <FeedInfiniteList
+              initialItems={initialFeedItems}
+              initialNextCursor={nextCursor}
+              mode={mode}
+              isAuthenticated={isAuthenticated}
+              query={{
+                limit,
+                type,
+                scope: effectiveScope,
+                q: query || undefined,
+                searchIn: selectedSearchIn,
+                sort: selectedSort,
+              }}
+              queryKey={feedQueryKey}
+            />
           )}
-
-          {nextCursor ? (
-            <div className="border-t border-[#d8e3f2] px-4 py-4 text-center">
-              <Link
-                href={makeHref({ nextCursor })}
-                className="inline-flex h-10 items-center justify-center border border-[#b9cbeb] bg-white px-4 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
-              >
-                더 보기
-              </Link>
-            </div>
-          ) : null}
         </section>
       </main>
     </div>

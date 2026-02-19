@@ -1,20 +1,28 @@
 import { NextRequest } from "next/server";
 
-import { requireCurrentUser } from "@/server/auth";
+import { canGuestReadPost } from "@/lib/post-access";
+import { getCurrentUser, requireCurrentUser } from "@/server/auth";
+import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
+import { getClientIp } from "@/server/request-context";
 import { jsonError, jsonOk } from "@/server/response";
 import { ServiceError } from "@/server/services/service-error";
-import { deletePost, updatePost } from "@/server/services/post.service";
+import {
+  deletePost,
+  registerPostView,
+  updatePost,
+} from "@/server/services/post.service";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await requireCurrentUser();
+    const user = await getCurrentUser();
+    const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
     const { id } = await params;
-    const post = await getPostById(id, user.id);
+    const post = await getPostById(id, user?.id);
 
     if (!post) {
       return jsonError(404, {
@@ -23,7 +31,33 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    return jsonOk(post);
+    if (
+      !user &&
+      !canGuestReadPost({
+        scope: post.scope,
+        type: post.type,
+        loginRequiredTypes: loginRequiredTypes,
+      })
+    ) {
+      return jsonError(401, {
+        code: "AUTH_REQUIRED",
+        message: "이 게시글은 로그인 후 열람할 수 있습니다.",
+      });
+    }
+
+    const didCountView = await registerPostView({
+      postId: id,
+      userId: user?.id,
+      clientIp: getClientIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    });
+    const safeViewCount = Number.isFinite(post.viewCount)
+      ? Number(post.viewCount) + (didCountView ? 1 : 0)
+      : didCountView
+        ? 1
+        : 0;
+
+    return jsonOk({ ...post, viewCount: safeViewCount });
   } catch (error) {
     if (error instanceof ServiceError) {
       return jsonError(error.status, {

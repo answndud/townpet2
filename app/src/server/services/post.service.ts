@@ -1,6 +1,10 @@
 import { PostReactionType, PostScope, PostStatus } from "@prisma/client";
+import { createHash, randomUUID } from "crypto";
 
+import { runtimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { moderateContactContent } from "@/lib/contact-policy";
+import { evaluateNewUserPostWritePolicy } from "@/lib/post-write-policy";
 import {
   hospitalReviewSchema,
   placeReviewSchema,
@@ -8,12 +12,19 @@ import {
   postUpdateSchema,
   walkRouteSchema,
 } from "@/lib/validations/post";
+import { logger, serializeError } from "@/server/logger";
+import { notifyReactionOnPost } from "@/server/services/notification.service";
 import { ServiceError } from "@/server/services/service-error";
 
 type CreatePostParams = {
   authorId: string;
   input: unknown;
 };
+
+const MAX_POST_IMAGES = 10;
+const POST_VIEW_TTL_SECONDS = 60 * 60 * 6;
+const postViewStore = new Map<string, number>();
+let postViewRedisFailureLoggedAt = 0;
 
 const hasValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -34,19 +45,200 @@ const hasValue = (value: unknown) => {
 const hasAnyValue = (data: Record<string, unknown>) =>
   Object.values(data).some((value) => hasValue(value));
 
+const normalizeImageUrls = (imageUrls: string[] | undefined) =>
+  Array.from(
+    new Set(
+      (imageUrls ?? [])
+        .map((url) => url.trim())
+        .filter((url) => url.length > 0),
+    ),
+  ).slice(0, MAX_POST_IMAGES);
+
+const buildImageCreateInput = (imageUrls: string[]) =>
+  imageUrls.map((url, index) => ({
+    url,
+    order: index,
+  }));
+
+type RegisterPostViewParams = {
+  postId: string;
+  userId?: string;
+  clientIp?: string;
+  userAgent?: string;
+  ttlSeconds?: number;
+};
+
+function buildPostViewFingerprint({
+  postId,
+  userId,
+  clientIp,
+  userAgent,
+}: RegisterPostViewParams) {
+  return createHash("sha256")
+    .update(
+      `${postId}:${userId ?? "anonymous"}:${clientIp ?? "anonymous"}:${(userAgent ?? "unknown").slice(0, 120)}`,
+    )
+    .digest("hex");
+}
+
+function reserveMemoryPostView(fingerprint: string, ttlMs: number) {
+  const now = Date.now();
+  const expiresAt = postViewStore.get(fingerprint);
+  if (expiresAt && expiresAt > now) {
+    return false;
+  }
+
+  postViewStore.set(fingerprint, now + ttlMs);
+
+  if (postViewStore.size > 5_000) {
+    for (const [key, expireAt] of postViewStore.entries()) {
+      if (expireAt <= now) {
+        postViewStore.delete(key);
+      }
+    }
+  }
+
+  return true;
+}
+
+async function reserveRedisPostView(fingerprint: string, ttlSeconds: number) {
+  const endpoint = `${runtimeEnv.upstashRedisRestUrl}/pipeline`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${runtimeEnv.upstashRedisRestToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify([
+      ["SET", `postview:${fingerprint}`, "1", "NX", "EX", ttlSeconds],
+    ]),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upstash post view request failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as Array<{
+    result?: string | null;
+    error?: string;
+  }>;
+
+  const commandError = payload.find((item) => item.error);
+  if (commandError) {
+    throw new Error(`Upstash command error: ${commandError.error}`);
+  }
+
+  return payload[0]?.result === "OK";
+}
+
+async function reservePostView(fingerprint: string, ttlSeconds: number) {
+  if (runtimeEnv.isUpstashConfigured) {
+    try {
+      return await reserveRedisPostView(fingerprint, ttlSeconds);
+    } catch (error) {
+      const now = Date.now();
+      if (now - postViewRedisFailureLoggedAt > 60_000) {
+        postViewRedisFailureLoggedAt = now;
+        logger.warn("Redis post view dedupe 실패로 메모리 fallback을 사용합니다.", {
+          error: serializeError(error),
+        });
+      }
+    }
+  }
+
+  return reserveMemoryPostView(fingerprint, ttlSeconds * 1000);
+}
+
+export async function registerPostView({
+  postId,
+  userId,
+  clientIp,
+  userAgent,
+  ttlSeconds = POST_VIEW_TTL_SECONDS,
+}: RegisterPostViewParams) {
+  try {
+    const fingerprint = buildPostViewFingerprint({
+      postId,
+      userId,
+      clientIp,
+      userAgent,
+    });
+    const shouldCount = await reservePostView(fingerprint, ttlSeconds);
+    if (!shouldCount) {
+      return false;
+    }
+
+    await prisma.post.update({
+      where: { id: postId },
+      data: {
+        viewCount: { increment: 1 },
+      },
+    });
+
+    return true;
+  } catch (error) {
+    logger.warn("게시글 조회수 집계에 실패했습니다.", {
+      postId,
+      error: serializeError(error),
+    });
+    return false;
+  }
+}
+
 export async function createPost({ authorId, input }: CreatePostParams) {
   const parsed = postCreateSchema.safeParse(input);
   if (!parsed.success) {
     throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
+  const normalizedImageUrls = normalizeImageUrls(parsed.data.imageUrls);
+  const postData = { ...parsed.data } as Omit<typeof parsed.data, "imageUrls"> & {
+    imageUrls?: string[];
+  };
+  delete postData.imageUrls;
   const rawInput = input as Record<string, unknown>;
 
-  if (parsed.data.scope === PostScope.LOCAL && !parsed.data.neighborhoodId) {
+  const author = await prisma.user.findUnique({
+    where: { id: authorId },
+    select: { id: true, role: true, createdAt: true },
+  });
+  if (!author) {
+    throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+  }
+
+  const writePolicy = evaluateNewUserPostWritePolicy({
+    role: author.role,
+    accountCreatedAt: author.createdAt,
+    postType: postData.type,
+  });
+  if (!writePolicy.allowed) {
+    throw new ServiceError(
+      writePolicy.message ?? "현재 계정으로는 이 카테고리 글을 작성할 수 없습니다.",
+      "NEW_USER_RESTRICTED_TYPE",
+      403,
+    );
+  }
+
+  const contactPolicy = moderateContactContent({
+    text: postData.content,
+    role: author.role,
+    accountCreatedAt: author.createdAt,
+  });
+  if (contactPolicy.blocked) {
+    throw new ServiceError(
+      contactPolicy.message ?? "연락처가 포함된 내용은 현재 계정으로 작성할 수 없습니다.",
+      "CONTACT_RESTRICTED_FOR_NEW_USER",
+      403,
+    );
+  }
+  postData.content = contactPolicy.sanitizedText;
+
+  if (postData.scope === PostScope.LOCAL && !postData.neighborhoodId) {
     throw new ServiceError("동네 정보가 필요합니다.", "NEIGHBORHOOD_REQUIRED", 400);
   }
 
-  if (parsed.data.type === "HOSPITAL_REVIEW") {
+  if (postData.type === "HOSPITAL_REVIEW") {
     const reviewInput = hospitalReviewSchema.safeParse(rawInput.hospitalReview ?? {});
     if (!reviewInput.success) {
       throw new ServiceError("병원 리뷰 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
@@ -56,8 +248,15 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
     return prisma.post.create({
       data: {
-        ...parsed.data,
+        ...postData,
         authorId,
+        ...(normalizedImageUrls.length > 0
+          ? {
+              images: {
+                create: buildImageCreateInput(normalizedImageUrls),
+              },
+            }
+          : {}),
         ...(shouldCreateReview
           ? {
               hospitalReview: {
@@ -81,11 +280,15 @@ export async function createPost({ authorId, input }: CreatePostParams) {
             rating: true,
           },
         },
+        images: {
+          select: { id: true, url: true, order: true },
+          orderBy: { order: "asc" },
+        },
       },
     });
   }
 
-  if (parsed.data.type === "PLACE_REVIEW") {
+  if (postData.type === "PLACE_REVIEW") {
     const reviewInput = placeReviewSchema.safeParse(rawInput.placeReview ?? {});
     if (!reviewInput.success) {
       throw new ServiceError("장소 리뷰 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
@@ -95,8 +298,15 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
     return prisma.post.create({
       data: {
-        ...parsed.data,
+        ...postData,
         authorId,
+        ...(normalizedImageUrls.length > 0
+          ? {
+              images: {
+                create: buildImageCreateInput(normalizedImageUrls),
+              },
+            }
+          : {}),
         ...(shouldCreateReview
           ? {
               placeReview: {
@@ -129,11 +339,15 @@ export async function createPost({ authorId, input }: CreatePostParams) {
             rating: true,
           },
         },
+        images: {
+          select: { id: true, url: true, order: true },
+          orderBy: { order: "asc" },
+        },
       },
     });
   }
 
-  if (parsed.data.type === "WALK_ROUTE") {
+  if (postData.type === "WALK_ROUTE") {
     const routeInput = walkRouteSchema.safeParse(rawInput.walkRoute ?? {});
     if (!routeInput.success) {
       throw new ServiceError("산책로 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
@@ -143,8 +357,15 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
     return prisma.post.create({
       data: {
-        ...parsed.data,
+        ...postData,
         authorId,
+        ...(normalizedImageUrls.length > 0
+          ? {
+              images: {
+                create: buildImageCreateInput(normalizedImageUrls),
+              },
+            }
+          : {}),
         ...(shouldCreateReview
           ? {
               walkRoute: {
@@ -191,14 +412,25 @@ export async function createPost({ authorId, input }: CreatePostParams) {
             safetyTags: true,
           },
         },
+        images: {
+          select: { id: true, url: true, order: true },
+          orderBy: { order: "asc" },
+        },
       },
     });
   }
 
   return prisma.post.create({
     data: {
-      ...parsed.data,
+      ...postData,
       authorId,
+      ...(normalizedImageUrls.length > 0
+        ? {
+            images: {
+              create: buildImageCreateInput(normalizedImageUrls),
+            },
+          }
+        : {}),
     },
     include: {
       author: { select: { id: true, name: true, nickname: true } },
@@ -234,6 +466,10 @@ export async function createPost({ authorId, input }: CreatePostParams) {
           safetyTags: true,
         },
       },
+      images: {
+        select: { id: true, url: true, order: true },
+        orderBy: { order: "asc" },
+      },
     },
   });
 }
@@ -254,6 +490,33 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
     throw new ServiceError("동네 정보가 필요합니다.", "NEIGHBORHOOD_REQUIRED", 400);
   }
 
+  const normalizedImageUrls = normalizeImageUrls(parsed.data.imageUrls);
+  const { imageUrls, ...postData } = parsed.data;
+
+  if (postData.content !== undefined) {
+    const author = await prisma.user.findUnique({
+      where: { id: authorId },
+      select: { id: true, role: true, createdAt: true },
+    });
+    if (!author) {
+      throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+    }
+
+    const contactPolicy = moderateContactContent({
+      text: postData.content,
+      role: author.role,
+      accountCreatedAt: author.createdAt,
+    });
+    if (contactPolicy.blocked) {
+      throw new ServiceError(
+        contactPolicy.message ?? "연락처가 포함된 내용은 현재 계정으로 수정할 수 없습니다.",
+        "CONTACT_RESTRICTED_FOR_NEW_USER",
+        403,
+      );
+    }
+    postData.content = contactPolicy.sanitizedText;
+  }
+
   const existing = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, status: true, authorId: true },
@@ -270,9 +533,17 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
   return prisma.post.update({
     where: { id: postId },
     data: {
-      ...parsed.data,
+      ...postData,
       neighborhoodId:
-        parsed.data.scope === PostScope.GLOBAL ? null : parsed.data.neighborhoodId,
+        postData.scope === PostScope.GLOBAL ? null : postData.neighborhoodId,
+      ...(imageUrls
+        ? {
+            images: {
+              deleteMany: {},
+              create: buildImageCreateInput(normalizedImageUrls),
+            },
+          }
+        : {}),
     },
     include: {
       author: { select: { id: true, name: true, nickname: true } },
@@ -286,6 +557,31 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
           waitTime: true,
           rating: true,
         },
+      },
+      placeReview: {
+        select: {
+          placeName: true,
+          placeType: true,
+          address: true,
+          isPetAllowed: true,
+          rating: true,
+        },
+      },
+      walkRoute: {
+        select: {
+          routeName: true,
+          distance: true,
+          duration: true,
+          difficulty: true,
+          hasStreetLights: true,
+          hasRestroom: true,
+          hasParkingLot: true,
+          safetyTags: true,
+        },
+      },
+      images: {
+        select: { id: true, url: true, order: true },
+        orderBy: { order: "asc" },
       },
     },
   });
@@ -329,6 +625,114 @@ type TogglePostReactionResult = {
   reaction: PostReactionType | null;
 };
 
+type ReactionDelegateLike = {
+  findUnique: (args: {
+    where: { postId_userId: { postId: string; userId: string } };
+    select: { id: true; type: true };
+  }) => Promise<{ id: string; type: PostReactionType } | null>;
+  create: (args: {
+    data: { postId: string; userId: string; type: PostReactionType };
+  }) => Promise<unknown>;
+  update: (args: {
+    where: { id: string };
+    data: { type: PostReactionType };
+  }) => Promise<unknown>;
+  delete: (args: { where: { id: string } }) => Promise<unknown>;
+  count: (args: { where: { postId: string; type: PostReactionType } }) => Promise<number>;
+};
+
+type TxLike = {
+  post: {
+    update: (args: {
+      where: { id: string };
+      data: { likeCount: number; dislikeCount: number };
+    }) => Promise<unknown>;
+  };
+  postReaction?: ReactionDelegateLike;
+  $queryRaw: <T = unknown>(query: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
+  $executeRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<number>;
+};
+
+function hasReactionDelegate(
+  delegate: TxLike["postReaction"],
+): delegate is ReactionDelegateLike {
+  return Boolean(
+    delegate &&
+      typeof delegate.findUnique === "function" &&
+      typeof delegate.create === "function" &&
+      typeof delegate.update === "function" &&
+      typeof delegate.delete === "function" &&
+      typeof delegate.count === "function",
+  );
+}
+
+async function togglePostReactionWithRawSql({
+  tx,
+  postId,
+  userId,
+  type,
+}: {
+  tx: TxLike;
+  postId: string;
+  userId: string;
+  type: PostReactionType;
+}): Promise<TogglePostReactionResult> {
+  const now = new Date();
+  const existingRows = await tx.$queryRaw<Array<{ id: string; type: string }>>`
+    SELECT id, "type"::text AS type
+    FROM "PostReaction"
+    WHERE "postId" = ${postId} AND "userId" = ${userId}
+    LIMIT 1
+  `;
+  const existingRow = existingRows[0];
+
+  let reaction: PostReactionType | null = type;
+
+  if (existingRow && existingRow.type === type) {
+    await tx.$executeRaw`
+      DELETE FROM "PostReaction"
+      WHERE id = ${existingRow.id}
+    `;
+    reaction = null;
+  } else if (existingRow) {
+    await tx.$executeRaw`
+      UPDATE "PostReaction"
+      SET "type" = ${type}::"PostReactionType", "updatedAt" = ${now}
+      WHERE id = ${existingRow.id}
+    `;
+  } else {
+    const reactionId = randomUUID().replace(/-/g, "");
+    await tx.$executeRaw`
+      INSERT INTO "PostReaction" ("id", "postId", "userId", "type", "createdAt", "updatedAt")
+      VALUES (${reactionId}, ${postId}, ${userId}, ${type}::"PostReactionType", ${now}, ${now})
+    `;
+  }
+
+  const likeCountRows = await tx.$queryRaw<Array<{ count: number }>>`
+    SELECT COUNT(*)::int AS count
+    FROM "PostReaction"
+    WHERE "postId" = ${postId} AND "type" = 'LIKE'::"PostReactionType"
+  `;
+  const dislikeCountRows = await tx.$queryRaw<Array<{ count: number }>>`
+    SELECT COUNT(*)::int AS count
+    FROM "PostReaction"
+    WHERE "postId" = ${postId} AND "type" = 'DISLIKE'::"PostReactionType"
+  `;
+
+  const likeCount = Number(likeCountRows[0]?.count ?? 0);
+  const dislikeCount = Number(dislikeCountRows[0]?.count ?? 0);
+
+  await tx.post.update({
+    where: { id: postId },
+    data: {
+      likeCount,
+      dislikeCount,
+    },
+  });
+
+  return { likeCount, dislikeCount, reaction };
+}
+
 export async function togglePostReaction({
   postId,
   userId,
@@ -336,15 +740,26 @@ export async function togglePostReaction({
 }: TogglePostReactionParams): Promise<TogglePostReactionResult> {
   const existingPost = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, authorId: true, title: true },
   });
 
   if (!existingPost || existingPost.status === PostStatus.DELETED) {
     throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const existingReaction = await tx.postReaction.findUnique({
+  const result = await prisma.$transaction(async (tx) => {
+    const txLike = tx as unknown as TxLike;
+    const reactionDelegate = txLike.postReaction;
+
+    if (!hasReactionDelegate(reactionDelegate)) {
+      logger.warn(
+        "Prisma tx.postReaction delegate가 불완전하여 raw SQL fallback으로 반응을 처리합니다.",
+        { postId },
+      );
+      return togglePostReactionWithRawSql({ tx: txLike, postId, userId, type });
+    }
+
+    const existingReaction = await reactionDelegate.findUnique({
       where: {
         postId_userId: {
           postId,
@@ -357,17 +772,17 @@ export async function togglePostReaction({
     let reaction: PostReactionType | null = type;
 
     if (existingReaction?.type === type) {
-      await tx.postReaction.delete({
+      await reactionDelegate.delete({
         where: { id: existingReaction.id },
       });
       reaction = null;
     } else if (existingReaction) {
-      await tx.postReaction.update({
+      await reactionDelegate.update({
         where: { id: existingReaction.id },
         data: { type },
       });
     } else {
-      await tx.postReaction.create({
+      await reactionDelegate.create({
         data: {
           postId,
           userId,
@@ -376,20 +791,16 @@ export async function togglePostReaction({
       });
     }
 
-    const reactionGroups = await tx.postReaction.groupBy({
-      by: ["type"],
-      where: { postId },
-      _count: { _all: true },
-    });
+    const [likeCount, dislikeCount] = await Promise.all([
+      reactionDelegate.count({
+        where: { postId, type: PostReactionType.LIKE },
+      }),
+      reactionDelegate.count({
+        where: { postId, type: PostReactionType.DISLIKE },
+      }),
+    ]);
 
-    const likeCount =
-      reactionGroups.find((group) => group.type === PostReactionType.LIKE)?._count
-        ._all ?? 0;
-    const dislikeCount =
-      reactionGroups.find((group) => group.type === PostReactionType.DISLIKE)?._count
-        ._all ?? 0;
-
-    await tx.post.update({
+    await txLike.post.update({
       where: { id: postId },
       data: {
         likeCount,
@@ -399,4 +810,26 @@ export async function togglePostReaction({
 
     return { likeCount, dislikeCount, reaction };
   });
+
+  if (
+    result.reaction === PostReactionType.LIKE &&
+    existingPost.authorId !== userId
+  ) {
+    try {
+      await notifyReactionOnPost({
+        recipientUserId: existingPost.authorId,
+        actorId: userId,
+        postId: existingPost.id,
+        postTitle: existingPost.title,
+      });
+    } catch (error) {
+      logger.warn("게시글 반응 알림 생성에 실패했습니다.", {
+        postId,
+        userId,
+        error: serializeError(error),
+      });
+    }
+  }
+
+  return result;
 }

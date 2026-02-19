@@ -4,6 +4,7 @@ import { PostScope } from "@prisma/client";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import { updatePostAction } from "@/server/actions/post";
 
 type NeighborhoodOption = {
@@ -19,6 +20,7 @@ type PostDetailEditFormProps = {
   content: string;
   scope: PostScope;
   neighborhoodId: string | null;
+  imageUrls: string[];
   neighborhoods: NeighborhoodOption[];
 };
 
@@ -28,6 +30,7 @@ export function PostDetailEditForm({
   content,
   scope,
   neighborhoodId,
+  imageUrls,
   neighborhoods,
 }: PostDetailEditFormProps) {
   const router = useRouter();
@@ -38,6 +41,7 @@ export function PostDetailEditForm({
     content,
     scope,
     neighborhoodId: neighborhoodId ?? "",
+    imageUrls,
   });
 
   const neighborhoodOptions = useMemo(
@@ -60,6 +64,7 @@ export function PostDetailEditForm({
         title: formState.title,
         content: formState.content,
         scope: formState.scope,
+        imageUrls: formState.imageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : null,
       });
 
@@ -157,6 +162,16 @@ export function PostDetailEditForm({
           required
         />
       </label>
+
+      <div className="mt-6">
+        <ImageUploadField
+          value={formState.imageUrls}
+          onChange={(nextUrls) =>
+            setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
+          }
+          label="게시글 이미지"
+        />
+      </div>
 
       {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
     </form>

@@ -46,12 +46,25 @@ const optionalBoolean = z.preprocess(
   z.coerce.boolean().optional(),
 );
 
+const imageUrlSchema = z
+  .string()
+  .min(1)
+  .max(2048)
+  .refine(
+    (value) =>
+      value.startsWith("/uploads/") ||
+      value.startsWith("https://") ||
+      value.startsWith("http://"),
+    "이미지 URL 형식이 올바르지 않습니다.",
+  );
+
 export const postCreateSchema = z.object({
   title: z.string().min(1).max(120),
   content: z.string().min(1),
   type: z.nativeEnum(PostType),
   scope: z.nativeEnum(PostScope).default(PostScope.LOCAL),
   neighborhoodId: z.string().cuid().optional(),
+  imageUrls: z.array(imageUrlSchema).max(10).optional().default([]),
 });
 
 export const hospitalReviewSchema = z.object({
@@ -92,6 +105,8 @@ export const postListSchema = z.object({
   type: z.nativeEnum(PostType).optional(),
   scope: z.nativeEnum(PostScope).optional(),
   q: z.string().min(1).max(100).optional(),
+  searchIn: z.enum(["ALL", "TITLE", "CONTENT", "AUTHOR"]).optional(),
+  sort: z.enum(["LATEST", "LIKE", "COMMENT"]).optional(),
 });
 
 export const postUpdateSchema = z
@@ -100,6 +115,7 @@ export const postUpdateSchema = z
     content: z.string().min(1).optional(),
     scope: z.nativeEnum(PostScope).optional(),
     neighborhoodId: z.string().cuid().optional().nullable(),
+    imageUrls: z.array(imageUrlSchema).max(10).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "업데이트할 항목이 필요합니다.",

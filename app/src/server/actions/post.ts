@@ -9,6 +9,7 @@ import {
   togglePostReaction,
   updatePost,
 } from "@/server/services/post.service";
+import { logger, serializeError } from "@/server/logger";
 import { ServiceError } from "@/server/services/service-error";
 import { requireCurrentUser } from "@/server/auth";
 
@@ -125,6 +126,11 @@ export async function togglePostReactionAction(
     if (error instanceof ServiceError) {
       return { ok: false, code: error.code, message: error.message };
     }
+    logger.error("togglePostReactionAction 실패", {
+      postId,
+      type,
+      error: serializeError(error),
+    });
 
     return {
       ok: false,

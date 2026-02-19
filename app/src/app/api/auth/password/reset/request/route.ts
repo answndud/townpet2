@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 
 import { passwordResetRequestSchema } from "@/lib/validations/auth";
+import { monitorUnhandledError } from "@/server/error-monitor";
+import { getClientIp } from "@/server/request-context";
 import { sendPasswordResetEmail } from "@/server/email";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
@@ -9,9 +11,8 @@ import { ServiceError } from "@/server/services/service-error";
 
 export async function POST(request: NextRequest) {
   try {
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "anonymous";
-    enforceRateLimit({
+    const clientIp = getClientIp(request);
+    await enforceRateLimit({
       key: `auth:password:reset:${clientIp}`,
       limit: 5,
       windowMs: 60_000,
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await monitorUnhandledError(error, { route: "POST /api/auth/password/reset/request", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",

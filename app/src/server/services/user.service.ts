@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   neighborhoodSelectSchema,
+  profileImageUpdateSchema,
   profileUpdateSchema,
 } from "@/lib/validations/user";
 import { ServiceError } from "@/server/services/service-error";
@@ -83,5 +84,23 @@ export async function setPrimaryNeighborhood({
         isPrimary: true,
       },
     });
+  });
+}
+
+type UpdateProfileImageParams = {
+  userId: string;
+  input: unknown;
+};
+
+export async function updateProfileImage({ userId, input }: UpdateProfileImageParams) {
+  const parsed = profileImageUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("프로필 이미지 입력이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  return prisma.user.update({
+    where: { id: userId },
+    data: { image: parsed.data.imageUrl },
+    select: { id: true, image: true },
   });
 }
