@@ -87,7 +87,7 @@
 - `vitest run`: 9 files / 26 tests 통과
 - `tsc --noEmit`: 통과
 
-## Cycle 3: Local/Global 정책 정합성 1차 (진행 중)
+## Cycle 3: Local/Global 정책 정합성 1차 (완료)
 
 ### Plan
 - [x] 홈 피드 기본 scope를 `LOCAL`로 고정
@@ -116,7 +116,7 @@
 - `eslint src --max-warnings=0`: 통과
 - `vitest run`: 10 files / 29 tests 통과
 
-## Cycle 4: 운영 가시성/실행 가이드 (진행 중)
+## Cycle 4: 운영 가시성/실행 가이드 (완료)
 
 ### Plan
 - [x] Docker + Next 로컬 실행 경로를 초보자용으로 문서화
@@ -140,3 +140,31 @@
 - `tsc --noEmit`: 통과
 - `eslint src --max-warnings=0`: 통과
 - `vitest run`: 10 files / 29 tests 통과
+
+## Cycle 5: 테스트 유저 더미데이터 확장 (완료)
+
+### Plan
+- [x] 단순 3명 유저 시드를 역할/상태 다양화 데이터셋으로 확장
+- [x] 관리자/모더레이터/일반/비인증/동네미설정 케이스 포함
+- [x] 실행 가이드에 신규 시드 절차/샘플 계정 반영
+
+### Build
+- [x] `app/scripts/seed-users.ts` 확장 구현
+- [x] `scripts/seed-users.ts` 실행으로 테스트 DB 반영
+- [x] Docker/Postgres 실행 상태 및 역할별 집계 확인
+
+### Check
+- [x] 문서 업데이트 완료 (`docs/GUIDE.md`, `docs/plan/todo.md`)
+- [x] 검증 실행 (`tsc`, `eslint`, `vitest`)
+
+### Cycle 5 결과
+- 변경 파일
+- `app/scripts/seed-users.ts`
+- `docs/GUIDE.md`
+- 검증 결과
+- `tsc --noEmit`: 통과
+- `eslint src --max-warnings=0`: 통과
+- `vitest run`: 10 files / 29 tests 통과
+- 테스트 환경 데이터 상태
+- 유저 시드 요약: total=21, admin=2, moderator=3, user=16
+- DB 전체 집계(기존 포함): USER 22 / ADMIN 2 / MODERATOR 4

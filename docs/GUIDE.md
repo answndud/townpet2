@@ -39,6 +39,7 @@ cd app
 
 # 5) 기본 데이터 시드
 SEED_DEFAULT_PASSWORD=dev-password-1234 ./node_modules/.bin/tsx prisma/seed.ts
+./node_modules/.bin/tsx scripts/seed-users.ts
 ./node_modules/.bin/tsx scripts/seed-reports.ts
 
 # 6) 개발 서버 실행
@@ -49,11 +50,17 @@ SEED_DEFAULT_PASSWORD=dev-password-1234 ./node_modules/.bin/tsx prisma/seed.ts
 
 ## 4) 로그인 테스트 계정
 
-시드 실행 후:
+시드 실행 후(기본 비밀번호 동일):
 
 - 이메일: `demo@townpet.dev`
 - 비밀번호: 시드 실행 시 사용한 `SEED_DEFAULT_PASSWORD`
 - 위 빠른 실행 명령을 그대로 썼다면: `dev-password-1234`
+
+추가 테스트 계정(역할 다양화):
+- 관리자: `admin.platform@townpet.dev`, `admin.ops@townpet.dev`
+- 모더레이터: `mod.trust@townpet.dev`, `mod.local@townpet.dev`, `mod.content@townpet.dev`
+- 일반 유저(예시): `power.reviewer@townpet.dev`, `newbie.week1@townpet.dev`, `market.scout@townpet.dev`
+- 비인증 유저 테스트용: `newbie.day1@townpet.dev` (로그인 제한 시나리오 확인용)
 
 ## 5) 운영 중 자주 쓰는 명령어
 
