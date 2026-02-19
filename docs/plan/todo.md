@@ -168,3 +168,24 @@
 - 테스트 환경 데이터 상태
 - 유저 시드 요약: total=21, admin=2, moderator=3, user=16
 - DB 전체 집계(기존 포함): USER 22 / ADMIN 2 / MODERATOR 4
+
+## Cycle 6: 외부 터미널 실행 가이드 안정화 (완료)
+
+### Plan
+- [x] `GUIDE.md`를 Codex 전용 흐름이 아니라 외부 터미널 복붙 기준으로 전면 정리
+- [x] `next dev` 실행 실패의 주원인(작업 경로/중복 서버/의존성 누락) 즉시 진단 절차 추가
+- [x] 더미데이터 미노출 원인(`LOCAL` 기본 정책) 확인 절차를 더 명확히 안내
+
+### Build
+- [x] `docs/GUIDE.md` 전체 재작성 (절대경로/원라인 복붙 중심)
+- [x] 서버 중복 실행 감지(`lsof`)와 로그 확인 명령 추가
+- [x] 데이터 존재 확인 SQL 명령 재정렬
+
+### Check
+- [x] `docs/plan/todo.md` 업데이트
+- [x] 변경 파일 점검 완료
+
+### Cycle 6 결과
+- 변경 파일
+- `docs/GUIDE.md`
+- `docs/plan/todo.md`
