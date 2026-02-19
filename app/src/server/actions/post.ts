@@ -32,7 +32,7 @@ export async function createPostAction(input: unknown): Promise<PostActionResult
 
     await createPost({ authorId: user.id, input });
     revalidatePath("/feed");
-    revalidatePath("/best");
+    revalidatePath("/");
     return { ok: true };
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -52,7 +52,7 @@ export async function deletePostAction(postId: string): Promise<PostActionResult
     const user = await requireCurrentUser();
     await deletePost({ postId, authorId: user.id });
     revalidatePath("/feed");
-    revalidatePath("/best");
+    revalidatePath("/");
     revalidatePath(`/posts/${postId}`);
     return { ok: true };
   } catch (error) {
@@ -76,7 +76,7 @@ export async function updatePostAction(
     const user = await requireCurrentUser();
     await updatePost({ postId, authorId: user.id, input });
     revalidatePath("/feed");
-    revalidatePath("/best");
+    revalidatePath("/");
     revalidatePath(`/posts/${postId}`);
     return { ok: true };
   } catch (error) {
@@ -112,7 +112,7 @@ export async function togglePostReactionAction(
       type: type as PostReactionType,
     });
     revalidatePath("/feed");
-    revalidatePath("/best");
+    revalidatePath("/");
     revalidatePath(`/posts/${postId}`);
 
     return {
