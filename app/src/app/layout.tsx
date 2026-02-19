@@ -42,37 +42,37 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[#eaf2eb] text-[#12251b] antialiased`}
+        className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[#edf3fb] text-[#10284a] antialiased`}
       >
-        <div className="relative min-h-screen bg-[radial-gradient(circle_at_5%_10%,#f8fff8_0%,transparent_42%),radial-gradient(circle_at_100%_0%,#d9ecd9_0%,transparent_30%),linear-gradient(180deg,#edf6ee_0%,#e7f0e8_100%)]">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(27,80,53,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(27,80,53,0.04)_1px,transparent_1px)] bg-[size:28px_28px] opacity-35" />
+        <div className="relative min-h-screen bg-[radial-gradient(circle_at_0%_0%,#ffffff_0%,transparent_35%),radial-gradient(circle_at_100%_0%,#dfeaff_0%,transparent_30%),linear-gradient(180deg,#f3f8ff_0%,#ecf3fd_100%)]">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(50,88,146,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(50,88,146,0.04)_1px,transparent_1px)] bg-[size:28px_28px] opacity-35" />
 
-          <header className="sticky top-0 z-40 border-b border-[#cfe1d2] bg-[#edf6eecc] backdrop-blur-sm">
-            <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
+          <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
+            <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex flex-col">
-                <span className="text-xs uppercase tracking-[0.4em] text-[#427256]">
+                <span className="text-xs uppercase tracking-[0.4em] text-[#4a6797]">
                   TownPet
                 </span>
-                <span className="text-xl font-bold tracking-tight text-[#112a1f]">
+                <span className="text-xl font-bold tracking-tight text-[#10284a]">
                   Local Knowledge Desk
                 </span>
               </div>
-              <nav className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#35644a] sm:text-sm">
+              <nav className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#315484] sm:text-sm">
                 <Link
                   href="/"
-                  className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                 >
                   홈
                 </Link>
                 <Link
                   href="/my-posts"
-                  className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                 >
                   내 작성글
                 </Link>
                 <Link
                   href="/profile"
-                  className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                 >
                   내 프로필
                 </Link>
@@ -80,13 +80,13 @@ export default async function RootLayout({
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href="/admin/reports"
-                      className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                     >
                       신고 큐
                     </Link>
                     <Link
                       href="/admin/auth-audits"
-                      className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                     >
                       인증 로그
                     </Link>
@@ -99,7 +99,7 @@ export default async function RootLayout({
                 ) : (
                   <Link
                     href="/login"
-                    className="rounded-full border border-[#bfd5c4] bg-white/90 px-3 py-1.5 transition hover:bg-[#f2faf4]"
+                    className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                   >
                     로그인
                   </Link>

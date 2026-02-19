@@ -33,11 +33,11 @@ export function PostDetailActions({ postId }: PostDetailActionsProps) {
 
   return (
     <div className="flex items-center gap-3">
-      {error ? <span className="text-xs text-red-500">{error}</span> : null}
+      {error ? <span className="text-xs text-rose-600">{error}</span> : null}
       <button
         type="button"
         onClick={handleDelete}
-        className="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-[#e3d6c4] disabled:text-[#cbbba5]"
+        className="border border-rose-300 bg-white px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
         disabled={isPending}
       >
         {isPending ? "삭제 중..." : "삭제"}

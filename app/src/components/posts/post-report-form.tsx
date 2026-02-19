@@ -51,13 +51,13 @@ export function PostReportForm({ postId }: PostReportFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm"
+      className="border border-[#c8d7ef] bg-white p-4"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">신고하기</h2>
+        <h2 className="text-base font-semibold text-[#1f3f71]">신고하기</h2>
         <button
           type="submit"
-          className="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-[#e3d6c4] disabled:text-[#cbbba5]"
+          className="border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
           disabled={isPending}
         >
           {isPending ? "접수 중..." : "신고"}
@@ -65,10 +65,10 @@ export function PostReportForm({ postId }: PostReportFormProps) {
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm font-medium">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
           사유
           <select
-            className="rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={reason}
             onChange={(event) =>
               setReason(event.target.value as ReportReason)
@@ -81,10 +81,10 @@ export function PostReportForm({ postId }: PostReportFormProps) {
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-2 text-sm font-medium md:col-span-2">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988] md:col-span-2">
           상세 설명(선택)
           <textarea
-            className="min-h-[80px] rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+            className="min-h-[80px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="추가 설명이 필요하면 입력하세요."
@@ -92,7 +92,7 @@ export function PostReportForm({ postId }: PostReportFormProps) {
         </label>
       </div>
 
-      {message ? <p className="mt-3 text-sm text-[#9a8462]">{message}</p> : null}
+      {message ? <p className="mt-3 text-sm text-[#4f678d]">{message}</p> : null}
     </form>
   );
 }

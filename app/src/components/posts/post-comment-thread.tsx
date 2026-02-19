@@ -147,23 +147,23 @@ export function PostCommentThread({
     return (
       <div
         key={comment.id}
-        className={`rounded-xl border border-[#efe4d4] bg-[#fdf9f2] px-4 py-3 ${
+        className={`border border-[#dbe5f3] bg-white px-4 py-3 ${
           depth > 0 ? "ml-6" : ""
         }`}
       >
-        <div className="flex items-center justify-between text-xs text-[#9a8462]">
+        <div className="flex items-center justify-between text-xs text-[#5f7ba5]">
           <span>{comment.author.nickname ?? comment.author.name ?? "익명"}</span>
           <span>{comment.createdAt.toLocaleDateString("ko-KR")}</span>
         </div>
-        <p className="mt-2 whitespace-pre-line text-sm text-[#6f6046]">
+        <p className="mt-2 whitespace-pre-line text-sm text-[#27466f]">
           {comment.status === "DELETED"
             ? "삭제된 댓글입니다."
             : comment.content}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#6f6046]">
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#4f678d]">
           <button
             type="button"
-            className="rounded-md border border-[#e3d6c4] px-2.5 py-1"
+            className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
             onClick={() =>
               setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
             }
@@ -175,7 +175,7 @@ export function PostCommentThread({
             <>
               <button
                 type="button"
-                className="rounded-md border border-[#e3d6c4] px-2.5 py-1"
+                className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
                 onClick={() =>
                   setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
                 }
@@ -185,7 +185,7 @@ export function PostCommentThread({
               </button>
               <button
                 type="button"
-                className="rounded-md border border-[#e3d6c4] px-2.5 py-1 text-red-600"
+                className="border border-rose-300 bg-rose-50 px-2.5 py-1 text-rose-700 transition hover:bg-rose-100"
                 onClick={() => handleDelete(comment.id)}
                 disabled={isPending}
               >
@@ -196,7 +196,7 @@ export function PostCommentThread({
           {!isAuthor && comment.status === "ACTIVE" ? (
             <button
               type="button"
-              className="rounded-md border border-[#e3d6c4] px-2.5 py-1"
+              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
               onClick={() =>
                 setReportOpen((prev) => ({
                   ...prev,
@@ -212,7 +212,7 @@ export function PostCommentThread({
         {replyOpen[comment.id] ? (
           <div className="mt-3">
             <textarea
-              className="min-h-[80px] w-full rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="min-h-[80px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={replyContent[comment.id] ?? ""}
               onChange={(event) =>
                 setReplyContent((prev) => ({
@@ -225,7 +225,7 @@ export function PostCommentThread({
             <div className="mt-2 flex justify-end">
               <button
                 type="button"
-                className="rounded-md border border-[#e3d6c4] bg-white px-3 py-1 text-xs"
+                className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
                 onClick={() => handleCreate(comment.id)}
                 disabled={isPending}
               >
@@ -238,7 +238,7 @@ export function PostCommentThread({
         {editOpen[comment.id] && canEdit ? (
           <div className="mt-3">
             <textarea
-              className="min-h-[80px] w-full rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+              className="min-h-[80px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={editContent[comment.id] ?? comment.content}
               onChange={(event) =>
                 setEditContent((prev) => ({
@@ -250,7 +250,7 @@ export function PostCommentThread({
             <div className="mt-2 flex justify-end">
               <button
                 type="button"
-                className="rounded-md border border-[#e3d6c4] bg-white px-3 py-1 text-xs"
+                className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
                 onClick={() => handleUpdate(comment.id)}
                 disabled={isPending}
               >
@@ -261,10 +261,10 @@ export function PostCommentThread({
         ) : null}
 
         {reportOpen[comment.id] && !isAuthor ? (
-          <div className="mt-3 rounded-lg border border-[#e3d6c4] bg-white p-3 text-xs">
+          <div className="mt-3 border border-[#bfd0ec] bg-[#f8fbff] p-3 text-xs text-[#355988]">
             <div className="flex flex-wrap items-center gap-2">
               <select
-                className="rounded-md border border-[#e3d6c4] px-2 py-1"
+                className="border border-[#bfd0ec] bg-white px-2 py-1"
                 value={reportReason[comment.id] ?? ReportReason.SPAM}
                 onChange={(event) =>
                   setReportReason((prev) => ({
@@ -281,7 +281,7 @@ export function PostCommentThread({
               </select>
               <button
                 type="button"
-                className="rounded-md border border-[#e3d6c4] px-2 py-1"
+                className="border border-rose-300 bg-white px-2 py-1 text-rose-700 transition hover:bg-rose-50"
                 onClick={() => handleReport(comment.id)}
                 disabled={isPending}
               >
@@ -289,7 +289,7 @@ export function PostCommentThread({
               </button>
             </div>
             <textarea
-              className="mt-2 w-full rounded-md border border-[#e3d6c4] px-2 py-1 text-xs"
+              className="mt-2 w-full border border-[#bfd0ec] bg-white px-2 py-1 text-xs"
               value={reportDescription[comment.id] ?? ""}
               onChange={(event) =>
                 setReportDescription((prev) => ({
@@ -312,14 +312,14 @@ export function PostCommentThread({
   };
 
   return (
-    <div className="rounded-2xl border border-[#e3d6c4] bg-white p-6 shadow-sm">
+    <div className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">댓글 ({comments.length})</h2>
+        <h2 className="text-lg font-semibold text-[#1f3f71]">댓글 ({comments.length})</h2>
       </div>
-      {message ? <p className="mt-2 text-xs text-[#9a8462]">{message}</p> : null}
+      {message ? <p className="mt-2 text-xs text-[#5a7398]">{message}</p> : null}
       <div className="mt-4">
         <textarea
-          className="min-h-[100px] w-full rounded-lg border border-[#e3d6c4] px-3 py-2 text-sm"
+          className="min-h-[100px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
           value={replyContent.root ?? ""}
           onChange={(event) =>
             setReplyContent((prev) => ({ ...prev, root: event.target.value }))
@@ -329,7 +329,7 @@ export function PostCommentThread({
         <div className="mt-2 flex justify-end">
           <button
             type="button"
-            className="rounded-md border border-[#e3d6c4] bg-white px-3 py-2 text-xs"
+            className="border border-[#3567b5] bg-[#3567b5] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
             onClick={() => handleCreate()}
             disabled={isPending}
           >
@@ -339,7 +339,7 @@ export function PostCommentThread({
       </div>
 
       {roots.length === 0 ? (
-        <p className="mt-4 text-sm text-[#9a8462]">첫 댓글을 남겨주세요.</p>
+        <p className="mt-4 text-sm text-[#5a7398]">첫 댓글을 남겨주세요.</p>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           {roots.map((comment) => renderComment(comment))}
