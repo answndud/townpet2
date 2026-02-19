@@ -7,6 +7,11 @@
 - Cycle 21~24: 핵심 구현 + 100+ 스크롤 성능 검증까지 완료
 - Cycle 25: 검색 대표 케이스 수동 판정 + 검색 로그 저장 구조 전환 완료
 - Cycle 26: 알림 UX + 댓글 정렬/접기/반응 고도화 완료
+- Cycle 27: 신규 계정 제한 + 연락처/금칙어 정책 + 단계적 제재 완료
+- Cycle 28: OG/JSON-LD/사이트맵/공유 기능 완료
+- Cycle 29: 공개 프로필 + 반려동물 CRUD + 글쓰기 미리보기/임시저장 완료
+- Cycle 30: 품질게이트 + 런북/SLO 문서화 완료
+- Cycle 31: 알림 센터 커서 기반 로딩 + 공개 프로필 활동 탭 커서 페이지네이션 완료
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
@@ -385,6 +390,310 @@
 - 결정 기록
 - 즉시 운영 안정성을 위해 서비스 레이어에서 먼저 강제하고, 프론트 경고 UI는 후속 개선으로 분리.
 
+### 2026-02-19: Cycle 27 완료 (금칙어 정책 + 단계적 제재)
+- 완료 내용
+- 관리자 정책 화면에 금칙어 정책 편집(라인/쉼표 입력, 저장, 즉시 반영)을 추가.
+- 게시글 작성/수정(제목+본문), 댓글 작성/수정(본문)에 금칙어 검사를 적용하고 매칭 시 저장 차단.
+- 신고 생성 시 대상 작성자(`targetUserId`)를 서버에서 자동 해석해 저장하도록 보강.
+- 신고 승인 처리(`RESOLVED`) 시 운영자가 선택한 경우 단계적 제재를 자동 적용:
+  경고 -> 7일 정지 -> 30일 정지 -> 영구 정지.
+- `UserSanction` 모델/마이그레이션을 추가하고, 관리자 신고 큐에 최근 제재 이력 패널을 제공해 흐름을 추적 가능하게 개선.
+- `requireCurrentUser` 단계에서 활성 정지/영구정지 사용자 기능 사용을 차단하도록 권한 체크를 추가.
+- 변경 파일(핵심)
+- `app/prisma/schema.prisma`
+- `app/prisma/migrations/20260219204000_add_user_sanctions/migration.sql`
+- `app/src/lib/forbidden-keyword-policy.ts`
+- `app/src/server/queries/policy.queries.ts`
+- `app/src/server/services/post.service.ts`
+- `app/src/server/services/comment.service.ts`
+- `app/src/server/services/report.service.ts`
+- `app/src/server/services/sanction.service.ts`
+- `app/src/server/queries/sanction.queries.ts`
+- `app/src/server/auth.ts`
+- `app/src/app/admin/policies/page.tsx`
+- `app/src/components/admin/forbidden-keyword-policy-form.tsx`
+- `app/src/components/admin/report-actions.tsx`
+- `app/src/app/admin/reports/page.tsx`
+- 검증 결과
+- `cd app && ./node_modules/.bin/prisma generate` 통과
+- `cd app && ./node_modules/.bin/prisma db push` 통과
+- `cd app && ./node_modules/.bin/eslint src/app/admin/policies/page.tsx src/app/admin/reports/page.tsx src/components/admin/report-actions.tsx src/components/admin/forbidden-keyword-policy-form.tsx src/lib/forbidden-keyword-policy.ts src/lib/forbidden-keyword-policy.test.ts src/lib/validations/policy.ts src/lib/validations/report-update.ts src/server/actions/policy.ts src/server/auth.ts src/server/auth.test.ts src/server/queries/policy.queries.ts src/server/queries/sanction.queries.ts src/server/services/comment.service.ts src/server/services/policy.service.ts src/server/services/post.service.ts src/server/services/report.service.ts src/server/services/sanction.service.ts src/server/services/sanction.service.test.ts src/server/services/post-create-policy.test.ts src/server/services/comment.service.test.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/lib/forbidden-keyword-policy.test.ts src/server/services/sanction.service.test.ts src/server/auth.test.ts src/server/services/post-create-policy.test.ts src/server/services/comment.service.test.ts src/server/services/report.service.test.ts` 통과 (24 tests)
+- 이슈/블로커
+- 운영 배포 환경에서 `UserSanction` 테이블 마이그레이션 적용 전에는 제재 기능이 자동 fallback으로 비활성화됨(코드는 안전 처리됨).
+- 결정 기록
+- 기존 신고 처리 UX를 유지하기 위해 신고 승인 버튼에 `단계적 제재 적용` 체크박스를 추가하고 기본값을 활성화해 운영 실수를 줄임.
+- 신규 모델 도입 구간의 런타임 오류를 피하기 위해 제재 조회/저장 로직에 `delegate/table missing` fallback 경로를 함께 구현.
+
+### 2026-02-19: Cycle 27 완료 (유저 차단/뮤트)
+- 완료 내용
+- `UserBlock`, `UserMute` 모델/마이그레이션을 추가하고 사용자 관계 관리 기반을 구축.
+- 피드/검색/게시글 상세/댓글 조회에서 차단·뮤트 대상 작성자의 콘텐츠를 자동 제외하도록 쿼리 레이어를 확장.
+- 게시글/댓글 반응, 댓글 작성, 신고 접수 시 차단 관계를 검사해 상호작용을 차단.
+- 게시글 상세 작성자 영역과 댓글 목록에서 바로 `차단/뮤트` 제어할 수 있는 UI를 추가.
+- 내 프로필에 차단/뮤트 목록 관리 섹션을 추가해 해제 동선을 제공.
+- 변경 파일(핵심)
+- `app/prisma/schema.prisma`
+- `app/prisma/migrations/20260219213000_add_user_block_and_mute/migration.sql`
+- `app/src/server/queries/user-relation.queries.ts`
+- `app/src/server/services/user-relation.service.ts`
+- `app/src/server/actions/user-relation.ts`
+- `app/src/components/user/user-relation-controls.tsx`
+- `app/src/server/queries/post.queries.ts`
+- `app/src/server/queries/comment.queries.ts`
+- `app/src/server/services/post.service.ts`
+- `app/src/server/services/comment.service.ts`
+- `app/src/server/services/report.service.ts`
+- `app/src/app/posts/[id]/page.tsx`
+- `app/src/components/posts/post-comment-thread.tsx`
+- `app/src/app/profile/page.tsx`
+- 검증 결과
+- `cd app && ./node_modules/.bin/prisma generate` 통과
+- `cd app && ./node_modules/.bin/prisma db push` 통과
+- `cd app && ./node_modules/.bin/eslint 'src/app/posts/[id]/page.tsx' src/app/profile/page.tsx src/app/api/posts/suggestions/route.ts src/components/posts/post-comment-thread.tsx src/components/user/user-relation-controls.tsx src/lib/validations/user-relation.ts src/server/actions/user-relation.ts src/server/queries/post.queries.ts src/server/queries/comment.queries.ts src/server/queries/user-relation.queries.ts src/server/services/post.service.ts src/server/services/comment.service.ts src/server/services/report.service.ts src/server/services/user-relation.service.ts src/server/services/user-relation.service.test.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/server/queries/post.queries.test.ts src/server/services/comment.service.test.ts src/server/services/post.service.test.ts src/server/services/report.service.test.ts src/server/services/user-relation.service.test.ts` 통과 (28 tests)
+- 이슈/블로커
+- `UserBlock/UserMute`가 적용된 환경에서는 피드에서 대상 글이 숨겨지므로, 해제는 `/profile`의 관계 관리 섹션에서 수행해야 함.
+- 결정 기록
+- 차단은 양방향 상호작용 차단(댓글/반응/신고), 뮤트는 단방향 콘텐츠 숨김 중심으로 구분해 운영 복잡도를 낮춤.
+- 모델 미반영 환경에서도 런타임 오류가 나지 않도록 쿼리 레이어에 delegate/table fallback을 유지.
+
+### 2026-02-19: Cycle 28 완료 (OG/JSON-LD/사이트맵/공유 기능)
+- 완료 내용
+- 사이트 URL 유틸(`getSiteOrigin`, `toAbsoluteUrl`)을 추가해 메타/공유 URL을 일관되게 절대 경로로 생성.
+- 루트 레이아웃 메타를 `metadataBase + Open Graph + Twitter + canonical` 형태로 확장.
+- 피드/검색 페이지 메타를 명시하고, 게시글 상세에 `generateMetadata`를 추가해 동적 OG/Twitter/robots(index/follow) 제어 적용.
+- 게시글 상세 페이지에 JSON-LD(`SocialMediaPosting`) 구조화 데이터를 삽입.
+- 게시글 상세에 공유 버튼(카카오/X/링크복사) UI를 추가.
+- `sitemap.ts`/`robots.ts`를 추가해 인덱싱 기본 경로를 구성.
+- 변경 파일(핵심)
+- `app/src/lib/site-url.ts`
+- `app/src/app/layout.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/src/app/search/page.tsx`
+- `app/src/app/posts/[id]/page.tsx`
+- `app/src/components/posts/post-share-controls.tsx`
+- `app/src/app/sitemap.ts`
+- `app/src/app/robots.ts`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/app/layout.tsx src/app/feed/page.tsx src/app/search/page.tsx src/app/sitemap.ts src/app/robots.ts 'src/app/posts/[id]/page.tsx' src/components/posts/post-share-controls.tsx src/lib/site-url.ts src/server/queries/post.queries.ts src/app/api/posts/suggestions/route.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/server/queries/post.queries.test.ts` 통과 (11 tests)
+- 이슈/블로커
+- 카카오 공유는 웹 공유 URL 방식이며, 카카오 JS SDK 템플릿 공유(친구 지정/커스텀 카드)는 후속 확장 필요.
+- 결정 기록
+- 민감/비공개 가능성이 있는 게시글(Local/로그인 필수 타입/HIDDEN)은 `generateMetadata`에서 `robots noindex,nofollow`로 처리해 크롤링 노출 위험을 낮춤.
+- 사이트맵은 우선 `GLOBAL + ACTIVE + 비회원 열람 가능 타입`만 포함하는 보수적 정책으로 시작.
+
+### 2026-02-19: Cycle 29 진행 (공개 프로필 + 프로필 소개 강화)
+- 완료 내용
+- `User.bio` 필드를 스키마에 추가하고, 온보딩/프로필 저장에서 닉네임과 소개를 함께 관리하도록 확장.
+- 공개 프로필 페이지 `/users/[id]`를 추가하고 활동 탭(게시글/댓글/반응)을 구현.
+- 공개 프로필 페이지에 동적 메타데이터/JSON-LD를 추가해 검색/공유 품질을 보강.
+- 피드/검색/게시글 상세/댓글 작성자 이름을 공개 프로필 링크로 연결.
+- 내 프로필 페이지에 소개 표시/수정 폼을 추가하고 공개 프로필 바로가기 동선을 제공.
+- 변경 파일(핵심)
+- `app/prisma/schema.prisma`
+- `app/prisma/migrations/20260219233000_add_user_bio/migration.sql`
+- `app/src/lib/validations/user.ts`
+- `app/src/lib/validations/user.test.ts`
+- `app/src/server/services/user.service.ts`
+- `app/src/server/queries/user.queries.ts`
+- `app/src/app/users/[id]/page.tsx`
+- `app/src/components/profile/profile-info-form.tsx`
+- `app/src/app/profile/page.tsx`
+- `app/src/components/onboarding/onboarding-form.tsx`
+- `app/src/app/onboarding/page.tsx`
+- `app/src/components/posts/feed-infinite-list.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/src/app/search/page.tsx`
+- `app/src/components/posts/post-comment-thread.tsx`
+- `app/src/app/posts/[id]/page.tsx`
+- 검증 결과
+- `cd app && ./node_modules/.bin/prisma generate` 통과
+- `cd app && ./node_modules/.bin/prisma db push` 통과
+- `cd app && ./node_modules/.bin/eslint src/lib/validations/user.ts src/lib/validations/user.test.ts src/server/services/user.service.ts src/server/queries/user.queries.ts src/components/profile/profile-info-form.tsx src/app/profile/page.tsx 'src/app/users/[id]/page.tsx' src/components/posts/feed-infinite-list.tsx src/app/feed/page.tsx src/app/search/page.tsx 'src/app/posts/[id]/page.tsx' src/components/posts/post-comment-thread.tsx src/components/onboarding/onboarding-form.tsx src/app/onboarding/page.tsx src/server/auth.test.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/lib/validations/user.test.ts src/server/actions/user.test.ts src/server/auth.test.ts src/server/services/user-relation.service.test.ts src/server/queries/post.queries.test.ts` 통과 (28 tests)
+- 이슈/블로커
+- 공개 프로필 활동 탭은 현재 최근 20개 고정이며 커서 기반 페이지네이션은 후속 개선 항목.
+- 결정 기록
+- 공개 프로필은 로그인 없이 열람 가능하게 두고, 관계 제어(차단/뮤트)는 로그인 사용자에게만 노출하는 방식으로 접근성을 유지.
+- 프로필 편집은 기존 `updateProfileAction`을 확장해 닉네임/소개 저장 로직을 단일 경로로 통합.
+
+### 2026-02-19: Cycle 29 완료 (반려동물 프로필 CRUD)
+- 완료 내용
+- `Pet` 모델/마이그레이션/검증 스키마를 추가하고 반려동물 등록/수정/삭제 서버 액션을 연결.
+- 내 프로필(`/profile`)에 반려동물 관리 UI를 연결해 CRUD를 한 화면에서 수행 가능하게 구성.
+- 공개 프로필(`/users/[id]`)에 반려동물 프로필 섹션을 추가해 이름/종/나이/소개를 공개 노출.
+- 반려동물 저장 후 `router.refresh()` + 경로 revalidate를 적용해 즉시 목록 갱신되도록 보강.
+- `pet.service` 단위 테스트를 추가해 입력 정규화/한도/권한/삭제 동작을 자동 검증.
+- 변경 파일(핵심)
+- `app/prisma/schema.prisma`
+- `app/prisma/migrations/20260220000500_add_pet_profiles/migration.sql`
+- `app/src/lib/validations/pet.ts`
+- `app/src/server/services/pet.service.ts`
+- `app/src/server/services/pet.service.test.ts`
+- `app/src/server/actions/pet.ts`
+- `app/src/server/queries/user.queries.ts`
+- `app/src/components/profile/pet-profile-manager.tsx`
+- `app/src/app/profile/page.tsx`
+- `app/src/app/users/[id]/page.tsx`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/prisma generate` 통과
+- `cd app && ./node_modules/.bin/prisma db push` 통과
+- `cd app && ./node_modules/.bin/eslint src/app/profile/page.tsx 'src/app/users/[id]/page.tsx' src/components/profile/pet-profile-manager.tsx src/server/actions/pet.ts src/server/services/pet.service.test.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/server/services/pet.service.test.ts src/server/actions/user.test.ts src/lib/validations/user.test.ts` 통과 (13 tests)
+- 이슈/블로커
+- 반려동물 이미지는 현재 URL 입력 방식이며, 업로드 UI와의 직접 연동은 후속 개선 대상.
+- 결정 기록
+- 공개 프로필 썸네일은 외부 이미지 도메인 설정 의존을 줄이기 위해 `<img>` 기반 lazy-loading으로 우선 적용.
+- 반려동물 변경 직후 사용자 체감을 위해 서버 revalidate 외에 클라이언트 `router.refresh()`를 병행 적용.
+
+### 2026-02-19: Cycle 29 완료 (글쓰기 품질 고도화)
+- 완료 내용
+- 게시글 작성 폼에 `작성/미리보기` 탭을 추가하고, 미리보기는 XSS 방어가 가능한 경량 마크다운 렌더러(`renderLiteMarkdown`)로 구현.
+- 포맷 툴바(굵게/기울임/코드/링크/목록/인용)와 선택영역 래핑 로직을 추가해 작성 속도를 개선.
+- 작성 중 내용은 `localStorage`에 자동 임시저장(디바운스 500ms)되며, 진입 시 자동 복원/수동 삭제를 지원.
+- 게시글 등록 성공 시 임시저장을 자동 정리해 stale draft가 남지 않도록 처리.
+- 경량 마크다운 렌더러 단위 테스트를 추가해 링크 변환/HTML 이스케이프 회귀를 방지.
+- 변경 파일(핵심)
+- `app/src/components/posts/post-create-form.tsx`
+- `app/src/lib/markdown-lite.ts`
+- `app/src/lib/markdown-lite.test.ts`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/components/posts/post-create-form.tsx src/lib/markdown-lite.ts src/lib/markdown-lite.test.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/lib/markdown-lite.test.ts src/server/services/pet.service.test.ts` 통과 (9 tests)
+- 이슈/블로커
+- 현재 에디터는 Tiptap 같은 완전한 WYSIWYG이 아닌 markdown-lite 기반으로, 표/이미지 캡션 같은 고급 서식은 미지원.
+- 결정 기록
+- 외부 에디터 의존성을 즉시 늘리기보다 기존 폼 구조와 충돌이 적은 경량 편집기부터 도입해 회귀 리스크를 낮춤.
+- 미리보기 렌더링은 `dangerouslySetInnerHTML`를 사용하되, 선행 escape + URL protocol 제한으로 스크립트 주입을 차단.
+
+### 2026-02-19: Cycle 30 1차 완료 (CI 품질게이트 고정)
+- 완료 내용
+- `app/package.json`에 품질게이트 스크립트를 추가:
+  - `typecheck`, `test:unit`, `test:e2e:smoke`, `quality:check`, `quality:gate`
+- Playwright 설정을 확장:
+  - `PLAYWRIGHT_SKIP_WEBSERVER=1`로 외부 서버 재사용 가능
+  - `PLAYWRIGHT_WEB_SERVER_COMMAND`로 webServer 실행 커맨드 override 가능
+- GitHub Actions 워크플로우 추가:
+  - `.github/workflows/quality-gate.yml`
+  - PR/Push(main) 기준 `lint + typecheck + vitest + e2e smoke` 자동 실행
+  - Postgres service + `pnpm db:push` 포함으로 테스트 전 DB 스키마 동기화
+- 변경 파일(핵심)
+- `.github/workflows/quality-gate.yml`
+- `app/package.json`
+- `app/playwright.config.ts`
+- 검증 결과
+- `cd app && pnpm quality:check` 통과
+  - lint/typecheck/vitest(24 files, 98 tests) 통과
+- 로컬 제약으로 E2E 브라우저 실검증은 미완료
+  - macOS sandbox 권한 문제로 Chromium 런치가 `Permission denied (1100)`로 실패
+- 이슈/블로커
+- 현재 로컬 환경은 Playwright 브라우저 런치 권한이 막혀 `test:e2e:smoke` 실검증 불가.
+- `next build`는 Google Fonts 원격 fetch 제한 환경에서 실패 가능(로컬 네트워크 제약).
+- 결정 기록
+- 빌드 환경 네트워크 변동에 덜 민감하도록 CI E2E는 `next dev` 기반 스모크로 유지하고, webServer 커맨드는 환경변수로 override 가능하게 설계.
+- 로컬 개발 서버 충돌을 피하기 위해 Playwright webServer skip 옵션을 공식화.
+
+### 2026-02-19: Cycle 30 2차 완료 (런북/SLO 문서 고정)
+- 완료 내용
+- 장애 대응 표준 절차를 `docs/ops/incident-runbook.md`로 신설:
+  - 장애 등급(SEV), 즉시 대응 체크리스트, 진단 절차, 백업/복구, 종료 기준, 사후 회고 템플릿
+- 운영 목표 지표를 `docs/ops/slo-alerts.md`로 신설:
+  - SLI/SLO/에러버짓/알람 임계치/대시보드 최소 구성/운영 루프
+- `docs/GUIDE.md`에 운영 문서 링크와 최소 점검 루프를 추가해 실행 경로를 연결.
+- 변경 파일(핵심)
+- `docs/ops/incident-runbook.md`
+- `docs/ops/slo-alerts.md`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- 문서성 변경으로 별도 런타임 테스트는 없음.
+- `cd app && pnpm quality:check` 재실행 통과(코드 영역 회귀 없음 확인)
+- 이슈/블로커
+- SLO/알람은 기준만 고정한 상태이며, 실제 모니터링 백엔드(Sentry/알람 채널) 연동은 환경 의존 블로커로 남음.
+- 결정 기록
+- 구현 의존성이 큰 관측 스택 연동 전에 운영 기준 문서를 먼저 고정해 팀 내 의사결정 기준을 통일.
+- 런북은 “즉시 대응 15분 체크리스트”를 최상단에 두어 온콜 핸드오프 속도를 우선.
+
+### 2026-02-20: Cycle 23 보강 (소셜 온보딩 전체 플로우 E2E 개발 경로)
+- 완료 내용
+- 비프로덕션 + `ENABLE_SOCIAL_DEV_LOGIN=1` 조건에서만 활성화되는 테스트 전용 credentials provider(`social-dev`)를 추가.
+- 카카오/네이버 버튼의 `devMode`에서 `social-dev` 경로를 사용할 수 있도록 연결해, 외부 OAuth 콘솔 의존 없이 전체 플로우를 자동화 가능하게 구성.
+- 온보딩 폼에 E2E 안정화를 위한 `data-testid`를 추가.
+- Playwright 시나리오 `social-onboarding-flow.spec.ts`를 추가:
+  - 카카오/네이버 각각 `로그인 -> 온보딩(닉네임/동네) -> /feed` 완료 검증
+- 실행 스크립트 `test:e2e:social-onboarding` 추가.
+- 변경 파일(핵심)
+- `app/src/lib/auth.ts`
+- `app/src/components/auth/kakao-signin-button.tsx`
+- `app/src/components/auth/naver-signin-button.tsx`
+- `app/src/components/auth/login-form.tsx`
+- `app/src/components/auth/register-form.tsx`
+- `app/src/app/login/page.tsx`
+- `app/src/app/register/page.tsx`
+- `app/src/components/onboarding/onboarding-form.tsx`
+- `app/e2e/social-onboarding-flow.spec.ts`
+- `app/package.json`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/lib/auth.ts src/app/login/page.tsx src/app/register/page.tsx src/components/auth/login-form.tsx src/components/auth/register-form.tsx src/components/auth/kakao-signin-button.tsx src/components/auth/naver-signin-button.tsx src/components/onboarding/onboarding-form.tsx e2e/social-onboarding-flow.spec.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/server/auth.test.ts` 통과 (6 tests)
+- `cd app && ./node_modules/.bin/playwright test e2e/social-onboarding-flow.spec.ts --list` 통과 (2 tests 인식)
+- 이슈/블로커
+- 현재 로컬 환경은 Playwright Chromium 런치 권한 제약(`Permission denied (1100)`)으로 브라우저 실실행 검증은 미완료.
+- 실계정 OAuth 전체 E2E는 카카오/네이버 테스트 앱 계정/시크릿/콜백 설정이 필요해 여전히 환경 의존.
+- 결정 기록
+- 실계정 의존 시나리오와 개발 자동화 시나리오를 분리해 회귀 탐지 속도를 높임.
+- 테스트 전용 provider는 프로덕션에서 절대 활성화되지 않도록 `NODE_ENV !== "production"` + 환경변수 이중 조건으로 제한.
+
+### 2026-02-20: Cycle 31 완료 (알림 센터 커서 로딩 연결)
+- 완료 내용
+- 알림 목록 커서 페이지네이션을 실제 동작으로 연결하기 위해 `GET /api/notifications` API를 추가.
+- 알림 센터에서 `nextCursor`를 사용해 추가 페이지를 자동 로딩(IntersectionObserver)하고, 수동 `알림 더 보기` 버튼을 fallback으로 제공.
+- 추가 로딩 실패 시 사용자 메시지를 노출하고, 마지막 페이지 도달 시 완료 메시지를 노출하도록 상태 처리를 보강.
+- 기존 placeholder 문구(후속 예정)를 제거해 실제 UX로 대체.
+- 변경 파일(핵심)
+- `app/src/app/api/notifications/route.ts`
+- `app/src/components/notifications/notification-center.tsx`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/app/api/notifications/route.ts src/components/notifications/notification-center.tsx` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- 이슈/블로커
+- 알림 센터의 "유형별 필터/탭(댓글/반응/시스템)"은 아직 미구현.
+- 결정 기록
+- 알림 로딩은 서버 액션 대신 API 라우트로 분리해 커서 기반 무한 로딩을 단순화하고 클라이언트 상태 관리 복잡도를 낮춤.
+- 자동 로딩과 수동 버튼을 동시에 제공해 뷰포트/브라우저별 observer 오차에도 대응 가능한 UX로 설계.
+
+### 2026-02-20: Cycle 31 후속 완료 (공개 프로필 활동 탭 페이지네이션)
+- 완료 내용
+- 공개 프로필 활동 탭(`posts/comments/reactions`) 조회를 커서 기반 페이지네이션으로 전환.
+- `/users/[id]` 페이지에서 탭별 `활동 더 보기` 링크를 추가해 20개 이후 목록을 연속 탐색 가능하게 개선.
+- 잘못되거나 만료된 커서 입력 시 쿼리 레이어에서 자동 1페이지 fallback을 적용해 런타임 오류를 방지.
+- 변경 파일(핵심)
+- `app/src/server/queries/user.queries.ts`
+- `app/src/app/users/[id]/page.tsx`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint 'src/app/users/[id]/page.tsx' src/server/queries/user.queries.ts src/components/notifications/notification-center.tsx src/app/api/notifications/route.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- 이슈/블로커
+- 현재는 링크 기반 페이지네이션이며, 스크롤 위치 유지형 무한 로딩 UX는 후속 개선 대상.
+- 결정 기록
+- 공개 프로필은 SEO/공유 링크 안정성이 중요하므로, 클라이언트 전용 무한 스크롤보다 URL 기반 커서 링크를 우선 적용.
+- 커서 오류를 상위 페이지에서 처리하지 않고 쿼리 계층에서 복구해 모든 호출 경로에서 동일한 안전 동작을 보장.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)
@@ -395,10 +704,10 @@
 
 ## 다음 핸드오프
 - `PLAN.md` 기준 즉시 착수 순서
-1. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성
-2. Cycle 27: 금칙어 + 단계적 제재
-3. Cycle 28: OG/JSON-LD/사이트맵/공유 기능
-4. Cycle 29: 프로필/리치에디터 품질 고도화
+1. Cycle 31 후속: 알림 센터 유형 필터/탭 + 읽지 않음만 보기
+2. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성 (현재 blocked)
+3. 환경 블로커 해소: Sentry 실수신 검증(DSN/프로젝트)
+4. 배포 환경 health endpoint 최종 검증(staging/prod)
 
 ## 참고 문서
 - 운영/실행 가이드: `docs/GUIDE.md`

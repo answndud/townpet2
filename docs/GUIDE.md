@@ -59,7 +59,7 @@ cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./
 
 ### 3-1-2) `Cannot read properties of undefined (reading 'findUnique')` 에러가 날 때
 
-`SiteSetting` 같은 신규 Prisma 모델이 클라이언트에 반영되지 않은 상태입니다.
+`SiteSetting`, `UserSanction` 같은 신규 Prisma 모델이 클라이언트에 반영되지 않은 상태입니다.
 
 ```bash
 cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/prisma db push
@@ -357,6 +357,31 @@ cd /Users/alex/project/townpet2/app && pnpm test:e2e:naver-entry
 - 이 스모크는 `진입 검증`만 수행합니다(`devShowNaver=1` 개발 플래그 사용).
 - 실제 `네이버 계정 로그인 -> 온보딩 완료` 전체 E2E는 네이버 테스트 앱 계정/권한이 있는 환경에서 별도 실행해야 합니다.
 
+## 4-11A. 소셜 로그인 온보딩 전체 E2E (개발용 경로)
+
+목적:
+- 외부 OAuth 콘솔/계정 상태와 무관하게 `소셜 로그인 버튼 -> 온보딩 -> 피드 진입` 전체 플로우를 자동 검증
+
+사용 환경변수:
+- `ENABLE_SOCIAL_DEV_LOGIN=1` (비프로덕션에서만 동작)
+- 선택:
+  - `E2E_SOCIAL_KAKAO_EMAIL`
+  - `E2E_SOCIAL_NAVER_EMAIL`
+
+실행 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm test:e2e:social-onboarding
+```
+
+검증 내용:
+- 카카오/네이버 버튼 클릭 후 온보딩 진입
+- 닉네임 저장 + 대표 동네 저장
+- 최종 `/feed` 진입 확인
+
+주의:
+- 이 시나리오는 테스트 전용 provider(`social-dev`)를 사용하며, 실제 카카오/네이버 계정 인증 자체를 대체하지는 않습니다.
+
 ## 4-12. 신규 계정 고위험 카테고리 작성 제한
 
 현재 정책:
@@ -374,6 +399,141 @@ cd /Users/alex/project/townpet2/app && pnpm test:e2e:naver-entry
 - 메시지에 남은 대기 시간(시간 단위)이 포함됩니다.
 - 코드: `CONTACT_RESTRICTED_FOR_NEW_USER`
 - 상태: HTTP `403`
+
+## 4-13. 금칙어/단계적 제재 정책
+
+관리자 정책 화면:
+- `http://localhost:3000/admin/policies`
+
+신고 큐(제재 적용/이력 확인):
+- `http://localhost:3000/admin/reports`
+
+동작 요약:
+- 금칙어: 게시글(제목/본문), 댓글(본문) 저장 시 매칭되면 차단
+- 오류 코드: `FORBIDDEN_KEYWORD_DETECTED` (HTTP `400`)
+- 신고 승인 시 `단계적 제재 적용` 체크가 켜져 있으면 자동 상승:
+  - 1회: 경고
+  - 2회: 7일 정지
+  - 3회: 30일 정지
+  - 4회+: 영구 정지
+- 정지/영구 정지 계정은 로그인 상태여도 상호작용 API에서 차단
+  - 오류 코드: `ACCOUNT_SUSPENDED`, `ACCOUNT_PERMANENTLY_BANNED` (HTTP `403`)
+
+DB 확인 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2 && docker compose exec -T postgres psql -U townpet -d townpet -c "SELECT \"level\", COUNT(*) FROM \"UserSanction\" GROUP BY \"level\" ORDER BY \"level\";"
+```
+
+## 4-14. 유저 차단/뮤트 정책
+
+사용 위치:
+- 게시글 상세: 작성자 영역의 `차단` / `뮤트` 버튼
+- 댓글 목록: 각 댓글 작성자 행의 `차단` / `뮤트` 버튼
+- 관계 관리: `http://localhost:3000/profile` (차단/뮤트 목록 해제)
+
+동작 기준:
+- 차단(`UserBlock`)
+  - 피드/검색/게시글/댓글에서 대상 사용자 콘텐츠 숨김
+  - 댓글 작성/반응/신고 등 상호작용 차단
+- 뮤트(`UserMute`)
+  - 내 화면에서 대상 사용자 콘텐츠 숨김(상호작용 강제 차단은 아님)
+
+DB 확인 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2 && docker compose exec -T postgres psql -U townpet -d townpet -c "SELECT COUNT(*) AS blocks FROM \"UserBlock\"; SELECT COUNT(*) AS mutes FROM \"UserMute\";"
+```
+
+## 4-15. SEO/공유 점검
+
+### sitemap / robots 확인 (복붙)
+
+```bash
+curl -sS http://localhost:3000/sitemap.xml | head -n 40
+curl -sS http://localhost:3000/robots.txt
+```
+
+기준:
+- `sitemap.xml`에 `/feed`, `/search`, 공개 가능한 `/posts/{id}` URL 포함
+- `robots.txt`에 sitemap 경로 노출
+
+### 게시글 메타/JSON-LD 확인
+
+게시글 페이지 소스에서 아래 항목을 확인하세요.
+- Open Graph meta (`og:title`, `og:description`)
+- Twitter meta (`twitter:card`, `twitter:title`)
+- JSON-LD `<script type="application/ld+json">`
+
+### 게시글 공유 버튼 확인
+
+게시글 상세 페이지에서 아래 버튼 동작을 확인하세요.
+- `링크 복사`: 클립보드 복사 성공 메시지
+- `X 공유`: 새 창에서 X intent 페이지 열림
+- `카카오 공유`: sharer 페이지 열림
+
+## 4-16. 공개 프로필/활동 탭 점검
+
+공개 프로필 URL:
+- `http://localhost:3000/users/{userId}`
+
+탭:
+- `?tab=posts`
+- `?tab=comments`
+- `?tab=reactions`
+
+체크 항목:
+- 피드/검색/게시글/댓글의 작성자 이름 클릭 시 공개 프로필로 이동
+- 프로필 상단에 닉네임/소개/가입일/활동 카운트 노출
+- 내 프로필(`/profile`)에서 `공개 프로필 보기` 버튼 동작
+
+## 4-17. 소개(bio) 저장 점검
+
+입력 위치:
+- 온보딩: 닉네임 설정 섹션의 `소개(선택)`
+- 내 프로필: `프로필 정보 수정`
+
+제약:
+- 최대 240자
+
+DB 확인 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2 && docker compose exec -T postgres psql -U townpet -d townpet -c "SELECT id, nickname, LENGTH(COALESCE(bio,'')) AS bio_len FROM \"User\" ORDER BY \"createdAt\" DESC LIMIT 10;"
+```
+
+## 4-18. 반려동물 프로필 CRUD 점검
+
+입력 위치:
+- 내 프로필: `http://localhost:3000/profile` -> `반려동물 프로필`
+
+체크 항목:
+- 등록: 이름/종 필수, 나이/이미지URL/소개 선택값 저장
+- 수정: 기존 항목 편집 후 즉시 반영
+- 삭제: 삭제 확인 후 목록에서 제거
+- 공개 노출: `http://localhost:3000/users/{userId}`의 `반려동물 프로필` 섹션에 표시
+
+DB 확인 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2 && docker compose exec -T postgres psql -U townpet -d townpet -c "SELECT \"userId\", name, species, age, LEFT(COALESCE(bio,''), 20) AS bio_preview FROM \"Pet\" ORDER BY \"createdAt\" DESC LIMIT 20;"
+```
+
+## 4-19. 글쓰기 미리보기/임시저장 점검
+
+입력 위치:
+- 글쓰기 페이지(게시글 작성 폼) `내용` 영역
+
+체크 항목:
+- 탭 전환: `작성`/`미리보기` 토글 동작
+- 툴바: `굵게/기울임/코드/링크/목록/인용` 버튼으로 선택 텍스트 포맷
+- 자동 임시저장: 0.5초 내 localStorage 저장
+- 자동 복원: 페이지 재진입 시 임시저장 내용 로드
+- 삭제: `임시저장 삭제` 버튼으로 드래프트 제거
+- 게시 성공 후 정리: 게시글 등록 시 임시저장 자동 제거
+
+브라우저 확인:
+- DevTools Console에서 `localStorage.getItem('townpet:post-create-draft:v1')`로 저장 여부 확인
 
 ## 5. 게시글이 안 보이는 이유 (중요)
 
@@ -420,3 +580,38 @@ cd /Users/alex/project/townpet2 && docker compose down
 - 운영 배포 전 필수 환경변수 점검: `DATABASE_URL`, `AUTH_SECRET`(또는 `NEXTAUTH_SECRET`)
 - 카카오 로그인 사용 시 추가 환경변수: `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`
 - 네이버 로그인 사용 시 추가 환경변수: `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
+- 개발용 소셜 로그인(`ENABLE_SOCIAL_DEV_LOGIN`)은 운영 환경에서 사용 금지
+
+## 8. 품질게이트(CI)
+
+워크플로우:
+- `.github/workflows/quality-gate.yml`
+
+로컬 동일 검증(복붙):
+
+```bash
+cd /Users/alex/project/townpet2/app
+pnpm quality:check
+```
+
+E2E 스모크(Playwright):
+
+```bash
+cd /Users/alex/project/townpet2/app
+pnpm test:e2e:smoke
+```
+
+옵션:
+- 외부 서버 재사용: `PLAYWRIGHT_SKIP_WEBSERVER=1`
+- webServer 커맨드 교체: `PLAYWRIGHT_WEB_SERVER_COMMAND="./node_modules/.bin/next start --port 3000"`
+
+## 9. 운영 문서(런북/SLO)
+
+운영 기준 문서:
+- 장애 대응 런북: `docs/ops/incident-runbook.md`
+- SLO/알람 기준: `docs/ops/slo-alerts.md`
+
+최소 점검 루프:
+1. 일간: `GET /api/health` + 5xx 비율 확인
+2. 주간: p95 지연시간/에러 버짓 소진율 리뷰
+3. 장애 발생 시: 런북 3장(즉시 대응 체크리스트)부터 실행

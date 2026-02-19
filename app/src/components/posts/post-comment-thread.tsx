@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import { CommentReactionControls } from "@/components/posts/comment-reaction-controls";
 import { LinkifiedContent } from "@/components/content/linkified-content";
+import { UserRelationControls } from "@/components/user/user-relation-controls";
 import {
   createCommentAction,
   deleteCommentAction,
@@ -32,6 +33,7 @@ type PostCommentThreadProps = {
   currentUserId?: string;
   canInteract?: boolean;
   loginHref?: string;
+  interactionDisabledMessage?: string;
 };
 
 type CommentFormState = {
@@ -64,6 +66,7 @@ export function PostCommentThread({
   currentUserId,
   canInteract = true,
   loginHref = "/login",
+  interactionDisabledMessage,
 }: PostCommentThreadProps) {
   const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({});
   const [editOpen, setEditOpen] = useState<Record<string, boolean>>({});
@@ -206,7 +209,9 @@ export function PostCommentThread({
         }`}
       >
         <div className="flex items-center justify-between text-xs text-[#5f7ba5]">
-          <span>{comment.author.nickname ?? comment.author.name ?? "익명"}</span>
+          <Link href={`/users/${comment.author.id}`} className="hover:text-[#2f5da4]">
+            {comment.author.nickname ?? comment.author.name ?? "익명"}
+          </Link>
           <span>{comment.createdAt.toLocaleDateString("ko-KR")}</span>
         </div>
         <div className="mt-2 text-sm text-[#27466f]">
@@ -279,6 +284,17 @@ export function PostCommentThread({
             >
               신고
             </button>
+          ) : null}
+          {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
+            <UserRelationControls
+              targetUserId={comment.author.id}
+              initialState={{
+                isBlockedByMe: false,
+                hasBlockedMe: false,
+                isMutedByMe: false,
+              }}
+              compact
+            />
           ) : null}
         </div>
 
@@ -455,10 +471,19 @@ export function PostCommentThread({
           </>
         ) : (
           <div className="border border-[#d3e0f4] bg-[#f7fbff] px-4 py-3 text-sm text-[#355988]">
-            댓글 작성/답글/신고는 로그인 후 이용할 수 있습니다.{" "}
-            <Link href={loginHref} className="font-semibold text-[#2f5da4] underline underline-offset-2">
-              로그인하기
-            </Link>
+            {interactionDisabledMessage ? (
+              interactionDisabledMessage
+            ) : (
+              <>
+                댓글 작성/답글/신고는 로그인 후 이용할 수 있습니다.{" "}
+                <Link
+                  href={loginHref}
+                  className="font-semibold text-[#2f5da4] underline underline-offset-2"
+                >
+                  로그인하기
+                </Link>
+              </>
+            )}
           </div>
         )}
       </div>

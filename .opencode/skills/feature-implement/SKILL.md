@@ -23,11 +23,13 @@ metadata:
 - Local/Global 어디에 속하는지
 - 데이터가 필요하면: 엔티티/필드/관계 초안
 - 보안/정책 요구(레이트리밋, 신규유저 제한, 신고 자동숨김 등)
+- 관련 과거 조사 기록(`docs/agent-memory/research-index.md`)
 
 ## Output
 - 변경 파일 목록 + 핵심 로직 설명
 - 마이그레이션(필요 시), API/Action, UI, 테스트(최소 1개 이상)
 - 실행한 커맨드 및 결과 요약
+- 재사용 가치가 큰 결정은 `docs/agent-memory/research-log.md`에 기록
 
 ## Guardrails (must)
 - Local vs Global 분리 유지 (피드/검색/알림/정책).  

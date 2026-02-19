@@ -7,7 +7,11 @@
       "bugfix-triage": "allow",
       "prisma-migrate": "ask",
       "policy-abuse-gate": "ask",
-      "quality-gate": "allow"
+      "quality-gate": "allow",
+      "plan-progress-sync": "allow",
+      "cycle-kickoff": "allow",
+      "release-readiness": "allow",
+      "research-memory": "allow"
     }
   },
   "mcp": {

@@ -15,6 +15,7 @@ export function ReportActions({ reportId, status, redirectTo }: ReportActionsPro
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [resolution, setResolution] = useState("");
+  const [applySanction, setApplySanction] = useState(true);
   const isLocked = status !== ReportStatus.PENDING;
 
   const handleUpdate = (status: ReportStatus) => {
@@ -26,6 +27,7 @@ export function ReportActions({ reportId, status, redirectTo }: ReportActionsPro
         body: JSON.stringify({
           status,
           resolution: resolution.trim() || undefined,
+          applySanction: status === ReportStatus.RESOLVED ? applySanction : false,
         }),
       });
 
@@ -35,8 +37,11 @@ export function ReportActions({ reportId, status, redirectTo }: ReportActionsPro
         return;
       }
 
-      setMessage("처리 완료");
+      const payload = await response.json();
+      const sanctionLabel = payload?.data?.sanctionLabel as string | undefined;
+      setMessage(sanctionLabel ? `처리 완료 (제재: ${sanctionLabel})` : "처리 완료");
       setResolution("");
+      setApplySanction(true);
       if (redirectTo) {
         router.push(redirectTo);
         return;
@@ -54,6 +59,16 @@ export function ReportActions({ reportId, status, redirectTo }: ReportActionsPro
         placeholder="처리 메모(선택)"
         disabled={isLocked || isPending}
       />
+      <label className="flex items-center gap-2 text-[11px] text-[#4f678d]">
+        <input
+          type="checkbox"
+          checked={applySanction}
+          onChange={(event) => setApplySanction(event.target.checked)}
+          disabled={isLocked || isPending}
+          className="accent-[#3567b5]"
+        />
+        승인 시 단계적 제재 적용 (경고→7일→30일→영구)
+      </label>
       <div className="flex items-center gap-2">
         <button
           type="button"

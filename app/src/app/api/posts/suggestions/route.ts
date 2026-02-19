@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
       searchIn: parsed.data.searchIn,
       excludeTypes: currentUser ? undefined : loginRequiredTypes,
       neighborhoodId,
+      viewerId: currentUser?.id,
     });
 
     return jsonOk({ items });

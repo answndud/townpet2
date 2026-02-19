@@ -7,16 +7,28 @@ type KakaoSignInButtonProps = {
   label?: string;
   callbackUrl?: string;
   devMode?: boolean;
+  socialDevEnabled?: boolean;
 };
 
 export function KakaoSignInButton({
   label = "카카오로 시작",
   callbackUrl = "/onboarding",
   devMode = false,
+  socialDevEnabled = false,
 }: KakaoSignInButtonProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleClick = () => {
+    if (devMode && socialDevEnabled) {
+      startTransition(async () => {
+        await signIn("social-dev", {
+          provider: "kakao",
+          callbackUrl,
+        });
+      });
+      return;
+    }
+
     if (devMode) {
       const query = new URLSearchParams({ callbackUrl });
       window.location.assign(`/api/auth/signin/kakao?${query.toString()}`);

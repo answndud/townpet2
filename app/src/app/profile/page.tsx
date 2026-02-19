@@ -3,10 +3,14 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { PetProfileManager } from "@/components/profile/pet-profile-manager";
 import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
+import { ProfileInfoForm } from "@/components/profile/profile-info-form";
+import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
-import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
+import { getUserWithNeighborhoods, listPetsByUserId } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
+import { listMyBlockedUsers, listMyMutedUsers } from "@/server/queries/user-relation.queries";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -30,10 +34,13 @@ export default async function ProfilePage() {
     );
   }
 
-  const [allPosts, localPosts, globalPosts] = await Promise.all([
+  const [allPosts, localPosts, globalPosts, blockedUsers, mutedUsers, pets] = await Promise.all([
     listUserPosts({ authorId: user.id }),
     listUserPosts({ authorId: user.id, scope: "LOCAL" }),
     listUserPosts({ authorId: user.id, scope: "GLOBAL" }),
+    listMyBlockedUsers(user.id),
+    listMyMutedUsers(user.id),
+    listPetsByUserId(user.id),
   ]);
 
   return (
@@ -88,6 +95,7 @@ export default async function ProfilePage() {
           <h2 className="text-lg font-semibold text-[#153a6a]">계정 정보</h2>
           <div className="mt-4 grid gap-2 text-sm text-[#355988]">
             <div>닉네임: {user.nickname ?? "미설정"}</div>
+            <div>소개: {user.bio?.trim() ? user.bio : "미설정"}</div>
             <div>이메일: {user.email}</div>
             <div>온보딩 상태: 완료</div>
             <div>
@@ -96,6 +104,12 @@ export default async function ProfilePage() {
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <Link
+              href={`/users/${user.id}`}
+              className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-[#315484] transition hover:bg-[#f3f7ff]"
+            >
+              공개 프로필 보기
+            </Link>
             <Link
               href="/my-posts"
               className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-[#315484] transition hover:bg-[#f3f7ff]"
@@ -123,7 +137,94 @@ export default async function ProfilePage() {
           </div>
         </section>
 
+        <ProfileInfoForm initialNickname={user.nickname} initialBio={user.bio} />
         <ProfileImageUploader initialImageUrl={user.image} />
+        <PetProfileManager pets={pets} />
+
+        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-[#153a6a]">사용자 관계 관리</h2>
+          <p className="mt-2 text-xs text-[#5a7398]">
+            차단/뮤트한 사용자를 여기서 바로 해제할 수 있습니다.
+          </p>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="border border-[#dbe5f3] bg-[#f8fbff] p-4">
+              <h3 className="text-sm font-semibold text-[#1f3f71]">
+                차단 목록 ({blockedUsers.length})
+              </h3>
+              {blockedUsers.length === 0 ? (
+                <p className="mt-3 text-xs text-[#5a7398]">차단한 사용자가 없습니다.</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {blockedUsers.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="border border-[#c9d8ef] bg-white px-3 py-2 text-xs text-[#355988]"
+                    >
+                      <p className="font-semibold text-[#1f3f71]">
+                        {entry.blocked?.nickname ?? entry.blocked?.email ?? entry.blockedId}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[#5a7398]">
+                        {entry.createdAt.toLocaleString("ko-KR")}
+                      </p>
+                      <div className="mt-2">
+                        <UserRelationControls
+                          targetUserId={entry.blockedId}
+                          initialState={{
+                            isBlockedByMe: true,
+                            hasBlockedMe: false,
+                            isMutedByMe: mutedUsers.some(
+                              (mute) => mute.mutedUserId === entry.blockedId,
+                            ),
+                          }}
+                          compact
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border border-[#dbe5f3] bg-[#f8fbff] p-4">
+              <h3 className="text-sm font-semibold text-[#1f3f71]">
+                뮤트 목록 ({mutedUsers.length})
+              </h3>
+              {mutedUsers.length === 0 ? (
+                <p className="mt-3 text-xs text-[#5a7398]">뮤트한 사용자가 없습니다.</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {mutedUsers.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="border border-[#c9d8ef] bg-white px-3 py-2 text-xs text-[#355988]"
+                    >
+                      <p className="font-semibold text-[#1f3f71]">
+                        {entry.mutedUser?.nickname ?? entry.mutedUser?.email ?? entry.mutedUserId}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[#5a7398]">
+                        {entry.createdAt.toLocaleString("ko-KR")}
+                      </p>
+                      <div className="mt-2">
+                        <UserRelationControls
+                          targetUserId={entry.mutedUserId}
+                          initialState={{
+                            isBlockedByMe: blockedUsers.some(
+                              (block) => block.blockedId === entry.mutedUserId,
+                            ),
+                            hasBlockedMe: false,
+                            isMutedByMe: true,
+                          }}
+                          compact
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

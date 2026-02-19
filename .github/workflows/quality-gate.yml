@@ -1,0 +1,73 @@
+name: quality-gate
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - ".github/workflows/quality-gate.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - ".github/workflows/quality-gate.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: townpet
+          POSTGRES_USER: townpet
+          POSTGRES_PASSWORD: townpet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U townpet -d townpet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://townpet:townpet@127.0.0.1:5432/townpet?schema=public
+      AUTH_SECRET: ci-auth-secret
+      NEXTAUTH_SECRET: ci-nextauth-secret
+      NEXTAUTH_URL: http://127.0.0.1:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync schema
+        run: pnpm db:push
+
+      - name: Quality check (lint/typecheck/unit)
+        run: pnpm quality:check
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E smoke
+        run: pnpm test:e2e:smoke

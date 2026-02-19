@@ -8,3 +8,11 @@ export const guestReadPolicyUpdateSchema = z.object({
 export type GuestReadPolicyUpdateInput = z.infer<
   typeof guestReadPolicyUpdateSchema
 >;
+
+export const forbiddenKeywordPolicyUpdateSchema = z.object({
+  keywords: z.array(z.string().trim().min(1).max(40)).max(300),
+});
+
+export type ForbiddenKeywordPolicyUpdateInput = z.infer<
+  typeof forbiddenKeywordPolicyUpdateSchema
+>;

@@ -2,10 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 
+import { ForbiddenKeywordPolicyForm } from "@/components/admin/forbidden-keyword-policy-form";
 import { GuestReadPolicyForm } from "@/components/admin/guest-read-policy-form";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { getCurrentUser } from "@/server/auth";
-import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
+import {
+  getForbiddenKeywords,
+  getGuestReadLoginRequiredPostTypes,
+} from "@/server/queries/policy.queries";
 
 export default async function AdminPoliciesPage() {
   const user = await getCurrentUser();
@@ -32,7 +36,10 @@ export default async function AdminPoliciesPage() {
     );
   }
 
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
+  const [loginRequiredTypes, forbiddenKeywords] = await Promise.all([
+    getGuestReadLoginRequiredPostTypes(),
+    getForbiddenKeywords(),
+  ]);
 
   return (
     <div className="min-h-screen pb-16">
@@ -40,10 +47,10 @@ export default async function AdminPoliciesPage() {
         <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">운영 관리</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
-            열람 권한 정책
+            열람/콘텐츠 정책
           </h1>
           <p className="mt-2 text-sm text-[#4f678d]">
-            비회원이 로그인 없이 볼 수 없는 카테고리를 조정합니다.
+            비회원 열람 범위와 금칙어 정책을 조정합니다.
           </p>
         </header>
 
@@ -74,6 +81,35 @@ export default async function AdminPoliciesPage() {
             <GuestReadPolicyForm
               initialLoginRequiredTypes={loginRequiredTypes}
             />
+          </div>
+        </section>
+
+        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-[#153a6a]">금칙어 정책</h2>
+          <p className="mt-2 text-xs text-[#5a7398]">
+            금칙어가 포함된 게시글/댓글은 저장이 차단됩니다.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            {forbiddenKeywords.length > 0 ? (
+              forbiddenKeywords.slice(0, 20).map((keyword) => (
+                <span
+                  key={keyword}
+                  className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]"
+                >
+                  {keyword}
+                </span>
+              ))
+            ) : (
+              <span className="text-[#5a7398]">현재 등록된 금칙어가 없습니다.</span>
+            )}
+            {forbiddenKeywords.length > 20 ? (
+              <span className="text-[#5a7398]">
+                외 {forbiddenKeywords.length - 20}개
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-4">
+            <ForbiddenKeywordPolicyForm initialKeywords={forbiddenKeywords} />
           </div>
         </section>
 

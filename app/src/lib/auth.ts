@@ -13,6 +13,33 @@ import { verifyPassword } from "@/server/password";
 import { enforceRateLimit } from "@/server/rate-limit";
 
 const isProd = process.env.NODE_ENV === "production";
+const isSocialDevLoginEnabled =
+  process.env.NODE_ENV !== "production" &&
+  process.env.ENABLE_SOCIAL_DEV_LOGIN === "1";
+
+type SocialDevProvider = "kakao" | "naver";
+
+function isSocialDevProvider(value: string): value is SocialDevProvider {
+  return value === "kakao" || value === "naver";
+}
+
+function resolveSocialDevEmail(provider: SocialDevProvider, requestedEmail?: string) {
+  const trimmed = requestedEmail?.trim().toLowerCase();
+  if (trimmed && trimmed.includes("@")) {
+    return trimmed;
+  }
+
+  if (provider === "kakao") {
+    return (process.env.E2E_SOCIAL_KAKAO_EMAIL ?? "e2e.kakao@townpet.dev")
+      .trim()
+      .toLowerCase();
+  }
+
+  return (process.env.E2E_SOCIAL_NAVER_EMAIL ?? "e2e.naver@townpet.dev")
+    .trim()
+    .toLowerCase();
+}
+
 assertRuntimeEnv();
 
 const providers: Provider[] = [
@@ -73,6 +100,87 @@ const providers: Provider[] = [
     },
   }),
 ];
+
+if (isSocialDevLoginEnabled) {
+  providers.push(
+    Credentials({
+      id: "social-dev",
+      name: "Social Dev Login",
+      credentials: {
+        provider: { label: "Provider", type: "text" },
+        email: { label: "Email", type: "email" },
+      },
+      async authorize(credentials) {
+        const providerRaw =
+          typeof credentials?.provider === "string"
+            ? credentials.provider.trim().toLowerCase()
+            : "";
+        if (!isSocialDevProvider(providerRaw)) {
+          return null;
+        }
+
+        const requestedEmail =
+          typeof credentials?.email === "string" ? credentials.email : undefined;
+        const email = resolveSocialDevEmail(providerRaw, requestedEmail);
+        if (!email) {
+          return null;
+        }
+
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            nickname: true,
+            image: true,
+            emailVerified: true,
+          },
+        });
+
+        if (existingUser) {
+          if (!existingUser.emailVerified) {
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { emailVerified: new Date() },
+            });
+          }
+
+          return {
+            id: existingUser.id,
+            email: existingUser.email,
+            name: existingUser.name,
+            nickname: existingUser.nickname,
+            image: existingUser.image,
+          };
+        }
+
+        const createdUser = await prisma.user.create({
+          data: {
+            email,
+            name: providerRaw === "kakao" ? "Kakao Dev User" : "Naver Dev User",
+            emailVerified: new Date(),
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            nickname: true,
+            image: true,
+          },
+        });
+
+        return {
+          id: createdUser.id,
+          email: createdUser.email,
+          name: createdUser.name,
+          nickname: createdUser.nickname,
+          image: createdUser.image,
+        };
+      },
+    }),
+  );
+}
 
 if (runtimeEnv.isKakaoConfigured) {
   providers.push(

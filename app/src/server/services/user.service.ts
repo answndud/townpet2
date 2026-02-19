@@ -28,7 +28,13 @@ export async function updateProfile({ userId, input }: UpdateProfileParams) {
 
   return prisma.user.update({
     where: { id: userId },
-    data: { nickname: parsed.data.nickname },
+    data: {
+      nickname: parsed.data.nickname,
+      bio:
+        parsed.data.bio && parsed.data.bio.trim().length > 0
+          ? parsed.data.bio.trim()
+          : null,
+    },
   });
 }
 

@@ -1,12 +1,49 @@
-import { PostStatus, ReportStatus, ReportTarget } from "@prisma/client";
+import { PostStatus, Prisma, ReportStatus, ReportTarget } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { reportCreateSchema } from "@/lib/validations/report";
 import { reportBulkActionSchema } from "@/lib/validations/report-bulk";
 import { reportUpdateSchema } from "@/lib/validations/report-update";
+import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
+import {
+  formatSanctionLevelLabel,
+  issueNextUserSanction,
+} from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 
 const AUTO_HIDE_THRESHOLD = 3;
+
+async function resolveReportTargetUserId(
+  tx: Prisma.TransactionClient,
+  targetType: ReportTarget,
+  targetId: string,
+) {
+  if (targetType === ReportTarget.USER) {
+    const user = await tx.user.findUnique({
+      where: { id: targetId },
+      select: { id: true },
+    });
+    return user?.id ?? null;
+  }
+
+  if (targetType === ReportTarget.POST) {
+    const post = await tx.post.findUnique({
+      where: { id: targetId },
+      select: { authorId: true },
+    });
+    return post?.authorId ?? null;
+  }
+
+  if (targetType === ReportTarget.COMMENT) {
+    const comment = await tx.comment.findUnique({
+      where: { id: targetId },
+      select: { authorId: true },
+    });
+    return comment?.authorId ?? null;
+  }
+
+  return null;
+}
 
 type CreateReportParams = {
   reporterId: string;
@@ -32,11 +69,32 @@ export async function createReport({ reporterId, input }: CreateReportParams) {
   }
 
   return prisma.$transaction(async (tx) => {
+    const targetUserId = await resolveReportTargetUserId(
+      tx,
+      parsed.data.targetType,
+      parsed.data.targetId,
+    );
+
+    if (!targetUserId) {
+      throw new ServiceError("신고 대상을 찾을 수 없습니다.", "REPORT_TARGET_NOT_FOUND", 404);
+    }
+    if (targetUserId === reporterId) {
+      throw new ServiceError("자기 자신은 신고할 수 없습니다.", "INVALID_TARGET", 400);
+    }
+    if (await hasBlockingRelation(reporterId, targetUserId)) {
+      throw new ServiceError(
+        "차단 관계에서는 신고를 접수할 수 없습니다.",
+        "USER_BLOCK_RELATION",
+        403,
+      );
+    }
+
     const report = await tx.report.create({
       data: {
         reporterId,
         targetType: parsed.data.targetType,
         targetId: parsed.data.targetId,
+        targetUserId,
         reason: parsed.data.reason,
         description: parsed.data.description,
         status: ReportStatus.PENDING,
@@ -79,10 +137,14 @@ export async function updateReport({
     throw new ServiceError("처리 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const transactionResult = await prisma.$transaction(async (tx) => {
     const report = await tx.report.findUnique({
       where: { id: reportId },
-      include: { post: true },
+      include: {
+        post: {
+          select: { id: true, authorId: true },
+        },
+      },
     });
 
     if (!report) {
@@ -117,8 +179,51 @@ export async function updateReport({
       }
     }
 
-    return updated;
+    let targetUserId = report.targetUserId;
+    if (!targetUserId && report.targetType === ReportTarget.POST) {
+      targetUserId = report.post?.authorId ?? null;
+    }
+    if (!targetUserId && report.targetType === ReportTarget.COMMENT) {
+      const comment = await tx.comment.findUnique({
+        where: { id: report.targetId },
+        select: { authorId: true },
+      });
+      targetUserId = comment?.authorId ?? null;
+    }
+    if (!targetUserId && report.targetType === ReportTarget.USER) {
+      targetUserId = report.targetId;
+    }
+
+    return {
+      updated,
+      targetUserId,
+    };
   });
+
+  if (
+    parsed.data.status === ReportStatus.RESOLVED &&
+    parsed.data.applySanction &&
+    transactionResult.targetUserId &&
+    transactionResult.targetUserId !== moderatorId
+  ) {
+    const sanction = await issueNextUserSanction({
+      userId: transactionResult.targetUserId,
+      moderatorId,
+      reason:
+        parsed.data.resolution?.trim() || "신고 승인에 따른 단계적 제재",
+      sourceReportId: reportId,
+    });
+
+    if (sanction) {
+      return {
+        ...transactionResult.updated,
+        sanctionLevel: sanction.level,
+        sanctionLabel: formatSanctionLevelLabel(sanction.level),
+      };
+    }
+  }
+
+  return transactionResult.updated;
 }
 
 type BulkUpdateReportsParams = {

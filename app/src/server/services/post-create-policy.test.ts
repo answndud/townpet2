@@ -9,6 +9,9 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findUnique: vi.fn(),
     },
+    siteSetting: {
+      findUnique: vi.fn(),
+    },
     post: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -22,6 +25,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   user: {
     findUnique: ReturnType<typeof vi.fn>;
   };
+  siteSetting: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   post: {
     create: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
@@ -32,6 +38,8 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 describe("createPost new-user restriction", () => {
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
+    mockPrisma.siteSetting.findUnique.mockReset();
+    mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
     mockPrisma.post.create.mockReset();
     mockPrisma.post.create.mockResolvedValue({
       id: "post-1",

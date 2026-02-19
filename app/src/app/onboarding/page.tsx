@@ -46,6 +46,7 @@ export default async function OnboardingPage() {
         <OnboardingForm
           email={user.email}
           nickname={user.nickname}
+          bio={user.bio}
           primaryNeighborhoodId={primaryNeighborhood?.neighborhood.id ?? null}
           neighborhoods={neighborhoods}
         />
