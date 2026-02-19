@@ -12,9 +12,9 @@ type RouteParams = {
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
-    await requireCurrentUser();
+    const user = await requireCurrentUser();
     const { id } = await params;
-    const post = await getPostById(id);
+    const post = await getPostById(id, user.id);
 
     if (!post) {
       return jsonError(404, {

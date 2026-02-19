@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { PostReactionControls } from "@/components/posts/post-reaction-controls";
 import { auth } from "@/lib/auth";
 import { formatCount, formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
 import { listBestPosts } from "@/server/queries/post.queries";
@@ -94,6 +95,7 @@ export default async function BestPage({ searchParams }: BestPageProps) {
         ? primaryNeighborhood?.neighborhood.id
         : undefined,
     minLikes: 1,
+    viewerId: user.id,
   });
 
   const makeHref = ({
@@ -140,10 +142,10 @@ export default async function BestPage({ searchParams }: BestPageProps) {
                 베스트 글 {items.length}건
               </div>
               <Link
-                href="/"
+                href="/feed"
                 className="inline-flex h-10 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-4 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
               >
-                메인 피드로 이동
+                일반 피드로 이동
               </Link>
             </div>
           </div>
@@ -157,6 +159,12 @@ export default async function BestPage({ searchParams }: BestPageProps) {
                   카테고리
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={selectedScope === PostScope.GLOBAL ? "/feed?scope=GLOBAL" : "/feed"}
+                    className="border border-[#b9cbeb] bg-white px-3 py-1 text-xs font-medium text-[#2f548f] transition hover:bg-[#f3f7ff]"
+                  >
+                    일반 피드
+                  </Link>
                   <Link
                     href={makeHref({ nextType: null })}
                     className={`border px-3 py-1 text-xs font-medium transition ${
@@ -298,9 +306,18 @@ export default async function BestPage({ searchParams }: BestPageProps) {
                       </p>
                       <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
                       <p className="mt-2 text-[11px] text-[#6a84ab]">
-                        좋아요 {formatCount(post.likeCount)} · 댓글 {formatCount(post.commentCount)} · 조회{" "}
-                        {formatCount(post.viewCount)}
+                        좋아요 {formatCount(post.likeCount)} · 싫어요 {formatCount(post.dislikeCount)} · 댓글{" "}
+                        {formatCount(post.commentCount)} · 조회 {formatCount(post.viewCount)}
                       </p>
+                      <div className="mt-2 md:ml-auto md:flex md:justify-end">
+                        <PostReactionControls
+                          postId={post.id}
+                          likeCount={post.likeCount}
+                          dislikeCount={post.dislikeCount}
+                          currentReaction={post.reactions[0]?.type ?? null}
+                          compact
+                        />
+                      </div>
                     </div>
                   </article>
                 );

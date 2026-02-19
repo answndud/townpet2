@@ -24,6 +24,7 @@ model User {
   reportAudits    ReportAudit[]      @relation("ReportAuditResolvedBy")
   passwordResets  PasswordResetToken[]
   authAudits      AuthAuditLog[]
+  postReactions   PostReaction[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   accounts        Account[]
@@ -69,12 +70,14 @@ model Post {
   content          String          @db.Text
   viewCount        Int             @default(0)
   likeCount        Int             @default(0)
+  dislikeCount     Int             @default(0)
   commentCount     Int             @default(0)
   author           User            @relation(fields: [authorId], references: [id])
   neighborhood     Neighborhood?   @relation(fields: [neighborhoodId], references: [id])
   comments         Comment[]
   images           PostImage[]
   reports          Report[]
+  reactions        PostReaction[]
   hospitalReview   HospitalReview?
   placeReview      PlaceReview?
   walkRoute        WalkRoute?
@@ -87,6 +90,25 @@ model Post {
   @@index([authorId])
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
+}
+
+model PostReaction {
+  id        String           @id @default(cuid())
+  postId    String
+  userId    String
+  type      PostReactionType
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([postId, userId])
+  @@index([postId, type])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+enum PostReactionType {
+  LIKE
+  DISLIKE
 }
 
 enum PostType {

@@ -5,6 +5,7 @@ import { PostType } from "@prisma/client";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
+import { PostReactionControls } from "@/components/posts/post-reaction-controls";
 import { PostReportForm } from "@/components/posts/post-report-form";
 import { auth } from "@/lib/auth";
 import { listComments } from "@/server/queries/comment.queries";
@@ -114,7 +115,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   }
 
   const [post, comments] = await Promise.all([
-    getPostById(resolvedParams.id),
+    getPostById(resolvedParams.id, user.id),
     resolvedParams.id ? listComments(resolvedParams.id) : Promise.resolve([]),
   ]);
 
@@ -128,7 +129,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
       <NeighborhoodGateNotice
         title="동네 설정이 필요합니다."
         description="동네를 설정해야 로컬 게시물을 볼 수 있습니다."
-        secondaryLink="/?scope=GLOBAL"
+        secondaryLink="/feed?scope=GLOBAL"
         secondaryLabel="온동네 피드 보기"
       />
     );
@@ -140,7 +141,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   return (
     <div className="min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
-        <Link href="/" className="text-xs font-medium uppercase tracking-[0.24em] text-[#4e6f9f]">
+        <Link href="/feed" className="text-xs font-medium uppercase tracking-[0.24em] text-[#4e6f9f]">
           목록으로
         </Link>
 
@@ -178,9 +179,19 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 </p>
                 <p className="mt-1">{formatRelativeDate(post.createdAt)}</p>
                 <p className="mt-3 text-xs text-[#6883ab]">
-                  조회 {post.viewCount.toLocaleString()} · 좋아요 {post.likeCount.toLocaleString()} · 댓글 {post.commentCount.toLocaleString()}
+                  조회 {post.viewCount.toLocaleString()} · 좋아요 {post.likeCount.toLocaleString()} · 싫어요{" "}
+                  {post.dislikeCount.toLocaleString()} · 댓글 {post.commentCount.toLocaleString()}
                 </p>
               </div>
+            </div>
+
+            <div className="mt-4 border-b border-[#e0e9f5] pb-4">
+              <PostReactionControls
+                postId={post.id}
+                likeCount={post.likeCount}
+                dislikeCount={post.dislikeCount}
+                currentReaction={post.reactions[0]?.type ?? null}
+              />
             </div>
 
             {isAuthor ? (

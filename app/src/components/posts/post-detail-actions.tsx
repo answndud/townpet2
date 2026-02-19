@@ -27,7 +27,7 @@ export function PostDetailActions({ postId }: PostDetailActionsProps) {
         return;
       }
 
-      router.push("/");
+      router.push("/feed");
     });
   };
 

@@ -2,41 +2,94 @@ import { PostScope, PostStatus, PostType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-const postListInclude = {
-  author: { select: { id: true, name: true, nickname: true, image: true } },
-  neighborhood: {
-    select: { id: true, name: true, city: true, district: true },
-  },
-  hospitalReview: {
-    select: {
-      hospitalName: true,
-      totalCost: true,
-      waitTime: true,
-      rating: true,
+const NO_VIEWER_ID = "__NO_VIEWER__";
+
+const buildPostListInclude = (viewerId?: string) =>
+  ({
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
     },
-  },
-  placeReview: {
-    select: {
-      placeName: true,
-      placeType: true,
-      address: true,
-      isPetAllowed: true,
-      rating: true,
+    reactions: {
+      where: {
+        userId: viewerId ?? NO_VIEWER_ID,
+      },
+      select: { type: true },
     },
-  },
-  walkRoute: {
-    select: {
-      routeName: true,
-      distance: true,
-      duration: true,
-      difficulty: true,
-      hasStreetLights: true,
-      hasRestroom: true,
-      hasParkingLot: true,
-      safetyTags: true,
+    hospitalReview: {
+      select: {
+        hospitalName: true,
+        totalCost: true,
+        waitTime: true,
+        rating: true,
+      },
     },
-  },
-} as const;
+    placeReview: {
+      select: {
+        placeName: true,
+        placeType: true,
+        address: true,
+        isPetAllowed: true,
+        rating: true,
+      },
+    },
+    walkRoute: {
+      select: {
+        routeName: true,
+        distance: true,
+        duration: true,
+        difficulty: true,
+        hasStreetLights: true,
+        hasRestroom: true,
+        hasParkingLot: true,
+        safetyTags: true,
+      },
+    },
+  }) as const;
+
+const buildPostDetailInclude = (viewerId?: string) =>
+  ({
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
+    },
+    reactions: {
+      where: {
+        userId: viewerId ?? NO_VIEWER_ID,
+      },
+      select: { type: true },
+    },
+    hospitalReview: {
+      select: {
+        hospitalName: true,
+        totalCost: true,
+        waitTime: true,
+        rating: true,
+        treatmentType: true,
+      },
+    },
+    placeReview: {
+      select: {
+        placeName: true,
+        placeType: true,
+        address: true,
+        isPetAllowed: true,
+        rating: true,
+      },
+    },
+    walkRoute: {
+      select: {
+        routeName: true,
+        distance: true,
+        duration: true,
+        difficulty: true,
+        hasStreetLights: true,
+        hasRestroom: true,
+        hasParkingLot: true,
+        safetyTags: true,
+      },
+    },
+  }) as const;
 
 type PostListOptions = {
   cursor?: string;
@@ -45,6 +98,7 @@ type PostListOptions = {
   scope: PostScope;
   q?: string;
   neighborhoodId?: string;
+  viewerId?: string;
 };
 
 type BestPostListOptions = {
@@ -54,51 +108,17 @@ type BestPostListOptions = {
   scope: PostScope;
   neighborhoodId?: string;
   minLikes?: number;
+  viewerId?: string;
 };
 
-export async function getPostById(id?: string) {
+export async function getPostById(id?: string, viewerId?: string) {
   if (!id) {
     return null;
   }
 
   return prisma.post.findUnique({
     where: { id },
-    include: {
-      author: { select: { id: true, name: true, nickname: true, image: true } },
-      neighborhood: {
-        select: { id: true, name: true, city: true, district: true },
-      },
-      hospitalReview: {
-        select: {
-          hospitalName: true,
-          totalCost: true,
-          waitTime: true,
-          rating: true,
-          treatmentType: true,
-        },
-      },
-      placeReview: {
-        select: {
-          placeName: true,
-          placeType: true,
-          address: true,
-          isPetAllowed: true,
-          rating: true,
-        },
-      },
-      walkRoute: {
-        select: {
-          routeName: true,
-          distance: true,
-          duration: true,
-          difficulty: true,
-          hasStreetLights: true,
-          hasRestroom: true,
-          hasParkingLot: true,
-          safetyTags: true,
-        },
-      },
-    },
+    include: buildPostDetailInclude(viewerId),
   });
 }
 
@@ -109,6 +129,7 @@ export async function listPosts({
   scope,
   q,
   neighborhoodId,
+  viewerId,
 }: PostListOptions) {
   const items = await prisma.post.findMany({
     where: {
@@ -137,7 +158,7 @@ export async function listPosts({
         }
       : {}),
     orderBy: { createdAt: "desc" },
-    include: postListInclude,
+    include: buildPostListInclude(viewerId),
   });
 
   let nextCursor: string | null = null;
@@ -156,6 +177,7 @@ export async function listBestPosts({
   scope,
   neighborhoodId,
   minLikes = 1,
+  viewerId,
 }: BestPostListOptions) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -179,7 +201,7 @@ export async function listBestPosts({
       { viewCount: "desc" },
       { createdAt: "desc" },
     ],
-    include: postListInclude,
+    include: buildPostListInclude(viewerId),
   });
 }
 

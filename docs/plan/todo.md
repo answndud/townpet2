@@ -386,3 +386,52 @@
 - `app/src/app/best/page.tsx`
 - `app/src/app/layout.tsx`
 - `docs/plan/todo.md`
+
+## Cycle 13: 베스트 메인 전환 + 좋아요/싫어요 반응 (완료)
+
+### Plan
+- [x] 메인(`/`)을 베스트 게시판으로 고정하고 일반 피드를 별도 경로로 분리
+- [x] 베스트/피드 화면에서 카테고리 전환 링크(베스트 <-> 일반 피드) 제공
+- [x] 게시글별 좋아요/싫어요 토글 기능(DB 스키마 + 서버 액션 + UI) 구현
+- [x] 반응 수(`likeCount`, `dislikeCount`)를 목록/상세에 모두 노출
+- [x] 더미데이터 시드에 반응 샘플 추가
+
+### Build
+- [x] `app/src/app/page.tsx`를 `/best` 리다이렉트로 변경
+- [x] `app/src/app/feed/page.tsx` 생성(기존 일반 피드 이동)
+- [x] `app/prisma/schema.prisma`에 `PostReaction`, `PostReactionType`, `Post.dislikeCount` 추가
+- [x] `app/src/server/services/post.service.ts`에 `togglePostReaction` 추가
+- [x] `app/src/server/actions/post.ts`에 `togglePostReactionAction` 추가
+- [x] `app/src/components/posts/post-reaction-controls.tsx` 추가
+- [x] `app/src/app/feed/page.tsx`, `app/src/app/best/page.tsx`, `app/src/app/posts/[id]/page.tsx` 반응 UI 연동
+- [x] `app/prisma/seed.ts` 반응 더미데이터 반영
+- [x] `app/src/app/layout.tsx`에 `피드` 메뉴 추가
+
+### Check
+- [x] `prisma generate` 통과
+- [x] `prisma db push` 통과
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 13 결과
+- 변경 파일
+- `app/src/app/page.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/src/app/best/page.tsx`
+- `app/src/app/posts/[id]/page.tsx`
+- `app/src/components/posts/post-reaction-controls.tsx`
+- `app/src/components/posts/post-create-form.tsx`
+- `app/src/components/posts/post-detail-actions.tsx`
+- `app/src/server/actions/post.ts`
+- `app/src/server/services/post.service.ts`
+- `app/src/server/services/post.service.test.ts`
+- `app/src/server/queries/post.queries.ts`
+- `app/src/app/api/posts/route.ts`
+- `app/src/app/api/posts/[id]/route.ts`
+- `app/src/app/layout.tsx`
+- `app/src/app/posts/new/page.tsx`
+- `app/prisma/schema.prisma`
+- `app/prisma/seed.ts`
+- `docs/GUIDE.md`
+- `docs/plan/todo.md`
