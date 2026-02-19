@@ -209,6 +209,7 @@ type BestPostListOptions = {
   days: number;
   type?: PostType;
   scope: PostScope;
+  q?: string;
   neighborhoodId?: string;
   minLikes?: number;
   viewerId?: string;
@@ -306,6 +307,7 @@ export async function listBestPosts({
   days,
   type,
   scope,
+  q,
   neighborhoodId,
   minLikes = 1,
   viewerId,
@@ -322,6 +324,14 @@ export async function listBestPosts({
         : scope === PostScope.LOCAL
           ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
           : {}),
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { content: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
       likeCount: { gte: minLikes },
       createdAt: { gte: since },
     },

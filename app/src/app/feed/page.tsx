@@ -7,16 +7,33 @@ import { PostReactionControls } from "@/components/posts/post-reaction-controls"
 import { auth } from "@/lib/auth";
 import { formatCount, formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
 import { postListSchema } from "@/lib/validations/post";
-import { listPosts } from "@/server/queries/post.queries";
+import { listBestPosts, listPosts } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
+
+type FeedMode = "ALL" | "BEST";
+const BEST_DAY_OPTIONS = [3, 7, 30] as const;
+type BestDay = (typeof BEST_DAY_OPTIONS)[number];
 
 type HomePageProps = {
   searchParams?: Promise<{
     type?: PostType;
     scope?: "LOCAL" | "GLOBAL";
     q?: string;
+    mode?: string;
+    days?: string;
   }>;
 };
+
+function toFeedMode(value?: string): FeedMode {
+  return value === "BEST" ? "BEST" : "ALL";
+}
+
+function toBestDay(value?: string): BestDay {
+  const numeric = Number(value);
+  return BEST_DAY_OPTIONS.includes(numeric as BestDay)
+    ? (numeric as BestDay)
+    : 7;
+}
 
 export default async function Home({ searchParams }: HomePageProps) {
   const session = await auth();
@@ -35,6 +52,8 @@ export default async function Home({ searchParams }: HomePageProps) {
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
   const effectiveScope = scope ?? PostScope.LOCAL;
+  const mode = toFeedMode(resolvedParams.mode);
+  const bestDays = toBestDay(resolvedParams.days);
 
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
   if (!primaryNeighborhood && effectiveScope !== PostScope.GLOBAL) {
@@ -52,19 +71,40 @@ export default async function Home({ searchParams }: HomePageProps) {
   const limit = parsedParams.success ? parsedParams.data.limit : 20;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
 
-  const posts = await listPosts({
-    limit,
-    cursor,
-    type,
-    scope: effectiveScope,
-    q: query || undefined,
-    neighborhoodId:
-      effectiveScope === PostScope.LOCAL
-        ? primaryNeighborhood?.neighborhood.id
-        : undefined,
-    viewerId: user.id,
-  });
-  const items = posts.items;
+  const neighborhoodId =
+    effectiveScope === PostScope.LOCAL
+      ? primaryNeighborhood?.neighborhood.id
+      : undefined;
+
+  const posts =
+    mode === "ALL"
+      ? await listPosts({
+          limit,
+          cursor,
+          type,
+          scope: effectiveScope,
+          q: query || undefined,
+          neighborhoodId,
+          viewerId: user.id,
+        })
+      : null;
+
+  const bestItems =
+    mode === "BEST"
+      ? await listBestPosts({
+          limit,
+          days: bestDays,
+          type,
+          scope: effectiveScope,
+          q: query || undefined,
+          neighborhoodId,
+          minLikes: 1,
+          viewerId: user.id,
+        })
+      : null;
+
+  const items = mode === "BEST" ? (bestItems ?? []) : (posts?.items ?? []);
+  const nextCursor = mode === "ALL" ? posts?.nextCursor ?? null : null;
   const selectedScope = scope ?? PostScope.LOCAL;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
 
@@ -73,22 +113,32 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextScope,
     nextQuery,
     nextCursor,
+    nextMode,
+    nextDays,
   }: {
     nextType?: PostType | null;
     nextScope?: PostScope | null;
     nextQuery?: string | null;
     nextCursor?: string | null;
+    nextMode?: FeedMode | null;
+    nextDays?: BestDay | null;
   }) => {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
     const resolvedScope = nextScope === undefined ? selectedScope : nextScope;
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
+    const resolvedMode = nextMode === undefined ? mode : nextMode;
+    const resolvedDays = nextDays === undefined ? bestDays : nextDays;
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
     if (resolvedQuery) params.set("q", resolvedQuery);
+    if (resolvedMode === "BEST") {
+      params.set("mode", "BEST");
+      params.set("days", String(resolvedDays));
+    }
     if (limit) params.set("limit", String(limit));
-    if (nextCursor) params.set("cursor", nextCursor);
+    if (resolvedMode === "ALL" && nextCursor) params.set("cursor", nextCursor);
 
     const serialized = params.toString();
     return serialized ? `/feed?${serialized}` : "/feed";
@@ -107,12 +157,12 @@ export default async function Home({ searchParams }: HomePageProps) {
                 전체 게시판
               </h1>
               <p className="mt-2 text-sm text-[#4f678d] sm:text-base">
-                카테고리와 범위를 빠르게 조합해 필요한 글을 즉시 찾을 수 있습니다.
+                전체글/베스트글을 전환하고 카테고리별로 바로 확인할 수 있습니다.
               </p>
             </div>
             <div className="flex flex-col items-end gap-2 text-xs text-[#4f678d]">
               <div className="border border-[#d4e1f3] bg-white px-3 py-1.5">
-                현재 글 {items.length}건
+                {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
               </div>
               <Link
                 href="/posts/new"
@@ -131,6 +181,10 @@ export default async function Home({ searchParams }: HomePageProps) {
                 {type ? <input type="hidden" name="type" value={type} /> : null}
                 {selectedScope ? (
                   <input type="hidden" name="scope" value={selectedScope} />
+                ) : null}
+                {mode === "BEST" ? <input type="hidden" name="mode" value="BEST" /> : null}
+                {mode === "BEST" ? (
+                  <input type="hidden" name="days" value={String(bestDays)} />
                 ) : null}
                 <input
                   name="q"
@@ -156,15 +210,65 @@ export default async function Home({ searchParams }: HomePageProps) {
 
               <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                  카테고리
+                  피드
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={makeHref({ nextMode: "ALL", nextCursor: null })}
+                    className={`border px-3 py-1 text-xs font-semibold transition ${
+                      mode === "ALL"
+                        ? "border-[#3567b5] bg-[#3567b5] text-white"
+                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                    }`}
+                  >
+                    전체글
+                  </Link>
+                  <Link
+                    href={makeHref({ nextMode: "BEST", nextCursor: null })}
+                    className={`border px-3 py-1 text-xs font-semibold transition ${
+                      mode === "BEST"
+                        ? "border-[#3567b5] bg-[#3567b5] text-white"
+                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                    }`}
+                  >
+                    베스트글
+                  </Link>
                   <Link
                     href={selectedScope === PostScope.GLOBAL ? "/?scope=GLOBAL" : "/"}
                     className="border border-[#b9cbeb] bg-white px-3 py-1 text-xs font-medium text-[#2f548f] transition hover:bg-[#f3f7ff]"
                   >
-                    베스트
+                    베스트 메인
                   </Link>
+                </div>
+                {mode === "BEST" ? (
+                  <div className="mt-3 border-t border-[#dbe6f6] pt-3">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                      베스트 기간
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {BEST_DAY_OPTIONS.map((day) => (
+                        <Link
+                          key={day}
+                          href={makeHref({ nextDays: day, nextCursor: null })}
+                          className={`border px-2 py-2 text-center text-xs font-semibold transition ${
+                            bestDays === day
+                              ? "border-[#3567b5] bg-[#3567b5] text-white"
+                              : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                          }`}
+                        >
+                          최근 {day}일
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                  카테고리
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={makeHref({ nextType: null, nextCursor: null })}
                     className={`border px-3 py-1 text-xs font-medium transition ${
@@ -228,9 +332,13 @@ export default async function Home({ searchParams }: HomePageProps) {
         <section className="animate-fade-up border border-[#c8d7ef] bg-white">
           {items.length === 0 ? (
             <div className="px-6 py-14 text-center">
-              <h2 className="text-lg font-semibold text-[#1d3660]">게시글이 없습니다</h2>
+              <h2 className="text-lg font-semibold text-[#1d3660]">
+                {mode === "BEST" ? "베스트글이 없습니다" : "게시글이 없습니다"}
+              </h2>
               <p className="mt-2 text-sm text-[#5a7397]">
-                글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인해 주세요.
+                {mode === "BEST"
+                  ? "선택한 카테고리/범위에서 좋아요가 1개 이상인 글이 아직 없습니다."
+                  : "글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인해 주세요."}
               </p>
             </div>
           ) : (
@@ -307,10 +415,10 @@ export default async function Home({ searchParams }: HomePageProps) {
             </div>
           )}
 
-          {posts.nextCursor ? (
+          {nextCursor ? (
             <div className="border-t border-[#d8e3f2] px-4 py-4 text-center">
               <Link
-                href={makeHref({ nextCursor: posts.nextCursor })}
+                href={makeHref({ nextCursor })}
                 className="inline-flex h-10 items-center justify-center border border-[#b9cbeb] bg-white px-4 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
               >
                 더 보기
