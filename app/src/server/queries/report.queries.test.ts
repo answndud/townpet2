@@ -11,17 +11,19 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 const mockPrisma = vi.mocked(prisma);
+const prismaMock = mockPrisma as unknown as {
+  $transaction: ReturnType<typeof vi.fn>;
+  report: {
+    count: ReturnType<typeof vi.fn>;
+    groupBy: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
+};
 
 describe("report stats", () => {
   beforeEach(() => {
-    mockPrisma.$transaction.mockReset();
-    (mockPrisma as typeof prisma & {
-      report: {
-        count: ReturnType<typeof vi.fn>;
-        groupBy: ReturnType<typeof vi.fn>;
-        findMany: ReturnType<typeof vi.fn>;
-      };
-    }).report = {
+    prismaMock.$transaction.mockReset();
+    prismaMock.report = {
       count: vi.fn(),
       groupBy: vi.fn(),
       findMany: vi.fn(),
@@ -46,7 +48,7 @@ describe("report stats", () => {
       },
     ];
 
-    mockPrisma.$transaction.mockResolvedValue([
+    prismaMock.$transaction.mockResolvedValue([
       4,
       [
         { status: ReportStatus.PENDING, _count: { _all: 2 } },

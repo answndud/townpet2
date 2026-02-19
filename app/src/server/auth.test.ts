@@ -52,7 +52,7 @@ describe("auth helpers", () => {
 
   it("falls back to demo user when no session", async () => {
     process.env.DEMO_USER_EMAIL = demoEmail;
-    mockAuth.mockResolvedValue(null);
+    mockAuth.mockResolvedValue(null as never);
     mockGetUserByEmail.mockResolvedValue({
       id: "demo-1",
       email: demoEmail,
@@ -68,7 +68,7 @@ describe("auth helpers", () => {
   });
 
   it("requireCurrentUser throws when missing", async () => {
-    mockAuth.mockResolvedValue(null);
+    mockAuth.mockResolvedValue(null as never);
 
     await expect(requireCurrentUser()).rejects.toBeInstanceOf(ServiceError);
   });

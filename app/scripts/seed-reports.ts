@@ -21,7 +21,11 @@ type SeedReportInput = {
   resolvedBy?: string;
 };
 
-async function ensureUser(email: string, name: string, role = UserRole.USER) {
+async function ensureUser(
+  email: string,
+  name: string,
+  role: UserRole = UserRole.USER,
+) {
   return prisma.user.upsert({
     where: { email },
     update: { name, role },
