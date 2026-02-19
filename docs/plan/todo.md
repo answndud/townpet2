@@ -580,3 +580,34 @@
 - `app/src/app/feed/page.tsx`
 - `app/src/server/queries/post.queries.ts`
 - `docs/plan/todo.md`
+
+## Cycle 20: 루트 제거 + 피드 단일 진입 구조 통합 (완료)
+
+### Plan
+- [x] `/`의 별도 화면 구성을 제거하고 `/feed`를 기본 진입으로 통합
+- [x] 상단 메뉴를 피드 중심으로 단순화
+- [x] 레거시 `best` 경로는 피드 베스트 모드로 연결
+
+### Build
+- [x] `app/src/app/page.tsx`를 `/feed` 리다이렉트로 변경
+- [x] `app/src/app/best/page.tsx`를 `/feed?mode=BEST` 리다이렉트로 변경
+- [x] `app/src/app/layout.tsx` 메뉴를 `피드` 중심으로 정리
+- [x] 관리자 접근 불가 안내 화면의 홈 링크를 `/feed`로 통일
+- [x] `docs/GUIDE.md`를 피드 단일 진입 기준으로 정리
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (11 files / 33 tests)
+
+### Cycle 20 결과
+- 변경 파일
+- `app/src/app/page.tsx`
+- `app/src/app/best/page.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/src/app/layout.tsx`
+- `app/src/app/admin/reports/page.tsx`
+- `app/src/app/admin/reports/[id]/page.tsx`
+- `app/src/app/admin/auth-audits/page.tsx`
+- `docs/GUIDE.md`
+- `docs/plan/todo.md`

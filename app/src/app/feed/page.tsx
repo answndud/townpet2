@@ -233,12 +233,6 @@ export default async function Home({ searchParams }: HomePageProps) {
                   >
                     베스트글
                   </Link>
-                  <Link
-                    href={selectedScope === PostScope.GLOBAL ? "/?scope=GLOBAL" : "/"}
-                    className="border border-[#b9cbeb] bg-white px-3 py-1 text-xs font-medium text-[#2f548f] transition hover:bg-[#f3f7ff]"
-                  >
-                    베스트 메인
-                  </Link>
                 </div>
                 {mode === "BEST" ? (
                   <div className="mt-3 border-t border-[#dbe6f6] pt-3">

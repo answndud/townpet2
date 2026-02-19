@@ -59,16 +59,10 @@ export default async function RootLayout({
               </Link>
               <nav className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#315484] sm:text-sm">
                 <Link
-                  href="/"
-                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                >
-                  베스트
-                </Link>
-                <Link
                   href="/feed"
                   className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
                 >
-                  전체
+                  피드
                 </Link>
                 <Link
                   href="/my-posts"
