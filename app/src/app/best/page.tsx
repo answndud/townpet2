@@ -314,7 +314,7 @@ export default async function BestPage({ searchParams }: BestPageProps) {
                           postId={post.id}
                           likeCount={post.likeCount}
                           dislikeCount={post.dislikeCount}
-                          currentReaction={post.reactions[0]?.type ?? null}
+                          currentReaction={post.reactions?.[0]?.type ?? null}
                           compact
                         />
                       </div>

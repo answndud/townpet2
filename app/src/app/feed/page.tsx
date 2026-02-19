@@ -219,7 +219,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                           postId={post.id}
                           likeCount={post.likeCount}
                           dislikeCount={post.dislikeCount}
-                          currentReaction={post.reactions[0]?.type ?? null}
+                          currentReaction={post.reactions?.[0]?.type ?? null}
                           compact
                         />
                       </div>
@@ -403,7 +403,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                           postId={post.id}
                           likeCount={post.likeCount}
                           dislikeCount={post.dislikeCount}
-                          currentReaction={post.reactions[0]?.type ?? null}
+                          currentReaction={post.reactions?.[0]?.type ?? null}
                           compact
                         />
                       </div>

@@ -137,6 +137,14 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
 
   const isAuthor = user.id === post.authorId;
   const meta = typeMeta[post.type];
+  const safeViewCount = Number.isFinite(post.viewCount) ? Number(post.viewCount) : 0;
+  const safeLikeCount = Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0;
+  const safeDislikeCount = Number.isFinite(post.dislikeCount)
+    ? Number(post.dislikeCount)
+    : 0;
+  const safeCommentCount = Number.isFinite(post.commentCount)
+    ? Number(post.commentCount)
+    : 0;
 
   return (
     <div className="min-h-screen pb-16">
@@ -179,8 +187,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 </p>
                 <p className="mt-1">{formatRelativeDate(post.createdAt)}</p>
                 <p className="mt-3 text-xs text-[#6883ab]">
-                  조회 {post.viewCount.toLocaleString()} · 좋아요 {post.likeCount.toLocaleString()} · 싫어요{" "}
-                  {post.dislikeCount.toLocaleString()} · 댓글 {post.commentCount.toLocaleString()}
+                  조회 {safeViewCount.toLocaleString()} · 좋아요 {safeLikeCount.toLocaleString()} · 싫어요{" "}
+                  {safeDislikeCount.toLocaleString()} · 댓글 {safeCommentCount.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -188,9 +196,9 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
             <div className="mt-4 border-b border-[#e0e9f5] pb-4">
               <PostReactionControls
                 postId={post.id}
-                likeCount={post.likeCount}
-                dislikeCount={post.dislikeCount}
-                currentReaction={post.reactions[0]?.type ?? null}
+                likeCount={safeLikeCount}
+                dislikeCount={safeDislikeCount}
+                currentReaction={post.reactions?.[0]?.type ?? null}
               />
             </div>
 
