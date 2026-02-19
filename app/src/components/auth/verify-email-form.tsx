@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 type VerifyEmailFormProps = {
   initialToken?: string | null;
@@ -12,45 +12,37 @@ export function VerifyEmailForm({
   initialEmail,
 }: VerifyEmailFormProps) {
   const [isPending, startTransition] = useTransition();
-  const [isVerifying, setIsVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState(initialEmail ?? "");
   const [token, setToken] = useState(initialToken ?? "");
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
   const [requestSuccess, setRequestSuccess] = useState(false);
+  const autoVerifyAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (!initialToken || success || isVerifying) {
+    if (!initialToken || success || autoVerifyAttemptedRef.current) {
       return;
     }
 
-    setIsVerifying(true);
-    setError(null);
-
-    fetch("/api/auth/verify/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: initialToken }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          throw new Error(data?.error?.message ?? "인증에 실패했습니다.");
-        }
-        setSuccess(true);
-      })
-      .catch((fetchError: unknown) => {
-        setError(
-          fetchError instanceof Error
-            ? fetchError.message
-            : "인증에 실패했습니다.",
-        );
-      })
-      .finally(() => {
-        setIsVerifying(false);
+    autoVerifyAttemptedRef.current = true;
+    startTransition(async () => {
+      setError(null);
+      const response = await fetch("/api/auth/verify/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: initialToken }),
       });
-  }, [initialToken, success, isVerifying]);
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setError(data?.error?.message ?? "인증에 실패했습니다.");
+        return;
+      }
+
+      setSuccess(true);
+    });
+  }, [initialToken, startTransition, success]);
 
   const handleRequest = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -153,7 +145,7 @@ export function VerifyEmailForm({
         {success ? (
           <p className="text-xs text-emerald-600">이메일 인증이 완료되었습니다.</p>
         ) : null}
-        {isVerifying ? (
+        {isPending && initialToken && !success ? (
           <p className="text-xs text-[#9a8462]">인증 확인 중...</p>
         ) : null}
         <button
