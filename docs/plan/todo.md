@@ -354,3 +354,35 @@
 - `app/src/components/admin/report-actions.tsx`
 - `app/src/components/admin/report-update-banner.tsx`
 - `docs/plan/todo.md`
+
+## Cycle 12: 좋아요 베스트 게시판 도입 (완료)
+
+### Plan
+- [x] 좋아요 중심 정렬의 베스트 게시글 조회 쿼리 추가
+- [x] 메인 피드 상단에 베스트 미리보기 섹션 노출
+- [x] `/best` 전용 게시판(범위/카테고리/기간 필터) 구현
+- [x] 상단 내비게이션에 베스트 진입 링크 추가
+- [x] 쿼리 테스트/정적검사/문서 체크 완료
+
+### Build
+- [x] `app/src/server/queries/post.queries.ts`에 `listBestPosts` 추가
+- [x] `app/src/lib/post-presenter.ts` 생성 (카테고리 메타/표시 유틸 공용화)
+- [x] `app/src/app/page.tsx`에 `좋아요 베스트` 섹션 + `/best` 이동 링크 추가
+- [x] `app/src/app/best/page.tsx` 신규 생성
+- [x] `app/src/app/layout.tsx` 헤더 메뉴에 `베스트` 링크 추가
+- [x] `app/src/server/queries/post.queries.test.ts` 베스트 쿼리 테스트 보강
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (10 files / 31 tests)
+
+### Cycle 12 결과
+- 변경 파일
+- `app/src/server/queries/post.queries.ts`
+- `app/src/server/queries/post.queries.test.ts`
+- `app/src/lib/post-presenter.ts`
+- `app/src/app/page.tsx`
+- `app/src/app/best/page.tsx`
+- `app/src/app/layout.tsx`
+- `docs/plan/todo.md`

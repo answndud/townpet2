@@ -2,6 +2,42 @@ import { PostScope, PostStatus, PostType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
+const postListInclude = {
+  author: { select: { id: true, name: true, nickname: true, image: true } },
+  neighborhood: {
+    select: { id: true, name: true, city: true, district: true },
+  },
+  hospitalReview: {
+    select: {
+      hospitalName: true,
+      totalCost: true,
+      waitTime: true,
+      rating: true,
+    },
+  },
+  placeReview: {
+    select: {
+      placeName: true,
+      placeType: true,
+      address: true,
+      isPetAllowed: true,
+      rating: true,
+    },
+  },
+  walkRoute: {
+    select: {
+      routeName: true,
+      distance: true,
+      duration: true,
+      difficulty: true,
+      hasStreetLights: true,
+      hasRestroom: true,
+      hasParkingLot: true,
+      safetyTags: true,
+    },
+  },
+} as const;
+
 type PostListOptions = {
   cursor?: string;
   limit: number;
@@ -9,6 +45,15 @@ type PostListOptions = {
   scope: PostScope;
   q?: string;
   neighborhoodId?: string;
+};
+
+type BestPostListOptions = {
+  limit: number;
+  days: number;
+  type?: PostType;
+  scope: PostScope;
+  neighborhoodId?: string;
+  minLikes?: number;
 };
 
 export async function getPostById(id?: string) {
@@ -92,41 +137,7 @@ export async function listPosts({
         }
       : {}),
     orderBy: { createdAt: "desc" },
-    include: {
-      author: { select: { id: true, name: true, nickname: true, image: true } },
-      neighborhood: {
-        select: { id: true, name: true, city: true, district: true },
-      },
-      hospitalReview: {
-        select: {
-          hospitalName: true,
-          totalCost: true,
-          waitTime: true,
-          rating: true,
-        },
-      },
-      placeReview: {
-        select: {
-          placeName: true,
-          placeType: true,
-          address: true,
-          isPetAllowed: true,
-          rating: true,
-        },
-      },
-      walkRoute: {
-        select: {
-          routeName: true,
-          distance: true,
-          duration: true,
-          difficulty: true,
-          hasStreetLights: true,
-          hasRestroom: true,
-          hasParkingLot: true,
-          safetyTags: true,
-        },
-      },
-    },
+    include: postListInclude,
   });
 
   let nextCursor: string | null = null;
@@ -136,6 +147,40 @@ export async function listPosts({
   }
 
   return { items, nextCursor };
+}
+
+export async function listBestPosts({
+  limit,
+  days,
+  type,
+  scope,
+  neighborhoodId,
+  minLikes = 1,
+}: BestPostListOptions) {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  return prisma.post.findMany({
+    where: {
+      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+      ...(type ? { type } : {}),
+      scope,
+      ...(scope === PostScope.LOCAL && neighborhoodId
+        ? { neighborhoodId }
+        : scope === PostScope.LOCAL
+          ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
+          : {}),
+      likeCount: { gte: minLikes },
+      createdAt: { gte: since },
+    },
+    take: limit,
+    orderBy: [
+      { likeCount: "desc" },
+      { commentCount: "desc" },
+      { viewCount: "desc" },
+      { createdAt: "desc" },
+    ],
+    include: postListInclude,
+  });
 }
 
 type UserPostListOptions = {

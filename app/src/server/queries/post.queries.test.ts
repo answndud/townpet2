@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PostScope } from "@prisma/client";
 
-import { listPosts } from "@/server/queries/post.queries";
+import { listBestPosts, listPosts } from "@/server/queries/post.queries";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -67,5 +67,43 @@ describe("post queries", () => {
     const args = mockPrisma.post.findMany.mock.calls[0][0];
     expect(args.where.scope).toBe(PostScope.GLOBAL);
     expect(args.where.neighborhoodId).toBeUndefined();
+  });
+
+  it("builds best feed with likes and recency ordering", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listBestPosts({
+      limit: 5,
+      days: 7,
+      scope: PostScope.GLOBAL,
+      minLikes: 2,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.scope).toBe(PostScope.GLOBAL);
+    expect(args.where.likeCount).toEqual({ gte: 2 });
+    expect(args.where.neighborhoodId).toBeUndefined();
+    expect(args.where.createdAt.gte).toBeInstanceOf(Date);
+    expect(args.orderBy).toEqual([
+      { likeCount: "desc" },
+      { commentCount: "desc" },
+      { viewCount: "desc" },
+      { createdAt: "desc" },
+    ]);
+  });
+
+  it("uses sentinel neighborhood for local best feed without primary neighborhood", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listBestPosts({
+      limit: 10,
+      days: 3,
+      scope: PostScope.LOCAL,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.scope).toBe(PostScope.LOCAL);
+    expect(args.where.neighborhoodId).toBe("__NO_NEIGHBORHOOD__");
+    expect(args.where.likeCount).toEqual({ gte: 1 });
   });
 });
