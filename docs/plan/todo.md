@@ -214,3 +214,37 @@
 - `app/src/app/layout.tsx`
 - `app/src/app/globals.css`
 - `docs/plan/todo.md`
+
+## Cycle 8: 블루 톤 + 게시판 밀도형 UI 재개편 (완료)
+
+### Plan
+- [x] 그린/오렌지 계열 제거 후 스카이블루/블루 계열로 전환
+- [x] 과도한 둥근 버튼/카드 제거, 각진 컴포넌트 스타일로 통일
+- [x] 홈 목록에서 작성자/시간/카운트 메타를 우측 컬럼으로 이동
+- [x] 게시글 상세 화면 비율/정보구조를 커뮤니티형 레이아웃으로 전면 개편
+- [x] 댓글/신고/삭제 액션 UI 톤 동기화
+
+### Build
+- [x] `app/src/app/page.tsx`를 블루 톤 dense list로 재구성
+- [x] `app/src/app/posts/[id]/page.tsx`를 본문+우측 정보 패널 구조로 재작성
+- [x] `app/src/components/posts/post-comment-thread.tsx` 스타일 개편
+- [x] `app/src/components/posts/post-report-form.tsx` 스타일 개편
+- [x] `app/src/components/posts/post-detail-actions.tsx` 스타일 개편
+- [x] `app/src/app/layout.tsx`, `app/src/components/auth/auth-controls.tsx`, `app/src/app/globals.css` 톤 통일
+
+### Check
+- [x] `eslint src --max-warnings=0` 통과
+- [x] `tsc --noEmit` 통과
+- [x] `vitest run` 통과 (10 files / 29 tests)
+
+### Cycle 8 결과
+- 변경 파일
+- `app/src/app/page.tsx`
+- `app/src/app/posts/[id]/page.tsx`
+- `app/src/components/posts/post-comment-thread.tsx`
+- `app/src/components/posts/post-report-form.tsx`
+- `app/src/components/posts/post-detail-actions.tsx`
+- `app/src/app/layout.tsx`
+- `app/src/components/auth/auth-controls.tsx`
+- `app/src/app/globals.css`
+- `docs/plan/todo.md`
