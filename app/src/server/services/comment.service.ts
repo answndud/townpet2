@@ -5,7 +5,10 @@ import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { commentCreateSchema, commentUpdateSchema } from "@/lib/validations/comment";
 import { logger, serializeError } from "@/server/logger";
-import { getForbiddenKeywords } from "@/server/queries/policy.queries";
+import {
+  getForbiddenKeywords,
+  getNewUserSafetyPolicy,
+} from "@/server/queries/policy.queries";
 import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
 import {
   notifyCommentOnPost,
@@ -31,10 +34,13 @@ export async function createComment({
     throw new ServiceError("댓글 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const author = await prisma.user.findUnique({
-    where: { id: authorId },
-    select: { id: true, role: true, createdAt: true },
-  });
+  const [author, newUserSafetyPolicy] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: authorId },
+      select: { id: true, role: true, createdAt: true },
+    }),
+    getNewUserSafetyPolicy(),
+  ]);
   if (!author) {
     throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
   }
@@ -43,6 +49,7 @@ export async function createComment({
     text: parsed.data.content,
     role: author.role,
     accountCreatedAt: author.createdAt,
+    blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
   });
   if (contactPolicy.blocked) {
     throw new ServiceError(
@@ -194,10 +201,13 @@ export async function updateComment({
     throw new ServiceError("댓글 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const author = await prisma.user.findUnique({
-    where: { id: authorId },
-    select: { id: true, role: true, createdAt: true },
-  });
+  const [author, newUserSafetyPolicy] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: authorId },
+      select: { id: true, role: true, createdAt: true },
+    }),
+    getNewUserSafetyPolicy(),
+  ]);
   if (!author) {
     throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
   }
@@ -206,6 +216,7 @@ export async function updateComment({
     text: parsed.data.content,
     role: author.role,
     accountCreatedAt: author.createdAt,
+    blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
   });
   if (contactPolicy.blocked) {
     throw new ServiceError(

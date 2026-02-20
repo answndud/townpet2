@@ -26,6 +26,7 @@
     "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
     "search:check:cases": "tsx scripts/check-search-cases.ts",
     "test:flow:notification-comment": "tsx scripts/e2e-notification-comment-flow.ts",
+    "test:flow:new-user-policy": "tsx scripts/e2e-new-user-safety-policy-flow.ts",
     "perf:feed:scroll": "playwright test e2e/feed-scroll-performance.spec.ts --project=chromium",
     "test:e2e:upload": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/image-upload-flow.spec.ts --project=chromium",
     "test:e2e:feed-loading": "PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/feed-loading-skeleton.spec.ts --project=chromium",

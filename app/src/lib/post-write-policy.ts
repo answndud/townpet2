@@ -1,12 +1,14 @@
 import { PostType, UserRole } from "@prisma/client";
 
-export const NEW_USER_RESTRICTION_HOURS = 24;
+import {
+  DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
+  DEFAULT_NEW_USER_RESTRICTED_POST_TYPES,
+} from "@/lib/new-user-safety-policy";
 
-export const NEW_USER_RESTRICTED_POST_TYPES: ReadonlyArray<PostType> = [
-  PostType.MARKET_LISTING,
-  PostType.LOST_FOUND,
-  PostType.MEETUP,
-];
+export const NEW_USER_RESTRICTION_HOURS = DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS;
+
+export const NEW_USER_RESTRICTED_POST_TYPES: ReadonlyArray<PostType> =
+  DEFAULT_NEW_USER_RESTRICTED_POST_TYPES;
 
 const restrictedTypeLabels: Record<PostType, string> = {
   HOSPITAL_REVIEW: "병원 리뷰",

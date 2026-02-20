@@ -1,6 +1,6 @@
 import { UserRole } from "@prisma/client";
 
-import { NEW_USER_RESTRICTION_HOURS } from "@/lib/post-write-policy";
+import { DEFAULT_CONTACT_BLOCK_WINDOW_HOURS } from "@/lib/new-user-safety-policy";
 
 export type ContactSignalType =
   | "email"
@@ -103,7 +103,7 @@ export function moderateContactContent({
   role,
   accountCreatedAt,
   now = new Date(),
-  blockWindowHours = NEW_USER_RESTRICTION_HOURS,
+  blockWindowHours = DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
 }: ModerateContactContentParams): ModerateContactContentResult {
   const signals = detectContactSignals(text);
   if (signals.length === 0) {
@@ -125,8 +125,7 @@ export function moderateContactContent({
       blocked: true,
       signals,
       sanitizedText: text,
-      message:
-        "가입 후 24시간 이내에는 연락처/외부 연락 링크를 포함한 내용을 작성할 수 없습니다.",
+      message: `가입 후 ${blockWindowHours}시간 이내에는 연락처/외부 연락 링크를 포함한 내용을 작성할 수 없습니다.`,
     };
   }
 

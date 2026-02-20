@@ -13,6 +13,7 @@
 - Cycle 30: 품질게이트 + 런북/SLO 문서화 완료
 - Cycle 31: 알림 센터 커서/필터/E2E + 공개 프로필 활동 탭 커서 페이지네이션 완료
 - Cycle 32: 검색 로그 구형 fallback 제거 + 전환 가이드 문서화 완료
+- Cycle 33: 신규 계정 안전 정책 관리자 설정화 + DB E2E 플로우 완료
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
@@ -763,20 +764,79 @@
 - 결정 기록
 - 이중 저장소를 유지하면 운영 복잡도와 데이터 일관성 리스크가 커지므로, 스키마 동기화를 전제로 단일 저장소 경로로 고정.
 
+### 2026-02-20: Cycle 33 완료 (신규 계정 안전 정책 관리자 설정화)
+- 완료 내용
+- 신규 계정 정책 기본값/정규화 유틸(`new-user-safety-policy`)을 추가하고, `SiteSetting(new_user_safety_policy_v1)` 기반 조회/저장 경로를 구현.
+- 관리자 정책 화면(`/admin/policies`)에 신규 계정 안전 정책 섹션을 추가:
+  - 고위험 카테고리 작성 제한 시간
+  - 연락처 포함 콘텐츠 차단 시간
+  - 제한 대상 카테고리 선택
+- 정책 저장 Server Action/Service/Validation을 확장해 관리자 입력을 서버에서 검증 후 반영하도록 연결.
+- 게시글/댓글 서비스에서 하드코딩 24시간 정책 대신 저장된 정책값을 조회해 차단/마스킹 로직에 적용.
+- 연락처 차단 메시지를 고정 24시간 문구에서 설정된 시간 기반 동적 문구로 변경.
+- 변경 파일(핵심)
+- `app/src/lib/new-user-safety-policy.ts`
+- `app/src/lib/new-user-safety-policy.test.ts`
+- `app/src/lib/post-write-policy.ts`
+- `app/src/lib/contact-policy.ts`
+- `app/src/lib/validations/policy.ts`
+- `app/src/server/queries/policy.queries.ts`
+- `app/src/server/services/policy.service.ts`
+- `app/src/server/actions/policy.ts`
+- `app/src/components/admin/new-user-safety-policy-form.tsx`
+- `app/src/app/admin/policies/page.tsx`
+- `app/src/server/services/post.service.ts`
+- `app/src/server/services/comment.service.ts`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint ...` (정책/서비스/관리자 화면 변경 파일) 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/lib/new-user-safety-policy.test.ts src/lib/contact-policy.test.ts src/lib/post-write-policy.test.ts src/server/services/post-create-policy.test.ts src/server/services/comment.service.test.ts` 통과 (21 tests)
+- 이슈/블로커
+- 관리자 정책 변경 UI에 대한 브라우저 E2E 시나리오는 아직 미구현.
+- 결정 기록
+- 운영자가 정책을 즉시 조정할 수 있어야 스팸/어뷰즈 대응 속도가 빨라지므로 하드코딩 상수 대신 SiteSetting 정책 주입 구조로 전환.
+- 서비스 레이어에서 정책을 읽도록 고정해 API/서버액션 경로 모두 동일하게 정책이 적용되도록 유지.
+
+### 2026-02-20: Cycle 33 후속 완료 (신규 계정 안전 정책 DB E2E)
+- 완료 내용
+- DB 기반 E2E 스크립트 `e2e-new-user-safety-policy-flow.ts`를 추가해 정책 변경 -> 차단/허용 -> 정책 복구 플로우를 자동 검증.
+- 검증 항목:
+  - 신규 유저의 제한 카테고리 작성 차단(`NEW_USER_RESTRICTED_TYPE`)
+  - 신규 유저의 연락처 포함 댓글 차단(`CONTACT_RESTRICTED_FOR_NEW_USER`)
+  - 기존 유저의 연락처 포함 댓글 마스킹 저장
+  - 테스트 종료 후 정책/생성 데이터 정리
+- `package.json`에 `test:flow:new-user-policy` 실행 스크립트를 추가.
+- `docs/GUIDE.md`에 실행 가이드를 추가.
+- 변경 파일(핵심)
+- `app/scripts/e2e-new-user-safety-policy-flow.ts`
+- `app/package.json`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint ... scripts/e2e-new-user-safety-policy-flow.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/lib/new-user-safety-policy.test.ts src/lib/contact-policy.test.ts src/lib/post-write-policy.test.ts src/server/services/post-create-policy.test.ts src/server/services/comment.service.test.ts` 통과 (21 tests)
+- `cd app && ./node_modules/.bin/tsx scripts/e2e-new-user-safety-policy-flow.ts` 실행 성공
+- 이슈/블로커
+- 브라우저 UI에서 관리자 정책 변경 후 즉시 반영되는 흐름의 Playwright 시나리오는 아직 미구현.
+- 결정 기록
+- OAuth/브라우저 제약과 무관하게 정책 회귀를 잡기 위해 우선 DB 플로우 E2E를 고정하고, UI E2E는 후속 단계로 분리.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)
 - 배포 환경 health 최종 검증(staging/prod 필요)
 - 기능/기술 부채
-- 검색 로그 구형 fallback(`SiteSetting`) 제거 시점/마이그레이션 가이드 정리 필요
+- 구형 `SiteSetting(popular_search_terms_v1)` 키 운영 DB 정리 필요
 - 검색 품질 최대치를 위해 staging/prod DB `pg_trgm` 확장 설치 필요
 
 ## 다음 핸드오프
 - `PLAN.md` 기준 즉시 착수 순서
 1. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성 (현재 blocked)
 2. 환경 블로커 해소: Sentry 실수신 검증(DSN/프로젝트)
-3. 배포 환경 health endpoint 최종 검증(staging/prod)
-4. Cycle 32 후속: 구형 `SiteSetting(popular_search_terms_v1)` 키 정리 실행
+3. Cycle 32 후속: 구형 `SiteSetting(popular_search_terms_v1)` 키 정리 실행
+4. Cycle 33 후속: 관리자 정책 변경 UI Playwright E2E
 
 ## 참고 문서
 - 운영/실행 가이드: `docs/GUIDE.md`

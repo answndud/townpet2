@@ -143,6 +143,11 @@ cd /Users/alex/project/townpet2/app && ls -la public/uploads | tail -n 20
 - 체크된 카테고리: 비회원 열람 불가(로그인 유도)
 - 체크 해제된 카테고리: 비회원 열람 가능(단, `LOCAL` 범위 글은 로그인 필요)
 
+같은 화면에서 아래 정책도 조정할 수 있습니다:
+- 신규 계정 고위험 카테고리 작성 제한 시간
+- 신규 계정 연락처/외부 연락 링크 포함 글·댓글 차단 시간
+- 신규 계정 작성 제한 대상 카테고리 목록
+
 ## 4-4. 검색 품질 점검 리포트 생성 (복붙)
 
 Cycle 25 검색 대표 케이스를 자동 실행해 수동 판정용 리포트를 생성합니다.
@@ -265,6 +270,20 @@ cd /Users/alex/project/townpet2/app && pnpm test:e2e:upload
 참고:
 - 스크립트는 세션 쿠키 호스트 일관성을 위해 `PLAYWRIGHT_BASE_URL=http://localhost:3000`으로 실행됩니다.
 - 테스트 계정이 없으면 시나리오 시작 시 `e2e.upload@townpet.dev` 계정을 자동 준비합니다.
+
+## 4-9. 신규 계정 안전 정책 DB 플로우 점검 (복붙)
+
+운영 정책(신규 계정 제한 시간/카테고리)이 서비스 로직에 반영되는지 DB 플로우로 검증합니다.
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm test:flow:new-user-policy
+```
+
+검증 내용:
+- 신규 유저: 제한 카테고리 작성 차단
+- 신규 유저: 연락처 포함 댓글 차단
+- 기존 유저: 연락처 포함 댓글은 마스킹 후 저장
+- 테스트 종료 시 정책/데이터 자동 복구
 
 ## 4-9. 느린 로딩 skeleton 점검 (복붙)
 
