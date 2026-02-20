@@ -48,11 +48,32 @@ async function resetOnboardingState(email: string) {
   });
 }
 
+async function ensureNeighborhoodExists() {
+  const existing = await prisma.neighborhood.findFirst({
+    select: { id: true },
+  });
+  if (existing) {
+    return existing.id;
+  }
+
+  const created = await prisma.neighborhood.create({
+    data: {
+      city: "서울시",
+      district: "강남구",
+      name: "역삼동",
+    },
+    select: { id: true },
+  });
+
+  return created.id;
+}
+
 for (const scenario of scenarios) {
   test.describe(`social onboarding flow (${scenario.provider})`, () => {
     test.beforeEach(async () => {
       const email = process.env[scenario.emailEnvKey] ?? scenario.fallbackEmail;
       await resetOnboardingState(email);
+      await ensureNeighborhoodExists();
     });
 
     test("logs in and completes onboarding", async ({ page }) => {
