@@ -1,0 +1,76 @@
+name: oauth-real-e2e
+
+on:
+  workflow_dispatch:
+
+jobs:
+  oauth-real-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: townpet
+          POSTGRES_USER: townpet
+          POSTGRES_PASSWORD: townpet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U townpet -d townpet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://townpet:townpet@127.0.0.1:5432/townpet?schema=public
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: http://localhost:3000
+      KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
+      KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+      NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+      NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+      E2E_REAL_SOCIAL_OAUTH: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Validate OAuth secrets
+        run: |
+          required=(AUTH_SECRET NEXTAUTH_SECRET KAKAO_CLIENT_ID KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET)
+          for key in "${required[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing required secret: $key"
+              exit 1
+            fi
+          done
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync schema
+        run: pnpm db:push
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Real OAuth redirect smoke
+        run: pnpm test:e2e:social-real-oauth
