@@ -1,11 +1,25 @@
 import Link from "next/link";
 
 import { NotificationCenter } from "@/components/notifications/notification-center";
+import {
+  parseNotificationFilterKind,
+  parseUnreadOnly,
+} from "@/lib/notification-filter";
 import { getCurrentUser } from "@/server/auth";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
 
-export default async function NotificationsPage() {
+type NotificationsPageProps = {
+  searchParams?: Promise<{ kind?: string; unreadOnly?: string }>;
+};
+
+export default async function NotificationsPage({ searchParams }: NotificationsPageProps) {
   const currentUser = await getCurrentUser();
+  const resolvedSearchParams = (await (searchParams ?? Promise.resolve({}))) as {
+    kind?: string;
+    unreadOnly?: string;
+  };
+  const kind = parseNotificationFilterKind(resolvedSearchParams.kind);
+  const unreadOnly = parseUnreadOnly(resolvedSearchParams.unreadOnly);
 
   if (!currentUser) {
     return (
@@ -33,7 +47,9 @@ export default async function NotificationsPage() {
 
   const { items, nextCursor } = await listNotificationsByUser({
     userId: currentUser.id,
-    limit: 40,
+    limit: 20,
+    kind,
+    unreadOnly,
   });
   const initialItems = items.map((item) => ({
     id: item.id,
@@ -59,6 +75,8 @@ export default async function NotificationsPage() {
         <NotificationCenter
           initialItems={initialItems}
           nextCursor={nextCursor}
+          initialKind={kind}
+          initialUnreadOnly={unreadOnly}
         />
       </main>
     </div>

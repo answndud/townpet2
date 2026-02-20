@@ -14,10 +14,10 @@
 - Phase 2 보류: 마켓/케어/채팅/결제/공동구매/카카오맵은 Phase 1 완료 후 착수
 
 ## 현재 우선순위
-1. Cycle 31 후속: 알림 센터 유형 필터/탭 + 읽지 않음만 보기
-2. Cycle 23 잔여: 카카오/네이버 소셜 로그인 전체 E2E
-3. Blocked 해소: Sentry 실수신/배포 health 최종 검증
-4. OAuth 실계정 테스트 환경 정비(테스트 계정/시크릿/콜백)
+1. Cycle 23 잔여: 카카오/네이버 소셜 로그인 전체 E2E
+2. Blocked 해소: Sentry 실수신/배포 health 최종 검증
+3. OAuth 실계정 테스트 환경 정비(테스트 계정/시크릿/콜백)
+4. Cycle 32 후속: 구형 `SiteSetting` 검색 키 정리(운영 SQL 반영)
 
 ## Active Plan
 
@@ -93,7 +93,14 @@
 |---|---|---|---|---|---|
 | 알림 센터 커서 기반 추가 로딩(자동 + 수동 fallback) | Codex | P1 | `done` | `nextCursor`가 실제 추가 로딩으로 연결되고, 페이지 끝/오류 상태가 사용자에게 명확히 안내됨 | Notification 쿼리/알림 UI |
 | 공개 프로필 활동 탭 커서 기반 페이지네이션 | Codex | P1 | `done` | 활동 탭(`posts/comments/reactions`)에서 20개 이후 `더 보기` 동선으로 다음 페이지 조회 가능 | 공개 프로필/유저 활동 쿼리 |
-| 알림 센터 유형 필터/탭 + 읽지 않음만 보기 | Codex | P2 | `todo` | 알림 밀도 증가 상황에서 필요한 알림만 즉시 탐색 가능 | Notification 쿼리/API 확장 |
+| 알림 센터 유형 필터/탭 + 읽지 않음만 보기 | Codex | P2 | `done` | 알림 밀도 증가 상황에서 필요한 알림만 즉시 탐색 가능 | Notification 쿼리/API 확장 |
+| 알림 센터 필터 상태 E2E(탭/읽지 않음/URL 유지) | Codex | P2 | `done` | 필터 변경 -> 목록 반영 -> URL 동기화가 회귀 없이 검증됨 | Playwright 환경 |
+
+### Cycle 32: 기술부채 정리
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 검색 로그 구형 fallback(`SiteSetting`) 제거 + 운영 마이그레이션 가이드 | Codex | P2 | `done` | `SearchTermStat` 단일 경로로 정리되고 운영 전환 절차 문서화 완료 | 검색 쿼리/운영 가이드 |
+| 구형 `SiteSetting(popular_search_terms_v1)` 키 정리 실행 | Codex | P3 | `todo` | 운영 DB에서 미사용 키 정리 완료 | 운영 배포 권한 |
 
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import type { NotificationFilterKind } from "@/lib/notification-filter";
+import { buildNotificationListHref } from "@/lib/notification-filter";
 import {
   markAllNotificationsReadAction,
   markNotificationReadAction,
@@ -27,6 +29,8 @@ type NotificationCenterItem = {
 type NotificationCenterProps = {
   initialItems: NotificationCenterItem[];
   nextCursor: string | null;
+  initialKind: NotificationFilterKind;
+  initialUnreadOnly: boolean;
 };
 
 type NotificationApiSuccess = {
@@ -45,6 +49,13 @@ type NotificationApiError = {
   };
 };
 
+const filterTabs: Array<{ kind: NotificationFilterKind; label: string }> = [
+  { kind: "ALL", label: "전체" },
+  { kind: "COMMENT", label: "댓글/답글" },
+  { kind: "REACTION", label: "반응" },
+  { kind: "SYSTEM", label: "시스템" },
+];
+
 function buildNotificationHref(notification: {
   postId: string | null;
   commentId: string | null;
@@ -61,14 +72,19 @@ function buildNotificationHref(notification: {
 export function NotificationCenter({
   initialItems,
   nextCursor,
+  initialKind,
+  initialUnreadOnly,
 }: NotificationCenterProps) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(nextCursor);
+  const [kind, setKind] = useState<NotificationFilterKind>(initialKind);
+  const [unreadOnly, setUnreadOnly] = useState(initialUnreadOnly);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingMap, setPendingMap] = useState<Record<string, boolean>>({});
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [isFilterPending, startFilterTransition] = useTransition();
   const [isMarkAllPending, startMarkAllTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -90,18 +106,23 @@ export function NotificationCenter({
     );
   };
 
-  const loadMore = useCallback(async () => {
-    if (!cursor || isLoadingMore) {
-      return;
-    }
-
-    setIsLoadingMore(true);
-    setLoadMoreError(null);
-
-    try {
+  const requestNotifications = useCallback(
+    async (options: {
+      cursor?: string | null;
+      kind: NotificationFilterKind;
+      unreadOnly: boolean;
+    }) => {
       const params = new URLSearchParams();
-      params.set("cursor", cursor);
       params.set("limit", "20");
+      if (options.cursor) {
+        params.set("cursor", options.cursor);
+      }
+      if (options.kind !== "ALL") {
+        params.set("kind", options.kind);
+      }
+      if (options.unreadOnly) {
+        params.set("unreadOnly", "1");
+      }
 
       const response = await fetch(`/api/notifications?${params.toString()}`, {
         method: "GET",
@@ -114,11 +135,31 @@ export function NotificationCenter({
         throw new Error(payload.ok ? "알림을 불러오지 못했습니다." : payload.error.message);
       }
 
+      return payload.data;
+    },
+    [],
+  );
+
+  const loadMore = useCallback(async () => {
+    if (!cursor || isLoadingMore) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const data = await requestNotifications({
+        cursor,
+        kind,
+        unreadOnly,
+      });
+
       setItems((prev) => {
         const merged = [...prev];
         const seen = new Set(prev.map((item) => item.id));
 
-        for (const item of payload.data.items) {
+        for (const item of data.items) {
           if (seen.has(item.id)) {
             continue;
           }
@@ -128,7 +169,7 @@ export function NotificationCenter({
 
         return merged;
       });
-      setCursor(payload.data.nextCursor);
+      setCursor(data.nextCursor);
     } catch (error) {
       const nextMessage =
         error instanceof Error && error.message.trim().length > 0
@@ -138,7 +179,34 @@ export function NotificationCenter({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [cursor, isLoadingMore]);
+  }, [cursor, isLoadingMore, kind, unreadOnly, requestNotifications]);
+
+  const handleApplyFilter = (nextKind: NotificationFilterKind, nextUnreadOnly: boolean) => {
+    setMessage(null);
+    setLoadMoreError(null);
+
+    startFilterTransition(async () => {
+      try {
+        const data = await requestNotifications({
+          kind: nextKind,
+          unreadOnly: nextUnreadOnly,
+        });
+        setKind(nextKind);
+        setUnreadOnly(nextUnreadOnly);
+        setItems(data.items);
+        setCursor(data.nextCursor);
+        router.replace(buildNotificationListHref(nextKind, nextUnreadOnly), {
+          scroll: false,
+        });
+      } catch (error) {
+        const nextMessage =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : "알림을 불러오지 못했습니다.";
+        setMessage(nextMessage);
+      }
+    });
+  };
 
   useEffect(() => {
     if (!cursor) {
@@ -180,6 +248,8 @@ export function NotificationCenter({
       setItems((prev) =>
         prev.map((item) => (item.id === id ? { ...item, isRead: false } : item)),
       );
+    } else if (unreadOnly) {
+      setItems((prev) => prev.filter((item) => item.id !== id));
     }
 
     setPending(id, false);
@@ -201,6 +271,8 @@ export function NotificationCenter({
           ),
         );
         setMessage(result.message);
+      } else if (unreadOnly) {
+        setItems((prev) => prev.filter((candidate) => candidate.id !== item.id));
       }
       setPending(item.id, false);
     }
@@ -211,22 +283,26 @@ export function NotificationCenter({
 
   const handleMarkAll = () => {
     setMessage(null);
-    const unreadIds = items.filter((item) => !item.isRead).map((item) => item.id);
+    const previousItems = items;
+    const previousCursor = cursor;
+    const unreadIds = previousItems.filter((item) => !item.isRead).map((item) => item.id);
     if (unreadIds.length === 0) {
       return;
     }
 
-    setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    if (unreadOnly) {
+      setItems([]);
+      setCursor(null);
+    } else {
+      setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    }
 
     startMarkAllTransition(async () => {
       const result = await markAllNotificationsReadAction();
       if (!result.ok) {
         setMessage(result.message);
-        setItems((prev) =>
-          prev.map((item) =>
-            unreadIds.includes(item.id) ? { ...item, isRead: false } : item,
-          ),
-        );
+        setItems(previousItems);
+        setCursor(previousCursor);
       }
       router.refresh();
     });
@@ -241,10 +317,37 @@ export function NotificationCenter({
         </h1>
         <p className="mt-2 text-sm text-[#4f678d] sm:text-base">미확인 알림 {unreadCount}건</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {filterTabs.map((tab) => (
+            <button
+              key={tab.kind}
+              type="button"
+              disabled={isFilterPending}
+              onClick={() => handleApplyFilter(tab.kind, unreadOnly)}
+              className={`border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                kind === tab.kind
+                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                  : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={isFilterPending}
+            onClick={() => handleApplyFilter(kind, !unreadOnly)}
+            className={`border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              unreadOnly
+                ? "border-[#3567b5] bg-[#3567b5] text-white"
+                : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+            }`}
+          >
+            읽지 않음만
+          </button>
           <button
             type="button"
             onClick={handleMarkAll}
-            disabled={isMarkAllPending || unreadCount === 0}
+            disabled={isMarkAllPending || isFilterPending || unreadCount === 0}
             className="border border-[#3567b5] bg-[#3567b5] px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#2f5da4]"
           >
             모두 읽음 처리

@@ -11,7 +11,8 @@
 - Cycle 28: OG/JSON-LD/사이트맵/공유 기능 완료
 - Cycle 29: 공개 프로필 + 반려동물 CRUD + 글쓰기 미리보기/임시저장 완료
 - Cycle 30: 품질게이트 + 런북/SLO 문서화 완료
-- Cycle 31: 알림 센터 커서 기반 로딩 + 공개 프로필 활동 탭 커서 페이지네이션 완료
+- Cycle 31: 알림 센터 커서/필터/E2E + 공개 프로필 활동 탭 커서 페이지네이션 완료
+- Cycle 32: 검색 로그 구형 fallback 제거 + 전환 가이드 문서화 완료
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
@@ -694,6 +695,74 @@
 - 공개 프로필은 SEO/공유 링크 안정성이 중요하므로, 클라이언트 전용 무한 스크롤보다 URL 기반 커서 링크를 우선 적용.
 - 커서 오류를 상위 페이지에서 처리하지 않고 쿼리 계층에서 복구해 모든 호출 경로에서 동일한 안전 동작을 보장.
 
+### 2026-02-20: Cycle 31 후속 완료 (알림 센터 필터/읽지 않음 보기)
+- 완료 내용
+- 알림 센터에 유형 탭(`전체`, `댓글/답글`, `반응`, `시스템`)과 `읽지 않음만` 토글을 추가.
+- 필터 상태를 API 쿼리(`kind`, `unreadOnly`)와 URL(`/notifications?...`)에 동기화해 새로고침/공유 시 동일 상태를 재현 가능하게 구성.
+- 필터 상태에서도 커서 기반 추가 로딩이 동일하게 동작하도록 API/클라이언트 양쪽에 필터 파라미터를 연결.
+- `읽지 않음만` 모드에서 읽음 처리 시 항목이 즉시 목록에서 제거되도록 UX를 보강.
+- 필터 파서/URL 생성 유틸 단위 테스트를 추가해 회귀 방지.
+- 변경 파일(핵심)
+- `app/src/lib/notification-filter.ts`
+- `app/src/lib/notification-filter.test.ts`
+- `app/src/server/queries/notification.queries.ts`
+- `app/src/app/api/notifications/route.ts`
+- `app/src/app/notifications/page.tsx`
+- `app/src/components/notifications/notification-center.tsx`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/lib/notification-filter.ts src/lib/notification-filter.test.ts src/app/api/notifications/route.ts src/app/notifications/page.tsx src/components/notifications/notification-center.tsx src/server/queries/notification.queries.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/lib/notification-filter.test.ts` 통과 (3 tests)
+- `curl 'http://127.0.0.1:3000/api/notifications?kind=COMMENT'` -> `200`
+- `curl 'http://127.0.0.1:3000/api/notifications?kind=ALL&unreadOnly=1'` -> `200`
+- `curl 'http://127.0.0.1:3000/api/notifications?kind=UNKNOWN'` -> `400 INVALID_QUERY`
+- 이슈/블로커
+- 알림 필터 UI의 브라우저 E2E 회귀 테스트는 아직 미구현.
+- 결정 기록
+- 필터 상태는 서버 컴포넌트와 클라이언트 상호작용이 함께 존재하므로, URL을 단일 진실원천(source of truth)으로 유지하는 전략을 채택.
+- 필터 변경 시 전체 페이지 리프레시 대신 API 재조회 + URL 교체를 사용해 체감 응답성을 우선 확보.
+
+### 2026-02-20: Cycle 31 후속 완료 (알림 필터 E2E 시나리오 고정)
+- 완료 내용
+- Playwright 시나리오 `notification-filter-controls.spec.ts`를 추가해 알림 탭/읽지 않음 토글/URL 동기화 흐름을 자동 검증하도록 구성.
+- 테스트 실행 전 DB에 `COMMENT`, `REACTION(읽음/미확인)`, `SYSTEM` 알림을 시드하고 테스트 종료 후 정리하도록 설계.
+- `package.json`에 `test:e2e:notification-filters` 실행 스크립트를 추가.
+- 변경 파일(핵심)
+- `app/e2e/notification-filter-controls.spec.ts`
+- `app/package.json`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint ... e2e/notification-filter-controls.spec.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/playwright test e2e/notification-filter-controls.spec.ts --list` 통과 (1 test 인식)
+- 이슈/블로커
+- 현재 로컬 환경의 Chromium 권한 제약으로 브라우저 실실행 검증은 여전히 제한적이며, CI/staging에서 실런이 필요.
+- 결정 기록
+- 필터 회귀는 UI 상태 + URL + API 조건이 함께 얽혀 있어, 단위 테스트만으로는 부족하므로 DB 시드 기반 브라우저 시나리오를 별도로 고정.
+
+### 2026-02-20: Cycle 32 완료 (검색 로그 구형 fallback 제거)
+- 완료 내용
+- 검색 통계 쿼리에서 `SiteSetting(popular_search_terms_v1)` fallback 경로를 제거하고 `SearchTermStat` 단일 저장소로 정리.
+- `SearchTermStat` 미동기화 환경에서는 읽기 `[]`, 쓰기 `SCHEMA_SYNC_REQUIRED`를 반환하도록 동작을 명확화.
+- `search.queries` 테스트를 갱신해 구형 fallback 기대치를 제거하고 새 동작(`SCHEMA_SYNC_REQUIRED`)을 검증하도록 변경.
+- 운영 전환/정리 절차 문서를 `docs/ops/search-termstat-migration.md`로 추가.
+- `docs/GUIDE.md`에 SearchTermStat 단일 경로 전환 안내를 반영.
+- 변경 파일(핵심)
+- `app/src/server/queries/search.queries.ts`
+- `app/src/server/queries/search.queries.test.ts`
+- `docs/ops/search-termstat-migration.md`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/server/queries/search.queries.ts src/server/queries/search.queries.test.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/vitest run src/server/queries/search.queries.test.ts` 통과
+- 이슈/블로커
+- 운영 DB의 구형 `SiteSetting` 키 삭제는 배포 권한이 필요한 후속 작업.
+- 결정 기록
+- 이중 저장소를 유지하면 운영 복잡도와 데이터 일관성 리스크가 커지므로, 스키마 동기화를 전제로 단일 저장소 경로로 고정.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)
@@ -704,10 +773,10 @@
 
 ## 다음 핸드오프
 - `PLAN.md` 기준 즉시 착수 순서
-1. Cycle 31 후속: 알림 센터 유형 필터/탭 + 읽지 않음만 보기
-2. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성 (현재 blocked)
-3. 환경 블로커 해소: Sentry 실수신 검증(DSN/프로젝트)
-4. 배포 환경 health endpoint 최종 검증(staging/prod)
+1. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성 (현재 blocked)
+2. 환경 블로커 해소: Sentry 실수신 검증(DSN/프로젝트)
+3. 배포 환경 health endpoint 최종 검증(staging/prod)
+4. Cycle 32 후속: 구형 `SiteSetting(popular_search_terms_v1)` 키 정리 실행
 
 ## 참고 문서
 - 운영/실행 가이드: `docs/GUIDE.md`

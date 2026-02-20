@@ -171,6 +171,14 @@ cd /Users/alex/project/townpet2/app && ./node_modules/.bin/tsx scripts/check-sea
 cd /Users/alex/project/townpet2/app && pnpm db:migrate
 ```
 
+### 4-4-1. 검색 통계 저장소 전환 점검 (SearchTermStat 단일 경로)
+
+검색어 집계는 이제 `SearchTermStat`만 사용합니다.  
+구형 `SiteSetting(popular_search_terms_v1)` fallback은 제거되었습니다.
+
+운영 전환/정리 절차:
+- `docs/ops/search-termstat-migration.md`
+
 ## 4-5. 알림/댓글 DB 플로우 E2E 점검 (복붙)
 
 실DB에서 아래 플로우를 자동 검증합니다.
