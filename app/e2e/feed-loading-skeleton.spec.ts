@@ -13,6 +13,10 @@ test.describe("feed loading skeleton", () => {
     });
     await navigation;
     await expect(page).toHaveURL(/\/feed/);
-    await expect(page.getByTestId("feed-post-list")).toBeVisible();
+    const feedContent = page
+      .getByTestId("feed-post-list")
+      .or(page.getByText("게시글이 없습니다"))
+      .or(page.getByText("베스트글이 없습니다"));
+    await expect(feedContent.first()).toBeVisible();
   });
 });

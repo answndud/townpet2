@@ -107,13 +107,13 @@ if (isSocialDevLoginEnabled) {
       id: "social-dev",
       name: "Social Dev Login",
       credentials: {
-        provider: { label: "Provider", type: "text" },
+        socialProvider: { label: "Social Provider", type: "text" },
         email: { label: "Email", type: "email" },
       },
       async authorize(credentials) {
         const providerRaw =
-          typeof credentials?.provider === "string"
-            ? credentials.provider.trim().toLowerCase()
+          typeof credentials?.socialProvider === "string"
+            ? credentials.socialProvider.trim().toLowerCase()
             : "";
         if (!isSocialDevProvider(providerRaw)) {
           return null;

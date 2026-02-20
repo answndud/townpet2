@@ -22,7 +22,7 @@ export function NaverSignInButton({
     if (devMode && socialDevEnabled) {
       startTransition(async () => {
         await signIn("social-dev", {
-          provider: "naver",
+          socialProvider: "naver",
           callbackUrl,
         });
       });

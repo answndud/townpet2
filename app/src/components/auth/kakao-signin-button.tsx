@@ -22,7 +22,7 @@ export function KakaoSignInButton({
     if (devMode && socialDevEnabled) {
       startTransition(async () => {
         await signIn("social-dev", {
-          provider: "kakao",
+          socialProvider: "kakao",
           callbackUrl,
         });
       });

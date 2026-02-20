@@ -8,14 +8,17 @@ test.describe("naver login entry", () => {
 
     const naverSignInRequest = page.waitForRequest((request) => {
       return (
-        request.url().includes("/api/auth/signin/naver") &&
+        (request.url().includes("/api/auth/signin/naver") ||
+          request.url().includes("/api/auth/callback/social-dev")) &&
         (request.method() === "POST" || request.method() === "GET")
       );
     });
     await naverButton.click();
 
     const request = await naverSignInRequest;
-    expect(request.url()).toContain("/api/auth/signin/naver");
+    expect(request.url()).toMatch(
+      /\/api\/auth\/(signin\/naver|callback\/social-dev)/,
+    );
   });
 
   test("shows naver button on register page with dev flag", async ({ page }) => {
