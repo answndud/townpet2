@@ -184,6 +184,18 @@ cd /Users/alex/project/townpet2/app && pnpm db:migrate
 운영 전환/정리 절차:
 - `docs/ops/search-termstat-migration.md`
 
+구형 키 정리(드라이런):
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm db:cleanup:legacy-search-setting
+```
+
+구형 키 정리(실행):
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm db:cleanup:legacy-search-setting -- --apply
+```
+
 ## 4-5. 알림/댓글 DB 플로우 E2E 점검 (복붙)
 
 실DB에서 아래 플로우를 자동 검증합니다.
@@ -422,6 +434,33 @@ cd /Users/alex/project/townpet2/app && pnpm test:e2e:social-onboarding
 
 주의:
 - 이 시나리오는 테스트 전용 provider(`social-dev`)를 사용하며, 실제 카카오/네이버 계정 인증 자체를 대체하지는 않습니다.
+
+## 4-11B. 실OAuth 리다이렉트 스모크 (카카오/네이버)
+
+목적:
+- 실환경 OAuth 시크릿이 정상 연결되어 로그인 버튼 클릭 시 각 공급자 호스트로 리다이렉트되는지 확인
+
+로컬 실행 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm test:e2e:social-real-oauth
+```
+
+필수 환경변수:
+- `AUTH_SECRET` 또는 `NEXTAUTH_SECRET`
+- `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`
+- `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
+
+GitHub Actions 수동 실행:
+- 워크플로우: `.github/workflows/oauth-real-e2e.yml`
+- 트리거: `workflow_dispatch`
+- 필요 repository secrets:
+  - `AUTH_SECRET`
+  - `NEXTAUTH_SECRET`
+  - `KAKAO_CLIENT_ID`
+  - `KAKAO_CLIENT_SECRET`
+  - `NAVER_CLIENT_ID`
+  - `NAVER_CLIENT_SECRET`
 
 ## 4-12. 신규 계정 고위험 카테고리 작성 제한
 

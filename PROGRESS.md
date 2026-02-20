@@ -18,6 +18,47 @@
 
 ## 실행 로그
 
+### 2026-02-20: Cycle 23 후속 (실OAuth 리다이렉트 스모크 환경 정비)
+- 완료 내용
+- 실OAuth(카카오/네이버) 리다이렉트 스모크 E2E를 추가해, 테스트 앱 시크릿이 있을 때 공급자 호스트 이동까지 자동 검증 가능하도록 구성.
+- 수동 실행용 GitHub Actions 워크플로우(`oauth-real-e2e`)를 추가해 기본 품질게이트와 분리 운영.
+- 운영 가이드에 로컬/CI 실행 방법과 필요 시크릿 목록을 문서화.
+- 변경 파일(핵심)
+- `app/e2e/social-real-oauth-redirect.spec.ts`
+- `app/package.json`
+- `.github/workflows/oauth-real-e2e.yml`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint e2e/social-real-oauth-redirect.spec.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && E2E_REAL_SOCIAL_OAUTH=1 ./node_modules/.bin/playwright test e2e/social-real-oauth-redirect.spec.ts --project=chromium --list` 통과 (2 tests 목록 확인)
+- 이슈/블로커
+- 실제 공급자 인증(카카오/네이버 계정 로그인 입력 단계)은 외부 콘솔/계정 상태에 의존하므로 기본 CI에서는 실행하지 않음.
+- 결정 기록
+- 기본 품질게이트는 `social-dev` 경로로 유지하고, 실OAuth는 수동 워크플로우로 분리해 안정성과 운영 점검 요구를 동시에 만족.
+
+### 2026-02-20: Cycle 32 후속 완료 (구형 SiteSetting 검색 키 정리 자동화)
+- 완료 내용
+- 구형 검색 통계 키(`popular_search_terms_v1`) 정리 전용 스크립트를 추가해 드라이런/실행 모드를 분리.
+- npm script(`db:cleanup:legacy-search-setting`)를 추가해 운영 절차를 SQL 수동 실행에서 명령형 실행으로 전환.
+- 운영/개발 가이드에 정리 명령(드라이런/실행)과 체크리스트를 반영.
+- 변경 파일(핵심)
+- `app/scripts/cleanup-legacy-site-setting.ts`
+- `app/package.json`
+- `docs/ops/search-termstat-migration.md`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint scripts/cleanup-legacy-site-setting.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/tsx scripts/cleanup-legacy-site-setting.ts` 통과 (`No legacy SiteSetting keys found.`)
+- `cd app && ./node_modules/.bin/tsx scripts/cleanup-legacy-site-setting.ts --apply` 통과 (`No legacy SiteSetting keys found.`)
+- 이슈/블로커
+- 로컬 DB 기준 삭제 대상 키가 없어 실제 삭제 카운트 검증은 불가(운영 반영 시 실제 count 확인 필요).
+- 결정 기록
+- 운영 반영의 재현성과 안전성을 위해 기본은 dry-run, 삭제는 `--apply` 명시 실행으로 강제.
+
 ### Cycle 1~20 (요약)
 - 완료 내용
 - 안정화(버그/타입) -> 피드/상세/관리자 UI 통일 -> 반응(좋아요/싫어요) -> 피드 단일 진입 구조 전환 완료.

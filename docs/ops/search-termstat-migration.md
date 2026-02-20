@@ -19,15 +19,22 @@
 - 코드 롤백 시에도 `SearchTermStat` 테이블은 유지해도 무방하다.
 - 데이터 손실 위험이 없으므로 우선 앱 코드만 롤백하고 DB 스키마는 유지한다.
 
-## 구형 데이터 정리(선택)
+## 구형 데이터 정리
 `SiteSetting`의 `popular_search_terms_v1` 키는 더 이상 사용되지 않는다.
-원하면 아래 SQL로 정리한다.
+운영 반영 시 아래 스크립트 기반으로 정리한다.
 
-```sql
-DELETE FROM "SiteSetting" WHERE key = 'popular_search_terms_v1';
+```bash
+cd /Users/alex/project/townpet2/app && pnpm db:cleanup:legacy-search-setting
+```
+
+실제 삭제 실행:
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm db:cleanup:legacy-search-setting -- --apply
 ```
 
 ## 점검 체크리스트
 - [ ] `pnpm db:migrate`가 성공한다.
 - [ ] 검색 API 호출 후 `SearchTermStat`에 upsert가 발생한다.
 - [ ] `/search` 페이지 인기 검색어가 정상 표시된다.
+- [ ] `pnpm db:cleanup:legacy-search-setting -- --apply` 실행 후 대상 키가 0건이다.
