@@ -33,10 +33,14 @@
 - `cd app && ./node_modules/.bin/eslint e2e/social-real-oauth-redirect.spec.ts` 통과
 - `cd app && ./node_modules/.bin/tsc --noEmit` 통과
 - `cd app && E2E_REAL_SOCIAL_OAUTH=1 ./node_modules/.bin/playwright test e2e/social-real-oauth-redirect.spec.ts --project=chromium --list` 통과 (2 tests 목록 확인)
+- `gh workflow run oauth-real-e2e.yml --repo answndud/townpet2` 실행
+- 실행 결과: `https://github.com/answndud/townpet2/actions/runs/22211885335` 실패 (시크릿 미설정)
 - 이슈/블로커
 - 실제 공급자 인증(카카오/네이버 계정 로그인 입력 단계)은 외부 콘솔/계정 상태에 의존하므로 기본 CI에서는 실행하지 않음.
+- 저장소 시크릿(`AUTH_SECRET or NEXTAUTH_SECRET`, `KAKAO_*`, `NAVER_*`) 미설정 시 `oauth-real-e2e`는 의도적으로 즉시 실패.
 - 결정 기록
 - 기본 품질게이트는 `social-dev` 경로로 유지하고, 실OAuth는 수동 워크플로우로 분리해 안정성과 운영 점검 요구를 동시에 만족.
+- 워크플로우 시크릿 검증을 보강해 `AUTH_SECRET/NEXTAUTH_SECRET` 중 하나만 있어도 통과하고, 누락 항목을 한 번에 모두 출력하도록 개선.
 
 ### 2026-02-20: Cycle 32 후속 완료 (구형 SiteSetting 검색 키 정리 자동화)
 - 완료 내용

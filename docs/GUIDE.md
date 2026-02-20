@@ -447,7 +447,7 @@ cd /Users/alex/project/townpet2/app && pnpm test:e2e:social-real-oauth
 ```
 
 필수 환경변수:
-- `AUTH_SECRET` 또는 `NEXTAUTH_SECRET`
+- `AUTH_SECRET` 또는 `NEXTAUTH_SECRET` (둘 중 하나 이상)
 - `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`
 - `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
 
@@ -455,8 +455,7 @@ GitHub Actions 수동 실행:
 - 워크플로우: `.github/workflows/oauth-real-e2e.yml`
 - 트리거: `workflow_dispatch`
 - 필요 repository secrets:
-  - `AUTH_SECRET`
-  - `NEXTAUTH_SECRET`
+  - `AUTH_SECRET` 또는 `NEXTAUTH_SECRET` (둘 중 하나 이상)
   - `KAKAO_CLIENT_ID`
   - `KAKAO_CLIENT_SECRET`
   - `NAVER_CLIENT_ID`
