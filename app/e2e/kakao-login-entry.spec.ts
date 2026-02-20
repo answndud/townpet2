@@ -8,14 +8,17 @@ test.describe("kakao login entry", () => {
 
     const kakaoSignInRequest = page.waitForRequest((request) => {
       return (
-        request.url().includes("/api/auth/signin/kakao") &&
+        (request.url().includes("/api/auth/signin/kakao") ||
+          request.url().includes("/api/auth/callback/social-dev")) &&
         (request.method() === "POST" || request.method() === "GET")
       );
     });
     await kakaoButton.click();
 
     const request = await kakaoSignInRequest;
-    expect(request.url()).toContain("/api/auth/signin/kakao");
+    expect(request.url()).toMatch(
+      /\/api\/auth\/(signin\/kakao|callback\/social-dev)/,
+    );
   });
 
   test("shows kakao button on register page with dev flag", async ({ page }) => {

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.PLAYWRIGHT_BASE_PORT ?? 3000);
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`;
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === "1";
 const webServerCommand =
   process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ??

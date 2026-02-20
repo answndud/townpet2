@@ -40,7 +40,7 @@ jobs:
       DATABASE_URL: postgresql://townpet:townpet@127.0.0.1:5432/townpet?schema=public
       AUTH_SECRET: ci-auth-secret
       NEXTAUTH_SECRET: ci-nextauth-secret
-      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXTAUTH_URL: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
