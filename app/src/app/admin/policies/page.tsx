@@ -4,11 +4,13 @@ import { UserRole } from "@prisma/client";
 
 import { ForbiddenKeywordPolicyForm } from "@/components/admin/forbidden-keyword-policy-form";
 import { GuestReadPolicyForm } from "@/components/admin/guest-read-policy-form";
+import { NewUserSafetyPolicyForm } from "@/components/admin/new-user-safety-policy-form";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { getCurrentUser } from "@/server/auth";
 import {
   getForbiddenKeywords,
   getGuestReadLoginRequiredPostTypes,
+  getNewUserSafetyPolicy,
 } from "@/server/queries/policy.queries";
 
 export default async function AdminPoliciesPage() {
@@ -36,9 +38,10 @@ export default async function AdminPoliciesPage() {
     );
   }
 
-  const [loginRequiredTypes, forbiddenKeywords] = await Promise.all([
+  const [loginRequiredTypes, forbiddenKeywords, newUserSafetyPolicy] = await Promise.all([
     getGuestReadLoginRequiredPostTypes(),
     getForbiddenKeywords(),
+    getNewUserSafetyPolicy(),
   ]);
 
   return (
@@ -110,6 +113,30 @@ export default async function AdminPoliciesPage() {
           </div>
           <div className="mt-4">
             <ForbiddenKeywordPolicyForm initialKeywords={forbiddenKeywords} />
+          </div>
+        </section>
+
+        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-[#153a6a]">신규 계정 안전 정책</h2>
+          <p className="mt-2 text-xs text-[#5a7398]">
+            신규 유저의 고위험 카테고리 작성 제한과 연락처 포함 콘텐츠 차단 시간을
+            운영에서 조정할 수 있습니다.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              카테고리 제한: 가입 후 {newUserSafetyPolicy.minAccountAgeHours}시간
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              연락처 차단: 가입 후 {newUserSafetyPolicy.contactBlockWindowHours}시간
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              제한 카테고리 {newUserSafetyPolicy.restrictedPostTypes.length}개
+            </span>
+          </div>
+          <div className="mt-4">
+            <NewUserSafetyPolicyForm
+              initialPolicy={newUserSafetyPolicy}
+            />
           </div>
         </section>
 

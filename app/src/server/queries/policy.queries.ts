@@ -1,6 +1,14 @@
 import { PostType } from "@prisma/client";
 
 import {
+  DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
+  DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
+  DEFAULT_NEW_USER_RESTRICTED_POST_TYPES,
+  NEW_USER_SAFETY_POLICY_KEY,
+  normalizeNewUserSafetyPolicy,
+  type NewUserSafetyPolicy,
+} from "@/lib/new-user-safety-policy";
+import {
   DEFAULT_FORBIDDEN_KEYWORDS,
   FORBIDDEN_KEYWORDS_POLICY_KEY,
   normalizeForbiddenKeywords,
@@ -120,6 +128,49 @@ export async function setForbiddenKeywords(keywords: string[]) {
     where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
     update: { value: normalized },
     create: { key: FORBIDDEN_KEYWORDS_POLICY_KEY, value: normalized },
+  });
+
+  return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
+}
+
+export async function getNewUserSafetyPolicy() {
+  const delegate = getSiteSettingDelegate();
+  if (!delegate) {
+    return normalizeNewUserSafetyPolicy(undefined, {
+      minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
+      restrictedPostTypes: [...DEFAULT_NEW_USER_RESTRICTED_POST_TYPES],
+      contactBlockWindowHours: DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
+    });
+  }
+
+  const setting = await delegate.findUnique({
+    where: { key: NEW_USER_SAFETY_POLICY_KEY },
+    select: { value: true },
+  });
+
+  return normalizeNewUserSafetyPolicy(setting?.value, {
+    minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
+    restrictedPostTypes: [...DEFAULT_NEW_USER_RESTRICTED_POST_TYPES],
+    contactBlockWindowHours: DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
+  });
+}
+
+export async function setNewUserSafetyPolicy(input: NewUserSafetyPolicy) {
+  const normalized = normalizeNewUserSafetyPolicy(input, {
+    minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
+    restrictedPostTypes: [...DEFAULT_NEW_USER_RESTRICTED_POST_TYPES],
+    contactBlockWindowHours: DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
+  });
+
+  const delegate = getSiteSettingDelegate();
+  if (!delegate) {
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
+
+  const setting = await delegate.upsert({
+    where: { key: NEW_USER_SAFETY_POLICY_KEY },
+    update: { value: normalized },
+    create: { key: NEW_USER_SAFETY_POLICY_KEY, value: normalized },
   });
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;

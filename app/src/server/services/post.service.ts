@@ -14,7 +14,10 @@ import {
   walkRouteSchema,
 } from "@/lib/validations/post";
 import { logger, serializeError } from "@/server/logger";
-import { getForbiddenKeywords } from "@/server/queries/policy.queries";
+import {
+  getForbiddenKeywords,
+  getNewUserSafetyPolicy,
+} from "@/server/queries/policy.queries";
 import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
 import { notifyReactionOnPost } from "@/server/services/notification.service";
 import { ServiceError } from "@/server/services/service-error";
@@ -201,7 +204,10 @@ export async function createPost({ authorId, input }: CreatePostParams) {
   };
   delete postData.imageUrls;
   const rawInput = input as Record<string, unknown>;
-  const forbiddenKeywords = await getForbiddenKeywords();
+  const [forbiddenKeywords, newUserSafetyPolicy] = await Promise.all([
+    getForbiddenKeywords(),
+    getNewUserSafetyPolicy(),
+  ]);
   const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
     `${postData.title}\n${postData.content}`,
     forbiddenKeywords,
@@ -228,6 +234,8 @@ export async function createPost({ authorId, input }: CreatePostParams) {
     role: author.role,
     accountCreatedAt: author.createdAt,
     postType: postData.type,
+    minAccountAgeHours: newUserSafetyPolicy.minAccountAgeHours,
+    restrictedTypes: newUserSafetyPolicy.restrictedPostTypes,
   });
   if (!writePolicy.allowed) {
     throw new ServiceError(
@@ -241,6 +249,7 @@ export async function createPost({ authorId, input }: CreatePostParams) {
     text: postData.content,
     role: author.role,
     accountCreatedAt: author.createdAt,
+    blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
   });
   if (contactPolicy.blocked) {
     throw new ServiceError(
@@ -511,10 +520,13 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
   const { imageUrls, ...postData } = parsed.data;
 
   if (postData.content !== undefined) {
-    const author = await prisma.user.findUnique({
-      where: { id: authorId },
-      select: { id: true, role: true, createdAt: true },
-    });
+    const [author, newUserSafetyPolicy] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: authorId },
+        select: { id: true, role: true, createdAt: true },
+      }),
+      getNewUserSafetyPolicy(),
+    ]);
     if (!author) {
       throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
     }
@@ -523,6 +535,7 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
       text: postData.content,
       role: author.role,
       accountCreatedAt: author.createdAt,
+      blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
     });
     if (contactPolicy.blocked) {
       throw new ServiceError(

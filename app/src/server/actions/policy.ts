@@ -6,6 +6,7 @@ import { requireModerator } from "@/server/auth";
 import {
   updateForbiddenKeywordPolicy,
   updateGuestReadPolicy,
+  updateNewUserSafetyPolicy,
 } from "@/server/services/policy.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -43,6 +44,27 @@ export async function updateForbiddenKeywordPolicyAction(
     await updateForbiddenKeywordPolicy({ input });
     revalidatePath("/feed");
     revalidatePath("/posts/[id]", "page");
+    revalidatePath("/admin/policies");
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return { ok: false, code: error.code, message: error.message };
+    }
+
+    return {
+      ok: false,
+      code: "INTERNAL_SERVER_ERROR",
+      message: "서버 오류가 발생했습니다.",
+    };
+  }
+}
+
+export async function updateNewUserSafetyPolicyAction(
+  input: unknown,
+): Promise<PolicyActionResult> {
+  try {
+    await requireModerator();
+    await updateNewUserSafetyPolicy({ input });
     revalidatePath("/admin/policies");
     return { ok: true };
   } catch (error) {
