@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import {
+  notificationFilterKindValues,
+  parseUnreadOnly,
+} from "@/lib/notification-filter";
 import { requireCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
@@ -12,6 +16,7 @@ import { ServiceError } from "@/server/services/service-error";
 const notificationListSchema = z.object({
   cursor: z.string().cuid().optional(),
   limit: z.coerce.number().int().min(1).max(40).default(20),
+  kind: z.enum(notificationFilterKindValues).default("ALL"),
 });
 
 export async function GET(request: NextRequest) {
@@ -31,6 +36,7 @@ export async function GET(request: NextRequest) {
     const parsed = notificationListSchema.safeParse({
       cursor: searchParams.get("cursor") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
+      kind: searchParams.get("kind") ?? undefined,
     });
 
     if (!parsed.success) {
@@ -40,10 +46,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const unreadOnly = parseUnreadOnly(searchParams.get("unreadOnly"));
+
     const { items, nextCursor } = await listNotificationsByUser({
       userId: user.id,
       limit: parsed.data.limit,
       cursor: parsed.data.cursor,
+      kind: parsed.data.kind,
+      unreadOnly,
     });
 
     return jsonOk({

@@ -4,6 +4,7 @@ import {
   Prisma,
 } from "@prisma/client";
 
+import type { NotificationFilterKind } from "@/lib/notification-filter";
 import { prisma } from "@/lib/prisma";
 import { logger, serializeError } from "@/server/logger";
 
@@ -11,6 +12,8 @@ type ListNotificationsByUserOptions = {
   userId: string;
   limit?: number;
   cursor?: string;
+  kind?: NotificationFilterKind;
+  unreadOnly?: boolean;
 };
 
 type CreateNotificationParams = {
@@ -88,6 +91,8 @@ export async function listNotificationsByUser({
   userId,
   limit = 20,
   cursor,
+  kind = "ALL",
+  unreadOnly = false,
 }: ListNotificationsByUserOptions): Promise<ListNotificationsByUserResult> {
   const delegate = getNotificationDelegate();
   if (!delegate) {
@@ -95,10 +100,23 @@ export async function listNotificationsByUser({
   }
 
   const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const typeFilter =
+    kind === "COMMENT"
+      ? [NotificationType.COMMENT_ON_POST, NotificationType.REPLY_TO_COMMENT]
+      : kind === "REACTION"
+        ? [NotificationType.REACTION_ON_POST]
+        : kind === "SYSTEM"
+          ? [NotificationType.SYSTEM]
+          : null;
+
   let items: NotificationListItem[];
   try {
     items = await delegate.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(unreadOnly ? { isRead: false } : {}),
+        ...(typeFilter ? { type: { in: typeFilter } } : {}),
+      },
       take: safeLimit + 1,
       ...(cursor
         ? {
