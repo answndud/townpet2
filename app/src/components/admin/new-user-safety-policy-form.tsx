@@ -67,6 +67,7 @@ export function NewUserSafetyPolicyForm({
         <label className="flex flex-col gap-1 text-xs text-[#355988]">
           <span className="font-semibold">고위험 카테고리 작성 제한 시간</span>
           <input
+            data-testid="new-user-policy-min-account-age-hours"
             type="number"
             min={0}
             max={24 * 30}
@@ -79,6 +80,7 @@ export function NewUserSafetyPolicyForm({
         <label className="flex flex-col gap-1 text-xs text-[#355988]">
           <span className="font-semibold">연락처 포함 글/댓글 차단 시간</span>
           <input
+            data-testid="new-user-policy-contact-block-window-hours"
             type="number"
             min={0}
             max={24 * 30}
@@ -105,6 +107,7 @@ export function NewUserSafetyPolicyForm({
               }`}
             >
               <input
+                data-testid={`new-user-policy-post-type-${type}`}
                 type="checkbox"
                 className="accent-[#3567b5]"
                 checked={restrictedPostTypes.includes(type)}
@@ -120,6 +123,7 @@ export function NewUserSafetyPolicyForm({
 
       <div className="flex flex-wrap items-center gap-2">
         <button
+          data-testid="new-user-policy-submit"
           type="button"
           onClick={handleSubmit}
           disabled={isPending}
@@ -129,7 +133,11 @@ export function NewUserSafetyPolicyForm({
         </button>
       </div>
 
-      {message ? <p className="text-xs text-emerald-700">{message}</p> : null}
+      {message ? (
+        <p data-testid="new-user-policy-success" className="text-xs text-emerald-700">
+          {message}
+        </p>
+      ) : null}
       {error ? <p className="text-xs text-rose-600">{error}</p> : null}
     </div>
   );

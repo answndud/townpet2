@@ -285,6 +285,20 @@ cd /Users/alex/project/townpet2/app && pnpm test:flow:new-user-policy
 - 기존 유저: 연락처 포함 댓글은 마스킹 후 저장
 - 테스트 종료 시 정책/데이터 자동 복구
 
+## 4-10. 관리자 정책 변경 UI E2E 점검 (복붙)
+
+관리자 정책 화면에서 신규 계정 안전 정책 입력값 변경/저장/새로고침 유지 흐름을 검증합니다.
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm test:e2e:admin-policies
+```
+
+검증 내용:
+- `/admin/policies` 접근
+- 신규 계정 안전 정책 입력값(시간/카테고리) 변경 후 저장
+- 성공 메시지 확인
+- 새로고침 후 값 유지 확인
+
 ## 4-9. 느린 로딩 skeleton 점검 (복붙)
 
 Cycle 22 잔여 항목(지연 응답 시 feed skeleton 표시) 자동 실행입니다.

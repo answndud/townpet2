@@ -13,7 +13,7 @@
 - Cycle 30: 품질게이트 + 런북/SLO 문서화 완료
 - Cycle 31: 알림 센터 커서/필터/E2E + 공개 프로필 활동 탭 커서 페이지네이션 완료
 - Cycle 32: 검색 로그 구형 fallback 제거 + 전환 가이드 문서화 완료
-- Cycle 33: 신규 계정 안전 정책 관리자 설정화 + DB E2E 플로우 완료
+- Cycle 33: 신규 계정 안전 정책 관리자 설정화 + DB/UI E2E 플로우 완료
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
@@ -823,6 +823,28 @@
 - 결정 기록
 - OAuth/브라우저 제약과 무관하게 정책 회귀를 잡기 위해 우선 DB 플로우 E2E를 고정하고, UI E2E는 후속 단계로 분리.
 
+### 2026-02-20: Cycle 33 후속 완료 (관리자 정책 변경 UI Playwright E2E)
+- 완료 내용
+- Playwright 시나리오 `admin-new-user-policy.spec.ts`를 추가해 관리자 정책 화면의 신규 계정 안전 정책 변경 흐름을 자동 검증.
+- 신규 계정 안전 정책 폼에 `data-testid`를 추가해 입력/체크박스/저장 버튼/성공 메시지 식별자를 고정.
+- 테스트 전 관리자 계정(`admin.platform@townpet.dev`)을 강제 준비하고 baseline 정책을 세팅해 시나리오 안정성을 확보.
+- 테스트 후 원래 정책을 복구하도록 구성.
+- 실행 스크립트 `test:e2e:admin-policies`를 추가하고 GUIDE에 실행법을 문서화.
+- 변경 파일(핵심)
+- `app/e2e/admin-new-user-policy.spec.ts`
+- `app/src/components/admin/new-user-safety-policy-form.tsx`
+- `app/package.json`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/components/admin/new-user-safety-policy-form.tsx e2e/admin-new-user-policy.spec.ts` 통과
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- `cd app && ./node_modules/.bin/playwright test e2e/admin-new-user-policy.spec.ts --list` 통과 (1 test 인식)
+- 이슈/블로커
+- 로컬 Chromium 권한 제약으로 브라우저 실실행은 CI/staging에서 검증 필요.
+- 결정 기록
+- 관리자 정책은 운영 품질에 직결되므로 DB 플로우 테스트에 더해 UI 저장 경로까지 별도 E2E로 고정해 회귀 감지 범위를 확장.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)
@@ -836,7 +858,6 @@
 1. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성 (현재 blocked)
 2. 환경 블로커 해소: Sentry 실수신 검증(DSN/프로젝트)
 3. Cycle 32 후속: 구형 `SiteSetting(popular_search_terms_v1)` 키 정리 실행
-4. Cycle 33 후속: 관리자 정책 변경 UI Playwright E2E
 
 ## 참고 문서
 - 운영/실행 가이드: `docs/GUIDE.md`
