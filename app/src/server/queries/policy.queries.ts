@@ -1,4 +1,4 @@
-import { PostType } from "@prisma/client";
+import { PostType, Prisma } from "@prisma/client";
 
 import {
   DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
@@ -19,7 +19,7 @@ import {
   normalizeLoginRequiredPostTypes,
 } from "@/lib/post-access";
 import { prisma } from "@/lib/prisma";
-import { logger } from "@/server/logger";
+import { logger, serializeError } from "@/server/logger";
 
 type SiteSettingRecord = {
   key: string;
@@ -43,6 +43,25 @@ type SetGuestReadPolicyResult =
   | { ok: false; reason: "SCHEMA_SYNC_REQUIRED" };
 
 let missingDelegateWarned = false;
+let missingTableWarned = false;
+
+function isSiteSettingTableMissingError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2021"
+  );
+}
+
+function warnMissingSiteSettingTable(error: unknown) {
+  if (missingTableWarned || process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  missingTableWarned = true;
+  logger.warn("SiteSetting 테이블이 없어 기본 정책 fallback을 사용합니다.", {
+    error: serializeError(error),
+  });
+}
 
 function getSiteSettingDelegate() {
   const delegate = (
@@ -63,10 +82,19 @@ export async function getGuestReadLoginRequiredPostTypes() {
     return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
   }
 
-  const setting = await delegate.findUnique({
-    where: { key: GUEST_READ_POLICY_KEY },
-    select: { value: true },
-  });
+  let setting: { value: unknown } | null = null;
+  try {
+    setting = await delegate.findUnique({
+      where: { key: GUEST_READ_POLICY_KEY },
+      select: { value: true },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
+  }
 
   return normalizeLoginRequiredPostTypes(
     setting?.value,
@@ -86,11 +114,20 @@ export async function setGuestReadLoginRequiredPostTypes(types: PostType[]) {
     return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
   }
 
-  const setting = await delegate.upsert({
-    where: { key: GUEST_READ_POLICY_KEY },
-    update: { value: normalized },
-    create: { key: GUEST_READ_POLICY_KEY, value: normalized },
-  });
+  let setting: SiteSettingRecord;
+  try {
+    setting = await delegate.upsert({
+      where: { key: GUEST_READ_POLICY_KEY },
+      update: { value: normalized },
+      create: { key: GUEST_READ_POLICY_KEY, value: normalized },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
 }
@@ -101,10 +138,19 @@ export async function getForbiddenKeywords() {
     return [...DEFAULT_FORBIDDEN_KEYWORDS];
   }
 
-  const setting = await delegate.findUnique({
-    where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
-    select: { value: true },
-  });
+  let setting: { value: unknown } | null = null;
+  try {
+    setting = await delegate.findUnique({
+      where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
+      select: { value: true },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return [...DEFAULT_FORBIDDEN_KEYWORDS];
+  }
 
   return normalizeForbiddenKeywords(
     setting?.value,
@@ -124,11 +170,20 @@ export async function setForbiddenKeywords(keywords: string[]) {
     return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
   }
 
-  const setting = await delegate.upsert({
-    where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
-    update: { value: normalized },
-    create: { key: FORBIDDEN_KEYWORDS_POLICY_KEY, value: normalized },
-  });
+  let setting: SiteSettingRecord;
+  try {
+    setting = await delegate.upsert({
+      where: { key: FORBIDDEN_KEYWORDS_POLICY_KEY },
+      update: { value: normalized },
+      create: { key: FORBIDDEN_KEYWORDS_POLICY_KEY, value: normalized },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
 }
@@ -143,10 +198,23 @@ export async function getNewUserSafetyPolicy() {
     });
   }
 
-  const setting = await delegate.findUnique({
-    where: { key: NEW_USER_SAFETY_POLICY_KEY },
-    select: { value: true },
-  });
+  let setting: { value: unknown } | null = null;
+  try {
+    setting = await delegate.findUnique({
+      where: { key: NEW_USER_SAFETY_POLICY_KEY },
+      select: { value: true },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return normalizeNewUserSafetyPolicy(undefined, {
+      minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
+      restrictedPostTypes: [...DEFAULT_NEW_USER_RESTRICTED_POST_TYPES],
+      contactBlockWindowHours: DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
+    });
+  }
 
   return normalizeNewUserSafetyPolicy(setting?.value, {
     minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
@@ -167,11 +235,20 @@ export async function setNewUserSafetyPolicy(input: NewUserSafetyPolicy) {
     return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
   }
 
-  const setting = await delegate.upsert({
-    where: { key: NEW_USER_SAFETY_POLICY_KEY },
-    update: { value: normalized },
-    create: { key: NEW_USER_SAFETY_POLICY_KEY, value: normalized },
-  });
+  let setting: SiteSettingRecord;
+  try {
+    setting = await delegate.upsert({
+      where: { key: NEW_USER_SAFETY_POLICY_KEY },
+      update: { value: normalized },
+      create: { key: NEW_USER_SAFETY_POLICY_KEY, value: normalized },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
 }
