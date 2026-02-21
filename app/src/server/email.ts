@@ -1,6 +1,41 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { runtimeEnv } from "@/lib/env";
+import { logger } from "@/server/logger";
+
+let hasWarnedMissingApiKey = false;
+
+function getResendClient() {
+  if (!runtimeEnv.resendApiKey) {
+    if (!hasWarnedMissingApiKey) {
+      hasWarnedMissingApiKey = true;
+      logger.warn("RESEND_API_KEY가 없어 이메일 전송을 건너뜁니다.");
+    }
+    return null;
+  }
+
+  return new Resend(runtimeEnv.resendApiKey);
+}
+
+async function sendEmail(params: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}) {
+  const resend = getResendClient();
+  if (!resend) {
+    return;
+  }
+
+  await resend.emails.send({
+    from: "TownPet <no-reply@townpet.dev>",
+    to: params.to,
+    subject: params.subject,
+    text: params.text,
+    html: params.html,
+  });
+}
 
 const appBaseUrl =
   process.env.APP_BASE_URL ??
@@ -40,13 +75,7 @@ export async function sendPasswordResetEmail({
     </div>
   `;
 
-  await resend.emails.send({
-    from: "TownPet <no-reply@townpet.dev>",
-    to: email,
-    subject,
-    text,
-    html,
-  });
+  await sendEmail({ to: email, subject, text, html });
 }
 
 export async function sendVerificationEmail({ email, token }: EmailVerificationParams) {
@@ -68,13 +97,7 @@ export async function sendVerificationEmail({ email, token }: EmailVerificationP
     </div>
   `;
 
-  await resend.emails.send({
-    from: "TownPet <no-reply@townpet.dev>",
-    to: email,
-    subject,
-    text,
-    html,
-  });
+  await sendEmail({ to: email, subject, text, html });
 }
 
 export async function sendWelcomeEmail(email: string) {
@@ -89,11 +112,5 @@ export async function sendWelcomeEmail(email: string) {
     </div>
   `;
 
-  await resend.emails.send({
-    from: "TownPet <no-reply@townpet.dev>",
-    to: email,
-    subject,
-    text,
-    html,
-  });
+  await sendEmail({ to: email, subject, text, html });
 }

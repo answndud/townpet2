@@ -698,6 +698,39 @@ cd /Users/alex/project/townpet2 && docker compose down
 - 네이버 로그인 사용 시 추가 환경변수: `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
 - 개발용 소셜 로그인(`ENABLE_SOCIAL_DEV_LOGIN`)은 운영 환경에서 사용 금지
 
+## 7-1. 배포 필수 환경변수 발급/입력 메모 (까먹지 않게)
+
+Vercel 배포 시 최소 필수값:
+- `DATABASE_URL`
+- `AUTH_SECRET` (또는 `NEXTAUTH_SECRET`)
+- `APP_BASE_URL`
+- `NEXTAUTH_URL`
+
+입력 위치:
+- Vercel -> Project -> `Settings` -> `Environment Variables`
+
+실제 발급/입력 방식(고정 메모):
+- `DATABASE_URL`
+  - `neon.tech`에서 발급
+  - Connection string을 `Prisma` 형식으로 선택
+  - 복사 후 Vercel `DATABASE_URL`에 그대로 붙여넣기
+- `AUTH_SECRET`
+  - 로컬 터미널에서 생성: `openssl rand -base64 32`
+  - 출력 문자열을 Vercel `AUTH_SECRET`에 붙여넣기
+- `APP_BASE_URL`
+  - 실제 배포 도메인 사용 (`https://<project>.vercel.app` 또는 커스텀 도메인)
+- `NEXTAUTH_URL`
+  - `APP_BASE_URL`과 동일값으로 입력
+
+주의:
+- `DATABASE_URL` 오타 방지 (`DATABASE_URE` 아님)
+- 환경변수 변경 후 반드시 Redeploy
+
+참고 (`RESEND_API_KEY`):
+- 현재 코드는 `RESEND_API_KEY`가 없어도 빌드가 실패하지 않도록 되어 있습니다.
+- 값이 없으면 이메일 전송(인증/비밀번호 재설정)은 건너뜁니다.
+- 운영에서 이메일 기능을 사용할 경우에만 Resend 키를 추가하세요.
+
 ## 8. 품질게이트(CI)
 
 워크플로우:
@@ -726,6 +759,7 @@ pnpm test:e2e:smoke
 운영 기준 문서:
 - 장애 대응 런북: `docs/ops/incident-runbook.md`
 - SLO/알람 기준: `docs/ops/slo-alerts.md`
+- Vercel/OAuth 최초 연동: `docs/ops/vercel-oauth-bootstrap-guide.md`
 
 최소 점검 루프:
 1. 일간: `GET /api/health` + 5xx 비율 확인
