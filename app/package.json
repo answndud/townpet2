@@ -25,6 +25,8 @@
     "db:seed:passwords": "tsx scripts/seed-passwords.ts",
     "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
     "db:cleanup:legacy-search-setting": "tsx scripts/cleanup-legacy-site-setting.ts",
+    "ops:check:health": "tsx scripts/check-health-endpoint.ts",
+    "ops:check:sentry": "tsx scripts/check-sentry-ingestion.ts",
     "search:check:cases": "tsx scripts/check-search-cases.ts",
     "test:flow:notification-comment": "tsx scripts/e2e-notification-comment-flow.ts",
     "test:flow:new-user-policy": "tsx scripts/e2e-new-user-safety-policy-flow.ts",

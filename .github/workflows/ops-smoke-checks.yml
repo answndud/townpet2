@@ -1,0 +1,70 @@
+name: ops-smoke-checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_base_url:
+        description: "Deployment base URL (example: https://townpet.example.com)"
+        required: true
+        type: string
+      verify_sentry:
+        description: "Run Sentry ingestion verification"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    env:
+      OPS_BASE_URL: ${{ inputs.target_base_url }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG_SLUG: ${{ secrets.SENTRY_ORG_SLUG }}
+      SENTRY_PROJECT_SLUG: ${{ secrets.SENTRY_PROJECT_SLUG }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check deployment health endpoint
+        run: pnpm ops:check:health
+
+      - name: Validate Sentry secrets
+        if: ${{ inputs.verify_sentry }}
+        run: |
+          missing=()
+          required=(SENTRY_DSN SENTRY_AUTH_TOKEN SENTRY_ORG_SLUG SENTRY_PROJECT_SLUG)
+          for key in "${required[@]}"; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            for key in "${missing[@]}"; do
+              echo "::error::Missing required secret: $key"
+            done
+            exit 1
+          fi
+
+      - name: Check Sentry ingestion
+        if: ${{ inputs.verify_sentry }}
+        run: pnpm ops:check:sentry
