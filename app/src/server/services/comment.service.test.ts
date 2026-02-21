@@ -283,7 +283,7 @@ describe("comment service notification flow", () => {
     mockPrisma.user.findUnique.mockResolvedValue({
       id: "actor-1",
       role: UserRole.USER,
-      createdAt: new Date("2026-02-19T10:00:00.000Z"),
+      createdAt: new Date(Date.now() - 60 * 60 * 1000),
     });
 
     await expect(
