@@ -18,6 +18,44 @@
 
 ## 실행 로그
 
+### 2026-02-21: 배포/OAuth 운영 반영 + 가이드 최종 정리
+- 완료 내용
+- Vercel 배포 오류(Prisma generate 누락, 필수 env 누락, RESEND_API_KEY 누락, SiteSetting 테이블 미존재) 대응을 통해 운영 배포를 안정화.
+- OAuth/GitHub Secrets를 반영하고 실워크플로우 재실행으로 외부 의존 항목을 재검증.
+- `docs/GUIDE.md`에 Vercel/Kakao/Naver/GitHub Secrets 설정 절차와 "데이터를 어디에서 보고 관리하는지" 운영 가이드를 통합 문서화.
+- 실행 결과
+- `oauth-real-e2e` 성공: `https://github.com/answndud/townpet2/actions/runs/22251215409`
+- `ops-smoke-checks` 성공(health): `https://github.com/answndud/townpet2/actions/runs/22251318982`
+- `ops-smoke-checks` Sentry 검증 시도 실패(시크릿 미설정): `https://github.com/answndud/townpet2/actions/runs/22251292806`
+- 현재 상태
+- 배포 health/OAuth 리다이렉트 검증은 PASS.
+- Sentry 실수신 검증은 운영 선택에 따라 보류(시크릿 미설정 상태).
+
+### 2026-02-21: Vercel/OAuth 외부 연동 상세 가이드 문서화
+- 완료 내용
+- Vercel 계정 생성부터 배포 URL 확정, 카카오/네이버 OAuth 앱 생성/콜백 등록, GitHub Actions 시크릿 구성, 워크플로우 실행 순서를 한 문서로 통합.
+- `oauth-real-e2e`, `ops-smoke-checks` 실패 패턴별 즉시 진단표와 최종 체크리스트를 추가.
+- 변경 파일(핵심)
+- `docs/ops/vercel-oauth-bootstrap-guide.md`
+- `docs/GUIDE.md`
+- 이슈/블로커
+- 외부 콘솔 계정/권한 및 실제 운영 도메인 확정은 문서화 범위를 넘어 운영 입력값이 필요.
+
+### 2026-02-21: 환경 의존 항목 실행 시도 (실패 원인 확정)
+- 완료 내용
+- `oauth-real-e2e` 워크플로우를 재실행해 현재 실패 원인을 재확인.
+- `ops-smoke-checks` 워크플로우를 `target_base_url=https://townpet2.vercel.app`, `verify_sentry=false`로 실행해 배포 URL 유효성 점검.
+- 실행 결과
+- `oauth-real-e2e`: `https://github.com/answndud/townpet2/actions/runs/22250009041` 실패
+  - 누락 시크릿: `AUTH_SECRET or NEXTAUTH_SECRET`, `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`, `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
+- `ops-smoke-checks`: `https://github.com/answndud/townpet2/actions/runs/22250010405` 실패
+  - 원인: 입력한 URL(`https://townpet2.vercel.app`)이 Vercel 기준 `deployment not found`(HTTP 404)
+- 이슈/블로커
+- 실배포 URL 미확정
+- repository secrets 미설정
+- 결정 기록
+- 환경 의존 블로커는 코드 변경보다 운영 입력값(배포 URL, GitHub Secrets) 확정이 선행되어야 해소 가능.
+
 ### 2026-02-21: Cycle 35 완료 (배포 health + Sentry 실수신 스모크 자동화)
 - 완료 내용
 - 배포 URL만 주입하면 `/api/health` 응답(HTTP 200 + `status: ok`)을 검증하는 스크립트(`ops:check:health`)를 추가.

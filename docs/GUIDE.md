@@ -765,3 +765,148 @@ pnpm test:e2e:smoke
 1. 일간: `GET /api/health` + 5xx 비율 확인
 2. 주간: p95 지연시간/에러 버짓 소진율 리뷰
 3. 장애 발생 시: 런북 3장(즉시 대응 체크리스트)부터 실행
+
+## 10. Vercel + Kakao + Naver + GitHub Secrets 최종 점검 가이드
+
+이 섹션은 실제 운영 연결 시 "무엇을 어디에 넣는지"를 한 번에 확인하기 위한 체크리스트입니다.
+
+### 10-1) Vercel 프로젝트 설정
+
+위치:
+- Vercel -> Project -> `Settings`
+
+핵심:
+- `Root Directory`: `app`
+- `Build Command` 권장: `pnpm prisma generate && pnpm build`
+
+DB 테이블이 비어 있어 1회 초기화가 필요한 경우(임시):
+- `pnpm prisma generate && pnpm prisma db push && pnpm build`
+- 배포 성공 후에는 다시 권장 빌드 명령으로 되돌리고 재배포
+
+### 10-2) Vercel 환경변수
+
+위치:
+- Vercel -> Project -> `Settings` -> `Environment Variables`
+
+필수:
+- `DATABASE_URL` (Neon `Prisma` 형식으로 발급/복사)
+- `AUTH_SECRET` (또는 `NEXTAUTH_SECRET`)
+- `APP_BASE_URL`
+- `NEXTAUTH_URL` (`APP_BASE_URL`과 동일값 권장)
+
+OAuth 사용 시 추가:
+- `KAKAO_CLIENT_ID`
+- `KAKAO_CLIENT_SECRET`
+- `NAVER_CLIENT_ID`
+- `NAVER_CLIENT_SECRET`
+
+선택:
+- `RESEND_API_KEY` (없어도 빌드는 통과, 이메일 전송만 스킵)
+
+### 10-3) 카카오 디벨로퍼스 설정
+
+1. `제품 설정` -> `카카오 로그인` 사용 설정 ON
+2. Redirect URI 등록:
+- `https://<운영도메인>/api/auth/callback/kakao`
+3. `KAKAO_CLIENT_ID`:
+- `앱` -> `플랫폼 키` -> `REST API 키`
+4. `KAKAO_CLIENT_SECRET`:
+- `앱` -> `플랫폼 키` -> `REST API 키` -> `클라이언트 시크릿` 생성/복사
+
+주의:
+- 배포별 프리뷰 도메인(`...-git-...vercel.app`) 대신 고정 운영 도메인 사용
+
+### 10-4) 네이버 개발자센터 설정
+
+1. 네이버 로그인 API 사용 설정
+2. 서비스 URL:
+- `https://<운영도메인>`
+3. Callback URL:
+- `https://<운영도메인>/api/auth/callback/naver`
+4. 발급값:
+- `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
+
+### 10-5) GitHub Actions Secrets 생성
+
+위치:
+- GitHub repo -> `Settings` -> `Secrets and variables` -> `Actions` -> `New repository secret`
+
+`oauth-real-e2e` 필수:
+- `AUTH_SECRET` (또는 `NEXTAUTH_SECRET`)
+- `KAKAO_CLIENT_ID`
+- `KAKAO_CLIENT_SECRET`
+- `NAVER_CLIENT_ID`
+- `NAVER_CLIENT_SECRET`
+
+`ops-smoke-checks`에서 Sentry 실수신까지 검증할 때만 필요:
+- `SENTRY_DSN`
+- `SENTRY_AUTH_TOKEN`
+- `SENTRY_ORG_SLUG`
+- `SENTRY_PROJECT_SLUG`
+
+주의:
+- GitHub Secrets 값은 저장 후 원문 재조회가 불가하므로 원본은 별도 비밀번호 관리자에 보관
+- Vercel env와 GitHub secrets는 별개 저장소이므로 둘 다 입력해야 워크플로우와 런타임이 함께 동작
+
+### 10-6) 워크플로우 실행 기준
+
+- `oauth-real-e2e`: OAuth secret 검증 + 공급자 리다이렉트 스모크
+- `ops-smoke-checks`:
+  - `target_base_url=https://<운영도메인>`
+  - Sentry 검증이 필요 없으면 `Run Sentry ingestion verification` 해제해도 health 체크는 통과 가능
+
+## 11. 회원/게시글/이미지 정보는 어디서 보고 관리하나요?
+
+핵심 정리:
+- Vercel은 배포/로그/환경변수 관리 도구
+- 회원/게시글 같은 데이터 관리는 앱 관리자 화면 + DB 콘솔(Neon)에서 수행
+
+### 11-1) Vercel에서 가능한 것
+
+- 배포 성공/실패, 빌드 로그 확인
+- Function/Runtime 에러 로그 확인
+- 도메인/환경변수 관리
+
+### 11-2) 앱 관리자 화면에서 가능한 것
+
+- 신고/제재 관리: `/admin/reports`
+- 인증 감사 로그: `/admin/auth-audits`
+- 정책 관리: `/admin/policies`
+
+### 11-3) DB(Neon)에서 가능한 것
+
+- 회원/게시글/이미지 원본 데이터 조회
+- 필요 시 SQL로 수정/삭제 가능(운영 주의)
+
+예시 조회 쿼리(Neon SQL Editor):
+
+```sql
+SELECT id, email, role, "createdAt"
+FROM "User"
+ORDER BY "createdAt" DESC
+LIMIT 50;
+```
+
+```sql
+SELECT p.id, p.title, p."authorId", p."createdAt", p.status
+FROM "Post" p
+ORDER BY p."createdAt" DESC
+LIMIT 50;
+```
+
+```sql
+SELECT pi."postId", pi.url, pi."createdAt"
+FROM "PostImage" pi
+ORDER BY pi."createdAt" DESC
+LIMIT 50;
+```
+
+중요:
+- 비밀번호는 평문 조회 불가(해시만 저장)
+- 비밀번호 확인 대신 재설정 플로우로만 처리
+
+### 11-4) 이미지 업로드 저장 위치
+
+- 현재 구현은 서버 파일시스템(`public/uploads`) 기반
+- 로컬 개발: `app/public/uploads`
+- Vercel 운영: 파일 영속성/인스턴스 특성상 외부 스토리지(S3/R2/Blob) 전환 권장

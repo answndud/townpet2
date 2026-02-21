@@ -15,10 +15,10 @@
 
 ## 현재 우선순위
 1. Cycle 23 잔여(외부 의존): 카카오/네이버 실계정 로그인 -> 온보딩 -> 피드 진입 E2E
-2. Blocked 해소: Sentry 실수신/배포 health 최종 검증
-3. 운영 반영: `db:cleanup:legacy-search-setting -- --apply` 실행/결과 기록
-4. `oauth-real-e2e` 워크플로우를 실시크릿으로 1회 실행해 PASS 기록
-5. `ops-smoke-checks` 워크플로우를 실배포 URL + Sentry 시크릿으로 1회 실행해 PASS 기록
+2. Blocked 해소: Sentry 실수신 최종 검증
+3. 운영 문서 유지: Vercel/OAuth/Secrets/데이터 관리 가이드 최신 상태 유지
+4. `oauth-real-e2e` 워크플로우 실시크릿 1회 PASS 기록 완료
+5. `ops-smoke-checks` 워크플로우 실배포 URL health PASS 기록 완료 (Sentry 검증은 선택)
 
 ## Active Plan
 
@@ -128,4 +128,3 @@
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
 | Sentry 실수신 검증(의도적 에러) | Codex | P3 | `blocked` | 실제 Sentry 프로젝트에서 이벤트 수신 확인 | DSN/프로젝트 설정 |
-| 배포 환경 health endpoint 최종 검증 | Codex | P3 | `blocked` | prod/staging에서 200 확인 | 배포 환경 |

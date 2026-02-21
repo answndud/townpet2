@@ -201,3 +201,18 @@ Sentry 검증 실패
 - [ ] GitHub Secrets에 OAuth/Sentry 키 반영 완료
 - [ ] `oauth-real-e2e` PASS run URL 확보
 - [ ] `ops-smoke-checks` PASS run URL 확보
+
+---
+
+## 10) 운영 데이터 확인/관리 위치
+
+- Vercel: 배포 상태/빌드 로그/런타임 로그/환경변수 관리
+- 앱 관리자 화면:
+  - `/admin/reports` 신고/제재
+  - `/admin/auth-audits` 인증 감사로그
+  - `/admin/policies` 정책값
+- DB(Neon): 회원/게시글/이미지 원본 데이터 조회 및 SQL 관리
+
+중요:
+- 비밀번호는 평문 조회 불가(해시만 저장)
+- 운영 데이터 관리 상세는 `docs/GUIDE.md`의 11번 섹션 참고
