@@ -18,6 +18,49 @@
 
 ## 실행 로그
 
+### 2026-02-21: Cycle 35 완료 (배포 health + Sentry 실수신 스모크 자동화)
+- 완료 내용
+- 배포 URL만 주입하면 `/api/health` 응답(HTTP 200 + `status: ok`)을 검증하는 스크립트(`ops:check:health`)를 추가.
+- Sentry 테스트 이벤트를 전송하고 Sentry REST API에서 같은 `eventId` 조회 성공까지 확인하는 스크립트(`ops:check:sentry`)를 추가.
+- GitHub Actions 수동 워크플로우(`ops-smoke-checks`)를 추가해 배포 헬스체크와 Sentry 실수신 검증을 one-shot으로 실행 가능하게 구성.
+- 운영 가이드(`docs/GUIDE.md`)에 로컬 실행법/워크플로우 입력값/필요 시크릿을 문서화.
+- 변경 파일(핵심)
+- `app/scripts/check-health-endpoint.ts`
+- `app/scripts/check-sentry-ingestion.ts`
+- `app/package.json`
+- `.github/workflows/ops-smoke-checks.yml`
+- `docs/GUIDE.md`
+- `PLAN.md`
+- 검증 결과
+- `cd app && pnpm lint scripts/check-health-endpoint.ts scripts/check-sentry-ingestion.ts` 통과
+- `cd app && pnpm typecheck` 통과
+- 이슈/블로커
+- 실배포 URL/Sentry 시크릿이 없는 로컬 환경에서는 실수신 PASS를 확정할 수 없으므로, `ops-smoke-checks`를 repository secrets와 함께 1회 실행해 최종 PASS 기록이 필요.
+- 결정 기록
+- 환경 의존(배포 URL, Sentry 권한 토큰) 항목은 수동 절차보다 재실행 가능한 스크립트/워크플로우로 고정해 운영 점검 누락 가능성을 낮춤.
+
+### 2026-02-20: Cycle 34 완료 (rate limit 스푸핑/윈도우 정책 하드닝)
+- 완료 내용
+- `GET /api/posts`에서 `x-user-id` 헤더를 rate-limit key로 신뢰하던 경로를 제거하고, 인증 사용자는 세션 user id/비로그인은 client IP만 사용하도록 정리.
+- Upstash rate-limit 알고리즘을 `INCR + PEXPIRE(매요청)`에서 `SET NX PX + INCR` 고정 윈도우 방식으로 변경.
+- TTL이 없는 레거시 키(`PTTL < 0`)를 감지하면 `PEXPIRE`로 TTL을 복구하도록 보강.
+- CORS 허용 헤더에서 `x-user-id`를 제거해 클라이언트 임의 헤더 의존 경로를 축소.
+- Upstash 경로 단위 테스트(고정 윈도우/TTL 복구)를 추가해 회귀를 방지.
+- 변경 파일(핵심)
+- `app/src/app/api/posts/route.ts`
+- `app/src/server/rate-limit.ts`
+- `app/src/server/rate-limit.test.ts`
+- `app/middleware.ts`
+- `PLAN.md`
+- 검증 결과
+- `cd app && ./node_modules/.bin/eslint src/app/api/posts/route.ts src/server/rate-limit.ts src/server/rate-limit.test.ts ../app/middleware.ts` 통과
+- `cd app && ./node_modules/.bin/vitest run src/server/rate-limit.test.ts` 통과 (4 tests)
+- `cd app && ./node_modules/.bin/tsc --noEmit` 통과
+- 이슈/블로커
+- Upstash 실서버 대상으로의 통합 검증은 로컬 시크릿/네트워크 제약으로 미실시(단위 테스트로 대체).
+- 결정 기록
+- 피드 조회 rate-limit key는 서버가 검증한 정체성(세션)과 네트워크 정보(IP)만 사용하고, 클라이언트 제출 헤더는 신뢰하지 않음.
+
 ### 2026-02-20: Cycle 23 후속 (실OAuth 리다이렉트 스모크 환경 정비)
 - 완료 내용
 - 실OAuth(카카오/네이버) 리다이렉트 스모크 E2E를 추가해, 테스트 앱 시크릿이 있을 때 공급자 호스트 이동까지 자동 검증 가능하도록 구성.

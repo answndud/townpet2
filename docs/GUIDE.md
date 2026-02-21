@@ -26,8 +26,14 @@ cd "$TOWNPET_HOME/app" && ./node_modules/.bin/tsx scripts/seed-reports.ts
 
 ## 2. 개발 서버 실행 (본인 새 터미널)
 
-아래 한 줄을 그대로 실행하세요.  
-(`Prisma Client`를 먼저 갱신해서 `Unknown field ...` 오류를 예방합니다)
+권장 실행 방법은 `pnpm dev` 입니다.  
+이 프로젝트는 `dev` 스크립트에 `prisma generate`가 포함되어 있어 Prisma Client 누락 오류를 예방합니다.
+
+```bash
+cd /Users/alex/project/townpet2/app && pnpm dev
+```
+
+포트를 고정해서 실행해야 할 때만 아래 대안을 사용하세요.
 
 ```bash
 cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/next dev -p 3000
@@ -55,7 +61,8 @@ cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./
 
 그 다음 개발 서버를 완전히 재시작하세요.
 - 기존 서버 종료: `Ctrl + C`
-- 재실행: `cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/next dev -p 3000`
+- 재실행(권장): `cd /Users/alex/project/townpet2/app && pnpm dev`
+- 포트 고정 필요 시: `cd /Users/alex/project/townpet2/app && ./node_modules/.bin/prisma generate && ./node_modules/.bin/next dev -p 3000`
 
 ### 3-1-2) `Cannot read properties of undefined (reading 'findUnique')` 에러가 날 때
 
@@ -460,6 +467,36 @@ GitHub Actions 수동 실행:
   - `KAKAO_CLIENT_SECRET`
   - `NAVER_CLIENT_ID`
   - `NAVER_CLIENT_SECRET`
+
+## 4-11C. 배포 Health + Sentry 실수신 스모크
+
+목적:
+- 배포 환경에서 `/api/health` 200 + `status: "ok"`를 자동 점검
+- Sentry 이벤트가 실제 프로젝트에 수신되는지 자동 확인
+
+로컬 실행 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2/app && OPS_BASE_URL="https://<배포도메인>" pnpm ops:check:health
+```
+
+Sentry 실수신까지 포함한 로컬 실행 (복붙):
+
+```bash
+cd /Users/alex/project/townpet2/app && SENTRY_DSN="https://<publicKey>@o0.ingest.sentry.io/<projectId>" SENTRY_AUTH_TOKEN="<token>" SENTRY_ORG_SLUG="<org>" SENTRY_PROJECT_SLUG="<project>" pnpm ops:check:sentry
+```
+
+GitHub Actions 수동 실행:
+- 워크플로우: `.github/workflows/ops-smoke-checks.yml`
+- 트리거: `workflow_dispatch`
+- 입력값:
+  - `target_base_url`: 점검할 배포 URL
+  - `verify_sentry`: `true`면 Sentry 실수신까지 점검
+- 필요 repository secrets(`verify_sentry=true`일 때):
+  - `SENTRY_DSN`
+  - `SENTRY_AUTH_TOKEN`
+  - `SENTRY_ORG_SLUG`
+  - `SENTRY_PROJECT_SLUG`
 
 ## 4-12. 신규 계정 고위험 카테고리 작성 제한
 

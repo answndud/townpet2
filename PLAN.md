@@ -18,6 +18,7 @@
 2. Blocked 해소: Sentry 실수신/배포 health 최종 검증
 3. 운영 반영: `db:cleanup:legacy-search-setting -- --apply` 실행/결과 기록
 4. `oauth-real-e2e` 워크플로우를 실시크릿으로 1회 실행해 PASS 기록
+5. `ops-smoke-checks` 워크플로우를 실배포 URL + Sentry 시크릿으로 1회 실행해 PASS 기록
 
 ## Active Plan
 
@@ -109,6 +110,19 @@
 | 신규 계정 안전 정책(카테고리/연락처 제한) 관리자 설정화 | Codex | P2 | `done` | 하드코딩된 24h 정책을 관리자 화면에서 조정하고 게시글/댓글 서비스에 즉시 반영 | SiteSetting 정책 저장 |
 | 신규 계정 안전 정책 E2E(시간/카테고리 변경 반영) | Codex | P2 | `done` | 정책 변경 후 차단/허용 동작이 자동 검증됨 | DB flow runner + seed 사용자 |
 | 관리자 정책 변경 UI Playwright E2E | Codex | P2 | `done` | 관리자 화면에서 정책 변경/저장/새로고침 유지가 자동 검증됨 | Playwright + admin demo user |
+
+### Cycle 34: Rate limit 보안/정책 하드닝
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 피드 조회 rate key 스푸핑 제거 (`x-user-id` 미신뢰) | Codex | P1 | `done` | 인증 사용자는 세션 user id, 비로그인은 client IP만으로 key 생성 | `/api/posts` GET 라우트 |
+| Upstash rate limit 윈도우 고정 (`SET NX PX + INCR`) | Codex | P1 | `done` | 요청마다 TTL이 갱신되지 않고 최초 요청 기준 윈도우로 동작 | `src/server/rate-limit.ts` |
+| Upstash 경로 단위 테스트 보강 | Codex | P1 | `done` | 고정 윈도우 동작/TTL 복구 시나리오가 자동 검증됨 | `src/server/rate-limit.test.ts` |
+
+### Cycle 35: 운영 스모크 자동화
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 배포 health endpoint 점검 스크립트 + CI 수동 워크플로우 | Codex | P2 | `done` | 배포 URL 입력만으로 `/api/health` 200 + `status=ok` 자동 검증 가능 | 배포 URL |
+| Sentry 실수신 점검 스크립트 + CI 수동 워크플로우 | Codex | P2 | `done` | 이벤트 전송 후 Sentry API에서 event id 확인까지 자동 검증 가능 | SENTRY 시크릿/토큰 |
 
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
