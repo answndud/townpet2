@@ -319,66 +319,87 @@ export async function listPetsByUserId(userId: string) {
     createdAt: Date;
   };
 
+  type SelectShape = Record<string, boolean>;
+
   const petDelegate = (prisma as unknown as {
     pet: {
       findMany: (args: {
         where: { userId: string };
         orderBy: Array<{ createdAt: "desc" }>;
-        select: Record<string, boolean>;
+        select: SelectShape;
       }) => Promise<Array<Record<string, unknown>>>;
     };
   }).pet;
 
-  try {
-    const pets = await petDelegate.findMany({
-      where: { userId },
-      orderBy: [{ createdAt: "desc" }],
-      select: {
-        id: true,
-        name: true,
-        species: true,
-        breedCode: true,
-        breedLabel: true,
-        sizeClass: true,
-        lifeStage: true,
-        age: true,
-        imageUrl: true,
-        bio: true,
-        createdAt: true,
-      },
-    });
+  const requiredSelect: SelectShape = {
+    id: true,
+    name: true,
+    species: true,
+    age: true,
+    imageUrl: true,
+    bio: true,
+    createdAt: true,
+  };
+  const optionalKeys = new Set(["breedCode", "breedLabel", "sizeClass", "lifeStage"]);
+  const currentSelect: SelectShape = {
+    ...requiredSelect,
+    breedCode: true,
+    breedLabel: true,
+    sizeClass: true,
+    lifeStage: true,
+  };
 
-    return pets as PetListItem[];
-  } catch (error) {
-    const isMissingBreedCodeColumn =
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2022" &&
-      String(error.meta?.column ?? "").includes("Pet.breedCode");
+  const toPetListItem = (pet: Record<string, unknown>): PetListItem => ({
+    id: typeof pet.id === "string" ? pet.id : "",
+    name: typeof pet.name === "string" ? pet.name : "",
+    species: pet.species === "CAT" ? "CAT" : "DOG",
+    breedCode: typeof pet.breedCode === "string" ? pet.breedCode : null,
+    breedLabel: typeof pet.breedLabel === "string" ? pet.breedLabel : null,
+    sizeClass:
+      pet.sizeClass === "TOY" ||
+      pet.sizeClass === "SMALL" ||
+      pet.sizeClass === "MEDIUM" ||
+      pet.sizeClass === "LARGE" ||
+      pet.sizeClass === "GIANT"
+        ? pet.sizeClass
+        : "UNKNOWN",
+    lifeStage:
+      pet.lifeStage === "PUPPY_KITTEN" ||
+      pet.lifeStage === "YOUNG" ||
+      pet.lifeStage === "ADULT" ||
+      pet.lifeStage === "SENIOR"
+        ? pet.lifeStage
+        : "UNKNOWN",
+    age: typeof pet.age === "number" ? pet.age : null,
+    imageUrl: typeof pet.imageUrl === "string" ? pet.imageUrl : null,
+    bio: typeof pet.bio === "string" ? pet.bio : null,
+    createdAt: pet.createdAt instanceof Date ? pet.createdAt : new Date(0),
+  });
 
-    if (!isMissingBreedCodeColumn) {
-      throw error;
+  while (true) {
+    try {
+      const pets = await petDelegate.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: "desc" }],
+        select: currentSelect,
+      });
+
+      return pets.map(toPetListItem);
+    } catch (error) {
+      const isMissingColumnError =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022";
+      if (!isMissingColumnError) {
+        throw error;
+      }
+
+      const missingColumn = String(error.meta?.column ?? "");
+      const match = /Pet\.(\w+)/.exec(missingColumn);
+      const missingField = match?.[1];
+      if (!missingField || !optionalKeys.has(missingField) || !(missingField in currentSelect)) {
+        throw error;
+      }
+
+      delete currentSelect[missingField];
     }
-
-    const legacyPets = await petDelegate.findMany({
-      where: { userId },
-      orderBy: [{ createdAt: "desc" }],
-      select: {
-        id: true,
-        name: true,
-        species: true,
-        breedLabel: true,
-        sizeClass: true,
-        lifeStage: true,
-        age: true,
-        imageUrl: true,
-        bio: true,
-        createdAt: true,
-      },
-    });
-
-    return legacyPets.map((pet) => ({
-      ...(pet as Omit<PetListItem, "breedCode">),
-      breedCode: null,
-    } satisfies PetListItem));
   }
 }
