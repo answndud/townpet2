@@ -34,3 +34,7 @@ app/.npmrc
 .opencode/skills/research-memory/
 docs/agent-memory/
 app/test-results/
+
+# local planning artifacts
+PLAN.md
+PROGRESS.md
