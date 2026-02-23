@@ -68,9 +68,40 @@ function renderInline(value: string) {
   const escaped = escapeHtml(value);
   const { transformed, restore } = replaceLinkToken(escaped);
 
-  const withStyles = transformed
+  const withInlineStyle = transformed
+    .replace(/\[size=(small|normal|large|xlarge)\]([\s\S]*?)\[\/size\]/gi, (_, rawSize: string, inner: string) => {
+      const size = rawSize.toLowerCase();
+      const className =
+        size === "small"
+          ? "text-xs"
+          : size === "large"
+            ? "text-lg"
+            : size === "xlarge"
+              ? "text-xl font-semibold"
+              : "text-base";
+      return `<span class="${className}">${inner}</span>`;
+    })
+    .replace(
+      /\[color=(blue|red|green|gray)\]([\s\S]*?)\[\/color\]/gi,
+      (_, rawColor: string, inner: string) => {
+        const color = rawColor.toLowerCase();
+        const className =
+          color === "red"
+            ? "text-rose-600"
+            : color === "green"
+              ? "text-emerald-700"
+              : color === "gray"
+                ? "text-slate-600"
+                : "text-[#2f5da4]";
+        return `<span class="${className}">${inner}</span>`;
+      },
+    );
+
+  const withStyles = withInlineStyle
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+    .replace(/__([^_]+)__/g, "<u>$1</u>")
     .replace(/`([^`]+)`/g, '<code class="rounded bg-[#eef4ff] px-1 py-0.5">$1</code>');
 
   return restore(withStyles);
@@ -84,6 +115,7 @@ export function renderLiteMarkdown(value: string) {
 
   const blocks: string[] = [];
   const listBuffer: string[] = [];
+  const orderedListBuffer: string[] = [];
 
   const flushList = () => {
     if (listBuffer.length === 0) {
@@ -97,19 +129,68 @@ export function renderLiteMarkdown(value: string) {
     listBuffer.length = 0;
   };
 
+  const flushOrderedList = () => {
+    if (orderedListBuffer.length === 0) {
+      return;
+    }
+    blocks.push(
+      `<ol class="list-decimal space-y-1 pl-5">${orderedListBuffer
+        .map((item) => `<li>${renderInline(item)}</li>`)
+        .join("")}</ol>`,
+    );
+    orderedListBuffer.length = 0;
+  };
+
   for (const line of normalized.split("\n")) {
     const trimmed = line.trim();
     if (trimmed.length === 0) {
       flushList();
+      flushOrderedList();
       continue;
     }
 
     if (trimmed.startsWith("- ")) {
+      flushOrderedList();
       listBuffer.push(trimmed.slice(2).trim());
       continue;
     }
 
+    const orderedMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (orderedMatch) {
+      flushList();
+      orderedListBuffer.push(orderedMatch[1].trim());
+      continue;
+    }
+
     flushList();
+    flushOrderedList();
+    if (trimmed.startsWith("### ")) {
+      blocks.push(
+        `<h3 class="text-base font-semibold text-[#1d3e70]">${renderInline(
+          trimmed.slice(4).trim(),
+        )}</h3>`,
+      );
+      continue;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      blocks.push(
+        `<h2 class="text-lg font-semibold text-[#163864]">${renderInline(
+          trimmed.slice(3).trim(),
+        )}</h2>`,
+      );
+      continue;
+    }
+
+    if (trimmed.startsWith("# ")) {
+      blocks.push(
+        `<h1 class="text-xl font-bold text-[#10284a]">${renderInline(
+          trimmed.slice(2).trim(),
+        )}</h1>`,
+      );
+      continue;
+    }
+
     if (trimmed.startsWith("> ")) {
       blocks.push(
         `<blockquote class="border-l-2 border-[#bfd0ec] pl-3 text-[#4f678d]">${renderInline(
@@ -123,5 +204,6 @@ export function renderLiteMarkdown(value: string) {
   }
 
   flushList();
+  flushOrderedList();
   return blocks.join("");
 }

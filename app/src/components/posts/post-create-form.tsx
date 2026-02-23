@@ -2,6 +2,7 @@
 
 import { PostScope, PostType } from "@prisma/client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ImageUploadField } from "@/components/ui/image-upload-field";
@@ -92,23 +93,172 @@ function isDraftFormState(value: unknown): value is PostCreateFormState {
   );
 }
 
+function markupToEditorHtml(markup: string) {
+  if (!markup.trim()) {
+    return "";
+  }
+  return renderLiteMarkdown(markup);
+}
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\u00a0/g, " ");
+}
+
+function serializeEditorNode(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return normalizeWhitespace(node.textContent ?? "");
+  }
+
+  if (!(node instanceof HTMLElement)) {
+    return "";
+  }
+
+  const serializeChildren = () => Array.from(node.childNodes).map(serializeEditorNode).join("");
+
+  if (node.tagName === "BR") {
+    return "\n";
+  }
+
+  if (node.tagName === "H1") {
+    return `# ${serializeChildren().trim()}\n\n`;
+  }
+  if (node.tagName === "H2") {
+    return `## ${serializeChildren().trim()}\n\n`;
+  }
+  if (node.tagName === "H3") {
+    return `### ${serializeChildren().trim()}\n\n`;
+  }
+
+  if (node.tagName === "UL") {
+    const items = Array.from(node.children)
+      .filter((child) => child.tagName === "LI")
+      .map((child) => `- ${serializeEditorNode(child).trim()}`)
+      .join("\n");
+    return items ? `${items}\n\n` : "";
+  }
+
+  if (node.tagName === "OL") {
+    const items = Array.from(node.children)
+      .filter((child) => child.tagName === "LI")
+      .map((child, index) => `${index + 1}. ${serializeEditorNode(child).trim()}`)
+      .join("\n");
+    return items ? `${items}\n\n` : "";
+  }
+
+  if (node.tagName === "LI") {
+    return serializeChildren().replace(/\n+/g, " ").trim();
+  }
+
+  if (node.tagName === "BLOCKQUOTE") {
+    const lines = serializeChildren()
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => `> ${line}`)
+      .join("\n");
+    return lines ? `${lines}\n\n` : "";
+  }
+
+  if (node.tagName === "A") {
+    const href = node.getAttribute("href")?.trim();
+    const label = serializeChildren().trim();
+    if (!href) {
+      return label;
+    }
+    return `[${label.length > 0 ? label : href}](${href})`;
+  }
+
+  if (node.tagName === "STRONG" || node.tagName === "B") {
+    return `**${serializeChildren()}**`;
+  }
+  if (node.tagName === "EM" || node.tagName === "I") {
+    return `*${serializeChildren()}*`;
+  }
+  if (node.tagName === "U") {
+    return `__${serializeChildren()}__`;
+  }
+  if (node.tagName === "S" || node.tagName === "DEL") {
+    return `~~${serializeChildren()}~~`;
+  }
+  if (node.tagName === "CODE") {
+    return `\`${serializeChildren()}\``;
+  }
+  if (node.tagName === "PRE") {
+    return `\`${serializeChildren().trim()}\``;
+  }
+
+  if (node.tagName === "SPAN") {
+    const className = node.className;
+    const text = serializeChildren();
+    const sizeToken = className.includes("text-xs")
+      ? "small"
+      : className.includes("text-lg")
+        ? "large"
+        : className.includes("text-xl")
+          ? "xlarge"
+          : className.includes("text-base")
+            ? "normal"
+            : null;
+    const colorToken = className.includes("text-rose-600")
+      ? "red"
+      : className.includes("text-emerald-700")
+        ? "green"
+        : className.includes("text-slate-600")
+          ? "gray"
+          : className.includes("text-[#2f5da4]")
+            ? "blue"
+            : null;
+
+    let output = text;
+    if (sizeToken) {
+      output = `[size=${sizeToken}]${output}[/size]`;
+    }
+    if (colorToken) {
+      output = `[color=${colorToken}]${output}[/color]`;
+    }
+    return output;
+  }
+
+  if (node.tagName === "P" || node.tagName === "DIV") {
+    const text = serializeChildren().trim();
+    return text ? `${text}\n\n` : "\n";
+  }
+
+  return serializeChildren();
+}
+
+function serializeEditorHtml(html: string) {
+  if (!html.trim()) {
+    return "";
+  }
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  return Array.from(container.childNodes)
+    .map(serializeEditorNode)
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function PostCreateForm({
   neighborhoods,
   defaultNeighborhoodId = "",
 }: PostCreateFormProps) {
   const router = useRouter();
-  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [editorTab, setEditorTab] = useState<EditorTab>("write");
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [editorHtml, setEditorHtml] = useState("");
   const [formState, setFormState] = useState<PostCreateFormState>({
     title: "",
     content: "",
     type: PostType.FREE_BOARD,
-    scope: PostScope.LOCAL,
+    scope: PostScope.GLOBAL,
     neighborhoodId: defaultNeighborhoodId,
     hospitalReview: {
       hospitalName: "",
@@ -155,6 +305,7 @@ export function PostCreateForm({
       };
       if (isDraftFormState(parsed.form)) {
         setFormState(parsed.form);
+        setEditorHtml(markupToEditorHtml(parsed.form.content));
       }
       if (parsed.savedAt) {
         setDraftSavedAt(parsed.savedAt);
@@ -167,6 +318,23 @@ export function PostCreateForm({
       setDraftLoaded(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (draftLoaded) {
+      return;
+    }
+    setEditorHtml(markupToEditorHtml(formState.content));
+  }, [draftLoaded, formState.content]);
+
+  useEffect(() => {
+    const element = contentRef.current;
+    if (!element) {
+      return;
+    }
+    if (element.innerHTML !== editorHtml) {
+      element.innerHTML = editorHtml;
+    }
+  }, [editorHtml, editorTab]);
 
   useEffect(() => {
     if (!draftLoaded || typeof window === "undefined") {
@@ -235,61 +403,99 @@ export function PostCreateForm({
     [formState.content],
   );
 
-  const applyContentPatch = (nextValue: string, selectionStart?: number, selectionEnd?: number) => {
-    setFormState((prev) => ({ ...prev, content: nextValue }));
+  const syncEditorToFormState = () => {
+    const element = contentRef.current;
+    if (!element) {
+      return;
+    }
+    const html = element.innerHTML;
+    const serialized = serializeEditorHtml(html);
+    setFormState((prev) => (prev.content === serialized ? prev : { ...prev, content: serialized }));
+  };
 
-    if (selectionStart === undefined || selectionEnd === undefined) {
+  const runEditorCommand = (command: string, value?: string) => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    contentRef.current?.focus();
+    document.execCommand(command, false, value);
+    syncEditorToFormState();
+  };
+
+  const wrapSelectionWithSpan = (className: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!contentRef.current?.contains(range.commonAncestorContainer)) {
       return;
     }
 
-    window.requestAnimationFrame(() => {
-      const element = contentRef.current;
-      if (!element) {
-        return;
+    const span = document.createElement("span");
+    span.className = className;
+    if (range.collapsed) {
+      span.textContent = "텍스트";
+      range.insertNode(span);
+      const nextRange = document.createRange();
+      nextRange.selectNodeContents(span);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+    } else {
+      try {
+        range.surroundContents(span);
+      } catch {
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
       }
-      element.focus();
-      element.setSelectionRange(selectionStart, selectionEnd);
-    });
+    }
+    syncEditorToFormState();
   };
 
-  const wrapSelection = (prefix: string, suffix = prefix, placeholder = "텍스트") => {
-    const element = contentRef.current;
-    if (!element) {
+  const applyLink = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = window.prompt("링크 주소를 입력해 주세요.", "https://");
+    if (!url || !/^https?:\/\//i.test(url.trim())) {
+      return;
+    }
+    runEditorCommand("createLink", url.trim());
+  };
+
+  const applyBlockHeading = (level: 1 | 2 | 3) => {
+    runEditorCommand("formatBlock", level === 1 ? "h1" : level === 2 ? "h2" : "h3");
+  };
+
+  const applyStyledSelection = (
+    kind: "size" | "color",
+    value: "small" | "normal" | "large" | "xlarge" | "blue" | "red" | "green" | "gray",
+  ) => {
+    if (kind === "size") {
+      const sizeClass =
+        value === "small"
+          ? "text-xs"
+          : value === "large"
+            ? "text-lg"
+            : value === "xlarge"
+              ? "text-xl font-semibold"
+              : "text-base";
+      wrapSelectionWithSpan(sizeClass);
       return;
     }
 
-    const start = element.selectionStart;
-    const end = element.selectionEnd;
-    const selected = formState.content.slice(start, end);
-    const value = selected.length > 0 ? selected : placeholder;
-    const nextValue =
-      formState.content.slice(0, start) +
-      prefix +
-      value +
-      suffix +
-      formState.content.slice(end);
-    const caretStart = start + prefix.length;
-    const caretEnd = caretStart + value.length;
-    applyContentPatch(nextValue, caretStart, caretEnd);
-  };
-
-  const prefixSelectionLines = (prefix: string) => {
-    const element = contentRef.current;
-    if (!element) {
-      return;
-    }
-
-    const start = element.selectionStart;
-    const end = element.selectionEnd;
-    const selected = formState.content.slice(start, end);
-    const source = selected.length > 0 ? selected : "내용";
-    const nextLines = source
-      .split("\n")
-      .map((line) => `${prefix}${line}`)
-      .join("\n");
-    const nextValue =
-      formState.content.slice(0, start) + nextLines + formState.content.slice(end);
-    applyContentPatch(nextValue, start, start + nextLines.length);
+    const colorClass =
+      value === "red"
+        ? "text-rose-600"
+        : value === "green"
+          ? "text-emerald-700"
+          : value === "gray"
+            ? "text-slate-600"
+            : "text-[#2f5da4]";
+    wrapSelectionWithSpan(colorClass);
   };
 
   const clearDraft = () => {
@@ -304,11 +510,19 @@ export function PostCreateForm({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    const serializedContent = contentRef.current
+      ? serializeEditorHtml(contentRef.current.innerHTML)
+      : formState.content;
+    if (!serializedContent.trim()) {
+      setError("내용을 입력해 주세요.");
+      return;
+    }
+    setFormState((prev) => ({ ...prev, content: serializedContent }));
 
     startTransition(async () => {
       const result = await createPostAction({
         title: formState.title,
-        content: formState.content,
+        content: serializedContent,
         type: formState.type,
         scope: formState.scope,
         imageUrls: formState.imageUrls,
@@ -351,6 +565,7 @@ export function PostCreateForm({
       setDraftMessage("게시글을 등록해 임시저장을 비웠습니다.");
       router.push("/feed");
       router.refresh();
+      setEditorHtml("");
       setFormState((prev) => ({
         ...prev,
         title: "",
@@ -386,186 +601,281 @@ export function PostCreateForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-[0.24em] text-[#4f6f9f]">
-          글 작성
-        </span>
-        <h2 className="text-lg font-semibold text-[#153a6a]">게시물 작성</h2>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-          제목
-          <input
-            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-            value={formState.title}
-            onChange={(event) =>
-              setFormState((prev) => ({ ...prev, title: event.target.value }))
-            }
-            placeholder="예: 서초동 병원 후기"
-            required
-          />
-        </label>
-
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-          타입
-          <select
-            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-            value={formState.type}
-            onChange={(event) =>
-              setFormState((prev) => ({
-                ...prev,
-                type: event.target.value as PostType,
-              }))
-            }
-          >
-            {postTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-          범위
-          <select
-            className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-            value={formState.scope}
-            onChange={(event) =>
-              setFormState((prev) => ({
-                ...prev,
-                scope: event.target.value as PostScope,
-              }))
-            }
-          >
-            {scopeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-          동네
-          <select
-            className={`border px-3 py-2 text-sm text-[#1f3f71] transition ${
-              showNeighborhood
-                ? "border-[#bfd0ec] bg-[#f8fbff]"
-                : "cursor-not-allowed border-[#d6deea] bg-[#eef2f8] text-[#8ea1bd]"
-            }`}
-            value={formState.neighborhoodId}
-            onChange={(event) =>
-              setFormState((prev) => ({
-                ...prev,
-                neighborhoodId: event.target.value,
-              }))
-            }
-            disabled={!showNeighborhood}
-            required={showNeighborhood}
-          >
-            <option value="">선택</option>
-            {neighborhoodOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <section className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>내용</span>
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => setEditorTab("write")}
-              className={`border px-2.5 py-1 ${
-                editorTab === "write"
-                  ? "border-[#3567b5] bg-[#3567b5] text-white"
-                  : "border-[#bfd0ec] bg-white text-[#315484]"
-              }`}
-            >
-              작성
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditorTab("preview")}
-              className={`border px-2.5 py-1 ${
-                editorTab === "preview"
-                  ? "border-[#3567b5] bg-[#3567b5] text-white"
-                  : "border-[#bfd0ec] bg-white text-[#315484]"
-              }`}
-            >
-              미리보기
-            </button>
-          </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <section className="border border-[#c8d7ef] bg-white">
+        <div className="border-b border-[#dbe6f6] bg-[#f7fbff] px-4 py-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+            글 정보
+          </p>
         </div>
+        <div className="grid gap-3 p-4 md:grid-cols-2">
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+            제목
+            <input
+              className="border border-[#bfd0ec] bg-[#fbfdff] px-3 py-2 text-sm text-[#1f3f71]"
+              value={formState.title}
+              onChange={(event) =>
+                setFormState((prev) => ({ ...prev, title: event.target.value }))
+              }
+              placeholder="제목을 입력해 주세요"
+              required
+            />
+          </label>
 
-        <div className="flex flex-wrap items-center gap-2 border border-[#c8d7ef] bg-[#f8fbff] px-2 py-2 text-xs">
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+            분류
+            <select
+              className="border border-[#bfd0ec] bg-[#fbfdff] px-3 py-2 text-sm text-[#1f3f71]"
+              value={formState.type}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  type: event.target.value as PostType,
+                }))
+              }
+            >
+              {postTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+            범위
+            <select
+              className="border border-[#bfd0ec] bg-[#fbfdff] px-3 py-2 text-sm text-[#1f3f71]"
+              value={formState.scope}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  scope: event.target.value as PostScope,
+                }))
+              }
+            >
+              {scopeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+            동네
+            <select
+              className={`border px-3 py-2 text-sm text-[#1f3f71] transition ${
+                showNeighborhood
+                  ? "border-[#bfd0ec] bg-[#fbfdff]"
+                  : "cursor-not-allowed border-[#d6deea] bg-[#eef2f8] text-[#8ea1bd]"
+              }`}
+              value={formState.neighborhoodId}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  neighborhoodId: event.target.value,
+                }))
+              }
+              disabled={!showNeighborhood}
+              required={showNeighborhood}
+            >
+              <option value="">선택</option>
+              {neighborhoodOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section className="border border-[#c8d7ef] bg-white">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#dbe6f6] bg-[#f8fbff] px-3 py-2 text-xs">
           <button
             type="button"
-            onClick={() => wrapSelection("**")}
-            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
-          >
-            굵게
-          </button>
-          <button
-            type="button"
-            onClick={() => wrapSelection("*")}
-            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
-          >
-            기울임
-          </button>
-          <button
-            type="button"
-            onClick={() => wrapSelection("`")}
-            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
-          >
-            코드
-          </button>
-          <button
-            type="button"
-            onClick={() => wrapSelection("[", "](https://example.com)", "링크텍스트")}
-            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+            onClick={applyLink}
+            className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-3 font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
           >
             링크
           </button>
+          <div className="mx-1 h-5 w-px bg-[#d8e3f4]" />
           <button
             type="button"
-            onClick={() => prefixSelectionLines("- ")}
-            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+            onClick={() => setEditorTab("write")}
+            className={`inline-flex h-8 items-center border px-3 font-semibold transition ${
+              editorTab === "write"
+                ? "border-[#3567b5] bg-[#3567b5] text-white"
+                : "border-[#bfd0ec] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+            }`}
+          >
+            작성
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditorTab("preview")}
+            className={`inline-flex h-8 items-center border px-3 font-semibold transition ${
+              editorTab === "preview"
+                ? "border-[#3567b5] bg-[#3567b5] text-white"
+                : "border-[#bfd0ec] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+            }`}
+          >
+            미리보기
+          </button>
+          <span className="ml-auto text-[#5a7398]">{formState.content.length.toLocaleString("ko-KR")}자</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#dbe6f6] bg-white px-3 py-2 text-xs">
+          <button
+            type="button"
+            onClick={() => applyBlockHeading(1)}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            H1
+          </button>
+          <button
+            type="button"
+            onClick={() => applyBlockHeading(2)}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            H2
+          </button>
+          <button
+            type="button"
+            onClick={() => applyBlockHeading(3)}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            H3
+          </button>
+          <div className="mx-1 h-5 w-px bg-[#d8e3f4]" />
+          <button
+            type="button"
+            onClick={() => runEditorCommand("bold")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            B
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("italic")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold italic text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            I
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("formatBlock", "pre")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-mono text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            {'</>'}
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("insertUnorderedList")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             목록
           </button>
           <button
             type="button"
-            onClick={() => prefixSelectionLines("> ")}
-            className="border border-[#bfd0ec] bg-white px-2 py-1 text-[#315484]"
+            onClick={() => runEditorCommand("insertOrderedList")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            번호목록
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("formatBlock", "blockquote")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             인용
           </button>
-          <span className="ml-auto text-[#5a7398]">
-            {formState.content.length.toLocaleString("ko-KR")}자
-          </span>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("strikeThrough")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            취소선
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("underline")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold underline text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            밑줄
+          </button>
+          <div className="mx-1 h-5 w-px bg-[#d8e3f4]" />
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("size", "small")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-[11px] text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            작게
+          </button>
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("size", "normal")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-[12px] text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            보통
+          </button>
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("size", "large")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-sm font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            크게
+          </button>
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("size", "xlarge")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-base font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            매우 크게
+          </button>
+          <div className="mx-1 h-5 w-px bg-[#d8e3f4]" />
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("color", "blue")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#2f5da4] transition hover:bg-[#f3f7ff]"
+          >
+            파랑
+          </button>
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("color", "red")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-rose-600 transition hover:bg-[#f3f7ff]"
+          >
+            빨강
+          </button>
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("color", "green")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-emerald-700 transition hover:bg-[#f3f7ff]"
+          >
+            초록
+          </button>
+          <button
+            type="button"
+            onClick={() => applyStyledSelection("color", "gray")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-slate-600 transition hover:bg-[#f3f7ff]"
+          >
+            회색
+          </button>
         </div>
 
         {editorTab === "write" ? (
-          <textarea
+          <div
             ref={contentRef}
-            className="min-h-[180px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-            value={formState.content}
-            onChange={(event) =>
-              setFormState((prev) => ({ ...prev, content: event.target.value }))
-            }
-            placeholder="핵심 내용을 적어주세요. (굵게: **텍스트**, 링크: [텍스트](https://url))"
-            required
+            contentEditable
+            suppressContentEditableWarning
+            onInput={syncEditorToFormState}
+            onBlur={syncEditorToFormState}
+            className="min-h-[340px] w-full border-0 bg-[#fcfdff] px-4 py-3 text-sm leading-relaxed text-[#1f3f71] outline-none"
           />
         ) : (
-          <div className="min-h-[180px] border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]">
+          <div className="min-h-[340px] border-0 bg-[#fcfdff] px-4 py-3 text-sm text-[#1f3f71]">
             <div
               className="prose prose-sm max-w-none space-y-2 text-[#1f3f71]"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
@@ -573,11 +883,11 @@ export function PostCreateForm({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#dbe6f6] bg-[#f7fbff] px-3 py-2 text-xs">
           <button
             type="button"
             onClick={clearDraft}
-            className="border border-[#bfd0ec] bg-white px-2.5 py-1 text-[#315484]"
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             임시저장 삭제
           </button>
@@ -590,13 +900,15 @@ export function PostCreateForm({
         </div>
       </section>
 
-      <ImageUploadField
-        value={formState.imageUrls}
-        onChange={(nextUrls) =>
-          setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
-        }
-        label="게시글 이미지"
-      />
+      <div id="post-image-upload" className="border border-[#c8d7ef] bg-white p-4">
+        <ImageUploadField
+          value={formState.imageUrls}
+          onChange={(nextUrls) =>
+            setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
+          }
+          label="이미지 첨부"
+        />
+      </div>
 
       {showHospitalReview ? (
         <div className="grid gap-4 border border-[#d8e4f6] bg-[#f4f8ff] p-4 md:grid-cols-2">
@@ -968,17 +1280,23 @@ export function PostCreateForm({
 
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-[#5d769d]">
-          동네 범위 글은 대표 동네 선택이 필요합니다.
-        </p>
-        <button
-          type="submit"
-          className="border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
-          disabled={isPending}
-        >
-          {isPending ? "저장 중..." : "게시하기"}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#dbe6f6] pt-3">
+        <p className="text-xs text-[#5d769d]">동네 글은 동네 범위를 선택하고 대표 동네를 지정해야 등록됩니다.</p>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/feed"
+            className="inline-flex h-10 items-center border border-[#9aa9bf] bg-[#5c677a] px-5 text-sm font-semibold text-white transition hover:bg-[#4d5666]"
+          >
+            취소
+          </Link>
+          <button
+            type="submit"
+            className="inline-flex h-10 items-center border border-[#3567b5] bg-[#3567b5] px-6 text-sm font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
+            disabled={isPending}
+          >
+            {isPending ? "등록 중..." : "등록"}
+          </button>
+        </div>
       </div>
     </form>
   );
