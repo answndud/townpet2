@@ -268,20 +268,23 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   };
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(structuredData),
         }}
       />
-      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
-        <Link href="/feed" className="text-xs font-medium uppercase tracking-[0.24em] text-[#4e6f9f]">
+      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-7 sm:px-6 lg:px-10">
+        <Link
+          href="/feed"
+          className="inline-flex w-fit items-center rounded-sm border border-[#bfd0ec] bg-white px-3.5 py-2 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+        >
           목록으로
         </Link>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <section className="rounded-md border border-[#c8d7ef] bg-white p-5 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-6">
             {post.status === "HIDDEN" ? (
               <div className="mb-5 border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 신고 누적으로 숨김 처리된 게시물입니다. 관리자 검토 후 다시 공개될 수 있습니다.
@@ -302,9 +305,9 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               ) : null}
             </div>
 
-            <div className="mt-4 grid gap-4 border-b border-[#e0e9f5] pb-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-start">
+            <div className="mt-4 grid gap-4 border-b border-[#e0e9f5] pb-5 md:grid-cols-[minmax(0,1fr)_240px] md:items-start">
               <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#10284a] sm:text-4xl">
+                <h1 className="text-[30px] font-bold leading-tight tracking-tight text-[#10284a] sm:text-[38px]">
                   {post.title}
                 </h1>
               </div>
@@ -315,7 +318,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   </Link>
                 </p>
                 <p className="mt-1">{formatRelativeDate(post.createdAt)}</p>
-                <p className="mt-3 text-xs text-[#6883ab]">
+                <p className="mt-2 text-xs font-medium text-[#5f7da8]">
                   조회 {safeViewCount.toLocaleString()} · 좋아요 {safeLikeCount.toLocaleString()} · 싫어요{" "}
                   {safeDislikeCount.toLocaleString()} · 댓글 {safeCommentCount.toLocaleString()}
                 </p>
@@ -331,33 +334,36 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             </div>
 
-            <div className="mt-4 border-b border-[#e0e9f5] pb-4">
-              <PostReactionControls
-                postId={post.id}
-                likeCount={safeLikeCount}
-                dislikeCount={safeDislikeCount}
-                currentReaction={post.reactions?.[0]?.type ?? null}
-                canReact={canInteract && canInteractWithPostOwner}
-                loginHref={loginHref}
-              />
-              <PostShareControls url={postUrl} title={post.title} />
+            <div className="mt-4 space-y-3 border-b border-[#e0e9f5] pb-4">
+              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <PostReactionControls
+                    postId={post.id}
+                    likeCount={safeLikeCount}
+                    dislikeCount={safeDislikeCount}
+                    currentReaction={post.reactions?.[0]?.type ?? null}
+                    canReact={canInteract && canInteractWithPostOwner}
+                    loginHref={loginHref}
+                  />
+                  <PostShareControls url={postUrl} title={post.title} />
+                </div>
+              </div>
+              {isAuthor ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Link
+                    href={`/posts/${post.id}/edit`}
+                    className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+                  >
+                    수정
+                  </Link>
+                  <PostDetailActions postId={post.id} />
+                </div>
+              ) : null}
             </div>
 
             {canInteract && !isAuthor && !canInteractWithPostOwner ? (
               <div className="mt-4 border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                 차단 관계에서는 댓글/반응/신고 기능을 사용할 수 없습니다.
-              </div>
-            ) : null}
-
-            {isAuthor ? (
-              <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-                <Link
-                  href={`/posts/${post.id}/edit`}
-                  className="border border-[#bfd0ec] bg-white px-4 py-2 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-                >
-                  수정
-                </Link>
-                <PostDetailActions postId={post.id} />
               </div>
             ) : null}
 
@@ -392,8 +398,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
             ) : null}
           </section>
 
-          <aside className="space-y-4">
-            <section className="border border-[#c8d7ef] bg-[#f7fbff] p-4">
+          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+            <section className="rounded-md border border-[#c8d7ef] bg-white p-4 shadow-[0_10px_24px_rgba(16,40,74,0.05)]">
               <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[#4f6f9f]">
                 게시글 정보
               </h2>

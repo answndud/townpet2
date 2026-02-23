@@ -85,7 +85,7 @@ export function PostReactionControls({
 
   const buttonClass = compact
     ? "inline-flex h-10 min-w-[108px] items-center justify-center border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-    : "inline-flex items-center justify-center border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+    : "inline-flex h-10 min-w-[116px] items-center justify-center border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
   const handleToggle = (target: ReactionType) => {
     if (!canReact) {

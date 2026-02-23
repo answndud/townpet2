@@ -204,11 +204,11 @@ export function PostCommentThread({
       <div
         key={comment.id}
         id={`comment-${comment.id}`}
-        className={`border border-[#dbe5f3] bg-white px-4 py-3 ${
-          depth > 0 ? "ml-6" : ""
+        className={`rounded-sm border border-[#dbe5f3] bg-white px-4 py-3.5 ${
+          depth > 0 ? "ml-4 border-l-2 border-l-[#cfe0f8]" : ""
         }`}
       >
-        <div className="flex items-center justify-between text-xs text-[#5f7ba5]">
+        <div className="flex items-center justify-between text-xs text-[#4f6e99]">
           <Link href={`/users/${comment.author.id}`} className="hover:text-[#2f5da4]">
             {comment.author.nickname ?? comment.author.name ?? "익명"}
           </Link>
@@ -220,11 +220,11 @@ export function PostCommentThread({
             showYoutubeEmbeds
           />
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#4f678d]">
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs text-[#3f628f]">
           {depth === 0 && replies.length > 0 ? (
             <button
               type="button"
-              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
+              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
               onClick={() =>
                 setCollapsedReplies((prev) => ({
                   ...prev,
@@ -240,7 +240,7 @@ export function PostCommentThread({
           {canInteract ? (
             <button
               type="button"
-              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
+              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
               onClick={() =>
                 setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
               }
@@ -253,7 +253,7 @@ export function PostCommentThread({
             <>
               <button
                 type="button"
-                className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
+                className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
                 onClick={() =>
                   setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
                 }
@@ -263,7 +263,7 @@ export function PostCommentThread({
               </button>
               <button
                 type="button"
-                className="border border-rose-300 bg-rose-50 px-2.5 py-1 text-rose-700 transition hover:bg-rose-100"
+                className="border border-rose-300 bg-rose-50 px-2.5 py-1 font-semibold text-rose-700 transition hover:bg-rose-100"
                 onClick={() => handleDelete(comment.id)}
                 disabled={isPending}
               >
@@ -272,33 +272,38 @@ export function PostCommentThread({
             </>
           ) : null}
           {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
-            <button
-              type="button"
-              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 transition hover:bg-[#edf4ff]"
-              onClick={() =>
-                setReportOpen((prev) => ({
-                  ...prev,
-                  [comment.id]: !prev[comment.id],
-                }))
-              }
-            >
-              신고
-            </button>
-          ) : null}
-          {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
-            <UserRelationControls
-              targetUserId={comment.author.id}
-              initialState={{
-                isBlockedByMe: false,
-                hasBlockedMe: false,
-                isMutedByMe: false,
-              }}
-              compact
-            />
+            <details className="group">
+              <summary className="cursor-pointer list-none border border-[#bfd0ec] bg-white px-2.5 py-1 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]">
+                더보기
+              </summary>
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2">
+                <button
+                  type="button"
+                  className="border border-[#bfd0ec] bg-white px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
+                  onClick={() =>
+                    setReportOpen((prev) => ({
+                      ...prev,
+                      [comment.id]: !prev[comment.id],
+                    }))
+                  }
+                >
+                  신고
+                </button>
+                <UserRelationControls
+                  targetUserId={comment.author.id}
+                  initialState={{
+                    isBlockedByMe: false,
+                    hasBlockedMe: false,
+                    isMutedByMe: false,
+                  }}
+                  compact
+                />
+              </div>
+            </details>
           ) : null}
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2">
           <CommentReactionControls
             postId={postId}
             commentId={comment.id}
@@ -447,16 +452,17 @@ export function PostCommentThread({
         ) : null}
       </div>
       {message ? <p className="mt-2 text-xs text-[#5a7398]">{message}</p> : null}
-      <div className="mt-4">
+      <div className="mt-4 rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-3">
         {canInteract ? (
           <>
+            <p className="mb-2 text-xs text-[#5c7da8]">배려 있는 댓글 문화를 함께 만들어 주세요.</p>
             <textarea
-              className="min-h-[100px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+              className="min-h-[104px] w-full border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
               value={replyContent.root ?? ""}
               onChange={(event) =>
                 setReplyContent((prev) => ({ ...prev, root: event.target.value }))
               }
-              placeholder="댓글을 입력하세요"
+              placeholder="댓글을 입력해 주세요"
             />
             <div className="mt-2 flex justify-end">
               <button
@@ -470,7 +476,7 @@ export function PostCommentThread({
             </div>
           </>
         ) : (
-          <div className="border border-[#d3e0f4] bg-[#f7fbff] px-4 py-3 text-sm text-[#355988]">
+          <div className="border border-[#d3e0f4] bg-white px-4 py-3 text-sm text-[#355988]">
             {interactionDisabledMessage ? (
               interactionDisabledMessage
             ) : (
