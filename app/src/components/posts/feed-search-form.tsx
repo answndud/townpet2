@@ -8,11 +8,14 @@ type FeedMode = "ALL" | "BEST";
 type FeedSort = "LATEST" | "LIKE" | "COMMENT";
 type FeedScope = "LOCAL" | "GLOBAL";
 type FeedSearchIn = "ALL" | "TITLE" | "CONTENT" | "AUTHOR";
+type FeedPersonalized = "0" | "1";
+type FeedDensity = "DEFAULT" | "ULTRA";
 
 type FeedSearchFormProps = {
   actionPath: string;
   query: string;
   searchIn: FeedSearchIn;
+  personalized: FeedPersonalized;
   type?: PostType;
   scope?: FeedScope;
   mode: FeedMode;
@@ -20,6 +23,8 @@ type FeedSearchFormProps = {
   sort: FeedSort;
   resetHref: string;
   popularTerms?: string[];
+  density?: FeedDensity;
+  showKeywordChips?: boolean;
 };
 
 const SEARCH_OPTIONS: ReadonlyArray<{ value: FeedSearchIn; label: string }> = [
@@ -68,6 +73,7 @@ export function FeedSearchForm({
   actionPath,
   query,
   searchIn,
+  personalized,
   type,
   scope,
   mode,
@@ -75,6 +81,8 @@ export function FeedSearchForm({
   sort,
   resetHref,
   popularTerms = [],
+  density = "DEFAULT",
+  showKeywordChips = true,
 }: FeedSearchFormProps) {
   const [queryValue, setQueryValue] = useState(query);
   const [searchInValue, setSearchInValue] = useState<FeedSearchIn>(searchIn);
@@ -152,6 +160,9 @@ export function FeedSearchForm({
     if (searchInValue !== "ALL") {
       params.set("searchIn", searchInValue);
     }
+    if (mode === "ALL" && personalized === "1") {
+      params.set("personalized", "1");
+    }
     params.set("q", term);
 
     if (mode === "BEST") {
@@ -213,20 +224,27 @@ export function FeedSearchForm({
   }, [queryValue, scope, searchInValue, type]);
 
   return (
-    <div className="space-y-2">
+    <div className={density === "ULTRA" ? "space-y-1" : "space-y-1.5"}>
       <form
         action={actionPath}
         onSubmit={() => {
           persistRecentSearchTerm(queryValue);
           logSearchTerm(queryValue);
         }}
-        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+        className={
+          density === "ULTRA"
+            ? "flex flex-col gap-1 sm:flex-row sm:items-center"
+            : "flex flex-col gap-1.5 sm:flex-row sm:items-center"
+        }
       >
         {type ? <input type="hidden" name="type" value={type} /> : null}
         {scope ? <input type="hidden" name="scope" value={scope} /> : null}
         {mode === "BEST" ? <input type="hidden" name="mode" value="BEST" /> : null}
         {mode === "BEST" ? <input type="hidden" name="days" value={String(days)} /> : null}
         {mode === "ALL" && sort !== "LATEST" ? <input type="hidden" name="sort" value={sort} /> : null}
+        {mode === "ALL" && personalized === "1" ? (
+          <input type="hidden" name="personalized" value="1" />
+        ) : null}
 
         <select
           name="searchIn"
@@ -234,7 +252,11 @@ export function FeedSearchForm({
           onChange={(event) => {
             setSearchInValue(event.target.value as FeedSearchIn);
           }}
-          className="h-10 border border-[#b9cbeb] bg-white px-3 text-sm text-[#2f548f] outline-none transition focus:border-[#4a78be]"
+          className={
+            density === "ULTRA"
+              ? "h-8 border border-[#b9cbeb] bg-white px-2 text-xs text-[#2f548f] outline-none transition focus:border-[#4a78be]"
+              : "h-9 border border-[#b9cbeb] bg-white px-2.5 text-sm text-[#2f548f] outline-none transition focus:border-[#4a78be]"
+          }
         >
           {SEARCH_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -251,7 +273,11 @@ export function FeedSearchForm({
           }}
           placeholder="제목, 내용, 작성자 검색"
           list={datalistId}
-          className="h-10 w-full border border-[#b9cbeb] bg-white px-3 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
+          className={
+            density === "ULTRA"
+              ? "h-8 w-full border border-[#b9cbeb] bg-white px-2 text-xs text-[#122748] outline-none transition focus:border-[#4a78be]"
+              : "h-9 w-full border border-[#b9cbeb] bg-white px-2.5 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
+          }
         />
         <datalist id={datalistId}>
           {suggestions.map((suggestion) => (
@@ -261,22 +287,30 @@ export function FeedSearchForm({
 
         <button
           type="submit"
-          className="h-10 min-w-[76px] border border-[#3567b5] bg-[#3567b5] px-3 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+          className={
+            density === "ULTRA"
+              ? "h-8 min-w-[56px] border border-[#3567b5] bg-[#3567b5] px-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+              : "h-9 min-w-[68px] border border-[#3567b5] bg-[#3567b5] px-2.5 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+          }
         >
           검색
         </button>
         {shouldShowReset ? (
           <Link
             href={resetHref}
-            className="inline-flex h-10 min-w-[76px] items-center justify-center border border-[#b9cbeb] bg-white px-3 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+            className={
+              density === "ULTRA"
+                ? "inline-flex h-8 min-w-[56px] items-center justify-center border border-[#b9cbeb] bg-white px-2 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+                : "inline-flex h-9 min-w-[68px] items-center justify-center border border-[#b9cbeb] bg-white px-2.5 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+            }
           >
             초기화
           </Link>
         ) : null}
       </form>
 
-      {recentTerms.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+      {showKeywordChips && recentTerms.length > 0 ? (
+        <div className={density === "ULTRA" ? "flex flex-wrap items-center gap-1 text-[11px]" : "flex flex-wrap items-center gap-1.5 text-xs"}>
           <span className="text-[#5b7398]">최근 검색어</span>
           {recentTerms.map((term) => (
             <Link
@@ -286,7 +320,11 @@ export function FeedSearchForm({
                 persistRecentSearchTerm(term);
                 logSearchTerm(term);
               }}
-              className="border border-[#c4d4ed] bg-white px-2 py-1 text-[#315484] transition hover:bg-[#f3f7ff]"
+              className={
+                density === "ULTRA"
+                  ? "border border-[#c4d4ed] bg-white px-1.5 py-0.5 text-[#315484] transition hover:bg-[#f3f7ff]"
+                  : "border border-[#c4d4ed] bg-white px-2 py-0.5 text-[#315484] transition hover:bg-[#f3f7ff]"
+              }
             >
               {term}
             </Link>
@@ -294,8 +332,8 @@ export function FeedSearchForm({
         </div>
       ) : null}
 
-      {popularTerms.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+      {showKeywordChips && popularTerms.length > 0 ? (
+        <div className={density === "ULTRA" ? "flex flex-wrap items-center gap-1 text-[11px]" : "flex flex-wrap items-center gap-1.5 text-xs"}>
           <span className="text-[#5b7398]">인기 검색어</span>
           {popularTerms.map((term) => (
             <Link
@@ -305,7 +343,11 @@ export function FeedSearchForm({
                 persistRecentSearchTerm(term);
                 logSearchTerm(term);
               }}
-              className="border border-[#bfd0ec] bg-[#f8fbff] px-2 py-1 text-[#2f548f] transition hover:bg-white"
+              className={
+                density === "ULTRA"
+                  ? "border border-[#bfd0ec] bg-[#f8fbff] px-1.5 py-0.5 text-[#2f548f] transition hover:bg-white"
+                  : "border border-[#bfd0ec] bg-[#f8fbff] px-2 py-0.5 text-[#2f548f] transition hover:bg-white"
+              }
             >
               {term}
             </Link>

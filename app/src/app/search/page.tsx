@@ -114,6 +114,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               actionPath="/search"
               query={query}
               searchIn={selectedSearchIn}
+              personalized="0"
               type={type}
               scope={selectedScope}
               mode="ALL"

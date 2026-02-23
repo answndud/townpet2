@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Prisma } from "@prisma/client";
 import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
@@ -8,6 +9,7 @@ import {
   type FeedPostItem,
 } from "@/components/posts/feed-infinite-list";
 import { FeedSearchForm } from "@/components/posts/feed-search-form";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { isLoginRequiredPostType } from "@/lib/post-access";
@@ -21,6 +23,8 @@ import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 type FeedMode = "ALL" | "BEST";
 type FeedSort = "LATEST" | "LIKE" | "COMMENT";
 type FeedSearchIn = "ALL" | "TITLE" | "CONTENT" | "AUTHOR";
+type FeedPersonalized = "0" | "1";
+type FeedDensity = "DEFAULT" | "ULTRA";
 const BEST_DAY_OPTIONS = [3, 7, 30] as const;
 const MAX_DEBUG_DELAY_MS = 5_000;
 const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
@@ -52,6 +56,7 @@ type HomePageProps = {
     days?: string;
     sort?: string;
     searchIn?: string;
+    personalized?: string;
     debugDelayMs?: string;
   }>;
 };
@@ -95,13 +100,38 @@ function toFeedSearchIn(value?: string): FeedSearchIn {
   return "ALL";
 }
 
+function toFeedPersonalized(value?: string): FeedPersonalized {
+  return value === "1" ? "1" : "0";
+}
+
+function isDatabaseUnavailableError(error: unknown) {
+  return error instanceof Prisma.PrismaClientInitializationError;
+}
+
 export default async function Home({ searchParams }: HomePageProps) {
   const session = await auth();
   const userId = session?.user?.id;
-  const user = userId ? await getUserWithNeighborhoods(userId) : null;
+  const user = userId
+    ? await getUserWithNeighborhoods(userId).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return null;
+        }
+        throw error;
+      })
+    : null;
   const isAuthenticated = Boolean(user);
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
-  const popularSearchTerms = await getPopularSearchTerms(8);
+  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch((error) => {
+    if (isDatabaseUnavailableError(error)) {
+      return [];
+    }
+    throw error;
+  });
+  const popularSearchTerms = await getPopularSearchTerms(8).catch((error) => {
+    if (isDatabaseUnavailableError(error)) {
+      return [];
+    }
+    throw error;
+  });
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
   const resolvedParams = (await searchParams) ?? {};
@@ -115,6 +145,11 @@ export default async function Home({ searchParams }: HomePageProps) {
   const bestDays = toBestDay(resolvedParams.days);
   const selectedSort = toFeedSort(resolvedParams.sort);
   const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);
+  const selectedPersonalized = toFeedPersonalized(resolvedParams.personalized);
+  const density: FeedDensity = "ULTRA";
+  const isUltraDense = true;
+  const usePersonalizedFeed =
+    isAuthenticated && mode === "ALL" && selectedPersonalized === "1";
   const isGuestLocalBlocked = !isAuthenticated && selectedScope === PostScope.LOCAL;
   const isGuestTypeBlocked =
     !isAuthenticated && isLoginRequiredPostType(type, loginRequiredTypes);
@@ -153,6 +188,12 @@ export default async function Home({ searchParams }: HomePageProps) {
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
           neighborhoodId,
           viewerId: user?.id,
+          personalized: usePersonalizedFeed,
+        }).catch((error) => {
+          if (isDatabaseUnavailableError(error)) {
+            return { items: [], nextCursor: null };
+          }
+          throw error;
         })
       : { items: [], nextCursor: null };
 
@@ -169,12 +210,18 @@ export default async function Home({ searchParams }: HomePageProps) {
           neighborhoodId,
           minLikes: 1,
           viewerId: user?.id,
+        }).catch((error) => {
+          if (isDatabaseUnavailableError(error)) {
+            return [];
+          }
+          throw error;
         })
       : [];
 
   const items = mode === "BEST" ? bestItems : posts.items;
   const nextCursor = mode === "ALL" ? posts.nextCursor : null;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
+  const feedTitle = type ? `${postTypeMeta[type].label} 게시판` : "전체 게시판";
   const loginHref = (nextPath: string) =>
     `/login?next=${encodeURIComponent(nextPath)}`;
   const feedQueryKey = [
@@ -183,6 +230,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     type ?? "ALL",
     selectedSort,
     selectedSearchIn,
+    selectedPersonalized,
+    density,
     bestDays,
     query || "__EMPTY__",
     limit,
@@ -230,6 +279,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextDays,
     nextSort,
     nextSearchIn,
+    nextPersonalized,
+    nextDensity,
   }: {
     nextType?: PostType | null;
     nextScope?: PostScope | null;
@@ -239,6 +290,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextDays?: BestDay | null;
     nextSort?: FeedSort | null;
     nextSearchIn?: FeedSearchIn | null;
+    nextPersonalized?: FeedPersonalized | null;
+    nextDensity?: FeedDensity | null;
   }) => {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
@@ -249,12 +302,21 @@ export default async function Home({ searchParams }: HomePageProps) {
     const resolvedSort = nextSort === undefined ? selectedSort : nextSort;
     const resolvedSearchIn =
       nextSearchIn === undefined ? selectedSearchIn : nextSearchIn;
+    const resolvedPersonalized =
+      nextPersonalized === undefined ? selectedPersonalized : nextPersonalized;
+    const resolvedDensity = nextDensity === undefined ? density : nextDensity;
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
     if (resolvedQuery) params.set("q", resolvedQuery);
     if (resolvedSearchIn && resolvedSearchIn !== "ALL") {
       params.set("searchIn", resolvedSearchIn);
+    }
+    if (resolvedMode === "ALL" && resolvedPersonalized === "1" && isAuthenticated) {
+      params.set("personalized", "1");
+    }
+    if (resolvedDensity === "ULTRA") {
+      params.set("density", "ULTRA");
     }
     if (resolvedMode === "BEST") {
       params.set("mode", "BEST");
@@ -271,37 +333,46 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   return (
     <div className="min-h-screen pb-16">
-      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+      <main
+        className={`mx-auto flex w-full max-w-[1320px] flex-col px-4 sm:px-6 lg:px-10 ${
+          isUltraDense ? "gap-1.5 py-2 sm:gap-2" : "gap-2 py-3 sm:gap-3"
+        }`}
+      >
+        <header
+          className={`animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] ${
+            isUltraDense ? "px-2.5 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-[#3f5f90]">
                 타운펫 커뮤니티
               </p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-4xl">
-                전체 게시판
+              <h1
+                className={
+                  isUltraDense
+                    ? "mt-0.5 text-base font-bold tracking-tight text-[#10284a] sm:text-lg"
+                    : "mt-0.5 text-lg font-bold tracking-tight text-[#10284a] sm:text-xl"
+                }
+              >
+                {feedTitle}
               </h1>
-              <p className="mt-2 text-sm text-[#4f678d] sm:text-base">
-                전체글/베스트글을 전환하고 카테고리별로 바로 확인할 수 있습니다.
-              </p>
             </div>
-            <div className="flex flex-col items-end gap-2 text-xs text-[#4f678d]">
-              <div className="border border-[#d4e1f3] bg-white px-3 py-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-[#4f678d]">
+              <div className="border border-[#d4e1f3] bg-white px-2.5 py-1">
                 {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
               </div>
-              <Link
-                href={isAuthenticated ? "/posts/new" : loginHref("/posts/new")}
-                className="inline-flex h-10 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-4 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
-              >
-                {isAuthenticated ? "글쓰기" : "로그인 후 글쓰기"}
-              </Link>
             </div>
           </div>
         </header>
 
-        <section className="animate-fade-up border border-[#c8d7ef] bg-white p-4 sm:p-5">
+        <section
+          className={`animate-fade-up border border-[#c8d7ef] bg-white ${
+            isUltraDense ? "p-1.5 sm:p-2" : "p-2 sm:p-2.5"
+          }`}
+        >
           {isGuestLocalBlocked ? (
-            <div className="mb-4 border border-[#d9c38b] bg-[#fff8e5] px-4 py-3 text-sm text-[#6c5319]">
+            <div className="mb-3 border border-[#d9c38b] bg-[#fff8e5] px-3 py-2.5 text-sm text-[#6c5319]">
               동네(Local) 피드는 로그인 후 이용할 수 있습니다.{" "}
               <Link
                 href={loginHref("/feed?scope=LOCAL")}
@@ -312,7 +383,7 @@ export default async function Home({ searchParams }: HomePageProps) {
             </div>
           ) : null}
           {isGuestTypeBlocked && type ? (
-            <div className="mb-4 border border-[#d9c38b] bg-[#fff8e5] px-4 py-3 text-sm text-[#6c5319]">
+            <div className="mb-3 border border-[#d9c38b] bg-[#fff8e5] px-3 py-2.5 text-sm text-[#6c5319]">
               선택한 카테고리({postTypeMeta[type].label})는 로그인 후 열람할 수 있습니다.{" "}
               <Link
                 href={loginHref(`/feed?type=${type}`)}
@@ -322,12 +393,19 @@ export default async function Home({ searchParams }: HomePageProps) {
               </Link>
             </div>
           ) : null}
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="space-y-3">
+          <div
+            className={`grid ${
+              isUltraDense
+                ? "gap-1.5 lg:grid-cols-[minmax(0,1fr)_184px]"
+                : "gap-2 lg:grid-cols-[minmax(0,1fr)_200px]"
+            }`}
+          >
+            <div className={isUltraDense ? "space-y-1.5" : "space-y-2"}>
               <FeedSearchForm
                 actionPath="/feed"
                 query={query}
                 searchIn={selectedSearchIn}
+                personalized={selectedPersonalized}
                 type={type}
                 scope={selectedScope}
                 mode={mode}
@@ -335,18 +413,32 @@ export default async function Home({ searchParams }: HomePageProps) {
                 sort={selectedSort}
                 resetHref={makeHref({ nextQuery: null, nextCursor: null })}
                 popularTerms={popularSearchTerms}
+                density="ULTRA"
+                showKeywordChips={false}
               />
 
-              <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
-                <div className="grid gap-3 md:grid-cols-2 md:divide-x md:divide-[#dbe6f6]">
-                  <div className="space-y-2 md:pr-4">
+              <div
+                className={
+                  isUltraDense
+                    ? "border border-[#dbe6f6] bg-[#f8fbff] p-1.5"
+                    : "border border-[#dbe6f6] bg-[#f8fbff] p-2"
+                }
+              >
+                <div
+                  className={
+                    isUltraDense
+                      ? "grid gap-1.5 md:grid-cols-2 md:divide-x md:divide-[#dbe6f6]"
+                      : "grid gap-2.5 md:grid-cols-2 md:divide-x md:divide-[#dbe6f6]"
+                  }
+                >
+                  <div className="space-y-1.5 md:pr-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                       피드
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                       <Link
                         href={makeHref({ nextMode: "ALL", nextCursor: null })}
-                        className={`border px-3 py-1 text-xs font-semibold transition ${
+                        className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
                           mode === "ALL"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
                             : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -356,7 +448,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                       </Link>
                       <Link
                         href={makeHref({ nextMode: "BEST", nextCursor: null })}
-                        className={`border px-3 py-1 text-xs font-semibold transition ${
+                        className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
                           mode === "BEST"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
                             : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -367,18 +459,24 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                   </div>
 
-                  <div className="border-t border-[#dbe6f6] pt-3 md:border-t-0 md:pl-4 md:pt-0">
+                  <div
+                    className={
+                      isUltraDense
+                        ? "border-t border-[#dbe6f6] pt-1.5 md:border-t-0 md:pl-4 md:pt-0"
+                        : "border-t border-[#dbe6f6] pt-2 md:border-t-0 md:pl-4 md:pt-0"
+                    }
+                  >
                     {mode === "BEST" ? (
                       <>
-                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                           베스트 기간
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className={isUltraDense ? "grid grid-cols-3 gap-1" : "grid grid-cols-3 gap-1.5"}>
                           {BEST_DAY_OPTIONS.map((day) => (
                             <Link
                               key={day}
                               href={makeHref({ nextDays: day, nextCursor: null })}
-                              className={`border px-2 py-2 text-center text-xs font-semibold transition ${
+                              className={`border ${isUltraDense ? "px-1.5 py-1 text-[11px]" : "px-2 py-1.5 text-xs"} text-center font-semibold transition ${
                                 bestDays === day
                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
                                   : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -391,15 +489,15 @@ export default async function Home({ searchParams }: HomePageProps) {
                       </>
                     ) : (
                       <>
-                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                           정렬
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                           {FEED_SORT_OPTIONS.map((option) => (
                             <Link
                               key={option.value}
                               href={makeHref({ nextSort: option.value, nextCursor: null })}
-                              className={`border px-3 py-1 text-xs font-semibold transition ${
+                              className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
                                 selectedSort === option.value
                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
                                   : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -415,14 +513,20 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
               </div>
 
-              <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+              <div
+                className={
+                  isUltraDense
+                    ? "border border-[#dbe6f6] bg-[#f8fbff] p-1.5"
+                    : "border border-[#dbe6f6] bg-[#f8fbff] p-2"
+                }
+              >
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                   카테고리
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                   <Link
                     href={makeHref({ nextType: null, nextCursor: null })}
-                    className={`border px-3 py-1 text-xs font-medium transition ${
+                    className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
                       !type
                         ? "border-[#3567b5] bg-[#3567b5] text-white"
                         : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -439,7 +543,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     <Link
                       key={value}
                       href={isRestricted ? loginHref(targetHref) : targetHref}
-                      className={`border px-3 py-1 text-xs font-medium transition ${
+                      className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
                         type === value
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
                           : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -454,18 +558,24 @@ export default async function Home({ searchParams }: HomePageProps) {
               </div>
             </div>
 
-            <aside className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+            <aside
+              className={
+                isUltraDense
+                  ? "border border-[#dbe6f6] bg-[#f8fbff] p-1.5"
+                  : "border border-[#dbe6f6] bg-[#f8fbff] p-2"
+              }
+            >
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                 범위
               </div>
-              <div className="mt-2 grid gap-2">
+              <div className={isUltraDense ? "mt-1 grid gap-1" : "mt-1.5 grid gap-1.5"}>
                 <Link
                   href={
                     isAuthenticated
                       ? makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })
                       : loginHref("/feed?scope=LOCAL")
                   }
-                  className={`border px-3 py-2 text-center text-xs font-semibold transition ${
+                  className={`border ${isUltraDense ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"} text-center font-semibold transition ${
                     selectedScope === PostScope.LOCAL
                       ? "border-[#3567b5] bg-[#3567b5] text-white"
                       : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -475,7 +585,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </Link>
                 <Link
                   href={makeHref({ nextScope: PostScope.GLOBAL, nextCursor: null })}
-                  className={`border px-3 py-2 text-center text-xs font-semibold transition ${
+                  className={`border ${isUltraDense ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"} text-center font-semibold transition ${
                     selectedScope === PostScope.GLOBAL
                       ? "border-[#3567b5] bg-[#3567b5] text-white"
                       : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
@@ -484,7 +594,13 @@ export default async function Home({ searchParams }: HomePageProps) {
                   온동네
                 </Link>
               </div>
-              <div className="mt-3 border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">
+              <div
+                className={
+                  isUltraDense
+                    ? "mt-1.5 border-t border-[#dbe6f6] pt-1.5 text-[10px] text-[#4f678d]"
+                    : "mt-2 border-t border-[#dbe6f6] pt-2 text-[11px] text-[#4f678d]"
+                }
+              >
                 동네 글 {localCount}건 · 온동네 글 {items.length - localCount}건
               </div>
             </aside>
@@ -531,14 +647,27 @@ export default async function Home({ searchParams }: HomePageProps) {
                 limit,
                 type,
                 scope: effectiveScope,
-                q: query || undefined,
-                searchIn: selectedSearchIn,
-                sort: selectedSort,
-              }}
+                  q: query || undefined,
+                  searchIn: selectedSearchIn,
+                  sort: selectedSort,
+                  personalized: usePersonalizedFeed,
+                }}
               queryKey={feedQueryKey}
             />
           )}
         </section>
+
+        <div className="flex justify-end gap-1.5">
+          <ScrollToTopButton
+            className="inline-flex h-8 items-center justify-center border border-[#b9cbeb] bg-white px-3 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+          />
+          <Link
+            href={isAuthenticated ? "/posts/new" : loginHref("/posts/new")}
+            className="inline-flex h-8 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-3 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+          >
+            {isAuthenticated ? "글쓰기" : "로그인 후 글쓰기"}
+          </Link>
+        </div>
       </main>
     </div>
   );
