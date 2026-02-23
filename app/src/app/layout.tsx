@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { UserRole } from "@prisma/client";
@@ -82,18 +83,17 @@ export default async function RootLayout({
 
           <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
             <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
-              <Link href="/" className="inline-flex flex-col items-start leading-none">
-                <span className="text-xs uppercase tracking-[0.32em] text-[#4a6797]">
-                  TownPet
-                </span>
-                <span className="mt-0.5 text-xl font-bold tracking-tight text-[#10284a]">
-                  타운펫
-                </span>
+              <Link href="/" className="inline-flex items-center" aria-label="TownPet 홈으로 이동">
+                <Image
+                  src="/townpet-logo.svg"
+                  alt="TownPet"
+                  width={274}
+                  height={72}
+                  priority
+                  className="h-[54px] w-auto sm:h-[62px]"
+                />
               </Link>
               <nav className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] font-medium text-[#315484]">
-                <Link href="/feed" className={navLinkClass}>
-                  피드
-                </Link>
                 <Link href="/my-posts" className={navLinkClass}>
                   내 작성글
                 </Link>
@@ -129,9 +129,7 @@ export default async function RootLayout({
             </div>
           </header>
 
-          <div className="relative z-10">
-            {children}
-          </div>
+          {children}
         </div>
       </body>
     </html>
