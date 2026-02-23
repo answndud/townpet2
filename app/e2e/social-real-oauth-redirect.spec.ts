@@ -10,7 +10,7 @@ test.describe("social real oauth redirect", () => {
 
   test("kakao button redirects to kakao oauth host", async ({ page }) => {
     await page.goto("/login?next=%2Fonboarding");
-    const kakaoButton = page.getByRole("button", { name: "카카오로 1초 로그인" });
+    const kakaoButton = page.getByRole("button", { name: "카카오로 로그인" });
     await expect(kakaoButton).toBeVisible();
 
     await Promise.all([
@@ -23,7 +23,7 @@ test.describe("social real oauth redirect", () => {
 
   test("naver button redirects to naver oauth host", async ({ page }) => {
     await page.goto("/login?next=%2Fonboarding");
-    const naverButton = page.getByRole("button", { name: "네이버로 1초 로그인" });
+    const naverButton = page.getByRole("button", { name: "네이버로 로그인" });
     await expect(naverButton).toBeVisible();
 
     await Promise.all([

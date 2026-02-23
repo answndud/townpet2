@@ -224,7 +224,7 @@ export function FeedSearchForm({
   }, [queryValue, scope, searchInValue, type]);
 
   return (
-    <div className={density === "ULTRA" ? "space-y-1" : "space-y-1.5"}>
+    <div className={density === "ULTRA" ? "space-y-2" : "space-y-2.5"}>
       <form
         action={actionPath}
         onSubmit={() => {
@@ -233,8 +233,8 @@ export function FeedSearchForm({
         }}
         className={
           density === "ULTRA"
-            ? "flex flex-col gap-1 sm:flex-row sm:items-center"
-            : "flex flex-col gap-1.5 sm:flex-row sm:items-center"
+            ? "flex flex-col gap-1.5 sm:flex-row sm:items-center"
+            : "flex flex-col gap-2 sm:flex-row sm:items-center"
         }
       >
         {type ? <input type="hidden" name="type" value={type} /> : null}
@@ -254,7 +254,7 @@ export function FeedSearchForm({
           }}
           className={
             density === "ULTRA"
-              ? "h-8 border border-[#b9cbeb] bg-white px-2 text-xs text-[#2f548f] outline-none transition focus:border-[#4a78be]"
+              ? "h-8 border border-[#b9cbeb] bg-white px-2 text-xs font-medium text-[#2f548f] outline-none transition focus:border-[#4a78be] focus-visible:ring-2 focus-visible:ring-[#2f66ba]/35"
               : "h-9 border border-[#b9cbeb] bg-white px-2.5 text-sm text-[#2f548f] outline-none transition focus:border-[#4a78be]"
           }
         >
@@ -271,11 +271,11 @@ export function FeedSearchForm({
           onChange={(event) => {
             setQueryValue(event.target.value);
           }}
-          placeholder="제목, 내용, 작성자 검색"
+          placeholder="제목, 내용, 작성자 검색 (Enter)"
           list={datalistId}
           className={
             density === "ULTRA"
-              ? "h-8 w-full border border-[#b9cbeb] bg-white px-2 text-xs text-[#122748] outline-none transition focus:border-[#4a78be]"
+              ? "h-8 w-full border border-[#b9cbeb] bg-white px-2 text-xs text-[#122748] outline-none transition focus:border-[#4a78be] focus-visible:ring-2 focus-visible:ring-[#2f66ba]/35"
               : "h-9 w-full border border-[#b9cbeb] bg-white px-2.5 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
           }
         />
@@ -285,22 +285,12 @@ export function FeedSearchForm({
           ))}
         </datalist>
 
-        <button
-          type="submit"
-          className={
-            density === "ULTRA"
-              ? "h-8 min-w-[56px] border border-[#3567b5] bg-[#3567b5] px-2 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
-              : "h-9 min-w-[68px] border border-[#3567b5] bg-[#3567b5] px-2.5 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
-          }
-        >
-          검색
-        </button>
         {shouldShowReset ? (
           <Link
             href={resetHref}
             className={
               density === "ULTRA"
-                ? "inline-flex h-8 min-w-[56px] items-center justify-center border border-[#b9cbeb] bg-white px-2 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+                ? "inline-flex h-8 min-w-[56px] items-center justify-center border border-[#b9cbeb] bg-white px-2 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/35"
                 : "inline-flex h-9 min-w-[68px] items-center justify-center border border-[#b9cbeb] bg-white px-2.5 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
             }
           >

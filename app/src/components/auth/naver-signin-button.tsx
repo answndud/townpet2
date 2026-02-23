@@ -45,7 +45,7 @@ export function NaverSignInButton({
       type="button"
       onClick={handleClick}
       disabled={isPending}
-      className="inline-flex w-full items-center justify-center gap-2 border border-[#02a84b] bg-[#03c75a] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#02b350] disabled:cursor-not-allowed disabled:opacity-70"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm border border-[#02a84b] bg-[#03c75a] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#02b350] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40 disabled:cursor-not-allowed disabled:opacity-70"
     >
       <span className="text-xs font-bold">N</span>
       {isPending ? "네이버 로그인 중..." : label}

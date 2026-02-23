@@ -45,7 +45,7 @@ export function KakaoSignInButton({
       type="button"
       onClick={handleClick}
       disabled={isPending}
-      className="inline-flex w-full items-center justify-center gap-2 border border-[#d2b200] bg-[#fee500] px-5 py-2 text-sm font-semibold text-[#3c1e1e] transition hover:bg-[#f5dd00] disabled:cursor-not-allowed disabled:opacity-70"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm border border-[#d2b200] bg-[#fee500] px-5 py-2 text-sm font-semibold text-[#3c1e1e] transition hover:bg-[#f5dd00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40 disabled:cursor-not-allowed disabled:opacity-70"
     >
       <span className="text-xs font-bold">K</span>
       {isPending ? "카카오 로그인 중..." : label}

@@ -69,6 +69,8 @@ export default async function RootLayout({
     session?.user?.name ??
     session?.user?.email ??
     null;
+  const navLinkClass =
+    "inline-flex h-9 items-center rounded-sm border border-[#bfd0ec] bg-white px-3.5 text-[13px] leading-none text-[#2f548f] transition hover:border-[#9fb7de] hover:bg-[#f5f9ff]";
 
   return (
     <html lang="ko">
@@ -80,37 +82,22 @@ export default async function RootLayout({
 
           <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
             <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
-              <Link href="/" className="inline-flex flex-col">
-                <span className="text-xs uppercase tracking-[0.4em] text-[#4a6797]">
+              <Link href="/" className="inline-flex flex-col items-start leading-none">
+                <span className="text-xs uppercase tracking-[0.32em] text-[#4a6797]">
                   TownPet
                 </span>
-                <span className="text-xl font-bold tracking-tight text-[#10284a]">
+                <span className="mt-0.5 text-xl font-bold tracking-tight text-[#10284a]">
                   타운펫
                 </span>
               </Link>
-              <nav className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#315484] sm:text-sm">
-                <Link
-                  href="/feed"
-                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                >
+              <nav className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] font-medium text-[#315484]">
+                <Link href="/feed" className={navLinkClass}>
                   피드
                 </Link>
-                <Link
-                  href="/search"
-                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                >
-                  검색
-                </Link>
-                <Link
-                  href="/my-posts"
-                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                >
+                <Link href="/my-posts" className={navLinkClass}>
                   내 작성글
                 </Link>
-                <Link
-                  href="/profile"
-                  className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                >
+                <Link href="/profile" className={navLinkClass}>
                   내 프로필
                 </Link>
                 {currentUser ? (
@@ -118,22 +105,13 @@ export default async function RootLayout({
                 ) : null}
                 {canModerate ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href="/admin/reports"
-                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                    >
+                    <Link href="/admin/reports" className={navLinkClass}>
                       신고 큐
                     </Link>
-                    <Link
-                      href="/admin/auth-audits"
-                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                    >
+                    <Link href="/admin/auth-audits" className={navLinkClass}>
                       인증 로그
                     </Link>
-                    <Link
-                      href="/admin/policies"
-                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                    >
+                    <Link href="/admin/policies" className={navLinkClass}>
                       권한 정책
                     </Link>
                   </div>
@@ -143,10 +121,7 @@ export default async function RootLayout({
                     label={userLabel ? `${userLabel} 로그아웃` : "로그아웃"}
                   />
                 ) : (
-                  <Link
-                    href="/login"
-                    className="border border-[#bfd0ec] bg-white px-3 py-1.5 transition hover:bg-[#f3f7ff]"
-                  >
+                  <Link href="/login" className={navLinkClass}>
                     로그인
                   </Link>
                 )}

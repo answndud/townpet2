@@ -34,6 +34,21 @@ const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
 ];
 type BestDay = (typeof BEST_DAY_OPTIONS)[number];
 
+const SEARCH_IN_LABEL: Record<FeedSearchIn, string> = {
+  ALL: "전체",
+  TITLE: "제목",
+  CONTENT: "내용",
+  AUTHOR: "작성자",
+};
+
+const PRIMARY_CATEGORY_TYPES: PostType[] = [
+  PostType.FREE_POST,
+  PostType.HOSPITAL_REVIEW,
+  PostType.PLACE_REVIEW,
+  PostType.WALK_ROUTE,
+  PostType.QA_QUESTION,
+];
+
 export const metadata: Metadata = {
   title: "피드",
   description: "동네와 온동네 게시글을 최신순/인기순으로 확인하세요.",
@@ -57,6 +72,7 @@ type HomePageProps = {
     sort?: string;
     searchIn?: string;
     personalized?: string;
+    density?: string;
     debugDelayMs?: string;
   }>;
 };
@@ -104,6 +120,10 @@ function toFeedPersonalized(value?: string): FeedPersonalized {
   return value === "1" ? "1" : "0";
 }
 
+function toFeedDensity(value?: string): FeedDensity {
+  return value === "ULTRA" ? "ULTRA" : "DEFAULT";
+}
+
 function isDatabaseUnavailableError(error: unknown) {
   return error instanceof Prisma.PrismaClientInitializationError;
 }
@@ -139,15 +159,15 @@ export default async function Home({ searchParams }: HomePageProps) {
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
-  const selectedScope = scope ?? (isAuthenticated ? PostScope.LOCAL : PostScope.GLOBAL);
+  const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const mode = toFeedMode(resolvedParams.mode);
   const bestDays = toBestDay(resolvedParams.days);
   const selectedSort = toFeedSort(resolvedParams.sort);
   const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);
   const selectedPersonalized = toFeedPersonalized(resolvedParams.personalized);
-  const density: FeedDensity = "ULTRA";
-  const isUltraDense = true;
+  const density = toFeedDensity(resolvedParams.density);
+  const isUltraDense = density === "ULTRA";
   const usePersonalizedFeed =
     isAuthenticated && mode === "ALL" && selectedPersonalized === "1";
   const isGuestLocalBlocked = !isAuthenticated && selectedScope === PostScope.LOCAL;
@@ -221,7 +241,16 @@ export default async function Home({ searchParams }: HomePageProps) {
   const items = mode === "BEST" ? bestItems : posts.items;
   const nextCursor = mode === "ALL" ? posts.nextCursor : null;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
+  const secondaryCategoryTypes = Object.values(PostType).filter(
+    (value) => !PRIMARY_CATEGORY_TYPES.includes(value),
+  );
   const feedTitle = type ? `${postTypeMeta[type].label} 게시판` : "전체 게시판";
+  const scopeLabel = effectiveScope === PostScope.LOCAL ? "동네" : "온동네";
+  const modeLabel = mode === "BEST" ? "베스트글" : "전체글";
+  const sortLabel =
+    mode === "BEST"
+      ? `최근 ${bestDays}일`
+      : FEED_SORT_OPTIONS.find((option) => option.value === selectedSort)?.label ?? "최신순";
   const loginHref = (nextPath: string) =>
     `/login?next=${encodeURIComponent(nextPath)}`;
   const feedQueryKey = [
@@ -332,14 +361,15 @@ export default async function Home({ searchParams }: HomePageProps) {
   };
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">
       <main
         className={`mx-auto flex w-full max-w-[1320px] flex-col px-4 sm:px-6 lg:px-10 ${
           isUltraDense ? "gap-1.5 py-2 sm:gap-2" : "gap-2 py-3 sm:gap-3"
         }`}
       >
-        <header
-          className={`animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] ${
+        <div className={isUltraDense ? "space-y-2" : "space-y-3"}>
+          <header
+          className={`animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] ${
             isUltraDense ? "px-2.5 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5"
           }`}
         >
@@ -354,21 +384,48 @@ export default async function Home({ searchParams }: HomePageProps) {
                     ? "mt-0.5 text-base font-bold tracking-tight text-[#10284a] sm:text-lg"
                     : "mt-0.5 text-lg font-bold tracking-tight text-[#10284a] sm:text-xl"
                 }
-              >
-                {feedTitle}
-              </h1>
-            </div>
+                >
+                  {feedTitle}
+                </h1>
+                <p className="mt-1 text-xs text-[#49648c]">
+                  총 {items.length}건을 기준으로 현재 선택된 필터를 바로 확인할 수 있습니다.
+                </p>
+              </div>
             <div className="flex items-center gap-1.5 text-xs text-[#4f678d]">
               <div className="border border-[#d4e1f3] bg-white px-2.5 py-1">
                 {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
               </div>
             </div>
           </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
+              {scopeLabel}
+            </span>
+            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
+              {modeLabel}
+            </span>
+            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
+              {sortLabel}
+            </span>
+            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885]">
+              검색: {SEARCH_IN_LABEL[selectedSearchIn]}
+            </span>
+            {type ? (
+              <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885]">
+                카테고리: {postTypeMeta[type].label}
+              </span>
+            ) : null}
+            {query ? (
+              <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885]">
+                검색어: &quot;{query}&quot;
+              </span>
+            ) : null}
+          </div>
         </header>
 
         <section
           className={`animate-fade-up border border-[#c8d7ef] bg-white ${
-            isUltraDense ? "p-1.5 sm:p-2" : "p-2 sm:p-2.5"
+            isUltraDense ? "p-1.5 sm:p-2" : "p-2.5 sm:p-3"
           }`}
         >
           {isGuestLocalBlocked ? (
@@ -393,11 +450,16 @@ export default async function Home({ searchParams }: HomePageProps) {
               </Link>
             </div>
           ) : null}
+          {!isAuthenticated ? (
+            <div className="mb-3 border border-[#bfd0ec] bg-[#f6f9ff] px-3 py-2 text-sm text-[#2f548f]">
+              반응 기능은 로그인 후 이용할 수 있습니다. <Link href={loginHref("/feed")} className="font-semibold underline underline-offset-2">로그인하기</Link>
+            </div>
+          ) : null}
           <div
             className={`grid ${
               isUltraDense
                 ? "gap-1.5 lg:grid-cols-[minmax(0,1fr)_184px]"
-                : "gap-2 lg:grid-cols-[minmax(0,1fr)_200px]"
+                : "gap-2.5 lg:grid-cols-[minmax(0,1fr)_220px]"
             }`}
           >
             <div className={isUltraDense ? "space-y-1.5" : "space-y-2"}>
@@ -413,15 +475,158 @@ export default async function Home({ searchParams }: HomePageProps) {
                 sort={selectedSort}
                 resetHref={makeHref({ nextQuery: null, nextCursor: null })}
                 popularTerms={popularSearchTerms}
-                density="ULTRA"
-                showKeywordChips={false}
+                density={density}
+                showKeywordChips
               />
+
+              <details open className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2 lg:hidden">
+                <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
+                  필터
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <div className="border border-[#dbe6f6] bg-white p-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                      모드
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <Link
+                        href={makeHref({ nextMode: "ALL", nextCursor: null })}
+                        className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                          mode === "ALL"
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        전체글
+                      </Link>
+                      <Link
+                        href={makeHref({ nextMode: "BEST", nextCursor: null })}
+                        className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                          mode === "BEST"
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        베스트글
+                      </Link>
+                    </div>
+                    <div className="mt-2 border-t border-[#dbe6f6] pt-2">
+                      {mode === "BEST" ? (
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {BEST_DAY_OPTIONS.map((day) => (
+                            <Link
+                              key={`mobile-best-${day}`}
+                              href={makeHref({ nextDays: day, nextCursor: null })}
+                              className={`border px-2 py-1.5 text-center text-xs font-semibold transition ${
+                                bestDays === day
+                                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                  : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                              }`}
+                            >
+                              최근 {day}일
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {FEED_SORT_OPTIONS.map((option) => (
+                            <Link
+                              key={`mobile-sort-${option.value}`}
+                              href={makeHref({ nextSort: option.value, nextCursor: null })}
+                              className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                                selectedSort === option.value
+                                  ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                  : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                              }`}
+                            >
+                              {option.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border border-[#dbe6f6] bg-white p-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                      분류
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <Link
+                        href={makeHref({ nextType: null, nextCursor: null })}
+                        className={`border px-2.5 py-0.5 text-xs font-medium transition ${
+                          !type
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        전체
+                      </Link>
+                      {PRIMARY_CATEGORY_TYPES.map((value) => {
+                        const isRestricted =
+                          !isAuthenticated &&
+                          isLoginRequiredPostType(value, loginRequiredTypes);
+                        const targetHref = makeHref({ nextType: value, nextCursor: null });
+                        return (
+                          <Link
+                            key={`mobile-primary-${value}`}
+                            href={isRestricted ? loginHref(targetHref) : targetHref}
+                            className={`border px-2.5 py-0.5 text-xs font-medium transition ${
+                              type === value
+                                ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                            }`}
+                          >
+                            {postTypeMeta[value].label}
+                            {isRestricted ? " (로그인)" : ""}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2 lg:hidden">
+                <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
+                  범위
+                </summary>
+                <div className="mt-2 grid gap-1.5">
+                  <Link
+                    href={
+                      isAuthenticated
+                        ? makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })
+                        : loginHref("/feed?scope=LOCAL")
+                    }
+                    className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                      selectedScope === PostScope.LOCAL
+                        ? "border-[#3567b5] bg-[#3567b5] text-white"
+                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                    }`}
+                  >
+                    동네
+                  </Link>
+                  <Link
+                    href={makeHref({ nextScope: PostScope.GLOBAL, nextCursor: null })}
+                    className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                      selectedScope === PostScope.GLOBAL
+                        ? "border-[#3567b5] bg-[#3567b5] text-white"
+                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                    }`}
+                  >
+                    온동네
+                  </Link>
+                  <p className="mt-1 border-t border-[#dbe6f6] pt-1.5 text-[11px] text-[#4f678d]">
+                    동네 글 {localCount}건 · 온동네 글 {items.length - localCount}건
+                  </p>
+                </div>
+              </details>
 
               <div
                 className={
                   isUltraDense
-                    ? "border border-[#dbe6f6] bg-[#f8fbff] p-1.5"
-                    : "border border-[#dbe6f6] bg-[#f8fbff] p-2"
+                    ? "hidden border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:block"
+                    : "hidden border border-[#dbe6f6] bg-[#f8fbff] p-2 lg:block"
                 }
               >
                 <div
@@ -433,7 +638,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 >
                   <div className="space-y-1.5 md:pr-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                      피드
+                      모드
                     </div>
                     <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                       <Link
@@ -469,7 +674,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     {mode === "BEST" ? (
                       <>
                         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                          베스트 기간
+                          기간 선택
                         </div>
                         <div className={isUltraDense ? "grid grid-cols-3 gap-1" : "grid grid-cols-3 gap-1.5"}>
                           {BEST_DAY_OPTIONS.map((day) => (
@@ -516,12 +721,12 @@ export default async function Home({ searchParams }: HomePageProps) {
               <div
                 className={
                   isUltraDense
-                    ? "border border-[#dbe6f6] bg-[#f8fbff] p-1.5"
-                    : "border border-[#dbe6f6] bg-[#f8fbff] p-2"
+                    ? "hidden border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:block"
+                    : "hidden border border-[#dbe6f6] bg-[#f8fbff] p-2.5 lg:block"
                 }
               >
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                  카테고리
+                  분류
                 </div>
                 <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                   <Link
@@ -534,26 +739,53 @@ export default async function Home({ searchParams }: HomePageProps) {
                   >
                     전체
                   </Link>
-                  {Object.values(PostType).map((value) => {
+                  {PRIMARY_CATEGORY_TYPES.map((value) => {
                     const isRestricted =
                       !isAuthenticated &&
                       isLoginRequiredPostType(value, loginRequiredTypes);
                     const targetHref = makeHref({ nextType: value, nextCursor: null });
                     return (
-                    <Link
-                      key={value}
-                      href={isRestricted ? loginHref(targetHref) : targetHref}
-                      className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
-                        type === value
-                          ? "border-[#3567b5] bg-[#3567b5] text-white"
-                          : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                      }`}
-                    >
-                      {postTypeMeta[value].label}
-                      {isRestricted ? " (로그인)" : ""}
-                    </Link>
+                      <Link
+                        key={value}
+                        href={isRestricted ? loginHref(targetHref) : targetHref}
+                        className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
+                          type === value
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        {postTypeMeta[value].label}
+                        {isRestricted ? " (로그인)" : ""}
+                      </Link>
                     );
                   })}
+                </div>
+                <div className="mt-2 border-t border-[#dbe6f6] pt-2">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                    기타
+                  </p>
+                  <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
+                    {secondaryCategoryTypes.map((value) => {
+                      const isRestricted =
+                        !isAuthenticated &&
+                        isLoginRequiredPostType(value, loginRequiredTypes);
+                      const targetHref = makeHref({ nextType: value, nextCursor: null });
+                      return (
+                        <Link
+                          key={`secondary-${value}`}
+                          href={isRestricted ? loginHref(targetHref) : targetHref}
+                          className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
+                            type === value
+                              ? "border-[#3567b5] bg-[#3567b5] text-white"
+                              : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                          }`}
+                        >
+                          {postTypeMeta[value].label}
+                          {isRestricted ? " (로그인)" : ""}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -561,8 +793,8 @@ export default async function Home({ searchParams }: HomePageProps) {
             <aside
               className={
                 isUltraDense
-                  ? "border border-[#dbe6f6] bg-[#f8fbff] p-1.5"
-                  : "border border-[#dbe6f6] bg-[#f8fbff] p-2"
+                  ? "hidden border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:block"
+                  : "hidden border border-[#dbe6f6] bg-[#f8fbff] p-2.5 lg:block"
               }
             >
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
@@ -608,6 +840,10 @@ export default async function Home({ searchParams }: HomePageProps) {
         </section>
 
         <section className="animate-fade-up border border-[#c8d7ef] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#dbe6f6] bg-[#f8fbff] px-4 py-2 text-xs text-[#3d5f8f] sm:px-5">
+            <span className="font-semibold">게시글 목록</span>
+            <span>읽은 글은 연한 색상으로 표시됩니다.</span>
+          </div>
           {items.length === 0 ? (
             <EmptyState
               title={mode === "BEST" ? "베스트글이 없습니다" : "게시글이 없습니다"}
@@ -642,7 +878,6 @@ export default async function Home({ searchParams }: HomePageProps) {
               initialItems={initialFeedItems}
               initialNextCursor={nextCursor}
               mode={mode}
-              isAuthenticated={isAuthenticated}
               query={{
                 limit,
                 type,
@@ -667,6 +902,8 @@ export default async function Home({ searchParams }: HomePageProps) {
           >
             {isAuthenticated ? "글쓰기" : "로그인 후 글쓰기"}
           </Link>
+        </div>
+
         </div>
       </main>
     </div>

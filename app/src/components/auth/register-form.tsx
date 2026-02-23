@@ -62,76 +62,90 @@ export function RegisterForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">
         이메일
         <input
           type="email"
-          className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+          autoComplete="email"
+          inputMode="email"
+          spellCheck={false}
+          className="min-h-11 rounded-sm border border-[#adc3e6] bg-[#f7faff] px-3 py-2 text-sm text-[#1f3f71] placeholder:text-[#6887b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@townpet.dev"
           required
         />
       </label>
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">
         이름(선택)
         <input
-          className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+          autoComplete="name"
+          className="min-h-11 rounded-sm border border-[#adc3e6] bg-[#f7faff] px-3 py-2 text-sm text-[#1f3f71] placeholder:text-[#6887b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="표시 이름"
         />
       </label>
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">
         비밀번호
         <input
           type="password"
-          className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+          autoComplete="new-password"
+          className="min-h-11 rounded-sm border border-[#adc3e6] bg-[#f7faff] px-3 py-2 text-sm text-[#1f3f71] placeholder:text-[#6887b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="최소 8자"
           required
         />
       </label>
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">
         비밀번호 확인
         <input
           type="password"
-          className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+          autoComplete="new-password"
+          className="min-h-11 rounded-sm border border-[#adc3e6] bg-[#f7faff] px-3 py-2 text-sm text-[#1f3f71] placeholder:text-[#6887b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40"
           value={passwordConfirm}
           onChange={(event) => setPasswordConfirm(event.target.value)}
           placeholder="다시 입력"
           required
         />
       </label>
-      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+      {error ? (
+        <p className="text-xs font-medium text-rose-700" role="alert" aria-live="polite">
+          {error}
+        </p>
+      ) : null}
       {success ? (
-        <p className="text-xs text-emerald-600">
+        <p className="text-xs font-medium text-emerald-700" role="status" aria-live="polite">
           인증 메일을 보냈습니다. 메일함을 확인해 주세요.
         </p>
       ) : null}
       <button
         type="submit"
-        className="border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
-        disabled={isPending}
+        className="min-h-11 rounded-sm border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40 disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
+        disabled={isPending || !email.trim() || !password || !passwordConfirm}
       >
         {isPending ? "가입 중..." : "이메일로 가입"}
       </button>
       {kakaoEnabled || naverEnabled ? (
         <>
-          <div className="my-1 border-t border-[#d8e4f6]" />
+          <div className="my-2 flex items-center gap-3" aria-hidden>
+            <div className="h-px flex-1 bg-[#d8e4f6]" />
+            <span className="text-xs font-medium text-[#5f7fa8]">또는</span>
+            <div className="h-px flex-1 bg-[#d8e4f6]" />
+          </div>
           <div className="flex flex-col gap-2">
             {kakaoEnabled ? (
               <KakaoSignInButton
-                label="카카오로 빠르게 가입"
+                label="카카오로 가입"
                 devMode={kakaoDevMode}
                 socialDevEnabled={socialDevEnabled}
               />
             ) : null}
             {naverEnabled ? (
               <NaverSignInButton
-                label="네이버로 빠르게 가입"
+                label="네이버로 가입"
                 devMode={naverDevMode}
                 socialDevEnabled={socialDevEnabled}
               />

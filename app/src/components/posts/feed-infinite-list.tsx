@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { PostType } from "@prisma/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { PostReactionControls } from "@/components/posts/post-reaction-controls";
 import { PostSignalIcons } from "@/components/posts/post-signal-icons";
 import {
   formatCount,
@@ -84,7 +83,6 @@ type FeedInfiniteListProps = {
   initialItems: FeedPostItem[];
   initialNextCursor: string | null;
   mode: FeedMode;
-  isAuthenticated: boolean;
   query: FeedQueryParams;
   queryKey: string;
 };
@@ -97,10 +95,6 @@ type StoredReadPost = {
   id: string;
   ts: number;
 };
-
-function buildLoginHref(nextPath: string) {
-  return `/login?next=${encodeURIComponent(nextPath)}`;
-}
 
 function parseErrorMessage(error: unknown) {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -156,7 +150,6 @@ export function FeedInfiniteList({
   initialItems,
   initialNextCursor,
   mode,
-  isAuthenticated,
   query,
   queryKey,
 }: FeedInfiniteListProps) {
@@ -405,12 +398,12 @@ export function FeedInfiniteList({
             <article
               key={post.id}
               data-testid="feed-post-item"
-              className={`grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-center ${
+              className={`grid gap-3 px-4 py-4 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_256px] md:items-start ${
                 post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
               }`}
             >
               <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
                   <span
                     className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
                   >
@@ -434,7 +427,7 @@ export function FeedInfiniteList({
 
                 <Link
                   href={`/posts/${post.id}`}
-                  className={`flex min-w-0 items-center gap-1 text-base font-semibold transition sm:text-lg ${
+                  className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition sm:text-lg ${
                     readPostIds.has(post.id)
                       ? "text-[#8c9db8] hover:text-[#7589a8]"
                       : "text-[#10284a] hover:text-[#2f5da4]"
@@ -448,7 +441,7 @@ export function FeedInfiniteList({
                   ) : null}
                 </Link>
                 <p
-                  className={`mt-1 truncate text-sm ${
+                  className={`mt-1 overflow-hidden text-sm leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${
                     readPostIds.has(post.id) ? "text-[#99a8bf]" : "text-[#4c6488]"
                   }`}
                 >
@@ -463,21 +456,9 @@ export function FeedInfiniteList({
                   </Link>
                 </p>
                 <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
-                <p className="mt-2 text-[11px] text-[#6a84ab]">
-                  조회 {formatCount(post.viewCount)} · 좋아요 {formatCount(post.likeCount)} · 싫어요{" "}
-                  {formatCount(post.dislikeCount)}
+                <p className="mt-2 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-1 text-[11px] text-[#5a759c] md:ml-auto">
+                  조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
                 </p>
-                <div className="mt-2 md:ml-auto md:flex md:justify-end">
-                  <PostReactionControls
-                    postId={post.id}
-                    likeCount={post.likeCount}
-                    dislikeCount={post.dislikeCount}
-                    currentReaction={post.reactions?.[0]?.type ?? null}
-                    compact
-                    canReact={isAuthenticated}
-                    loginHref={buildLoginHref(`/posts/${post.id}`)}
-                  />
-                </div>
               </div>
             </article>
           );

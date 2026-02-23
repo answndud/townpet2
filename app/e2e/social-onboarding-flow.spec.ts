@@ -14,14 +14,14 @@ const scenarios: SocialScenario[] = [
   {
     provider: "kakao",
     loginQueryParam: "devShowKakao=1",
-    buttonLabel: "카카오로 1초 로그인",
+    buttonLabel: "카카오로 로그인",
     emailEnvKey: "E2E_SOCIAL_KAKAO_EMAIL",
     fallbackEmail: "e2e.kakao@townpet.dev",
   },
   {
     provider: "naver",
     loginQueryParam: "devShowNaver=1",
-    buttonLabel: "네이버로 1초 로그인",
+    buttonLabel: "네이버로 로그인",
     emailEnvKey: "E2E_SOCIAL_NAVER_EMAIL",
     fallbackEmail: "e2e.naver@townpet.dev",
   },

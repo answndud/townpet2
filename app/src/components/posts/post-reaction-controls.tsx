@@ -20,6 +20,7 @@ type PostReactionControlsProps = {
   compact?: boolean;
   canReact?: boolean;
   loginHref?: string;
+  showLoginHint?: boolean;
 };
 
 function getNextState(
@@ -71,6 +72,7 @@ export function PostReactionControls({
   compact = false,
   canReact = true,
   loginHref = "/login",
+  showLoginHint = true,
 }: PostReactionControlsProps) {
   const initialLikeCount = Number.isFinite(likeCount) ? Number(likeCount) : 0;
   const initialDislikeCount = Number.isFinite(dislikeCount) ? Number(dislikeCount) : 0;
@@ -81,8 +83,9 @@ export function PostReactionControls({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const buttonClass =
-    "inline-flex items-center justify-center border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+  const buttonClass = compact
+    ? "inline-flex h-10 min-w-[108px] items-center justify-center border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+    : "inline-flex items-center justify-center border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
   const handleToggle = (target: ReactionType) => {
     if (!canReact) {
@@ -114,7 +117,7 @@ export function PostReactionControls({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "justify-end" : ""}`}>
       <button
         type="button"
         onClick={() => handleToggle(REACTION_TYPE.LIKE)}
@@ -139,12 +142,12 @@ export function PostReactionControls({
       >
         싫어요 {dislikes.toLocaleString()}
       </button>
-      {!canReact && !compact ? (
+      {!canReact && showLoginHint && !compact ? (
         <Link href={loginHref} className="text-xs text-[#2f5da4] underline underline-offset-2">
           로그인 후 반응 가능
         </Link>
       ) : null}
-      {!canReact && compact ? (
+      {!canReact && showLoginHint && compact ? (
         <Link href={loginHref} className="w-full text-[11px] text-[#2f5da4] underline underline-offset-2">
           로그인 후 반응 가능
         </Link>

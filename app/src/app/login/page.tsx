@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { AuthPageLayout } from "@/components/auth/auth-page-layout";
 import { LoginForm } from "@/components/auth/login-form";
 
 type LoginPageProps = {
@@ -11,54 +10,44 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedParams = (await searchParams) ?? {};
+  const isLocalPreview = process.env.NODE_ENV !== "production";
   const kakaoEnabledByEnv = Boolean(
     process.env.KAKAO_CLIENT_ID && process.env.KAKAO_CLIENT_SECRET,
   );
-  const kakaoEnabledByDevFlag =
-    process.env.NODE_ENV !== "production" && resolvedParams.devShowKakao === "1";
-  const kakaoEnabled = kakaoEnabledByEnv || kakaoEnabledByDevFlag;
+  const kakaoEnabledByDevFlag = isLocalPreview && resolvedParams.devShowKakao === "1";
+  const kakaoEnabledByLocalPreview = isLocalPreview;
+  const kakaoEnabled =
+    kakaoEnabledByEnv || kakaoEnabledByDevFlag || kakaoEnabledByLocalPreview;
   const naverEnabledByEnv = Boolean(
     process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET,
   );
-  const naverEnabledByDevFlag =
-    process.env.NODE_ENV !== "production" && resolvedParams.devShowNaver === "1";
-  const naverEnabled = naverEnabledByEnv || naverEnabledByDevFlag;
+  const naverEnabledByDevFlag = isLocalPreview && resolvedParams.devShowNaver === "1";
+  const naverEnabledByLocalPreview = isLocalPreview;
+  const naverEnabled =
+    naverEnabledByEnv || naverEnabledByDevFlag || naverEnabledByLocalPreview;
   const socialDevEnabled =
-    process.env.NODE_ENV !== "production" &&
+    isLocalPreview &&
     process.env.ENABLE_SOCIAL_DEV_LOGIN === "1";
 
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-8 sm:px-6">
-        <header className="flex flex-col gap-3">
-          <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">
-            계정 접속
-          </p>
-          <h1 className="text-3xl font-semibold text-[#10284a]">로그인</h1>
-          <p className="text-sm text-[#4f678d]">
-            이메일 인증을 완료한 후 로그인해 주세요.
-          </p>
-        </header>
-
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
-          <LoginForm
-            kakaoEnabled={kakaoEnabled}
-            kakaoDevMode={kakaoEnabledByDevFlag && !kakaoEnabledByEnv}
-            naverEnabled={naverEnabled}
-            naverDevMode={naverEnabledByDevFlag && !naverEnabledByEnv}
-            socialDevEnabled={socialDevEnabled}
-          />
-        </section>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#5a7398]">
-          <Link href="/register">처음이신가요? 회원가입</Link>
-          <div className="flex items-center gap-4">
-            <Link href="/verify-email">이메일 인증</Link>
-            <Link href="/password/reset">비밀번호 재설정</Link>
-            <Link href="/">홈으로 돌아가기</Link>
-          </div>
-        </div>
-      </main>
-    </div>
+    <AuthPageLayout
+      eyebrow="계정 접속"
+      title="로그인"
+      description="가입한 이메일과 비밀번호로 로그인해 주세요."
+      form={
+        <LoginForm
+          kakaoEnabled={kakaoEnabled}
+          kakaoDevMode={isLocalPreview && !kakaoEnabledByEnv}
+          naverEnabled={naverEnabled}
+          naverDevMode={isLocalPreview && !naverEnabledByEnv}
+          socialDevEnabled={socialDevEnabled}
+        />
+      }
+      primaryFooterLink={{ href: "/register", label: "회원가입" }}
+      secondaryFooterLinks={[
+        { href: "/verify-email", label: "이메일 인증" },
+        { href: "/", label: "홈으로 돌아가기" },
+      ]}
+    />
   );
 }
