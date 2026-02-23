@@ -301,6 +301,24 @@ export async function listPublicUserReactions({
 }
 
 export async function listPetsByUserId(userId: string) {
+  type PetSpeciesValue = "DOG" | "CAT";
+  type PetSizeClassValue = "TOY" | "SMALL" | "MEDIUM" | "LARGE" | "GIANT" | "UNKNOWN";
+  type PetLifeStageValue = "PUPPY_KITTEN" | "YOUNG" | "ADULT" | "SENIOR" | "UNKNOWN";
+
+  type PetListItem = {
+    id: string;
+    name: string;
+    species: PetSpeciesValue;
+    breedCode: string | null;
+    breedLabel: string | null;
+    sizeClass: PetSizeClassValue;
+    lifeStage: PetLifeStageValue;
+    age: number | null;
+    imageUrl: string | null;
+    bio: string | null;
+    createdAt: Date;
+  };
+
   const petDelegate = (prisma as unknown as {
     pet: {
       findMany: (args: {
@@ -312,7 +330,7 @@ export async function listPetsByUserId(userId: string) {
   }).pet;
 
   try {
-    return await petDelegate.findMany({
+    const pets = await petDelegate.findMany({
       where: { userId },
       orderBy: [{ createdAt: "desc" }],
       select: {
@@ -329,6 +347,8 @@ export async function listPetsByUserId(userId: string) {
         createdAt: true,
       },
     });
+
+    return pets as PetListItem[];
   } catch (error) {
     const isMissingBreedCodeColumn =
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -357,8 +377,8 @@ export async function listPetsByUserId(userId: string) {
     });
 
     return legacyPets.map((pet) => ({
-      ...pet,
+      ...(pet as Omit<PetListItem, "breedCode">),
       breedCode: null,
-    }));
+    } satisfies PetListItem));
   }
 }
