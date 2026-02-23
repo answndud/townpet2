@@ -75,13 +75,16 @@ export const postTypeMeta: Record<
   },
 };
 
-export function formatRelativeDate(date: Date | string | number) {
+export function formatRelativeDate(
+  date: Date | string | number,
+  nowMs: number = Date.now(),
+) {
   const targetDate = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(targetDate.getTime())) {
     return "";
   }
 
-  const diffMs = Date.now() - targetDate.getTime();
+  const diffMs = nowMs - targetDate.getTime();
   const minutes = Math.floor(diffMs / (1000 * 60));
 
   if (minutes < 1) return "방금 전";

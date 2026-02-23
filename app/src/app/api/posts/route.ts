@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { PostScope } from "@prisma/client";
 
 import { isLoginRequiredPostType } from "@/lib/post-access";
+import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { postListSchema } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
 import { getCurrentUser, requireCurrentUser } from "@/server/auth";
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const parsed = postListSchema.safeParse({
       cursor: searchParams.get("cursor") ?? undefined,
-      limit: searchParams.get("limit") ?? undefined,
+      limit: FEED_PAGE_SIZE,
       type: searchParams.get("type") ?? undefined,
       scope: searchParams.get("scope") ?? undefined,
       q: searchParams.get("q") ?? undefined,
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
 
     const data = await listPosts({
       ...parsed.data,
+      limit: FEED_PAGE_SIZE,
       scope,
       excludeTypes: currentUser ? undefined : loginRequiredTypes,
       neighborhoodId,

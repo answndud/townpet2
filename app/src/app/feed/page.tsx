@@ -12,11 +12,17 @@ import { FeedSearchForm } from "@/components/posts/feed-search-form";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
+import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { postListSchema } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
-import { listBestPosts, listPosts } from "@/server/queries/post.queries";
+import {
+  countBestPosts,
+  countPosts,
+  listBestPosts,
+  listPosts,
+} from "@/server/queries/post.queries";
 import { getPopularSearchTerms } from "@/server/queries/search.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
@@ -26,6 +32,7 @@ type FeedSearchIn = "ALL" | "TITLE" | "CONTENT" | "AUTHOR";
 type FeedPersonalized = "0" | "1";
 type FeedDensity = "DEFAULT" | "ULTRA";
 const BEST_DAY_OPTIONS = [3, 7, 30] as const;
+const FEED_PERIOD_OPTIONS = [3, 7, 30] as const;
 const MAX_DEBUG_DELAY_MS = 5_000;
 const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
   { value: "LATEST", label: "최신순" },
@@ -33,6 +40,7 @@ const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
   { value: "COMMENT", label: "댓글순" },
 ];
 type BestDay = (typeof BEST_DAY_OPTIONS)[number];
+type FeedPeriod = (typeof FEED_PERIOD_OPTIONS)[number];
 
 const SEARCH_IN_LABEL: Record<FeedSearchIn, string> = {
   ALL: "전체",
@@ -69,9 +77,11 @@ type HomePageProps = {
     q?: string;
     mode?: string;
     days?: string;
+    period?: string;
     sort?: string;
     searchIn?: string;
     personalized?: string;
+    page?: string;
     density?: string;
     debugDelayMs?: string;
   }>;
@@ -100,6 +110,13 @@ function toBestDay(value?: string): BestDay {
   return BEST_DAY_OPTIONS.includes(numeric as BestDay)
     ? (numeric as BestDay)
     : 7;
+}
+
+function toFeedPeriod(value?: string): FeedPeriod | null {
+  const numeric = Number(value);
+  return FEED_PERIOD_OPTIONS.includes(numeric as FeedPeriod)
+    ? (numeric as FeedPeriod)
+    : null;
 }
 
 function toFeedSort(value?: string): FeedSort {
@@ -156,13 +173,17 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   const resolvedParams = (await searchParams) ?? {};
   await maybeDebugDelay(resolvedParams.debugDelayMs);
-  const parsedParams = postListSchema.safeParse(resolvedParams);
+  const parsedParams = postListSchema.safeParse({
+    ...resolvedParams,
+    limit: FEED_PAGE_SIZE,
+  });
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
   const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const mode = toFeedMode(resolvedParams.mode);
   const bestDays = toBestDay(resolvedParams.days);
+  const periodDays = toFeedPeriod(resolvedParams.period);
   const selectedSort = toFeedSort(resolvedParams.sort);
   const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);
   const selectedPersonalized = toFeedPersonalized(resolvedParams.personalized);
@@ -186,24 +207,65 @@ export default async function Home({ searchParams }: HomePageProps) {
     );
   }
 
-  const cursor = parsedParams.success ? parsedParams.data.cursor : undefined;
-  const limit = parsedParams.success ? parsedParams.data.limit : 20;
+  const limit = FEED_PAGE_SIZE;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
+  const requestedPage = Number.parseInt(resolvedParams.page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const neighborhoodId =
     effectiveScope === PostScope.LOCAL
       ? primaryNeighborhood?.neighborhood.id
       : undefined;
 
-  const posts =
+  const totalItemCount =
     mode === "ALL" && !isGuestTypeBlocked
-      ? await listPosts({
-          limit,
-          cursor,
+      ? await countPosts({
           type,
           scope: effectiveScope,
           q: query || undefined,
           searchIn: selectedSearchIn,
+          days: periodDays ?? undefined,
+          excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
+          neighborhoodId,
+          viewerId: user?.id,
+        }).catch((error) => {
+          if (isDatabaseUnavailableError(error)) {
+            return 0;
+          }
+          throw error;
+        })
+      : mode === "BEST" && !isGuestTypeBlocked
+        ? await countBestPosts({
+            days: bestDays,
+            type,
+            scope: effectiveScope,
+            q: query || undefined,
+            searchIn: selectedSearchIn,
+            excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
+            neighborhoodId,
+            minLikes: 1,
+            viewerId: user?.id,
+          }).catch((error) => {
+            if (isDatabaseUnavailableError(error)) {
+              return 0;
+            }
+            throw error;
+          })
+        : 0;
+
+  const totalPages = Math.max(1, Math.ceil(totalItemCount / limit));
+  const resolvedPage = Math.min(currentPage, totalPages);
+
+  const posts =
+    mode === "ALL" && !isGuestTypeBlocked
+      ? await listPosts({
+          limit,
+          page: resolvedPage,
+          type,
+          scope: effectiveScope,
+          q: query || undefined,
+          searchIn: selectedSearchIn,
+          days: periodDays ?? undefined,
           sort: selectedSort,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
           neighborhoodId,
@@ -221,6 +283,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     mode === "BEST" && !isGuestTypeBlocked
       ? await listBestPosts({
           limit,
+          page: resolvedPage,
           days: bestDays,
           type,
           scope: effectiveScope,
@@ -239,7 +302,6 @@ export default async function Home({ searchParams }: HomePageProps) {
       : [];
 
   const items = mode === "BEST" ? bestItems : posts.items;
-  const nextCursor = mode === "ALL" ? posts.nextCursor : null;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
   const secondaryCategoryTypes = Object.values(PostType).filter(
     (value) => !PRIMARY_CATEGORY_TYPES.includes(value),
@@ -250,7 +312,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const sortLabel =
     mode === "BEST"
       ? `최근 ${bestDays}일`
-      : FEED_SORT_OPTIONS.find((option) => option.value === selectedSort)?.label ?? "최신순";
+      : `${FEED_SORT_OPTIONS.find((option) => option.value === selectedSort)?.label ?? "최신순"}${periodDays ? ` · 최근 ${periodDays}일` : ""}`;
   const loginHref = (nextPath: string) =>
     `/login?next=${encodeURIComponent(nextPath)}`;
   const feedQueryKey = [
@@ -262,8 +324,9 @@ export default async function Home({ searchParams }: HomePageProps) {
     selectedPersonalized,
     density,
     bestDays,
+    periodDays ?? "ALL_TIME",
     query || "__EMPTY__",
-    limit,
+    resolvedPage,
   ].join("|");
   const initialFeedItems: FeedPostItem[] = items.map((post) => ({
     id: post.id,
@@ -303,9 +366,10 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextType,
     nextScope,
     nextQuery,
-    nextCursor,
+    nextPage,
     nextMode,
     nextDays,
+    nextPeriod,
     nextSort,
     nextSearchIn,
     nextPersonalized,
@@ -314,9 +378,10 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextType?: PostType | null;
     nextScope?: PostScope | null;
     nextQuery?: string | null;
-    nextCursor?: string | null;
+    nextPage?: number | null;
     nextMode?: FeedMode | null;
     nextDays?: BestDay | null;
+    nextPeriod?: FeedPeriod | null;
     nextSort?: FeedSort | null;
     nextSearchIn?: FeedSearchIn | null;
     nextPersonalized?: FeedPersonalized | null;
@@ -328,12 +393,14 @@ export default async function Home({ searchParams }: HomePageProps) {
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
     const resolvedMode = nextMode === undefined ? mode : nextMode;
     const resolvedDays = nextDays === undefined ? bestDays : nextDays;
+    const resolvedPeriod = nextPeriod === undefined ? periodDays : nextPeriod;
     const resolvedSort = nextSort === undefined ? selectedSort : nextSort;
     const resolvedSearchIn =
       nextSearchIn === undefined ? selectedSearchIn : nextSearchIn;
     const resolvedPersonalized =
       nextPersonalized === undefined ? selectedPersonalized : nextPersonalized;
     const resolvedDensity = nextDensity === undefined ? density : nextDensity;
+    const effectivePage = nextPage === undefined ? resolvedPage : nextPage;
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
@@ -352,9 +419,15 @@ export default async function Home({ searchParams }: HomePageProps) {
       params.set("days", String(resolvedDays));
     } else if (resolvedSort && resolvedSort !== "LATEST") {
       params.set("sort", resolvedSort);
+      if (resolvedPeriod) {
+        params.set("period", String(resolvedPeriod));
+      }
+    } else if (resolvedMode === "ALL" && resolvedPeriod) {
+      params.set("period", String(resolvedPeriod));
     }
-    if (limit) params.set("limit", String(limit));
-    if (resolvedMode === "ALL" && nextCursor) params.set("cursor", nextCursor);
+    if (effectivePage && effectivePage > 1) {
+      params.set("page", String(effectivePage));
+    }
 
     const serialized = params.toString();
     return serialized ? `/feed?${serialized}` : "/feed";
@@ -472,8 +545,9 @@ export default async function Home({ searchParams }: HomePageProps) {
                 scope={selectedScope}
                 mode={mode}
                 days={bestDays}
+                period={periodDays}
                 sort={selectedSort}
-                resetHref={makeHref({ nextQuery: null, nextCursor: null })}
+                resetHref={makeHref({ nextQuery: null, nextPage: 1 })}
                 popularTerms={popularSearchTerms}
                 density={density}
                 showKeywordChips
@@ -490,7 +564,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
-                        href={makeHref({ nextMode: "ALL", nextCursor: null })}
+                        href={makeHref({ nextMode: "ALL", nextPage: 1 })}
                         className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
                           mode === "ALL"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -500,7 +574,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                         전체글
                       </Link>
                       <Link
-                        href={makeHref({ nextMode: "BEST", nextCursor: null })}
+                        href={makeHref({ nextMode: "BEST", nextPage: 1 })}
                         className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
                           mode === "BEST"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -516,7 +590,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                           {BEST_DAY_OPTIONS.map((day) => (
                             <Link
                               key={`mobile-best-${day}`}
-                              href={makeHref({ nextDays: day, nextCursor: null })}
+                              href={makeHref({ nextDays: day, nextPage: 1 })}
                               className={`border px-2 py-1.5 text-center text-xs font-semibold transition ${
                                 bestDays === day
                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -528,20 +602,47 @@ export default async function Home({ searchParams }: HomePageProps) {
                           ))}
                         </div>
                       ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {FEED_SORT_OPTIONS.map((option) => (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-1.5">
+                            {FEED_SORT_OPTIONS.map((option) => (
+                              <Link
+                                key={`mobile-sort-${option.value}`}
+                                href={makeHref({ nextSort: option.value, nextPage: 1 })}
+                                className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                                  selectedSort === option.value
+                                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                                }`}
+                              >
+                                {option.label}
+                              </Link>
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
                             <Link
-                              key={`mobile-sort-${option.value}`}
-                              href={makeHref({ nextSort: option.value, nextCursor: null })}
+                              href={makeHref({ nextPeriod: null, nextPage: 1 })}
                               className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
-                                selectedSort === option.value
+                                !periodDays
                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
                                   : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
                               }`}
                             >
-                              {option.label}
+                              전체 기간
                             </Link>
-                          ))}
+                            {FEED_PERIOD_OPTIONS.map((day) => (
+                              <Link
+                                key={`mobile-period-${day}`}
+                                href={makeHref({ nextPeriod: day, nextPage: 1 })}
+                                className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                                  periodDays === day
+                                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                                }`}
+                              >
+                                최근 {day}일
+                              </Link>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -553,7 +654,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
-                        href={makeHref({ nextType: null, nextCursor: null })}
+                        href={makeHref({ nextType: null, nextPage: 1 })}
                         className={`border px-2.5 py-0.5 text-xs font-medium transition ${
                           !type
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -566,7 +667,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                         const isRestricted =
                           !isAuthenticated &&
                           isLoginRequiredPostType(value, loginRequiredTypes);
-                        const targetHref = makeHref({ nextType: value, nextCursor: null });
+                        const targetHref = makeHref({ nextType: value, nextPage: 1 });
                         return (
                           <Link
                             key={`mobile-primary-${value}`}
@@ -595,7 +696,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                   <Link
                     href={
                       isAuthenticated
-                        ? makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })
+                        ? makeHref({ nextScope: PostScope.LOCAL, nextPage: 1 })
                         : loginHref("/feed?scope=LOCAL")
                     }
                     className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
@@ -607,7 +708,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     동네
                   </Link>
                   <Link
-                    href={makeHref({ nextScope: PostScope.GLOBAL, nextCursor: null })}
+                    href={makeHref({ nextScope: PostScope.GLOBAL, nextPage: 1 })}
                     className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
                       selectedScope === PostScope.GLOBAL
                         ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -642,7 +743,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                     <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                       <Link
-                        href={makeHref({ nextMode: "ALL", nextCursor: null })}
+                        href={makeHref({ nextMode: "ALL", nextPage: 1 })}
                         className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
                           mode === "ALL"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -652,7 +753,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                         전체글
                       </Link>
                       <Link
-                        href={makeHref({ nextMode: "BEST", nextCursor: null })}
+                        href={makeHref({ nextMode: "BEST", nextPage: 1 })}
                         className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
                           mode === "BEST"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -680,7 +781,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                           {BEST_DAY_OPTIONS.map((day) => (
                             <Link
                               key={day}
-                              href={makeHref({ nextDays: day, nextCursor: null })}
+                              href={makeHref({ nextDays: day, nextPage: 1 })}
                               className={`border ${isUltraDense ? "px-1.5 py-1 text-[11px]" : "px-2 py-1.5 text-xs"} text-center font-semibold transition ${
                                 bestDays === day
                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -697,20 +798,47 @@ export default async function Home({ searchParams }: HomePageProps) {
                         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                           정렬
                         </div>
-                        <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
-                          {FEED_SORT_OPTIONS.map((option) => (
+                        <div className="space-y-1.5">
+                          <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
+                            {FEED_SORT_OPTIONS.map((option) => (
+                              <Link
+                                key={option.value}
+                                href={makeHref({ nextSort: option.value, nextPage: 1 })}
+                                className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
+                                  selectedSort === option.value
+                                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                                }`}
+                              >
+                                {option.label}
+                              </Link>
+                            ))}
+                          </div>
+                          <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                             <Link
-                              key={option.value}
-                              href={makeHref({ nextSort: option.value, nextCursor: null })}
+                              href={makeHref({ nextPeriod: null, nextPage: 1 })}
                               className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
-                                selectedSort === option.value
+                                !periodDays
                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
                                   : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
                               }`}
                             >
-                              {option.label}
+                              전체 기간
                             </Link>
-                          ))}
+                            {FEED_PERIOD_OPTIONS.map((day) => (
+                              <Link
+                                key={`desktop-period-${day}`}
+                                href={makeHref({ nextPeriod: day, nextPage: 1 })}
+                                className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-semibold transition ${
+                                  periodDays === day
+                                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                                }`}
+                              >
+                                최근 {day}일
+                              </Link>
+                            ))}
+                          </div>
                         </div>
                       </>
                     )}
@@ -730,7 +858,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
                 <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                   <Link
-                    href={makeHref({ nextType: null, nextCursor: null })}
+                    href={makeHref({ nextType: null, nextPage: 1 })}
                     className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
                       !type
                         ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -743,7 +871,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     const isRestricted =
                       !isAuthenticated &&
                       isLoginRequiredPostType(value, loginRequiredTypes);
-                    const targetHref = makeHref({ nextType: value, nextCursor: null });
+                    const targetHref = makeHref({ nextType: value, nextPage: 1 });
                     return (
                       <Link
                         key={value}
@@ -769,7 +897,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                       const isRestricted =
                         !isAuthenticated &&
                         isLoginRequiredPostType(value, loginRequiredTypes);
-                      const targetHref = makeHref({ nextType: value, nextCursor: null });
+                      const targetHref = makeHref({ nextType: value, nextPage: 1 });
                       return (
                         <Link
                           key={`secondary-${value}`}
@@ -804,7 +932,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 <Link
                   href={
                     isAuthenticated
-                      ? makeHref({ nextScope: PostScope.LOCAL, nextCursor: null })
+                      ? makeHref({ nextScope: PostScope.LOCAL, nextPage: 1 })
                       : loginHref("/feed?scope=LOCAL")
                   }
                   className={`border ${isUltraDense ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"} text-center font-semibold transition ${
@@ -816,7 +944,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                   동네
                 </Link>
                 <Link
-                  href={makeHref({ nextScope: PostScope.GLOBAL, nextCursor: null })}
+                  href={makeHref({ nextScope: PostScope.GLOBAL, nextPage: 1 })}
                   className={`border ${isUltraDense ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"} text-center font-semibold transition ${
                     selectedScope === PostScope.GLOBAL
                       ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -876,20 +1004,68 @@ export default async function Home({ searchParams }: HomePageProps) {
           ) : (
             <FeedInfiniteList
               initialItems={initialFeedItems}
-              initialNextCursor={nextCursor}
+              initialNextCursor={null}
               mode={mode}
+              disableLoadMore
               query={{
-                limit,
                 type,
                 scope: effectiveScope,
-                  q: query || undefined,
-                  searchIn: selectedSearchIn,
-                  sort: selectedSort,
-                  personalized: usePersonalizedFeed,
-                }}
+                q: query || undefined,
+                searchIn: selectedSearchIn,
+                sort: selectedSort,
+                personalized: usePersonalizedFeed,
+              }}
               queryKey={feedQueryKey}
             />
           )}
+          {items.length > 0 && totalPages > 1 ? (
+            <div className="flex flex-wrap items-center justify-center gap-1.5 border-t border-[#dbe6f6] bg-[#f8fbff] px-3 py-3">
+              <Link
+                href={makeHref({ nextPage: Math.max(1, resolvedPage - 1) })}
+                aria-disabled={resolvedPage <= 1}
+                className={`inline-flex h-8 items-center border px-2.5 text-xs font-semibold transition ${
+                  resolvedPage <= 1
+                    ? "pointer-events-none border-[#d6e1f1] bg-[#eef3fb] text-[#91a6c6]"
+                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                }`}
+              >
+                이전
+              </Link>
+              {Array.from(
+                {
+                  length:
+                    Math.min(totalPages, Math.max(5, resolvedPage + 2)) -
+                    Math.max(1, Math.min(resolvedPage - 2, totalPages - 4)) +
+                    1,
+                },
+                (_, index) =>
+                  Math.max(1, Math.min(resolvedPage - 2, totalPages - 4)) + index,
+              ).map((pageNumber) => (
+                <Link
+                  key={`feed-page-${pageNumber}`}
+                  href={makeHref({ nextPage: pageNumber })}
+                  className={`inline-flex h-8 min-w-8 items-center justify-center border px-2 text-xs font-semibold transition ${
+                    pageNumber === resolvedPage
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                  }`}
+                >
+                  {pageNumber}
+                </Link>
+              ))}
+              <Link
+                href={makeHref({ nextPage: Math.min(totalPages, resolvedPage + 1) })}
+                aria-disabled={resolvedPage >= totalPages}
+                className={`inline-flex h-8 items-center border px-2.5 text-xs font-semibold transition ${
+                  resolvedPage >= totalPages
+                    ? "pointer-events-none border-[#d6e1f1] bg-[#eef3fb] text-[#91a6c6]"
+                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                }`}
+              >
+                다음
+              </Link>
+            </div>
+          ) : null}
         </section>
 
         <div className="flex justify-end gap-1.5">

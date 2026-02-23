@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { logger, serializeError } from "@/server/logger";
 import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.queries";
 
@@ -315,14 +316,94 @@ function buildPostSearchWhere(
   };
 }
 
+function buildPostListWhere({
+  type,
+  scope,
+  q,
+  searchIn,
+  excludeTypes,
+  neighborhoodId,
+  hiddenAuthorIds,
+  days,
+}: {
+  type?: PostType;
+  scope: PostScope;
+  q?: string;
+  searchIn: PostSearchIn;
+  excludeTypes: PostType[];
+  neighborhoodId?: string;
+  hiddenAuthorIds: string[];
+  days?: number;
+}): Prisma.PostWhereInput {
+  const since = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
+
+  return {
+    status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+    ...(type
+      ? { type }
+      : excludeTypes.length > 0
+        ? { type: { notIn: excludeTypes } }
+        : {}),
+    scope,
+    ...(scope === PostScope.LOCAL && neighborhoodId
+      ? { neighborhoodId }
+      : scope === PostScope.LOCAL
+        ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
+        : {}),
+    ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
+    ...(since ? { createdAt: { gte: since } } : {}),
+    ...buildPostSearchWhere(q, searchIn),
+  };
+}
+
+function buildBestPostWhere({
+  days,
+  minLikes,
+  type,
+  scope,
+  q,
+  searchIn,
+  excludeTypes,
+  neighborhoodId,
+  hiddenAuthorIds,
+}: {
+  days: number;
+  minLikes: number;
+  type?: PostType;
+  scope: PostScope;
+  q?: string;
+  searchIn: PostSearchIn;
+  excludeTypes: PostType[];
+  neighborhoodId?: string;
+  hiddenAuthorIds: string[];
+}): Prisma.PostWhereInput {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  return {
+    ...buildPostListWhere({
+      type,
+      scope,
+      q,
+      searchIn,
+      excludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+    }),
+    likeCount: { gte: minLikes },
+    createdAt: { gte: since },
+  };
+}
+
 type PostListOptions = {
   cursor?: string;
   limit: number;
+  page?: number;
   type?: PostType;
   scope: PostScope;
   q?: string;
   searchIn?: PostSearchIn;
   sort?: PostListSort;
+  days?: number;
   excludeTypes?: PostType[];
   neighborhoodId?: string;
   viewerId?: string;
@@ -331,6 +412,30 @@ type PostListOptions = {
 
 type BestPostListOptions = {
   limit: number;
+  page?: number;
+  days: number;
+  type?: PostType;
+  scope: PostScope;
+  q?: string;
+  searchIn?: PostSearchIn;
+  excludeTypes?: PostType[];
+  neighborhoodId?: string;
+  minLikes?: number;
+  viewerId?: string;
+};
+
+type PostCountOptions = {
+  type?: PostType;
+  scope: PostScope;
+  q?: string;
+  searchIn?: PostSearchIn;
+  days?: number;
+  excludeTypes?: PostType[];
+  neighborhoodId?: string;
+  viewerId?: string;
+};
+
+type BestPostCountOptions = {
   days: number;
   type?: PostType;
   scope: PostScope;
@@ -588,17 +693,21 @@ export async function getPostById(id?: string, viewerId?: string) {
 
 export async function listPosts({
   cursor,
-  limit,
+  limit: _limit,
+  page,
   type,
   scope,
   q,
   searchIn,
   sort,
+  days,
   excludeTypes,
   neighborhoodId,
   viewerId,
   personalized,
 }: PostListOptions) {
+  const resolvedLimit = Math.min(Math.max(_limit, 1), FEED_PAGE_SIZE);
+  const resolvedPage = Math.max(page ?? 1, 1);
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
   const normalizedExcludeTypes = excludeTypes ?? [];
   if (type && normalizedExcludeTypes.includes(type)) {
@@ -607,6 +716,16 @@ export async function listPosts({
 
   const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
   const resolvedSort = sort ?? DEFAULT_POST_LIST_SORT;
+  const where = buildPostListWhere({
+    type,
+    scope,
+    q,
+    searchIn: resolvedSearchIn,
+    excludeTypes: normalizedExcludeTypes,
+    neighborhoodId,
+    hiddenAuthorIds,
+    days,
+  });
   const orderBy: Prisma.PostOrderByWithRelationInput[] =
     resolvedSort === "LIKE"
       ? [
@@ -623,29 +742,18 @@ export async function listPosts({
         : [{ createdAt: "desc" }];
 
   const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
-    where: {
-      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-      ...(type
-        ? { type }
-        : normalizedExcludeTypes.length > 0
-          ? { type: { notIn: normalizedExcludeTypes } }
-          : {}),
-      scope,
-      ...(scope === PostScope.LOCAL && neighborhoodId
-        ? { neighborhoodId }
-        : scope === PostScope.LOCAL
-          ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
-          : {}),
-      ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
-      ...buildPostSearchWhere(q, resolvedSearchIn),
-    },
-    take: limit + 1,
+    where,
+    take: resolvedLimit + 1,
     ...(cursor
       ? {
           cursor: { id: cursor },
           skip: 1,
         }
-      : {}),
+      : resolvedPage > 1
+        ? {
+            skip: (resolvedPage - 1) * resolvedLimit,
+          }
+        : {}),
     orderBy,
   };
 
@@ -656,7 +764,7 @@ export async function listPosts({
     });
     const items = withEmptyReactions(fallbackItems);
     let nextCursor: string | null = null;
-    if (items.length > limit) {
+    if (items.length > resolvedLimit) {
       const nextItem = items.pop();
       nextCursor = nextItem?.id ?? null;
     }
@@ -682,7 +790,7 @@ export async function listPosts({
     });
 
   let nextCursor: string | null = null;
-  if (items.length > limit) {
+  if (items.length > resolvedLimit) {
     const nextItem = items.pop();
     nextCursor = nextItem?.id ?? null;
   }
@@ -699,7 +807,8 @@ export async function listPosts({
 }
 
 export async function listBestPosts({
-  limit,
+  limit: _limit,
+  page,
   days,
   type,
   scope,
@@ -710,6 +819,8 @@ export async function listBestPosts({
   minLikes = 1,
   viewerId,
 }: BestPostListOptions) {
+  const resolvedLimit = Math.min(Math.max(_limit, 1), FEED_PAGE_SIZE);
+  const resolvedPage = Math.max(page ?? 1, 1);
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
   const normalizedExcludeTypes = excludeTypes ?? [];
   if (type && normalizedExcludeTypes.includes(type)) {
@@ -717,28 +828,26 @@ export async function listBestPosts({
   }
 
   const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const where = buildBestPostWhere({
+    days,
+    minLikes,
+    type,
+    scope,
+    q,
+    searchIn: resolvedSearchIn,
+    excludeTypes: normalizedExcludeTypes,
+    neighborhoodId,
+    hiddenAuthorIds,
+  });
 
   const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
-    where: {
-      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-      ...(type
-        ? { type }
-        : normalizedExcludeTypes.length > 0
-          ? { type: { notIn: normalizedExcludeTypes } }
-          : {}),
-      scope,
-      ...(scope === PostScope.LOCAL && neighborhoodId
-        ? { neighborhoodId }
-        : scope === PostScope.LOCAL
-          ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
-          : {}),
-      ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
-      ...buildPostSearchWhere(q, resolvedSearchIn),
-      likeCount: { gte: minLikes },
-      createdAt: { gte: since },
-    },
-    take: limit,
+    where,
+    take: resolvedLimit,
+    ...(resolvedPage > 1
+      ? {
+          skip: (resolvedPage - 1) * resolvedLimit,
+        }
+      : {}),
     orderBy: [
       { likeCount: "desc" },
       { commentCount: "desc" },
@@ -771,6 +880,70 @@ export async function listBestPosts({
       });
       return withEmptyReactions(fallbackItems);
     });
+}
+
+export async function countPosts({
+  type,
+  scope,
+  q,
+  searchIn,
+  days,
+  excludeTypes,
+  neighborhoodId,
+  viewerId,
+}: PostCountOptions) {
+  const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+  const normalizedExcludeTypes = excludeTypes ?? [];
+  if (type && normalizedExcludeTypes.includes(type)) {
+    return 0;
+  }
+
+  const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
+  const where = buildPostListWhere({
+    type,
+    scope,
+    q,
+    searchIn: resolvedSearchIn,
+    excludeTypes: normalizedExcludeTypes,
+    neighborhoodId,
+    hiddenAuthorIds,
+    days,
+  });
+
+  return prisma.post.count({ where });
+}
+
+export async function countBestPosts({
+  days,
+  type,
+  scope,
+  q,
+  searchIn,
+  excludeTypes,
+  neighborhoodId,
+  minLikes = 1,
+  viewerId,
+}: BestPostCountOptions) {
+  const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+  const normalizedExcludeTypes = excludeTypes ?? [];
+  if (type && normalizedExcludeTypes.includes(type)) {
+    return 0;
+  }
+
+  const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
+  const where = buildBestPostWhere({
+    days,
+    minLikes,
+    type,
+    scope,
+    q,
+    searchIn: resolvedSearchIn,
+    excludeTypes: normalizedExcludeTypes,
+    neighborhoodId,
+    hiddenAuthorIds,
+  });
+
+  return prisma.post.count({ where });
 }
 
 type UserPostListOptions = {

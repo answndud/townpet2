@@ -128,7 +128,7 @@ test.describe("feed infinite scroll performance", () => {
       };
     });
 
-    await page.goto("/feed?scope=GLOBAL&mode=ALL&limit=20&sort=LATEST");
+    await page.goto("/feed?scope=GLOBAL&mode=ALL&sort=LATEST");
     await expect(page.getByTestId("feed-post-list")).toBeVisible();
     await expect(page.getByTestId("feed-post-item").first()).toBeVisible();
 
@@ -261,7 +261,7 @@ test.describe("feed infinite scroll performance", () => {
       "# Feed Scroll Performance Report",
       "",
       `- 생성 시각: ${new Date().toISOString()}`,
-      `- 실행 환경: Playwright Chromium (headless), /feed?scope=GLOBAL&mode=ALL&limit=20&sort=LATEST`,
+      `- 실행 환경: Playwright Chromium (headless), /feed?scope=GLOBAL&mode=ALL&sort=LATEST`,
       `- 시드 데이터: ${PERF_POST_COUNT}개 (${PERF_TITLE_PREFIX})`,
       `- 판정: ${status}`,
       "",

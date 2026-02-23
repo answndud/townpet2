@@ -97,6 +97,18 @@ describe("post queries", () => {
     ]);
   });
 
+  it("caps feed page size at 15 even when larger limit is requested", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.take).toBe(16);
+  });
+
   it("applies author search filter when searchIn is AUTHOR", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 

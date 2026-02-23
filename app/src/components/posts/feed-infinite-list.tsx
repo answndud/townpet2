@@ -54,7 +54,6 @@ export type FeedPostItem = {
 };
 
 type FeedQueryParams = {
-  limit: number;
   type?: PostType;
   scope: FeedScope;
   q?: string;
@@ -85,6 +84,7 @@ type FeedInfiniteListProps = {
   mode: FeedMode;
   query: FeedQueryParams;
   queryKey: string;
+  disableLoadMore?: boolean;
 };
 
 const SCROLL_RESTORE_TTL_MS = 30 * 60 * 1000;
@@ -152,6 +152,7 @@ export function FeedInfiniteList({
   mode,
   query,
   queryKey,
+  disableLoadMore = false,
 }: FeedInfiniteListProps) {
   const [items, setItems] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
@@ -161,6 +162,7 @@ export function FeedInfiniteList({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const restoreDoneRef = useRef(false);
   const scrollStorageKey = useMemo(() => `feed:scroll:${queryKey}`, [queryKey]);
+  const [relativeNow, setRelativeNow] = useState<number | null>(null);
 
   useEffect(() => {
     setItems(initialItems);
@@ -169,6 +171,18 @@ export function FeedInfiniteList({
     setLoadError(null);
     restoreDoneRef.current = false;
   }, [queryKey, initialItems, initialNextCursor]);
+
+  useEffect(() => {
+    setRelativeNow(Date.now());
+  }, []);
+
+  const getStableDateLabel = (isoDate: string) => {
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    return date.toISOString().slice(0, 10).replace(/-/g, ".");
+  };
 
   useEffect(() => {
     if (typeof window === "undefined" || restoreDoneRef.current) {
@@ -293,7 +307,6 @@ export function FeedInfiniteList({
     try {
       const params = new URLSearchParams();
       params.set("cursor", nextCursor);
-      params.set("limit", String(query.limit));
       params.set("scope", query.scope);
 
       if (query.type) {
@@ -347,7 +360,6 @@ export function FeedInfiniteList({
     isLoading,
     mode,
     nextCursor,
-    query.limit,
     query.q,
     query.scope,
     query.searchIn,
@@ -455,7 +467,11 @@ export function FeedInfiniteList({
                     {post.author.nickname ?? post.author.name ?? "익명"}
                   </Link>
                 </p>
-                <p className="mt-0.5">{formatRelativeDate(post.createdAt)}</p>
+                <p className="mt-0.5">
+                  {relativeNow === null
+                    ? getStableDateLabel(post.createdAt)
+                    : formatRelativeDate(post.createdAt, relativeNow)}
+                </p>
                 <p className="mt-2 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-1 text-[11px] text-[#5a759c] md:ml-auto">
                   조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
                 </p>
@@ -465,7 +481,7 @@ export function FeedInfiniteList({
         })}
       </div>
 
-      {mode === "ALL" ? (
+      {mode === "ALL" && !disableLoadMore ? (
         <div className="border-t border-[#d8e3f2] px-4 py-4 text-center">
           {loadError ? (
             <div className="mb-3 border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
