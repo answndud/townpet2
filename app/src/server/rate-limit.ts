@@ -15,6 +15,12 @@ type RateLimitOptions = {
   windowMs: number;
 };
 
+type UpstashPipelineCommand = Array<string | number>;
+type UpstashPipelineResponse = Array<{
+  result?: number | string | null;
+  error?: string;
+}>;
+
 let redisFailureLoggedAt = 0;
 
 function createRateLimitError() {
@@ -44,16 +50,43 @@ function enforceMemoryRateLimit({ key, limit, windowMs }: RateLimitOptions) {
 async function enforceUpstashRateLimit({ key, limit, windowMs }: RateLimitOptions) {
   const endpoint = `${runtimeEnv.upstashRedisRestUrl}/pipeline`;
   const redisKey = `ratelimit:${key}`;
+  const payload = await runUpstashPipeline(endpoint, [
+    ["SET", redisKey, 0, "PX", windowMs, "NX"],
+    ["INCR", redisKey],
+    ["PTTL", redisKey],
+  ]);
+  const count = Number(payload[1]?.result);
+  const ttl = Number(payload[2]?.result);
+
+  if (!Number.isFinite(count)) {
+    throw new Error("Upstash rate limit malformed response: missing INCR result");
+  }
+
+  if (!Number.isFinite(ttl)) {
+    throw new Error("Upstash rate limit malformed response: missing PTTL result");
+  }
+
+  // Recover from rare cases where key exists without TTL (e.g. legacy writes).
+  if (ttl < 0) {
+    await runUpstashPipeline(endpoint, [["PEXPIRE", redisKey, windowMs]]);
+  }
+
+  if (count > limit) {
+    throw createRateLimitError();
+  }
+}
+
+async function runUpstashPipeline(
+  endpoint: string,
+  commands: UpstashPipelineCommand[],
+): Promise<UpstashPipelineResponse> {
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${runtimeEnv.upstashRedisRestToken}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify([
-      ["INCR", redisKey],
-      ["PEXPIRE", redisKey, windowMs],
-    ]),
+    body: JSON.stringify(commands),
     cache: "no-store",
   });
 
@@ -61,20 +94,13 @@ async function enforceUpstashRateLimit({ key, limit, windowMs }: RateLimitOption
     throw new Error(`Upstash rate limit request failed: ${response.status}`);
   }
 
-  const payload = (await response.json()) as Array<{
-    result?: number | string;
-    error?: string;
-  }>;
-
+  const payload = (await response.json()) as UpstashPipelineResponse;
   const commandError = payload.find((item) => item.error);
   if (commandError) {
     throw new Error(`Upstash command error: ${commandError.error}`);
   }
 
-  const count = Number(payload[0]?.result ?? 0);
-  if (count > limit) {
-    throw createRateLimitError();
-  }
+  return payload;
 }
 
 export async function enforceRateLimit(options: RateLimitOptions) {

@@ -301,17 +301,64 @@ export async function listPublicUserReactions({
 }
 
 export async function listPetsByUserId(userId: string) {
-  return prisma.pet.findMany({
-    where: { userId },
-    orderBy: [{ createdAt: "desc" }],
-    select: {
-      id: true,
-      name: true,
-      species: true,
-      age: true,
-      imageUrl: true,
-      bio: true,
-      createdAt: true,
-    },
-  });
+  const petDelegate = (prisma as unknown as {
+    pet: {
+      findMany: (args: {
+        where: { userId: string };
+        orderBy: Array<{ createdAt: "desc" }>;
+        select: Record<string, boolean>;
+      }) => Promise<Array<Record<string, unknown>>>;
+    };
+  }).pet;
+
+  try {
+    return await petDelegate.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        species: true,
+        breedCode: true,
+        breedLabel: true,
+        sizeClass: true,
+        lifeStage: true,
+        age: true,
+        imageUrl: true,
+        bio: true,
+        createdAt: true,
+      },
+    });
+  } catch (error) {
+    const isMissingBreedCodeColumn =
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2022" &&
+      String(error.meta?.column ?? "").includes("Pet.breedCode");
+
+    if (!isMissingBreedCodeColumn) {
+      throw error;
+    }
+
+    const legacyPets = await petDelegate.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        species: true,
+        breedLabel: true,
+        sizeClass: true,
+        lifeStage: true,
+        age: true,
+        imageUrl: true,
+        bio: true,
+        createdAt: true,
+      },
+    });
+
+    return legacyPets.map((pet) => ({
+      ...pet,
+      breedCode: null,
+    }));
+  }
 }

@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
-const CORS_HEADERS =
-  "Content-Type, Authorization, X-Requested-With, X-Request-Id, x-user-id";
+const CORS_HEADERS = "Content-Type, Authorization, X-Requested-With, X-Request-Id";
 
 function getAllowedCorsOrigins() {
   const fromCsv = (process.env.CORS_ORIGIN ?? "")

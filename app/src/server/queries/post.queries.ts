@@ -326,6 +326,7 @@ type PostListOptions = {
   excludeTypes?: PostType[];
   neighborhoodId?: string;
   viewerId?: string;
+  personalized?: boolean;
 };
 
 type BestPostListOptions = {
@@ -340,6 +341,216 @@ type BestPostListOptions = {
   minLikes?: number;
   viewerId?: string;
 };
+
+type PetSignal = {
+  userId: string;
+  species: string;
+  breedCode: string | null;
+  sizeClass: string;
+};
+
+type FeedLikePost = {
+  id: string;
+  createdAt: Date;
+  likeCount: number;
+  commentCount: number;
+  viewCount: number;
+  author: {
+    id: string;
+  };
+};
+
+function normalizeBreedCode(value: string | null | undefined) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && normalized.length > 0 ? normalized : null;
+}
+
+function calculatePersonalizationBoost(
+  authorPets: PetSignal[],
+  viewerPets: PetSignal[],
+) {
+  if (authorPets.length === 0 || viewerPets.length === 0) {
+    return 0;
+  }
+
+  let best = 0;
+  for (const authorPet of authorPets) {
+    const authorBreedCode = normalizeBreedCode(authorPet.breedCode);
+
+    for (const viewerPet of viewerPets) {
+      let score = 0;
+      const viewerBreedCode = normalizeBreedCode(viewerPet.breedCode);
+
+      if (viewerBreedCode && authorBreedCode && viewerBreedCode === authorBreedCode) {
+        score += 0.45;
+      }
+      if (viewerPet.sizeClass !== "UNKNOWN" && authorPet.sizeClass === viewerPet.sizeClass) {
+        score += 0.2;
+      }
+      if (authorPet.species === viewerPet.species) {
+        score += 0.1;
+      }
+
+      if (score > best) {
+        best = score;
+      }
+    }
+  }
+
+  return best;
+}
+
+function calculateFeedScore(
+  post: FeedLikePost,
+  viewerPets: PetSignal[],
+  authorPetByUserId: Map<string, PetSignal[]>,
+) {
+  const ageHours = Math.max(1, (Date.now() - post.createdAt.getTime()) / 3_600_000);
+  const recency = 1 / Math.sqrt(ageHours);
+  const engagement =
+    Math.log1p(post.likeCount * 2 + post.commentCount * 1.6 + post.viewCount * 0.15) / 6;
+  const personalization = calculatePersonalizationBoost(
+    authorPetByUserId.get(post.author.id) ?? [],
+    viewerPets,
+  );
+
+  return recency * 0.5 + engagement * 0.35 + personalization;
+}
+
+function interleaveForDiversity<T>(personalized: T[], explore: T[], personalizedRatio: number) {
+  const total = personalized.length + explore.length;
+  if (total === 0) {
+    return [] as T[];
+  }
+
+  const targetPersonalized = Math.max(
+    0,
+    Math.min(personalized.length, Math.ceil(total * personalizedRatio)),
+  );
+  const targetExplore = Math.max(0, total - targetPersonalized);
+
+  const selectedPersonalized = personalized.slice(0, targetPersonalized);
+  const selectedExplore = explore.slice(0, targetExplore);
+  const result: T[] = [];
+
+  let pIndex = 0;
+  let eIndex = 0;
+  while (result.length < total && (pIndex < selectedPersonalized.length || eIndex < selectedExplore.length)) {
+    const personalizedShare = result.length === 0 ? 0 : pIndex / result.length;
+    const shouldPickPersonalized =
+      pIndex < selectedPersonalized.length &&
+      (eIndex >= selectedExplore.length || personalizedShare < personalizedRatio);
+
+    if (shouldPickPersonalized) {
+      result.push(selectedPersonalized[pIndex]);
+      pIndex += 1;
+      continue;
+    }
+
+    if (eIndex < selectedExplore.length) {
+      result.push(selectedExplore[eIndex]);
+      eIndex += 1;
+      continue;
+    }
+
+    if (pIndex < selectedPersonalized.length) {
+      result.push(selectedPersonalized[pIndex]);
+      pIndex += 1;
+    }
+  }
+
+  if (result.length < total) {
+    result.push(...personalized.slice(pIndex), ...explore.slice(eIndex));
+  }
+
+  return result.slice(0, total);
+}
+
+async function applyPetPersonalization<T extends FeedLikePost>(
+  items: T[],
+  viewerId: string,
+) {
+  if (items.length < 2) {
+    return items;
+  }
+
+  const viewerPetsRaw = await prisma.pet.findMany({
+    where: { userId: viewerId },
+    select: {
+      userId: true,
+      species: true,
+      breedCode: true,
+      sizeClass: true,
+    },
+    take: 5,
+    orderBy: { createdAt: "desc" },
+  });
+  const viewerPets: PetSignal[] = viewerPetsRaw.map((pet) => ({
+    userId: pet.userId,
+    species: String(pet.species),
+    breedCode: normalizeBreedCode(pet.breedCode),
+    sizeClass: String(pet.sizeClass),
+  }));
+  if (viewerPets.length === 0) {
+    return items;
+  }
+
+  const authorIds = Array.from(new Set(items.map((item) => item.author.id)));
+  if (authorIds.length === 0) {
+    return items;
+  }
+
+  const authorPetSignalsRaw = await prisma.pet.findMany({
+    where: {
+      userId: { in: authorIds },
+    },
+    select: {
+      userId: true,
+      species: true,
+      breedCode: true,
+      sizeClass: true,
+    },
+  });
+  const authorPetSignals: PetSignal[] = authorPetSignalsRaw.map((pet) => ({
+    userId: pet.userId,
+    species: String(pet.species),
+    breedCode: normalizeBreedCode(pet.breedCode),
+    sizeClass: String(pet.sizeClass),
+  }));
+
+  const authorPetByUserId = new Map<string, PetSignal[]>();
+  for (const pet of authorPetSignals) {
+    const list = authorPetByUserId.get(pet.userId);
+    if (list) {
+      list.push(pet);
+      continue;
+    }
+    authorPetByUserId.set(pet.userId, [pet]);
+  }
+
+  const scored = items
+    .map((item) => {
+      const boost = calculatePersonalizationBoost(
+        authorPetByUserId.get(item.author.id) ?? [],
+        viewerPets,
+      );
+
+      return {
+        item,
+        boost,
+        score: calculateFeedScore(item, viewerPets, authorPetByUserId),
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const personalized = scored.filter((entry) => entry.boost > 0.05).map((entry) => entry.item);
+  const personalizedSet = new Set(personalized.map((item) => item.id));
+  const explore = scored
+    .filter((entry) => !personalizedSet.has(entry.item.id))
+    .map((entry) => entry.item);
+
+  return interleaveForDiversity(personalized, explore, 0.65);
+}
 
 export async function getPostById(id?: string, viewerId?: string) {
   if (!id) {
@@ -386,6 +597,7 @@ export async function listPosts({
   excludeTypes,
   neighborhoodId,
   viewerId,
+  personalized,
 }: PostListOptions) {
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
   const normalizedExcludeTypes = excludeTypes ?? [];
@@ -473,6 +685,14 @@ export async function listPosts({
   if (items.length > limit) {
     const nextItem = items.pop();
     nextCursor = nextItem?.id ?? null;
+  }
+
+  if (personalized && viewerId) {
+    const personalizedItems = await applyPetPersonalization(items, viewerId);
+    return {
+      items: personalizedItems,
+      nextCursor,
+    };
   }
 
   return { items, nextCursor };

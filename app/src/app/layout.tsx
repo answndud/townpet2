@@ -58,11 +58,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth().catch(() => null);
-  const currentUser = await getCurrentUser();
+  const currentUser = await getCurrentUser().catch(() => null);
   const canModerate =
     currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MODERATOR;
   const unreadNotificationCount = currentUser
-    ? await countUnreadNotifications(currentUser.id)
+    ? await countUnreadNotifications(currentUser.id).catch(() => 0)
     : 0;
   const userLabel =
     session?.user?.nickname ??

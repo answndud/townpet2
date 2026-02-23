@@ -22,6 +22,33 @@ type UserProfilePageProps = {
 
 type ActivityTab = "posts" | "comments" | "reactions";
 
+function speciesLabel(species: string) {
+  return species === "CAT" ? "고양이" : "강아지";
+}
+
+function sizeClassLabel(sizeClass?: string | null) {
+  if (!sizeClass || sizeClass === "UNKNOWN") {
+    return null;
+  }
+  if (sizeClass === "TOY") return "초소형";
+  if (sizeClass === "SMALL") return "소형";
+  if (sizeClass === "MEDIUM") return "중형";
+  if (sizeClass === "LARGE") return "대형";
+  if (sizeClass === "GIANT") return "초대형";
+  return null;
+}
+
+function lifeStageLabel(lifeStage?: string | null) {
+  if (!lifeStage || lifeStage === "UNKNOWN") {
+    return null;
+  }
+  if (lifeStage === "PUPPY_KITTEN") return "퍼피/키튼";
+  if (lifeStage === "YOUNG") return "영/청년";
+  if (lifeStage === "ADULT") return "성견/성묘";
+  if (lifeStage === "SENIOR") return "시니어";
+  return null;
+}
+
 function toTab(value?: string): ActivityTab {
   if (value === "comments" || value === "reactions") {
     return value;
@@ -216,7 +243,14 @@ export default async function PublicUserProfilePage({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#1f3f71]">{pet.name}</p>
                       <p className="text-xs text-[#4f678d]">
-                        {pet.species}
+                        {speciesLabel(pet.species)}
+                        {pet.breedLabel?.trim() ? ` · ${pet.breedLabel}` : ""}
+                        {sizeClassLabel(pet.sizeClass)
+                          ? ` · ${sizeClassLabel(pet.sizeClass)}`
+                          : ""}
+                        {lifeStageLabel(pet.lifeStage)
+                          ? ` · ${lifeStageLabel(pet.lifeStage)}`
+                          : ""}
                         {pet.age !== null ? ` · ${pet.age}살` : ""}
                       </p>
                     </div>

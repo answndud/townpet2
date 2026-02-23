@@ -61,6 +61,7 @@ type FeedQueryParams = {
   q?: string;
   searchIn?: FeedSearchIn;
   sort?: FeedSort;
+  personalized?: boolean;
 };
 
 type FeedApiSuccess = {
@@ -314,6 +315,9 @@ export function FeedInfiniteList({
       if (query.sort && query.sort !== "LATEST") {
         params.set("sort", query.sort);
       }
+      if (query.personalized) {
+        params.set("personalized", "1");
+      }
 
       const response = await fetch(`/api/posts?${params.toString()}`, {
         method: "GET",
@@ -356,6 +360,7 @@ export function FeedInfiniteList({
     query.searchIn,
     query.sort,
     query.type,
+    query.personalized,
   ]);
 
   useEffect(() => {

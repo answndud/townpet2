@@ -13,6 +13,9 @@ vi.mock("@/lib/prisma", () => ({
     post: {
       findMany: vi.fn(),
     },
+    pet: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -20,11 +23,15 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   post: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  pet: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 };
 
 describe("post queries", () => {
   beforeEach(() => {
     mockPrisma.post.findMany.mockReset();
+    mockPrisma.pet.findMany.mockReset();
   });
 
   it("filters local feed by primary neighborhood", async () => {
@@ -149,6 +156,63 @@ describe("post queries", () => {
 
     expect(result).toEqual({ items: [], nextCursor: null });
     expect(mockPrisma.post.findMany).not.toHaveBeenCalled();
+  });
+
+  it("reorders feed with pet personalization when enabled", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        id: "p1",
+        author: { id: "a1" },
+        createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        likeCount: 1,
+        commentCount: 0,
+        viewCount: 3,
+      },
+      {
+        id: "p2",
+        author: { id: "a2" },
+        createdAt: new Date("2026-02-02T00:00:00.000Z"),
+        likeCount: 2,
+        commentCount: 1,
+        viewCount: 10,
+      },
+      {
+        id: "p3",
+        author: { id: "a3" },
+        createdAt: new Date("2026-02-03T00:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+    ]);
+    mockPrisma.pet.findMany
+      .mockResolvedValueOnce([
+        {
+          userId: "viewer-1",
+          species: "DOG",
+          breedCode: "MALTESE",
+          sizeClass: "SMALL",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          userId: "a2",
+          species: "DOG",
+          breedCode: "MALTESE",
+          sizeClass: "SMALL",
+        },
+      ]);
+
+    const result = await listPosts({
+      limit: 2,
+      scope: PostScope.GLOBAL,
+      personalized: true,
+      viewerId: "viewer-1",
+    });
+
+    expect(mockPrisma.pet.findMany).toHaveBeenCalledTimes(2);
+    expect(result.items[0]?.id).toBe("p2");
+    expect(result.nextCursor).toBe("p3");
   });
 
   it("builds best feed with likes and recency ordering", async () => {

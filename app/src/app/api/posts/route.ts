@@ -17,14 +17,9 @@ import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 export async function GET(request: NextRequest) {
   try {
     const clientIp = getClientIp(request);
-    const headerUserId = request.headers.get("x-user-id");
     const currentUser = await getCurrentUser();
     const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
-    const rateKey = headerUserId
-      ? `feed:user:${headerUserId}`
-      : currentUser
-        ? `feed:user:${currentUser.id}`
-        : `feed:ip:${clientIp}`;
+    const rateKey = currentUser ? `feed:user:${currentUser.id}` : `feed:ip:${clientIp}`;
     await enforceRateLimit({ key: rateKey, limit: 30, windowMs: 60_000 });
     const { searchParams } = new URL(request.url);
     const parsed = postListSchema.safeParse({
@@ -35,6 +30,7 @@ export async function GET(request: NextRequest) {
       q: searchParams.get("q") ?? undefined,
       searchIn: searchParams.get("searchIn") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,
+      personalized: searchParams.get("personalized") ?? undefined,
     });
 
     if (!parsed.success) {
@@ -83,6 +79,7 @@ export async function GET(request: NextRequest) {
       excludeTypes: currentUser ? undefined : loginRequiredTypes,
       neighborhoodId,
       viewerId: currentUser?.id,
+      personalized: parsed.data.personalized && Boolean(currentUser?.id),
     });
     return jsonOk(data);
   } catch (error) {

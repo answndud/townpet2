@@ -44,7 +44,11 @@ describe("pet service", () => {
       userId: "user-1",
       input: {
         name: "  마루 ",
-        species: "  말티즈 ",
+        species: "DOG",
+        breedCode: " maltese ",
+        breedLabel: "  말티즈 ",
+        sizeClass: "SMALL",
+        lifeStage: "ADULT",
         age: "3",
         imageUrl: " https://img.example.com/pet.jpg ",
         bio: "  사람 좋아해요 ",
@@ -55,7 +59,11 @@ describe("pet service", () => {
       data: {
         userId: "user-1",
         name: "마루",
-        species: "말티즈",
+        species: "DOG",
+        breedCode: "MALTESE",
+        breedLabel: "말티즈",
+        sizeClass: "SMALL",
+        lifeStage: "ADULT",
         age: 3,
         imageUrl: "https://img.example.com/pet.jpg",
         bio: "사람 좋아해요",
@@ -69,7 +77,7 @@ describe("pet service", () => {
     await expect(
       createPet({
         userId: "user-1",
-        input: { name: "콩이", species: "푸들" },
+        input: { name: "콩이", species: "DOG" },
       }),
     ).rejects.toMatchObject({
       code: "PET_LIMIT_EXCEEDED",
@@ -86,7 +94,7 @@ describe("pet service", () => {
         input: {
           petId: "clwpet000000000000000001",
           name: "콩이",
-          species: "푸들",
+          species: "DOG",
         },
       }),
     ).rejects.toMatchObject({
@@ -107,7 +115,7 @@ describe("pet service", () => {
         input: {
           petId: "clwpet000000000000000001",
           name: "콩이",
-          species: "푸들",
+          species: "DOG",
         },
       }),
     ).rejects.toMatchObject({
@@ -130,7 +138,9 @@ describe("pet service", () => {
       input: {
         petId: "clwpet000000000000000001",
         name: " 마루 ",
-        species: " 말티즈 ",
+        species: "DOG",
+        breedCode: " maltese ",
+        breedLabel: " 말티즈 ",
         age: "4",
         imageUrl: "",
         bio: " ",
@@ -141,7 +151,11 @@ describe("pet service", () => {
       where: { id: "clwpet000000000000000001" },
       data: {
         name: "마루",
-        species: "말티즈",
+        species: "DOG",
+        breedCode: "MALTESE",
+        breedLabel: "말티즈",
+        sizeClass: "UNKNOWN",
+        lifeStage: "UNKNOWN",
         age: 4,
         imageUrl: null,
         bio: null,

@@ -26,5 +26,5 @@ USING GIN ((COALESCE("name", '')) gin_trgm_ops);
 CREATE INDEX "User_search_tsv_idx"
 ON "User"
 USING GIN ((
-  to_tsvector('simple', CONCAT_WS(' ', COALESCE("nickname", ''), COALESCE("name", '')))
+  to_tsvector('simple', (COALESCE("nickname", '') || ' ' || COALESCE("name", '')))
 ));

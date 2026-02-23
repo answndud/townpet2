@@ -30,6 +30,7 @@ model User {
   mutesGiven        UserMute[]       @relation("UserMutesGiven")
   mutesReceived     UserMute[]       @relation("UserMutesReceived")
   pets              Pet[]
+  audienceSegments  UserAudienceSegment[]
   passwordResets  PasswordResetToken[]
   authAudits      AuthAuditLog[]
   postReactions   PostReaction[]
@@ -42,11 +43,52 @@ model User {
   sessions        Session[]
 }
 
+enum PetSpecies {
+  DOG
+  CAT
+}
+
+enum PetSizeClass {
+  TOY
+  SMALL
+  MEDIUM
+  LARGE
+  GIANT
+  UNKNOWN
+}
+
+enum PetLifeStage {
+  PUPPY_KITTEN
+  YOUNG
+  ADULT
+  SENIOR
+  UNKNOWN
+}
+
+model BreedCatalog {
+  id          String       @id @default(cuid())
+  species     PetSpecies
+  code        String
+  labelKo     String
+  aliases     String[]
+  defaultSize PetSizeClass
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([species, code])
+  @@index([species, labelKo])
+}
+
 model Pet {
   id        String   @id @default(cuid())
   userId    String
   name      String
-  species   String
+  species   PetSpecies
+  breedCode String?
+  breedLabel String?
+  sizeClass PetSizeClass @default(UNKNOWN)
+  lifeStage PetLifeStage @default(UNKNOWN)
   age       Int?
   imageUrl  String?
   bio       String?
@@ -54,6 +96,25 @@ model Pet {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([userId, createdAt(sort: Desc)])
+  @@index([species, breedCode])
+  @@index([sizeClass, lifeStage])
+}
+
+model UserAudienceSegment {
+  id              String       @id @default(cuid())
+  userId          String
+  species         PetSpecies?
+  breedCode       String?
+  sizeClass       PetSizeClass?
+  lifeStage       PetLifeStage?
+  interestTags    String[]
+  confidenceScore Float        @default(0.5)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([species, breedCode, sizeClass, lifeStage])
 }
 
 enum UserRole {

@@ -107,6 +107,20 @@ export const postListSchema = z.object({
   q: z.string().min(1).max(100).optional(),
   searchIn: z.enum(["ALL", "TITLE", "CONTENT", "AUTHOR"]).optional(),
   sort: z.enum(["LATEST", "LIKE", "COMMENT"]).optional(),
+  personalized: z
+    .preprocess((value) => {
+      if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === "1" || normalized === "true") {
+          return true;
+        }
+        if (normalized === "0" || normalized === "false" || normalized.length === 0) {
+          return false;
+        }
+      }
+      return value;
+    }, z.boolean())
+    .optional(),
 });
 
 export const postUpdateSchema = z
