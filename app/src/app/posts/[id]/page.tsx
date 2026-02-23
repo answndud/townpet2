@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PostType } from "@prisma/client";
 
-import { LinkifiedContent } from "@/components/content/linkified-content";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
@@ -14,6 +13,7 @@ import { PostReportForm } from "@/components/posts/post-report-form";
 import { PostShareControls } from "@/components/posts/post-share-controls";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
+import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { canGuestReadPost } from "@/lib/post-access";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
@@ -240,6 +240,14 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const safeCommentCount = Number.isFinite(post.commentCount)
     ? Number(post.commentCount)
     : 0;
+  const renderedContentHtml = renderLiteMarkdown(post.content);
+  const renderedContentText = renderedContentHtml
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const shouldUsePlainFallback =
+    renderedContentText.length === 0 ||
+    renderedContentText.includes("미리보기 내용이 없습니다");
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SocialMediaPosting",
@@ -334,9 +342,46 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             </div>
 
+            <section className="mt-4 rounded-sm border border-[#dbe6f6] bg-[#fcfdff] px-4 py-4">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4f6f9f]">
+                본문
+              </h2>
+              <article className="text-[15px] leading-8 text-[#17345f]">
+                {shouldUsePlainFallback ? (
+                  <div className="whitespace-pre-wrap">{post.content}</div>
+                ) : (
+                  <div
+                    className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                    dangerouslySetInnerHTML={{ __html: renderedContentHtml }}
+                  />
+                )}
+
+                {post.images.length > 0 ? (
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {post.images.map((image, index) => (
+                      <Link
+                        key={image.id}
+                        href={image.url}
+                        target="_blank"
+                        className="overflow-hidden border border-[#dbe6f6] bg-[#f8fbff] transition hover:opacity-90"
+                      >
+                        <Image
+                          src={image.url}
+                          alt={`본문 이미지 ${index + 1}`}
+                          width={900}
+                          height={640}
+                          className="h-56 w-full object-cover"
+                        />
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            </section>
+
             <div className="mt-4 space-y-3 border-b border-[#e0e9f5] pb-4">
-              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-3 py-2">
+                <div className="flex flex-col items-center gap-2">
                   <PostReactionControls
                     postId={post.id}
                     likeCount={safeLikeCount}
@@ -367,35 +412,6 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             ) : null}
 
-            <article className="mt-6 text-[15px] leading-8 text-[#1b3157]">
-              <LinkifiedContent text={post.content} showYoutubeEmbeds />
-            </article>
-
-            {post.images.length > 0 ? (
-              <div className="mt-6 border-t border-[#e0e9f5] pt-5">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#4f6f9f]">
-                  첨부 이미지
-                </h3>
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {post.images.map((image, index) => (
-                    <Link
-                      key={image.id}
-                      href={image.url}
-                      target="_blank"
-                      className="overflow-hidden border border-[#dbe6f6] bg-[#f8fbff] transition hover:opacity-90"
-                    >
-                      <Image
-                        src={image.url}
-                        alt={`첨부 이미지 ${index + 1}`}
-                        width={900}
-                        height={640}
-                        className="h-56 w-full object-cover"
-                      />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </section>
 
           <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">

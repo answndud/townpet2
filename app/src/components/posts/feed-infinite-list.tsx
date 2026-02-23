@@ -398,8 +398,6 @@ export function FeedInfiniteList({
       <div className="divide-y divide-[#e1e9f5]" data-testid="feed-post-list">
         {items.map((post) => {
           const meta = postTypeMeta[post.type];
-          const excerpt =
-            post.content.length > 120 ? `${post.content.slice(0, 120)}...` : post.content;
           const signals = getPostSignals({
             title: post.title,
             content: post.content,
@@ -410,12 +408,12 @@ export function FeedInfiniteList({
             <article
               key={post.id}
               data-testid="feed-post-item"
-              className={`grid gap-3 px-4 py-4 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_256px] md:items-start ${
+              className={`grid gap-2 px-4 py-2.5 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_230px] md:items-center ${
                 post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
               }`}
             >
               <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[11px]">
                   <span
                     className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
                   >
@@ -439,7 +437,7 @@ export function FeedInfiniteList({
 
                 <Link
                   href={`/posts/${post.id}`}
-                  className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition sm:text-lg ${
+                  className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition ${
                     readPostIds.has(post.id)
                       ? "text-[#8c9db8] hover:text-[#7589a8]"
                       : "text-[#10284a] hover:text-[#2f5da4]"
@@ -452,13 +450,6 @@ export function FeedInfiniteList({
                     <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
                   ) : null}
                 </Link>
-                <p
-                  className={`mt-1 overflow-hidden text-sm leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${
-                    readPostIds.has(post.id) ? "text-[#99a8bf]" : "text-[#4c6488]"
-                  }`}
-                >
-                  {excerpt}
-                </p>
               </div>
 
               <div className="text-xs text-[#4f678d] md:text-right">
@@ -472,7 +463,7 @@ export function FeedInfiniteList({
                     ? getStableDateLabel(post.createdAt)
                     : formatRelativeDate(post.createdAt, relativeNow)}
                 </p>
-                <p className="mt-2 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-1 text-[11px] text-[#5a759c] md:ml-auto">
+                <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
                   조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
                 </p>
               </div>

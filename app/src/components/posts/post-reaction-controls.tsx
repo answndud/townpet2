@@ -84,8 +84,8 @@ export function PostReactionControls({
   const [isPending, startTransition] = useTransition();
 
   const buttonClass = compact
-    ? "inline-flex h-10 min-w-[108px] items-center justify-center border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-    : "inline-flex h-10 min-w-[116px] items-center justify-center border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+    ? "inline-flex h-9 min-w-[100px] items-center justify-center border px-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+    : "inline-flex h-9 min-w-[98px] items-center justify-center border px-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
   const handleToggle = (target: ReactionType) => {
     if (!canReact) {
@@ -117,7 +117,7 @@ export function PostReactionControls({
   };
 
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "justify-end" : ""}`}>
+    <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "justify-end" : "justify-center"}`}>
       <button
         type="button"
         onClick={() => handleToggle(REACTION_TYPE.LIKE)}
