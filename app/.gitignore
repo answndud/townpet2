@@ -44,6 +44,17 @@ yarn-error.log*
 *.crt
 *.cer
 .npmrc
+credentials.json
+secrets.json
+*.ovpn
+
+# local databases / dumps
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+prisma/*.db
+prisma/*.db-journal
 
 # vercel
 .vercel
