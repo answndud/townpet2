@@ -26,6 +26,8 @@
     "db:seed:passwords": "tsx scripts/seed-passwords.ts",
     "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
     "db:cleanup:legacy-search-setting": "tsx scripts/cleanup-legacy-site-setting.ts",
+    "docs:refresh": "node ../scripts/refresh-docs-index.mjs",
+    "docs:refresh:check": "node ../scripts/refresh-docs-index.mjs --check",
     "ops:check:health": "tsx scripts/check-health-endpoint.ts",
     "ops:check:sentry": "tsx scripts/check-sentry-ingestion.ts",
     "search:check:cases": "tsx scripts/check-search-cases.ts",
