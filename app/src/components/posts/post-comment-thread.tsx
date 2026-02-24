@@ -729,7 +729,7 @@ export function PostCommentThread({
         ) : null}
 
             {replies.length > 0 && !collapsedReplies[comment.id] ? (
-              <div className="mt-2 ml-10 space-y-1.5 pl-4">
+              <div className="relative mt-2 ml-10 space-y-1.5 pl-4 before:absolute before:bottom-0 before:left-0 before:top-0 before:w-px before:bg-[#d7e2f3] before:content-['']">
                 {replies.map((reply) => renderComment(reply, depth + 1))}
               </div>
             ) : null}
