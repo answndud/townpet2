@@ -328,7 +328,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
 
             <div className="mt-3 grid gap-3 border-b border-[#e0e9f5] pb-4 md:mt-4 md:gap-4 md:pb-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
               <div>
-                <h1 className="text-[26px] font-bold leading-tight tracking-[-0.01em] text-[#10284a] sm:text-[42px]">
+                <h1 className="text-[24px] font-bold leading-tight tracking-[-0.01em] text-[#10284a] sm:text-[42px]">
                   {post.title}
                 </h1>
               </div>

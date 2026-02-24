@@ -855,7 +855,87 @@ export function PostCreateForm({
           <span className="ml-auto text-[#5a7398]">{formState.content.length.toLocaleString("ko-KR")}자</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#dbe6f6] bg-white px-3 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#dbe6f6] bg-white px-3 py-2 text-xs sm:hidden">
+          <button
+            type="button"
+            onClick={() => runEditorCommand("bold")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            B
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("italic")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold italic text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            I
+          </button>
+          <button
+            type="button"
+            onClick={applyLink}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            링크
+          </button>
+          <button
+            type="button"
+            onClick={() => runEditorCommand("insertUnorderedList")}
+            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            목록
+          </button>
+          <details className="ml-auto">
+            <summary className="inline-flex h-7 cursor-pointer list-none items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]">
+              고급
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-1.5 border border-[#dbe6f6] bg-[#f8fbff] p-2">
+              <button
+                type="button"
+                onClick={() => applyBlockHeading(2)}
+                className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                onClick={() => runEditorCommand("insertOrderedList")}
+                className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
+              >
+                번호
+              </button>
+              <button
+                type="button"
+                onClick={() => runEditorCommand("underline")}
+                className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold underline text-[#315484]"
+              >
+                밑줄
+              </button>
+              <button
+                type="button"
+                onClick={() => runEditorCommand("strikeThrough")}
+                className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
+              >
+                취소선
+              </button>
+              <button
+                type="button"
+                onClick={() => runEditorCommand("formatBlock", "blockquote")}
+                className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
+              >
+                인용
+              </button>
+              <button
+                type="button"
+                onClick={() => runEditorCommand("formatBlock", "pre")}
+                className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-mono text-[#315484]"
+              >
+                {'</>'}
+              </button>
+            </div>
+          </details>
+        </div>
+
+        <div className="hidden flex-wrap items-center gap-1.5 border-b border-[#dbe6f6] bg-white px-3 py-2 text-xs sm:flex">
           <button
             type="button"
             onClick={() => applyBlockHeading(1)}
