@@ -551,7 +551,7 @@ export default async function Home({ searchParams }: HomePageProps) {
 
               <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:hidden sm:p-2">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
-                  빠른 필터
+                  글 보기 방식
                 </summary>
                 <div className="mt-2 space-y-2">
                   <div className="border border-[#dbe6f6] bg-white p-2">
@@ -649,7 +649,7 @@ export default async function Home({ searchParams }: HomePageProps) {
 
               <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:hidden sm:p-2">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
-                  상세 필터
+                  게시판 선택
                 </summary>
                 <div className="mt-2 space-y-2">
                   <div className="border border-[#dbe6f6] bg-white p-2">
