@@ -87,6 +87,7 @@ type FeedInfiniteListProps = {
   query: FeedQueryParams;
   queryKey: string;
   disableLoadMore?: boolean;
+  apiPath?: string;
   adConfig?: {
     audienceKey: string;
     headline: string;
@@ -166,6 +167,7 @@ export function FeedInfiniteList({
   query,
   queryKey,
   disableLoadMore = false,
+  apiPath = "/api/posts",
   adConfig,
 }: FeedInfiniteListProps) {
   const [items, setItems] = useState(initialItems);
@@ -393,7 +395,7 @@ export function FeedInfiniteList({
         params.set("personalized", "1");
       }
 
-      const response = await fetch(`/api/posts?${params.toString()}`, {
+      const response = await fetch(`${apiPath}?${params.toString()}`, {
         method: "GET",
         credentials: "same-origin",
         cache: "no-store",
@@ -435,6 +437,7 @@ export function FeedInfiniteList({
     query.type,
     query.days,
     query.personalized,
+    apiPath,
   ]);
 
   useEffect(() => {
