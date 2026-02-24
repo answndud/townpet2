@@ -11,6 +11,7 @@ const runtimeEnvSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
   KAKAO_CLIENT_ID: z.string().optional(),
@@ -45,6 +46,7 @@ export const runtimeEnv = {
   resendApiKey: parsed.RESEND_API_KEY ?? "",
   upstashRedisRestUrl: parsed.UPSTASH_REDIS_REST_URL ?? "",
   upstashRedisRestToken: parsed.UPSTASH_REDIS_REST_TOKEN ?? "",
+  blobReadWriteToken: parsed.BLOB_READ_WRITE_TOKEN ?? "",
   sentryDsn: parsed.SENTRY_DSN ?? "",
   corsOrigin: parsed.CORS_ORIGIN ?? "",
   kakaoClientId: parsed.KAKAO_CLIENT_ID ?? "",
@@ -57,6 +59,7 @@ export const runtimeEnv = {
     Boolean(parsed.NAVER_CLIENT_ID) && Boolean(parsed.NAVER_CLIENT_SECRET),
   isUpstashConfigured:
     Boolean(parsed.UPSTASH_REDIS_REST_URL) && Boolean(parsed.UPSTASH_REDIS_REST_TOKEN),
+  isBlobConfigured: Boolean(parsed.BLOB_READ_WRITE_TOKEN),
   isProduction: parsed.NODE_ENV === "production",
 } as const;
 

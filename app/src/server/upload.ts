@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { put } from "@vercel/blob";
 
+import { runtimeEnv } from "@/lib/env";
 import { ServiceError } from "@/server/services/service-error";
 
 const ALLOWED_MIME_TYPES = new Map<string, string>([
@@ -94,10 +96,34 @@ export async function saveUploadedImage(file: File, options?: SaveUploadedImageO
   const outputBuffer =
     file.type === "image/jpeg" ? stripJpegExif(rawBuffer) : rawBuffer;
 
+  const filename = `${Date.now()}-${randomUUID()}.${extension}`;
+  const isHostedRuntime = runtimeEnv.isProduction || process.env.VERCEL === "1";
+
+  if (runtimeEnv.blobReadWriteToken) {
+    const blob = await put(`uploads/${filename}`, outputBuffer, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: file.type,
+      token: runtimeEnv.blobReadWriteToken,
+    });
+
+    return {
+      url: blob.url,
+      size: outputBuffer.byteLength,
+      mimeType: file.type,
+    };
+  }
+
+  if (isHostedRuntime) {
+    throw new ServiceError(
+      "이미지 스토리지가 설정되지 않았습니다. 관리자에게 문의해 주세요.",
+      "UPLOAD_STORAGE_NOT_CONFIGURED",
+      500,
+    );
+  }
+
   const uploadsDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
-
-  const filename = `${Date.now()}-${randomUUID()}.${extension}`;
   const absolutePath = path.join(uploadsDir, filename);
   await writeFile(absolutePath, outputBuffer);
 

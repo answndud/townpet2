@@ -44,6 +44,7 @@
     "test:e2e:admin-policies": "E2E_RECIPIENT_EMAIL=admin.platform@townpet.dev PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/admin-new-user-policy.spec.ts --project=chromium"
   },
   "dependencies": {
+    "@vercel/blob": "^1.1.1",
     "@auth/prisma-adapter": "^2.7.4",
     "@prisma/client": "^5.22.0",
     "next": "16.1.4",
