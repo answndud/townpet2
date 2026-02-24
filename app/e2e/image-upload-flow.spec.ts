@@ -89,32 +89,55 @@ test.describe("image upload flow", () => {
     });
   });
 
-  test("uploads image, verifies on detail, and deletes created post", async ({
+  test("syncs attachments between create-edit-detail", async ({
     page,
   }) => {
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const title = `[PW] 이미지 업로드 ${runId}`;
     const content = `이미지 업로드 E2E 검증 본문 ${runId}`;
+    const fileA = `upload-a-${runId}.png`;
+    const fileB = `upload-b-${runId}.png`;
 
     await loginAndOpenPostCreate(page);
 
     await page.getByLabel("제목").fill(title);
-    await page.getByLabel("내용").fill(content);
+    await page.locator('[contenteditable="true"]').first().fill(content);
     await page.getByTestId("image-upload-input").setInputFiles({
-      name: `upload-${runId}.png`,
+      name: fileA,
+      mimeType: "image/png",
+      buffer: Buffer.from(SAMPLE_PNG_BASE64, "base64"),
+    });
+    await page.getByTestId("image-upload-input").setInputFiles({
+      name: fileB,
       mimeType: "image/png",
       buffer: Buffer.from(SAMPLE_PNG_BASE64, "base64"),
     });
 
-    await expect(page.getByTestId("image-upload-preview-item")).toHaveCount(1);
+    await expect(page.getByTestId("image-upload-preview-item")).toHaveCount(2);
     await page.getByRole("button", { name: "게시하기" }).click();
 
     await expect(page).toHaveURL(/\/feed/);
     const createdPostId = await findPostIdByTitle(title);
     await page.goto(`/posts/${createdPostId}`);
     await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}$`));
-    await expect(page.getByRole("heading", { name: "첨부 이미지" })).toBeVisible();
-    await expect(page.locator('a[href^="/uploads/"]').first()).toBeVisible();
+    await expect(page.getByText("첨부파일")).toBeVisible();
+    await expect(page.locator('a[href*="upload-a-"]')).toHaveCount(1);
+    await expect(page.locator('a[href*="upload-b-"]')).toHaveCount(1);
+
+    await page.getByRole("link", { name: "수정" }).click();
+    await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}/edit$`));
+    await expect(page.getByTestId("image-upload-preview-item")).toHaveCount(2);
+    await page
+      .getByTestId("image-upload-preview-item")
+      .nth(0)
+      .getByRole("button", { name: "삭제" })
+      .click();
+    await expect(page.getByTestId("image-upload-preview-item")).toHaveCount(1);
+    await page.getByRole("button", { name: "수정 저장" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}$`));
+    await expect(page.locator('a[href*="upload-a-"]')).toHaveCount(0);
+    await expect(page.locator('a[href*="upload-b-"]')).toHaveCount(1);
 
     page.once("dialog", (dialog) => {
       void dialog.accept();

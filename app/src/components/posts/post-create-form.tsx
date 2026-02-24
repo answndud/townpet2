@@ -7,6 +7,12 @@ import { useRouter } from "next/navigation";
 
 import { ImageUploadField } from "@/components/ui/image-upload-field";
 import {
+  areSameStringArray,
+  buildImageMarkdown,
+  extractImageUrlsFromMarkup,
+  removeImageTokensByUrls,
+} from "@/lib/editor-image-markup";
+import {
   GUEST_BLOCKED_POST_TYPES,
   GUEST_MAX_IMAGE_COUNT,
 } from "@/lib/guest-post-policy";
@@ -195,6 +201,19 @@ function serializeEditorNode(node: Node): string {
     return `[${label.length > 0 ? label : href}](${href})`;
   }
 
+  if (node.tagName === "IMG") {
+    const src = node.getAttribute("src")?.trim();
+    if (!src) {
+      return "";
+    }
+    const rawAlt = normalizeWhitespace(node.getAttribute("alt") ?? "");
+    const alt = rawAlt.replace(/[\[\]]/g, "").trim() || "첨부 이미지";
+    const widthRaw = node.style.width || node.getAttribute("width") || "";
+    const widthMatch = widthRaw.match(/\d+/);
+    const widthToken = widthMatch ? `{width=${widthMatch[0]}}` : "";
+    return `![${alt}](${src})${widthToken}\n\n`;
+  }
+
   if (node.tagName === "STRONG" || node.tagName === "B") {
     return `**${serializeChildren()}**`;
   }
@@ -373,6 +392,128 @@ export function PostCreateForm({
   }, [editorHtml, editorTab]);
 
   useEffect(() => {
+    const editor = contentRef.current;
+    if (!editor || editorTab !== "write") {
+      return;
+    }
+
+    editor.style.position = "relative";
+    const cornerSize = 16;
+    let hoveredImage: HTMLImageElement | null = null;
+
+    const handle = document.createElement("span");
+    handle.setAttribute("aria-hidden", "true");
+    handle.style.position = "absolute";
+    handle.style.width = "12px";
+    handle.style.height = "12px";
+    handle.style.borderRadius = "2px";
+    handle.style.border = "1px solid #8ea9cf";
+    handle.style.background = "linear-gradient(135deg, #f7fbff 0%, #dbe8fa 100%)";
+    handle.style.boxShadow = "0 1px 2px rgba(16, 40, 74, 0.18)";
+    handle.style.pointerEvents = "none";
+    handle.style.display = "none";
+    editor.appendChild(handle);
+
+    const isNearBottomRight = (event: PointerEvent, image: HTMLImageElement) => {
+      const rect = image.getBoundingClientRect();
+      return event.clientX >= rect.right - cornerSize && event.clientY >= rect.bottom - cornerSize;
+    };
+
+    const positionHandle = (image: HTMLImageElement) => {
+      const editorRect = editor.getBoundingClientRect();
+      const imageRect = image.getBoundingClientRect();
+      handle.style.left = `${imageRect.right - editorRect.left - 10}px`;
+      handle.style.top = `${imageRect.bottom - editorRect.top - 10}px`;
+      handle.style.display = "block";
+    };
+
+    const clearHoverState = () => {
+      if (hoveredImage) {
+        hoveredImage.style.outline = "";
+      }
+      hoveredImage = null;
+      handle.style.display = "none";
+      editor.style.cursor = "text";
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLImageElement) || !editor.contains(target)) {
+        clearHoverState();
+        return;
+      }
+
+      if (hoveredImage && hoveredImage !== target) {
+        hoveredImage.style.outline = "";
+      }
+      hoveredImage = target;
+      target.style.outline = "1px dashed #8ea9cf";
+      positionHandle(target);
+
+      if (isNearBottomRight(event, target)) {
+        editor.style.cursor = "nwse-resize";
+      } else {
+        editor.style.cursor = "text";
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLImageElement) || !editor.contains(target)) {
+        return;
+      }
+      if (!isNearBottomRight(event, target)) {
+        return;
+      }
+
+      event.preventDefault();
+      const startX = event.clientX;
+      const startWidth = target.getBoundingClientRect().width;
+      const maxWidth = Math.max(240, editor.getBoundingClientRect().width - 24);
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        const deltaX = moveEvent.clientX - startX;
+        const nextWidth = Math.min(maxWidth, Math.max(120, Math.round(startWidth + deltaX)));
+        target.style.width = `${nextWidth}px`;
+        target.style.height = "auto";
+        positionHandle(target);
+      };
+
+      const handleUp = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        syncEditorToFormState();
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    };
+
+    const handlePointerLeave = () => {
+      clearHoverState();
+    };
+
+    const handleScroll = () => {
+      if (hoveredImage) {
+        positionHandle(hoveredImage);
+      }
+    };
+
+    editor.addEventListener("pointermove", handlePointerMove);
+    editor.addEventListener("pointerdown", handlePointerDown);
+    editor.addEventListener("pointerleave", handlePointerLeave);
+    editor.addEventListener("scroll", handleScroll);
+    return () => {
+      clearHoverState();
+      editor.removeEventListener("pointermove", handlePointerMove);
+      editor.removeEventListener("pointerdown", handlePointerDown);
+      editor.removeEventListener("pointerleave", handlePointerLeave);
+      editor.removeEventListener("scroll", handleScroll);
+      handle.remove();
+    };
+  }, [editorTab]);
+
+  useEffect(() => {
     if (!draftLoaded || typeof window === "undefined") {
       return;
     }
@@ -473,7 +614,12 @@ export function PostCreateForm({
     }
     const html = element.innerHTML;
     const serialized = serializeEditorHtml(html);
-    setFormState((prev) => (prev.content === serialized ? prev : { ...prev, content: serialized }));
+    const nextImageUrls = extractImageUrlsFromMarkup(serialized);
+    setFormState((prev) =>
+      prev.content === serialized && areSameStringArray(prev.imageUrls, nextImageUrls)
+        ? prev
+        : { ...prev, content: serialized, imageUrls: nextImageUrls },
+    );
   };
 
   const runEditorCommand = (command: string, value?: string) => {
@@ -481,8 +627,21 @@ export function PostCreateForm({
       return;
     }
     contentRef.current?.focus();
-    document.execCommand(command, false, value);
+    if (command === "formatBlock" && value) {
+      const normalized = value.trim().replace(/[<>]/g, "");
+      const withTag = `<${normalized}>`;
+      const ok = document.execCommand(command, false, withTag);
+      if (!ok) {
+        document.execCommand(command, false, normalized);
+      }
+    } else {
+      document.execCommand(command, false, value);
+    }
     syncEditorToFormState();
+  };
+
+  const preserveToolbarSelection = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
   };
 
   const wrapSelectionWithSpan = (className: string) => {
@@ -529,10 +688,6 @@ export function PostCreateForm({
     runEditorCommand("createLink", url.trim());
   };
 
-  const applyBlockHeading = (level: 1 | 2 | 3) => {
-    runEditorCommand("formatBlock", level === 1 ? "h1" : level === 2 ? "h2" : "h3");
-  };
-
   const applyStyledSelection = (
     kind: "size" | "color",
     value: "small" | "normal" | "large" | "xlarge" | "blue" | "red" | "green" | "gray",
@@ -576,11 +731,16 @@ export function PostCreateForm({
     const serializedContent = contentRef.current
       ? serializeEditorHtml(contentRef.current.innerHTML)
       : formState.content;
+    const serializedImageUrls = extractImageUrlsFromMarkup(serializedContent);
     if (!serializedContent.trim()) {
       setError("내용을 입력해 주세요.");
       return;
     }
-    setFormState((prev) => ({ ...prev, content: serializedContent }));
+    setFormState((prev) => ({
+      ...prev,
+      content: serializedContent,
+      imageUrls: serializedImageUrls,
+    }));
 
     startTransition(async () => {
       const payload = {
@@ -588,7 +748,7 @@ export function PostCreateForm({
         content: serializedContent,
         type: formState.type,
         scope: isAuthenticated ? formState.scope : PostScope.GLOBAL,
-        imageUrls: formState.imageUrls,
+        imageUrls: serializedImageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : undefined,
         guestDisplayName: isAuthenticated ? undefined : formState.guestDisplayName,
         guestPassword: isAuthenticated ? undefined : formState.guestPassword,
@@ -825,6 +985,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={applyLink}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-3 font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
           >
             링크
@@ -859,6 +1020,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("bold")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             B
@@ -866,6 +1028,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("italic")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold italic text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             I
@@ -873,6 +1036,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={applyLink}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             링크
@@ -880,6 +1044,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("insertUnorderedList")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             목록
@@ -891,14 +1056,16 @@ export function PostCreateForm({
             <div className="mt-2 flex flex-wrap gap-1.5 border border-[#dbe6f6] bg-[#f8fbff] p-2">
               <button
                 type="button"
-                onClick={() => applyBlockHeading(2)}
+                onClick={() => applyStyledSelection("size", "large")}
+                onMouseDown={preserveToolbarSelection}
                 className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
               >
-                H2
+                크게
               </button>
               <button
                 type="button"
                 onClick={() => runEditorCommand("insertOrderedList")}
+                onMouseDown={preserveToolbarSelection}
                 className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
               >
                 번호
@@ -906,6 +1073,7 @@ export function PostCreateForm({
               <button
                 type="button"
                 onClick={() => runEditorCommand("underline")}
+                onMouseDown={preserveToolbarSelection}
                 className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold underline text-[#315484]"
               >
                 밑줄
@@ -913,6 +1081,7 @@ export function PostCreateForm({
               <button
                 type="button"
                 onClick={() => runEditorCommand("strikeThrough")}
+                onMouseDown={preserveToolbarSelection}
                 className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
               >
                 취소선
@@ -920,6 +1089,7 @@ export function PostCreateForm({
               <button
                 type="button"
                 onClick={() => runEditorCommand("formatBlock", "blockquote")}
+                onMouseDown={preserveToolbarSelection}
                 className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484]"
               >
                 인용
@@ -927,6 +1097,7 @@ export function PostCreateForm({
               <button
                 type="button"
                 onClick={() => runEditorCommand("formatBlock", "pre")}
+                onMouseDown={preserveToolbarSelection}
                 className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-mono text-[#315484]"
               >
                 {'</>'}
@@ -938,29 +1109,8 @@ export function PostCreateForm({
         <div className="hidden flex-wrap items-center gap-1.5 border-b border-[#dbe6f6] bg-white px-3 py-2 text-xs sm:flex">
           <button
             type="button"
-            onClick={() => applyBlockHeading(1)}
-            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-          >
-            H1
-          </button>
-          <button
-            type="button"
-            onClick={() => applyBlockHeading(2)}
-            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-          >
-            H2
-          </button>
-          <button
-            type="button"
-            onClick={() => applyBlockHeading(3)}
-            className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-          >
-            H3
-          </button>
-          <div className="mx-1 h-5 w-px bg-[#d8e3f4]" />
-          <button
-            type="button"
             onClick={() => runEditorCommand("bold")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             B
@@ -968,6 +1118,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("italic")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold italic text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             I
@@ -975,6 +1126,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("formatBlock", "pre")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-mono text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             {'</>'}
@@ -982,6 +1134,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("insertUnorderedList")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             목록
@@ -989,6 +1142,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("insertOrderedList")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             번호목록
@@ -996,6 +1150,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("formatBlock", "blockquote")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             인용
@@ -1003,6 +1158,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("strikeThrough")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             취소선
@@ -1010,6 +1166,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => runEditorCommand("underline")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold underline text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             밑줄
@@ -1018,6 +1175,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("size", "small")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-[11px] text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             작게
@@ -1025,6 +1183,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("size", "normal")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-[12px] text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             보통
@@ -1032,6 +1191,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("size", "large")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-sm font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             크게
@@ -1039,6 +1199,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("size", "xlarge")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2 text-base font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
           >
             매우 크게
@@ -1047,6 +1208,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("color", "blue")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-[#2f5da4] transition hover:bg-[#f3f7ff]"
           >
             파랑
@@ -1054,6 +1216,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("color", "red")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-rose-600 transition hover:bg-[#f3f7ff]"
           >
             빨강
@@ -1061,6 +1224,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("color", "green")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-emerald-700 transition hover:bg-[#f3f7ff]"
           >
             초록
@@ -1068,6 +1232,7 @@ export function PostCreateForm({
           <button
             type="button"
             onClick={() => applyStyledSelection("color", "gray")}
+            onMouseDown={preserveToolbarSelection}
             className="inline-flex h-7 items-center border border-[#bfd0ec] bg-white px-2.5 font-semibold text-slate-600 transition hover:bg-[#f3f7ff]"
           >
             회색
@@ -1081,7 +1246,7 @@ export function PostCreateForm({
             suppressContentEditableWarning
             onInput={syncEditorToFormState}
             onBlur={syncEditorToFormState}
-            className="min-h-[340px] w-full border-0 bg-[#fcfdff] px-4 py-3 text-sm leading-relaxed text-[#1f3f71] outline-none"
+            className="min-h-[340px] w-full border-0 bg-[#fcfdff] px-4 py-3 text-sm leading-relaxed text-[#1f3f71] outline-none [&_img]:h-auto [&_img]:max-w-full"
           />
         ) : (
           <div className="min-h-[340px] border-0 bg-[#fcfdff] px-4 py-3 text-sm text-[#1f3f71]">
@@ -1112,9 +1277,35 @@ export function PostCreateForm({
       <div id="post-image-upload" className="border border-[#c8d7ef] bg-white p-4">
         <ImageUploadField
           value={formState.imageUrls}
-          onChange={(nextUrls) =>
-            setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
-          }
+          onChange={(nextUrls) => {
+            setFormState((prev) => {
+              const addedUrls = nextUrls.filter((url) => !prev.imageUrls.includes(url));
+              const removedUrls = prev.imageUrls.filter((url) => !nextUrls.includes(url));
+              let nextContent = removedUrls.length > 0
+                ? removeImageTokensByUrls(prev.content, removedUrls)
+                : prev.content;
+
+              if (addedUrls.length > 0) {
+                const existingCount = extractImageUrlsFromMarkup(nextContent).length;
+                const imageMarkdown = buildImageMarkdown(addedUrls, existingCount + 1);
+                const separator = nextContent.trim().length > 0 ? "\n\n" : "";
+                nextContent = `${nextContent}${separator}${imageMarkdown}`;
+              }
+
+              const finalImageUrls = extractImageUrlsFromMarkup(nextContent);
+              const nextHtml = markupToEditorHtml(nextContent);
+              setEditorHtml(nextHtml);
+              if (contentRef.current) {
+                contentRef.current.innerHTML = nextHtml;
+              }
+
+              return {
+                ...prev,
+                imageUrls: finalImageUrls,
+                content: nextContent,
+              };
+            });
+          }}
           label="이미지 첨부"
           maxFiles={isAuthenticated ? 10 : GUEST_MAX_IMAGE_COUNT}
         />

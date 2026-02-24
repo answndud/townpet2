@@ -25,4 +25,17 @@ describe("renderLiteMarkdown", () => {
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).not.toContain("<script>");
   });
+
+  it("renders markdown image tokens", () => {
+    const html = renderLiteMarkdown("![강아지 사진](https://example.com/dog.png)");
+
+    expect(html).toContain('<img src="https://example.com/dog.png"');
+    expect(html).toContain('alt="강아지 사진"');
+  });
+
+  it("renders image width token", () => {
+    const html = renderLiteMarkdown("![강아지 사진](https://example.com/dog.png){width=320}");
+
+    expect(html).toContain('style="width:min(100%, 320px);height:auto"');
+  });
 });

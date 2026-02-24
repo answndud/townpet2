@@ -19,6 +19,13 @@ function sanitizeHttpUrl(value: string) {
   }
 }
 
+function sanitizeImageUrl(value: string) {
+  if (value.startsWith("/uploads/")) {
+    return value;
+  }
+  return sanitizeHttpUrl(value);
+}
+
 function replaceLinkToken(value: string) {
   const tokens: string[] = [];
 
@@ -29,6 +36,25 @@ function replaceLinkToken(value: string) {
   };
 
   let transformed = value.replace(
+    /!\[([^\]]*)\]\(([^\s)]+)\)(?:\{\s*width\s*=\s*(\d{2,4})\s*\})?/gi,
+    (_, rawAlt: string, rawUrl: string, rawWidth?: string) => {
+      const safeUrl = sanitizeImageUrl(rawUrl.trim());
+      if (!safeUrl) {
+        return rawAlt;
+      }
+
+      const alt = rawAlt.trim().length > 0 ? rawAlt.trim() : "첨부 이미지";
+      const width = rawWidth ? Number(rawWidth) : null;
+      const widthStyle = Number.isFinite(width) && width !== null
+        ? ` style="width:min(100%, ${Math.max(80, width)}px);height:auto"`
+        : "";
+      return createToken(
+        `<img src="${safeUrl}" alt="${alt}" loading="lazy" class="my-2 w-full max-h-[520px] rounded border border-[#d7e3f5] bg-white object-contain"${widthStyle} />`,
+      );
+    },
+  );
+
+  transformed = transformed.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gi,
     (_, rawLabel: string, rawUrl: string) => {
       const safeUrl = sanitizeHttpUrl(rawUrl);

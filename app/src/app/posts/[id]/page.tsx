@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -40,6 +39,19 @@ function buildExcerpt(text: string, maxLength = 160) {
     return normalized;
   }
   return `${normalized.slice(0, maxLength)}...`;
+}
+
+function extractAttachmentName(url: string, fallbackIndex: number) {
+  try {
+    const parsed = url.startsWith("http://") || url.startsWith("https://")
+      ? new URL(url)
+      : new URL(url, "https://townpet.local");
+    const name = decodeURIComponent(parsed.pathname.split("/").filter(Boolean).pop() ?? "").trim();
+    return name.length > 0 ? name : `첨부파일-${fallbackIndex + 1}`;
+  } catch {
+    const name = decodeURIComponent(url.split("?")[0]?.split("/").filter(Boolean).pop() ?? "").trim();
+    return name.length > 0 ? name : `첨부파일-${fallbackIndex + 1}`;
+  }
 }
 
 export async function generateMetadata({
@@ -390,23 +402,24 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 )}
 
                 {post.images.length > 0 ? (
-                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {post.images.map((image, index) => (
-                      <Link
-                        key={image.id}
-                        href={image.url}
-                        target="_blank"
-                        className="overflow-hidden border border-[#dbe6f6] bg-[#f8fbff] transition hover:opacity-90"
-                      >
-                        <Image
-                          src={image.url}
-                          alt={`본문 이미지 ${index + 1}`}
-                          width={900}
-                          height={640}
-                          className="h-56 w-full object-cover"
-                        />
-                      </Link>
-                    ))}
+                  <div className="mt-5 border border-[#dbe6f6] bg-[#f8fbff] px-3 py-2.5">
+                    <p className="text-[11px] font-semibold tracking-[0.08em] text-[#4f6f9f]">첨부파일</p>
+                    <ul className="mt-2 space-y-1">
+                      {post.images.map((image, index) => {
+                        const fileName = extractAttachmentName(image.url, index);
+                        return (
+                          <li key={image.id} className="text-sm">
+                            <Link
+                              href={image.url}
+                              target="_blank"
+                              className="text-[#2f5da4] underline decoration-[#9db8df] underline-offset-2 hover:text-[#254e8a]"
+                            >
+                              {fileName}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
                 ) : null}
               </article>
