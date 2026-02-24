@@ -65,6 +65,8 @@ export const postCreateSchema = z.object({
   scope: z.nativeEnum(PostScope).default(PostScope.LOCAL),
   neighborhoodId: z.string().cuid().optional(),
   imageUrls: z.array(imageUrlSchema).max(10).optional().default([]),
+  guestDisplayName: z.string().trim().min(2).max(24).optional(),
+  guestPassword: z.string().min(4).max(32).optional(),
 });
 
 export const hospitalReviewSchema = z.object({

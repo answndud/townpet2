@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      create: vi.fn(),
     },
     siteSetting: {
       findUnique: vi.fn(),
@@ -17,6 +18,14 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    guestBan: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
+    guestViolation: {
+      create: vi.fn(),
+      count: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -24,6 +33,7 @@ vi.mock("@/lib/prisma", () => ({
 const mockPrisma = vi.mocked(prisma) as unknown as {
   user: {
     findUnique: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
   };
   siteSetting: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -33,13 +43,29 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  guestBan: {
+    findFirst: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+  };
+  guestViolation: {
+    create: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
+  };
 };
 
 describe("createPost new-user restriction", () => {
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
+    mockPrisma.user.create.mockReset();
     mockPrisma.siteSetting.findUnique.mockReset();
     mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
+    mockPrisma.guestBan.findFirst.mockReset();
+    mockPrisma.guestBan.findFirst.mockResolvedValue(null);
+    mockPrisma.guestBan.create.mockReset();
+    mockPrisma.guestViolation.create.mockReset();
+    mockPrisma.guestViolation.create.mockResolvedValue({ id: "violation-1" });
+    mockPrisma.guestViolation.count.mockReset();
+    mockPrisma.guestViolation.count.mockResolvedValue(0);
     mockPrisma.post.create.mockReset();
     mockPrisma.post.create.mockResolvedValue({
       id: "post-1",
@@ -48,6 +74,7 @@ describe("createPost new-user restriction", () => {
       type: PostType.FREE_POST,
       scope: PostScope.GLOBAL,
     });
+    mockPrisma.user.create.mockResolvedValue({ id: "guest-user-1" });
   });
 
   it("blocks restricted post types for new users", async () => {
@@ -150,5 +177,53 @@ describe("createPost new-user restriction", () => {
     ).resolves.toBeTruthy();
 
     expect(mockPrisma.post.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows guest users to write allowed global categories", async () => {
+    await expect(
+      createPost({
+        input: {
+          title: "비회원 자유글",
+          content: "텍스트만 작성",
+          type: PostType.FREE_BOARD,
+          scope: PostScope.GLOBAL,
+          guestDisplayName: "익명작성자",
+          guestPassword: "1234",
+          imageUrls: [],
+        },
+        guestIdentity: {
+          ip: "127.0.0.1",
+          fingerprint: "guest-fp-1",
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.user.create).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.post.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks restricted categories for guest users", async () => {
+    await expect(
+      createPost({
+        input: {
+          title: "비회원 번개",
+          content: "모임 글",
+          type: PostType.MEETUP,
+          scope: PostScope.GLOBAL,
+          guestDisplayName: "익명작성자",
+          guestPassword: "1234",
+          imageUrls: [],
+        },
+        guestIdentity: {
+          ip: "127.0.0.1",
+          fingerprint: "guest-fp-2",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "GUEST_RESTRICTED_TYPE",
+      status: 403,
+    });
+
+    expect(mockPrisma.post.create).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ImageUploadField } from "@/components/ui/image-upload-field";
+import {
+  GUEST_BLOCKED_POST_TYPES,
+  GUEST_MAX_IMAGE_COUNT,
+} from "@/lib/guest-post-policy";
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { createPostAction } from "@/server/actions/post";
 
@@ -19,6 +23,7 @@ type NeighborhoodOption = {
 type PostCreateFormProps = {
   neighborhoods: NeighborhoodOption[];
   defaultNeighborhoodId?: string;
+  isAuthenticated: boolean;
 };
 
 type PostCreateFormState = {
@@ -52,6 +57,8 @@ type PostCreateFormState = {
     safetyTags: string;
   };
   imageUrls: string[];
+  guestDisplayName: string;
+  guestPassword: string;
 };
 
 const postTypeOptions = [
@@ -71,6 +78,7 @@ const scopeOptions = [
 ];
 
 const DRAFT_STORAGE_KEY = "townpet:post-create-draft:v1";
+const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
 
 type EditorTab = "write" | "preview";
 
@@ -87,10 +95,27 @@ function isDraftFormState(value: unknown): value is PostCreateFormState {
     typeof candidate.scope === "string" &&
     typeof candidate.neighborhoodId === "string" &&
     Array.isArray(candidate.imageUrls) &&
+    (typeof candidate.guestDisplayName === "string" || candidate.guestDisplayName === undefined) &&
+    (typeof candidate.guestPassword === "string" || candidate.guestPassword === undefined) &&
     !!candidate.hospitalReview &&
     !!candidate.placeReview &&
     !!candidate.walkRoute
   );
+}
+
+function getGuestFingerprint() {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+
+  const existing = window.localStorage.getItem(GUEST_FP_STORAGE_KEY);
+  if (existing && existing.trim().length > 0) {
+    return existing;
+  }
+
+  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(GUEST_FP_STORAGE_KEY, created);
+  return created;
 }
 
 function markupToEditorHtml(markup: string) {
@@ -244,6 +269,7 @@ function serializeEditorHtml(html: string) {
 export function PostCreateForm({
   neighborhoods,
   defaultNeighborhoodId = "",
+  isAuthenticated,
 }: PostCreateFormProps) {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -285,6 +311,8 @@ export function PostCreateForm({
       safetyTags: "",
     },
     imageUrls: [],
+    guestDisplayName: "",
+    guestPassword: "",
   });
 
   useEffect(() => {
@@ -304,8 +332,14 @@ export function PostCreateForm({
         form?: unknown;
       };
       if (isDraftFormState(parsed.form)) {
-        setFormState(parsed.form);
-        setEditorHtml(markupToEditorHtml(parsed.form.content));
+        const draftForm = parsed.form as Partial<PostCreateFormState>;
+        setFormState((prev) => ({
+          ...prev,
+          ...draftForm,
+          guestDisplayName: draftForm.guestDisplayName ?? "",
+          guestPassword: "",
+        }));
+        setEditorHtml(markupToEditorHtml(draftForm.content ?? ""));
       }
       if (parsed.savedAt) {
         setDraftSavedAt(parsed.savedAt);
@@ -347,7 +381,10 @@ export function PostCreateForm({
         DRAFT_STORAGE_KEY,
         JSON.stringify({
           savedAt,
-          form: formState,
+          form: {
+            ...formState,
+            guestPassword: "",
+          },
         }),
       );
       setDraftSavedAt(savedAt);
@@ -366,6 +403,30 @@ export function PostCreateForm({
       })),
     [neighborhoods],
   );
+
+  const availablePostTypeOptions = useMemo(() => {
+    if (isAuthenticated) {
+      return postTypeOptions;
+    }
+
+    return postTypeOptions.filter(
+      (option) => !GUEST_BLOCKED_POST_TYPES.includes(option.value),
+    );
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      return;
+    }
+
+    if (formState.scope !== PostScope.GLOBAL) {
+      setFormState((prev) => ({ ...prev, scope: PostScope.GLOBAL }));
+    }
+
+    if (GUEST_BLOCKED_POST_TYPES.includes(formState.type)) {
+      setFormState((prev) => ({ ...prev, type: PostType.FREE_BOARD }));
+    }
+  }, [formState.scope, formState.type, isAuthenticated]);
 
   const showNeighborhood = formState.scope === PostScope.LOCAL;
   const showHospitalReview = formState.type === PostType.HOSPITAL_REVIEW;
@@ -520,13 +581,15 @@ export function PostCreateForm({
     setFormState((prev) => ({ ...prev, content: serializedContent }));
 
     startTransition(async () => {
-      const result = await createPostAction({
+      const payload = {
         title: formState.title,
         content: serializedContent,
         type: formState.type,
-        scope: formState.scope,
+        scope: isAuthenticated ? formState.scope : PostScope.GLOBAL,
         imageUrls: formState.imageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : undefined,
+        guestDisplayName: isAuthenticated ? undefined : formState.guestDisplayName,
+        guestPassword: isAuthenticated ? undefined : formState.guestPassword,
         hospitalReview: hasHospitalReview
           ? {
               ...formState.hospitalReview,
@@ -551,10 +614,38 @@ export function PostCreateForm({
                 .filter(Boolean),
             }
           : undefined,
-      });
+      };
+
+      const result = isAuthenticated
+        ? await createPostAction(payload)
+        : await fetch("/api/posts", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-guest-fingerprint": getGuestFingerprint(),
+              "x-guest-mode": "1",
+            },
+            body: JSON.stringify(payload),
+          })
+            .then(async (response) => {
+              const payload = (await response.json()) as {
+                ok: boolean;
+                error?: { message?: string };
+              };
+
+              if (response.ok && payload.ok) {
+                return { ok: true } as const;
+              }
+
+              return {
+                ok: false,
+                message: payload.error?.message ?? "비회원 글 등록에 실패했습니다.",
+              } as const;
+            })
+            .catch(() => ({ ok: false, message: "네트워크 오류가 발생했습니다." } as const));
 
       if (!result.ok) {
-        setError(result.message);
+        setError(result.message ?? "게시글 등록에 실패했습니다.");
         return;
       }
 
@@ -596,6 +687,8 @@ export function PostCreateForm({
           safetyTags: "",
         },
         imageUrls: [],
+        guestDisplayName: "",
+        guestPassword: "",
       }));
     });
   };
@@ -634,7 +727,7 @@ export function PostCreateForm({
                 }))
               }
             >
-              {postTypeOptions.map((option) => (
+              {availablePostTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -653,6 +746,7 @@ export function PostCreateForm({
                   scope: event.target.value as PostScope,
                 }))
               }
+              disabled={!isAuthenticated}
             >
               {scopeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -689,6 +783,39 @@ export function PostCreateForm({
             </select>
           </label>
         </div>
+        {!isAuthenticated ? (
+          <div className="grid gap-3 border-t border-[#dbe6f6] bg-[#f8fbff] p-4 md:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+              비회원 닉네임
+              <input
+                className="border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
+                value={formState.guestDisplayName}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, guestDisplayName: event.target.value }))
+                }
+                placeholder="닉네임"
+                minLength={2}
+                maxLength={24}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+              글 비밀번호
+              <input
+                type="password"
+                className="border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
+                value={formState.guestPassword}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, guestPassword: event.target.value }))
+                }
+                placeholder="수정/삭제용 비밀번호"
+                minLength={4}
+                maxLength={32}
+                required
+              />
+            </label>
+          </div>
+        ) : null}
       </section>
 
       <section className="border border-[#c8d7ef] bg-white">
@@ -907,7 +1034,11 @@ export function PostCreateForm({
             setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
           }
           label="이미지 첨부"
+          maxFiles={isAuthenticated ? 10 : GUEST_MAX_IMAGE_COUNT}
         />
+        {!isAuthenticated ? (
+          <p className="mt-2 text-xs text-[#5d789f]">비회원 이미지는 최대 1장, 파일당 2MB까지 업로드할 수 있습니다.</p>
+        ) : null}
       </div>
 
       {showHospitalReview ? (
@@ -1281,7 +1412,11 @@ export function PostCreateForm({
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#dbe6f6] pt-3">
-        <p className="text-xs text-[#5d769d]">동네 글은 동네 범위를 선택하고 대표 동네를 지정해야 등록됩니다.</p>
+        <p className="text-xs text-[#5d769d]">
+          {isAuthenticated
+            ? "동네 글은 동네 범위를 선택하고 대표 동네를 지정해야 등록됩니다."
+            : "비회원 글은 온동네로만 등록되며 외부 링크/연락처/고위험 카테고리는 제한됩니다."}
+        </p>
         <div className="flex items-center gap-2">
           <Link
             href="/feed"

@@ -5,9 +5,12 @@ import { isLoginRequiredPostType } from "@/lib/post-access";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { postListSchema } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
-import { getCurrentUser, requireCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
-import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
+import {
+  getGuestPostPolicy,
+  getGuestReadLoginRequiredPostTypes,
+} from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
@@ -103,10 +106,45 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const user = await requireCurrentUser();
-    await enforceRateLimit({ key: `posts:${user.id}`, limit: 5, windowMs: 60_000 });
+    const forceGuestMode =
+      process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
+    const user = forceGuestMode ? null : await getCurrentUser();
 
-    const post = await createPost({ authorId: user.id, input: body });
+    if (user) {
+      await enforceRateLimit({ key: `posts:${user.id}`, limit: 5, windowMs: 60_000 });
+      const post = await createPost({ authorId: user.id, input: body });
+      return jsonOk(post, { status: 201 });
+    }
+
+    const clientIp = getClientIp(request);
+    const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
+    const guestRateKey = `posts:guest:ip:${clientIp}:fp:${guestFingerprint ?? "none"}`;
+    const guestPostPolicy = await getGuestPostPolicy();
+
+    await enforceRateLimit({
+      key: `${guestRateKey}:10m`,
+      limit: guestPostPolicy.postRateLimit10m,
+      windowMs: 10 * 60_000,
+    });
+    await enforceRateLimit({
+      key: `${guestRateKey}:1h`,
+      limit: guestPostPolicy.postRateLimit1h,
+      windowMs: 60 * 60_000,
+    });
+    await enforceRateLimit({
+      key: `${guestRateKey}:24h`,
+      limit: guestPostPolicy.postRateLimit24h,
+      windowMs: 24 * 60 * 60_000,
+    });
+
+    const post = await createPost({
+      input: body,
+      guestIdentity: {
+        ip: clientIp,
+        fingerprint: guestFingerprint,
+        userAgent: request.headers.get("user-agent") ?? undefined,
+      },
+    });
     return jsonOk(post, { status: 201 });
   } catch (error) {
     if (error instanceof ServiceError) {

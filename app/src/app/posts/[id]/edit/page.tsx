@@ -16,26 +16,28 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
   const resolvedParams = (await params) ?? {};
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) {
-    redirect("/login");
-  }
-
-  const user = await getUserWithNeighborhoods(userId);
-  if (!user) {
-    redirect("/login");
-  }
+  const user = userId ? await getUserWithNeighborhoods(userId) : null;
 
   const [post, neighborhoods] = await Promise.all([
     getPostById(resolvedParams.id),
     listNeighborhoods(),
   ]);
 
-  if (!post || post.authorId !== user.id) {
+  if (!post) {
     notFound();
   }
 
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood && post.scope !== "GLOBAL") {
+  const isGuestEdit = Boolean((post as { guestDisplayName?: string | null }).guestDisplayName) && !user;
+  if (!isGuestEdit && !user) {
+    redirect("/login");
+  }
+
+  if (user && post.authorId !== user.id) {
+    notFound();
+  }
+
+  const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
+  if (user && !primaryNeighborhood && post.scope !== "GLOBAL") {
     return (
       <NeighborhoodGateNotice
         title="수정하려면 동네 설정이 필요합니다."
@@ -62,7 +64,8 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
           scope={post.scope}
           neighborhoodId={post.neighborhood?.id ?? null}
           imageUrls={post.images.map((image) => image.url)}
-          neighborhoods={neighborhoods}
+          neighborhoods={isGuestEdit ? [] : neighborhoods}
+          isAuthenticated={Boolean(user)}
         />
       </main>
     </div>

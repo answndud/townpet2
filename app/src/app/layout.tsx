@@ -71,7 +71,7 @@ export default async function RootLayout({
     session?.user?.email ??
     null;
   const navLinkClass =
-    "inline-flex h-9 items-center rounded-sm border border-[#bfd0ec] bg-white px-3.5 text-[13px] leading-none text-[#2f548f] transition hover:border-[#9fb7de] hover:bg-[#f5f9ff]";
+    "inline-flex h-8 items-center rounded-sm border border-[#bfd0ec] bg-white px-3 text-xs leading-none text-[#2f548f] transition hover:border-[#9fb7de] hover:bg-[#f5f9ff] sm:h-9 sm:px-3.5 sm:text-[13px]";
 
   return (
     <html lang="ko">
@@ -82,7 +82,7 @@ export default async function RootLayout({
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(50,88,146,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(50,88,146,0.04)_1px,transparent_1px)] bg-[size:28px_28px] opacity-35" />
 
           <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
-            <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">
               <Link href="/" className="inline-flex items-center" aria-label="TownPet 홈으로 이동">
                 <Image
                   src="/townpet-logo.svg"
@@ -90,10 +90,10 @@ export default async function RootLayout({
                   width={274}
                   height={72}
                   priority
-                  className="h-[54px] w-auto sm:h-[62px]"
+                  className="h-[42px] w-auto sm:h-[62px]"
                 />
               </Link>
-              <nav className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] font-medium text-[#315484]">
+              <nav className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] font-medium text-[#315484] sm:gap-x-2.5 sm:gap-y-2">
                 <Link href="/my-posts" className={navLinkClass}>
                   내 작성글
                 </Link>

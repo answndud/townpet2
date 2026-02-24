@@ -37,6 +37,9 @@ export type FeedPostItem = {
     nickname: string | null;
     image?: string | null;
   };
+  guestDisplayName?: string | null;
+  guestIpDisplay?: string | null;
+  guestIpLabel?: string | null;
   neighborhood: {
     id: string;
     name: string;
@@ -454,9 +457,16 @@ export function FeedInfiniteList({
 
               <div className="text-xs text-[#4f678d] md:text-right">
                 <p className="font-semibold text-[#1f3f71]">
-                  <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
-                    {post.author.nickname ?? post.author.name ?? "익명"}
-                  </Link>
+                  {post.guestDisplayName ? (
+                    <span>
+                      {post.guestDisplayName}
+                      {post.guestIpDisplay ? ` (${post.guestIpLabel ?? "아이피"} ${post.guestIpDisplay})` : ""}
+                    </span>
+                  ) : (
+                    <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                      {post.author.nickname ?? post.author.name ?? "익명"}
+                    </Link>
+                  )}
                 </p>
                 <p className="mt-0.5">
                   {relativeNow === null

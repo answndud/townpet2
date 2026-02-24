@@ -1,4 +1,5 @@
-import { CommentReactionType, PostStatus } from "@prisma/client";
+import { CommentReactionType, GuestViolationCategory, PostStatus } from "@prisma/client";
+import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
 import { moderateContactContent } from "@/lib/contact-policy";
 import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
@@ -7,6 +8,7 @@ import { commentCreateSchema, commentUpdateSchema } from "@/lib/validations/comm
 import { logger, serializeError } from "@/server/logger";
 import {
   getForbiddenKeywords,
+  getGuestPostPolicy,
   getNewUserSafetyPolicy,
 } from "@/server/queries/policy.queries";
 import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
@@ -14,6 +16,10 @@ import {
   notifyCommentOnPost,
   notifyReplyToComment,
 } from "@/server/services/notification.service";
+import {
+  hashGuestIdentity,
+  registerGuestViolation,
+} from "@/server/services/guest-safety.service";
 import { ServiceError } from "@/server/services/service-error";
 
 type CreateCommentParams = {
@@ -21,13 +27,69 @@ type CreateCommentParams = {
   postId: string;
   input: unknown;
   parentId?: string;
+  guestMeta?: {
+    displayName: string;
+    passwordHash: string;
+    ipHash: string;
+    fingerprintHash: string | null;
+    ipDisplay: string | null;
+    ipLabel: string | null;
+  };
 };
+
+const LEGACY_GUEST_COMMENT_CLAIM_WINDOW_HOURS = 24;
+
+function verifyGuestPassword(rawPassword: string, stored: string) {
+  const [salt, expectedHash] = stored.split(":");
+  if (!salt || !expectedHash) {
+    return false;
+  }
+
+  const actual = scryptSync(rawPassword, salt, 32);
+  const expected = Buffer.from(expectedHash, "hex");
+  if (actual.length !== expected.length) {
+    return false;
+  }
+
+  return timingSafeEqual(actual, expected);
+}
+
+export function hashGuestCommentPassword(rawPassword: string) {
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(rawPassword, salt, 32).toString("hex");
+  return `${salt}:${derived}`;
+}
+
+function matchesGuestIdentity(
+  params: {
+    guestIpHash: string | null;
+    guestFingerprintHash: string | null;
+  },
+  identity: {
+    ip: string;
+    fingerprint?: string;
+  },
+) {
+  const { ipHash, fingerprintHash } = hashGuestIdentity(identity);
+  if (params.guestIpHash && params.guestIpHash === ipHash) {
+    return true;
+  }
+  if (params.guestFingerprintHash && fingerprintHash && params.guestFingerprintHash === fingerprintHash) {
+    return true;
+  }
+  return false;
+}
+
+function isLegacyGuestCommentClaimable(createdAt: Date) {
+  return Date.now() - createdAt.getTime() <= LEGACY_GUEST_COMMENT_CLAIM_WINDOW_HOURS * 60 * 60 * 1000;
+}
 
 export async function createComment({
   authorId,
   postId,
   input,
   parentId,
+  guestMeta,
 }: CreateCommentParams) {
   const parsed = commentCreateSchema.safeParse(input);
   if (!parsed.success) {
@@ -121,6 +183,12 @@ export async function createComment({
         authorId,
         content: safeContent,
         parentId: parentId ?? null,
+        guestDisplayName: guestMeta?.displayName,
+        guestPasswordHash: guestMeta?.passwordHash,
+        guestIpHash: guestMeta?.ipHash,
+        guestFingerprintHash: guestMeta?.fingerprintHash,
+        guestIpDisplay: guestMeta?.ipDisplay,
+        guestIpLabel: guestMeta?.ipLabel,
       },
       include: {
         author: { select: { id: true, name: true, nickname: true } },
@@ -256,11 +324,15 @@ export async function updateComment({
     }
 
     const replyCount = await tx.comment.count({
-      where: { parentId: commentId, status: PostStatus.ACTIVE },
+      where: {
+        parentId: commentId,
+        status: PostStatus.ACTIVE,
+        authorId: { not: authorId },
+      },
     });
 
     if (replyCount > 0) {
-      throw new ServiceError("대댓글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
+      throw new ServiceError("다른 사용자의 답글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
     }
 
     return tx.comment.update({
@@ -294,13 +366,285 @@ export async function deleteComment({ commentId, authorId }: DeleteCommentParams
     }
 
     const replyCount = await tx.comment.count({
-      where: { parentId: commentId, status: PostStatus.ACTIVE },
+      where: {
+        parentId: commentId,
+        status: PostStatus.ACTIVE,
+        authorId: { not: authorId },
+      },
     });
 
     if (replyCount > 0) {
-      throw new ServiceError("대댓글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
+      throw new ServiceError("다른 사용자의 답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
     }
 
+    const deleted = await tx.comment.update({
+      where: { id: commentId },
+      data: { status: PostStatus.DELETED },
+      select: { id: true, postId: true },
+    });
+
+    await tx.post.update({
+      where: { id: comment.postId },
+      data: { commentCount: { decrement: 1 } },
+    });
+
+    return deleted;
+  });
+}
+
+type UpdateGuestCommentParams = {
+  commentId: string;
+  input: unknown;
+  guestPassword: string;
+  guestIdentity: {
+    ip: string;
+    fingerprint?: string;
+  };
+};
+
+export async function updateGuestComment({
+  commentId,
+  input,
+  guestPassword,
+  guestIdentity,
+}: UpdateGuestCommentParams) {
+  const parsed = commentUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("댓글 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  const [comment, guestPostPolicy, forbiddenKeywords] = await Promise.all([
+    prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        id: true,
+        authorId: true,
+        postId: true,
+        status: true,
+        createdAt: true,
+        guestDisplayName: true,
+        guestPasswordHash: true,
+        guestIpHash: true,
+        guestFingerprintHash: true,
+        author: { select: { email: true } },
+      },
+    }),
+    getGuestPostPolicy(),
+    getForbiddenKeywords(),
+  ]);
+
+  if (!comment || comment.status !== PostStatus.ACTIVE) {
+    throw new ServiceError("댓글을 찾을 수 없습니다.", "COMMENT_NOT_FOUND", 404);
+  }
+
+  const hasGuestCredential = Boolean(comment.guestPasswordHash);
+  const isLegacyGuestComment =
+    !hasGuestCredential &&
+    (Boolean(comment.guestDisplayName) || comment.author.email.endsWith("@guest.townpet.local"));
+
+  if (!hasGuestCredential && !isLegacyGuestComment) {
+    throw new ServiceError("비회원 댓글이 아닙니다.", "GUEST_COMMENT_ONLY", 403);
+  }
+
+  if (
+    hasGuestCredential &&
+    !matchesGuestIdentity(
+      {
+        guestIpHash: comment.guestIpHash,
+        guestFingerprintHash: comment.guestFingerprintHash,
+      },
+      guestIdentity,
+    )
+  ) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 댓글 수정 식별 불일치",
+      source: "guest-comment-update-identity",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("수정 권한이 없습니다.", "FORBIDDEN", 403);
+  }
+
+  const nextPasswordHash = hasGuestCredential
+    ? comment.guestPasswordHash
+    : hashGuestCommentPassword(guestPassword);
+
+  if (hasGuestCredential && !verifyGuestPassword(guestPassword, comment.guestPasswordHash!)) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 댓글 수정 비밀번호 실패",
+      source: "guest-comment-update-password",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
+  }
+
+  if (isLegacyGuestComment && !isLegacyGuestCommentClaimable(comment.createdAt)) {
+    throw new ServiceError(
+      "기존 비회원 댓글은 작성 후 24시간 이내에만 비밀번호 등록으로 수정할 수 있습니다.",
+      "LEGACY_GUEST_COMMENT_CLAIM_EXPIRED",
+      403,
+    );
+  }
+
+  const replyCountByOthers = await prisma.comment.count({
+    where: {
+      parentId: commentId,
+      status: PostStatus.ACTIVE,
+      authorId: { not: comment.authorId },
+    },
+  });
+  if (replyCountByOthers > 0) {
+    throw new ServiceError("다른 사용자의 답글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
+  }
+
+  const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
+    parsed.data.content,
+    forbiddenKeywords,
+  );
+  if (matchedForbiddenKeywords.length > 0) {
+    throw new ServiceError(
+      `금칙어가 포함되어 댓글을 수정할 수 없습니다. (${matchedForbiddenKeywords
+        .slice(0, 3)
+        .join(", ")})`,
+      "FORBIDDEN_KEYWORD_DETECTED",
+      400,
+    );
+  }
+
+  const contactSignals = moderateContactContent({
+    text: parsed.data.content,
+    role: "USER",
+    accountCreatedAt: new Date(),
+    blockWindowHours: 24,
+  });
+  if (contactSignals.blocked || (!guestPostPolicy.allowContact && contactSignals.sanitizedText !== parsed.data.content)) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.SPAM,
+      reason: "비회원 댓글 수정 연락처 위반",
+      source: "guest-comment-update-contact",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("비회원 댓글에는 연락처를 포함할 수 없습니다.", "GUEST_CONTACT_BLOCKED", 403);
+  }
+
+  return prisma.comment.update({
+    where: { id: commentId },
+    data: {
+      content: parsed.data.content,
+      ...(isLegacyGuestComment
+        ? {
+            guestPasswordHash: nextPasswordHash,
+            ...hashGuestIdentity(guestIdentity),
+          }
+        : {}),
+    },
+    include: {
+      author: { select: { id: true, name: true, nickname: true } },
+    },
+  });
+}
+
+type DeleteGuestCommentParams = {
+  commentId: string;
+  guestPassword: string;
+  guestIdentity: {
+    ip: string;
+    fingerprint?: string;
+  };
+};
+
+export async function deleteGuestComment({
+  commentId,
+  guestPassword,
+  guestIdentity,
+}: DeleteGuestCommentParams) {
+  const [comment, guestPostPolicy] = await Promise.all([
+    prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        id: true,
+        authorId: true,
+        postId: true,
+        status: true,
+        createdAt: true,
+        guestDisplayName: true,
+        guestPasswordHash: true,
+        guestIpHash: true,
+        guestFingerprintHash: true,
+        author: { select: { email: true } },
+      },
+    }),
+    getGuestPostPolicy(),
+  ]);
+
+  if (!comment || comment.status !== PostStatus.ACTIVE) {
+    throw new ServiceError("댓글을 찾을 수 없습니다.", "COMMENT_NOT_FOUND", 404);
+  }
+
+  const hasGuestCredential = Boolean(comment.guestPasswordHash);
+  const isLegacyGuestComment =
+    !hasGuestCredential &&
+    (Boolean(comment.guestDisplayName) || comment.author.email.endsWith("@guest.townpet.local"));
+
+  if (!hasGuestCredential && !isLegacyGuestComment) {
+    throw new ServiceError("비회원 댓글이 아닙니다.", "GUEST_COMMENT_ONLY", 403);
+  }
+
+  if (
+    hasGuestCredential &&
+    !matchesGuestIdentity(
+      {
+        guestIpHash: comment.guestIpHash,
+        guestFingerprintHash: comment.guestFingerprintHash,
+      },
+      guestIdentity,
+    )
+  ) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 댓글 삭제 식별 불일치",
+      source: "guest-comment-delete-identity",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
+  }
+
+  if (hasGuestCredential && !verifyGuestPassword(guestPassword, comment.guestPasswordHash!)) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 댓글 삭제 비밀번호 실패",
+      source: "guest-comment-delete-password",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
+  }
+
+  if (isLegacyGuestComment && !isLegacyGuestCommentClaimable(comment.createdAt)) {
+    throw new ServiceError(
+      "기존 비회원 댓글은 작성 후 24시간 이내에만 비밀번호 등록으로 삭제할 수 있습니다.",
+      "LEGACY_GUEST_COMMENT_CLAIM_EXPIRED",
+      403,
+    );
+  }
+
+  const replyCountByOthers = await prisma.comment.count({
+    where: {
+      parentId: commentId,
+      status: PostStatus.ACTIVE,
+      authorId: { not: comment.authorId },
+    },
+  });
+  if (replyCountByOthers > 0) {
+    throw new ServiceError("다른 사용자의 답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
+  }
+
+  return prisma.$transaction(async (tx) => {
     const deleted = await tx.comment.update({
       where: { id: commentId },
       data: { status: PostStatus.DELETED },

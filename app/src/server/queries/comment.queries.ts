@@ -15,7 +15,7 @@ export async function listComments(postId: string, viewerId?: string) {
     },
     orderBy: { createdAt: "asc" },
     include: {
-      author: { select: { id: true, name: true, nickname: true } },
+      author: { select: { id: true, name: true, nickname: true, email: true } },
       reactions: {
         where: {
           userId: viewerId ?? NO_VIEWER_ID,
@@ -34,6 +34,10 @@ export async function getCommentById(commentId: string) {
       authorId: true,
       postId: true,
       status: true,
+      guestPasswordHash: true,
+      guestIpHash: true,
+      guestFingerprintHash: true,
+      guestDisplayName: true,
     },
   });
 }

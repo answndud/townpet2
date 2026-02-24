@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { togglePostReactionAction } from "@/server/actions/post";
 
@@ -80,8 +80,23 @@ export function PostReactionControls({
   const [reaction, setReaction] = useState<ReactionType | null>(currentReaction);
   const [likes, setLikes] = useState(initialLikeCount);
   const [dislikes, setDislikes] = useState(initialDislikeCount);
+  const [loginIntent, setLoginIntent] = useState<ReactionType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!loginIntent) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setLoginIntent(null);
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loginIntent]);
 
   const buttonClass = compact
     ? "inline-flex h-9 min-w-[100px] items-center justify-center border px-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
@@ -89,6 +104,7 @@ export function PostReactionControls({
 
   const handleToggle = (target: ReactionType) => {
     if (!canReact) {
+      setLoginIntent(target);
       return;
     }
 
@@ -96,6 +112,7 @@ export function PostReactionControls({
     const optimistic = getNextState(reaction, target, likes, dislikes);
 
     setError(null);
+    setLoginIntent(null);
     setReaction(optimistic.reaction);
     setLikes(optimistic.likeCount);
     setDislikes(optimistic.dislikeCount);
@@ -118,40 +135,58 @@ export function PostReactionControls({
 
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "justify-end" : "justify-center"}`}>
-      <button
-        type="button"
-        onClick={() => handleToggle(REACTION_TYPE.LIKE)}
-        disabled={isPending || !canReact}
-        className={`${buttonClass} ${
-          reaction === REACTION_TYPE.LIKE
-            ? "border-[#3567b5] bg-[#3567b5] text-white"
-            : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
-        }`}
-      >
-        좋아요 {likes.toLocaleString()}
-      </button>
-      <button
-        type="button"
-        onClick={() => handleToggle(REACTION_TYPE.DISLIKE)}
-        disabled={isPending || !canReact}
-        className={`${buttonClass} ${
-          reaction === REACTION_TYPE.DISLIKE
-            ? "border-[#5e7396] bg-[#5e7396] text-white"
-            : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
-        }`}
-      >
-        싫어요 {dislikes.toLocaleString()}
-      </button>
-      {!canReact && showLoginHint && !compact ? (
-        <Link href={loginHref} className="text-xs text-[#2f5da4] underline underline-offset-2">
-          로그인 후 반응 가능
-        </Link>
-      ) : null}
-      {!canReact && showLoginHint && compact ? (
-        <Link href={loginHref} className="w-full text-[11px] text-[#2f5da4] underline underline-offset-2">
-          로그인 후 반응 가능
-        </Link>
-      ) : null}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => handleToggle(REACTION_TYPE.LIKE)}
+          disabled={isPending}
+          className={`${buttonClass} ${
+            reaction === REACTION_TYPE.LIKE
+              ? "border-[#3567b5] bg-[#3567b5] text-white"
+              : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+          }`}
+        >
+          좋아요 {likes.toLocaleString()}
+        </button>
+        {!canReact && showLoginHint && loginIntent === REACTION_TYPE.LIKE ? (
+          <div
+            className={`absolute left-0 top-[calc(100%+8px)] z-10 max-w-[min(86vw,260px)] rounded-sm border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-[#355988] shadow-[0_8px_18px_rgba(16,40,74,0.12)] sm:left-1/2 sm:-translate-x-1/2 ${
+              compact ? "text-[11px]" : "text-xs"
+            }`}
+          >
+            로그인 후 좋아요 누르기 가능.{" "}
+            <Link href={loginHref} className="font-semibold text-[#2f5da4] underline underline-offset-2">
+              로그인하기
+            </Link>
+          </div>
+        ) : null}
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => handleToggle(REACTION_TYPE.DISLIKE)}
+          disabled={isPending}
+          className={`${buttonClass} ${
+            reaction === REACTION_TYPE.DISLIKE
+              ? "border-[#5e7396] bg-[#5e7396] text-white"
+              : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+          }`}
+        >
+          싫어요 {dislikes.toLocaleString()}
+        </button>
+        {!canReact && showLoginHint && loginIntent === REACTION_TYPE.DISLIKE ? (
+          <div
+            className={`absolute right-0 top-[calc(100%+8px)] z-10 max-w-[min(86vw,260px)] rounded-sm border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-[#355988] shadow-[0_8px_18px_rgba(16,40,74,0.12)] sm:left-1/2 sm:right-auto sm:-translate-x-1/2 ${
+              compact ? "text-[11px]" : "text-xs"
+            }`}
+          >
+            로그인 후 싫어요 누르기 가능.{" "}
+            <Link href={loginHref} className="font-semibold text-[#2f5da4] underline underline-offset-2">
+              로그인하기
+            </Link>
+          </div>
+        ) : null}
+      </div>
       {!compact && error ? (
         <span className="text-xs text-rose-600">{error}</span>
       ) : null}

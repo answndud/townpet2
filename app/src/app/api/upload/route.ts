@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 
-import { requireCurrentUser } from "@/server/auth";
+import { GUEST_MAX_IMAGE_BYTES } from "@/lib/guest-post-policy";
+import { getCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
+import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
@@ -10,13 +12,24 @@ import { saveUploadedImage } from "@/server/upload";
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireCurrentUser();
+    const user = await getCurrentUser();
     const clientIp = getClientIp(request);
-    await enforceRateLimit({
-      key: `upload:user:${user.id}:ip:${clientIp}`,
-      limit: 20,
-      windowMs: 60_000,
-    });
+    const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
+
+    if (user) {
+      await enforceRateLimit({
+        key: `upload:user:${user.id}:ip:${clientIp}`,
+        limit: 20,
+        windowMs: 60_000,
+      });
+    } else {
+      const guestPostPolicy = await getGuestPostPolicy();
+      await enforceRateLimit({
+        key: `upload:guest:ip:${clientIp}:fp:${guestFingerprint ?? "none"}:10m`,
+        limit: guestPostPolicy.uploadRateLimit10m,
+        windowMs: 10 * 60_000,
+      });
+    }
 
     const formData = await request.formData();
     const file = formData.get("file");
@@ -27,7 +40,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const uploaded = await saveUploadedImage(file);
+    const uploaded = await saveUploadedImage(file, {
+      maxSizeBytes: user ? undefined : GUEST_MAX_IMAGE_BYTES,
+    });
     return jsonOk(uploaded, { status: 201 });
   } catch (error) {
     if (error instanceof ServiceError) {

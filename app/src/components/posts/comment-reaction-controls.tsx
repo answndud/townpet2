@@ -82,7 +82,7 @@ export function CommentReactionControls({
   const [isPending, startTransition] = useTransition();
 
   const buttonClass =
-    "inline-flex items-center justify-center border px-2 py-0.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex h-6 items-center justify-center border px-2.5 text-[10px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
   const handleToggle = (target: ReactionType) => {
     if (!canReact) {
@@ -114,7 +114,7 @@ export function CommentReactionControls({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 text-[#54739e]">
       <button
         type="button"
         onClick={() => handleToggle(REACTION_TYPE.LIKE)}
@@ -122,7 +122,7 @@ export function CommentReactionControls({
         className={`${buttonClass} ${
           reaction === REACTION_TYPE.LIKE
             ? "border-[#3567b5] bg-[#3567b5] text-white"
-            : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+            : "border-[#d2dff2] bg-white text-[#4f6f9a] hover:border-[#bfd0ec] hover:bg-[#f3f7ff] hover:text-[#315484]"
         }`}
       >
         추천 {likes.toLocaleString()}
@@ -134,7 +134,7 @@ export function CommentReactionControls({
         className={`${buttonClass} ${
           reaction === REACTION_TYPE.DISLIKE
             ? "border-[#5e7396] bg-[#5e7396] text-white"
-            : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+            : "border-[#d2dff2] bg-white text-[#4f6f9a] hover:border-[#bfd0ec] hover:bg-[#f3f7ff] hover:text-[#315484]"
         }`}
       >
         비추천 {dislikes.toLocaleString()}

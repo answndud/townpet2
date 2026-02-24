@@ -148,6 +148,12 @@ model UserNeighborhood {
 model Post {
   id               String          @id @default(cuid())
   authorId         String
+  guestDisplayName String?
+  guestIpDisplay   String?
+  guestIpLabel     String?
+  guestPasswordHash String?
+  guestIpHash      String?
+  guestFingerprintHash String?
   neighborhoodId   String?
   type             PostType
   scope            PostScope       @default(LOCAL)
@@ -175,8 +181,42 @@ model Post {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   @@index([authorId])
+  @@index([guestIpHash, createdAt(sort: Desc)])
+  @@index([guestFingerprintHash, createdAt(sort: Desc)])
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
+}
+
+model GuestBan {
+  id              String   @id @default(cuid())
+  ipHash          String
+  fingerprintHash String?
+  reason          String
+  source          String?
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ipHash, expiresAt])
+  @@index([fingerprintHash, expiresAt])
+}
+
+model GuestViolation {
+  id              String                 @id @default(cuid())
+  ipHash          String
+  fingerprintHash String?
+  category        GuestViolationCategory
+  createdAt       DateTime               @default(now())
+
+  @@index([ipHash, createdAt(sort: Desc)])
+  @@index([fingerprintHash, createdAt(sort: Desc)])
+}
+
+enum GuestViolationCategory {
+  SPAM
+  ADULT
+  RUMOR
+  POLICY
 }
 
 model PostReaction {
@@ -363,6 +403,12 @@ model Comment {
   id             String            @id @default(cuid())
   postId         String
   authorId       String
+  guestDisplayName String?
+  guestIpDisplay String?
+  guestIpLabel   String?
+  guestPasswordHash String?
+  guestIpHash    String?
+  guestFingerprintHash String?
   parentId       String?
   content        String            @db.Text
   status         PostStatus        @default(ACTIVE)
@@ -377,6 +423,8 @@ model Comment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   @@index([postId, createdAt(sort: Desc)])
+  @@index([guestIpHash, createdAt(sort: Desc)])
+  @@index([guestFingerprintHash, createdAt(sort: Desc)])
 }
 
 model CommentReaction {

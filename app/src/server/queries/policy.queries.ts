@@ -18,6 +18,12 @@ import {
   GUEST_READ_POLICY_KEY,
   normalizeLoginRequiredPostTypes,
 } from "@/lib/post-access";
+import {
+  DEFAULT_GUEST_POST_POLICY,
+  GUEST_POST_POLICY_KEY,
+  type GuestPostPolicy,
+  normalizeGuestPostPolicy,
+} from "@/lib/guest-post-policy";
 import { prisma } from "@/lib/prisma";
 import { logger, serializeError } from "@/server/logger";
 
@@ -241,6 +247,55 @@ export async function setNewUserSafetyPolicy(input: NewUserSafetyPolicy) {
       where: { key: NEW_USER_SAFETY_POLICY_KEY },
       update: { value: normalized },
       create: { key: NEW_USER_SAFETY_POLICY_KEY, value: normalized },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
+
+  return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
+}
+
+export async function getGuestPostPolicy() {
+  const delegate = getSiteSettingDelegate();
+  if (!delegate) {
+    return normalizeGuestPostPolicy(DEFAULT_GUEST_POST_POLICY, DEFAULT_GUEST_POST_POLICY);
+  }
+
+  let setting: { value: unknown } | null = null;
+  try {
+    setting = await delegate.findUnique({
+      where: { key: GUEST_POST_POLICY_KEY },
+      select: { value: true },
+    });
+  } catch (error) {
+    if (!isSiteSettingTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingSiteSettingTable(error);
+    return normalizeGuestPostPolicy(DEFAULT_GUEST_POST_POLICY, DEFAULT_GUEST_POST_POLICY);
+  }
+
+  return normalizeGuestPostPolicy(setting?.value, DEFAULT_GUEST_POST_POLICY);
+}
+
+export async function setGuestPostPolicy(input: GuestPostPolicy) {
+  const normalized = normalizeGuestPostPolicy(input, DEFAULT_GUEST_POST_POLICY);
+
+  const delegate = getSiteSettingDelegate();
+  if (!delegate) {
+    return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
+  }
+
+  let setting: SiteSettingRecord;
+  try {
+    setting = await delegate.upsert({
+      where: { key: GUEST_POST_POLICY_KEY },
+      update: { value: normalized },
+      create: { key: GUEST_POST_POLICY_KEY, value: normalized },
     });
   } catch (error) {
     if (!isSiteSettingTableMissingError(error)) {

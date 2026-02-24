@@ -160,6 +160,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             </div>
             <div className="divide-y divide-[#e1e9f5]">
               {resultItems.map((post) => {
+                const guestMeta = post as {
+                  guestDisplayName?: string | null;
+                  guestIpDisplay?: string | null;
+                  guestIpLabel?: string | null;
+                };
                 const meta = postTypeMeta[post.type];
                 const excerpt =
                   post.content.length > 180
@@ -194,9 +199,18 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       <HighlightText text={excerpt} query={query} />
                     </p>
                     <div className="mt-2 text-xs text-[#5f79a0]">
-                      <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
-                        {post.author.nickname ?? post.author.name ?? "익명"}
-                      </Link>{" "}
+                      {guestMeta.guestDisplayName ? (
+                        <span>
+                          {guestMeta.guestDisplayName}
+                          {guestMeta.guestIpDisplay
+                            ? ` (${guestMeta.guestIpLabel ?? "아이피"} ${guestMeta.guestIpDisplay})`
+                            : ""}
+                        </span>
+                      ) : (
+                        <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                          {post.author.nickname ?? post.author.name ?? "익명"}
+                        </Link>
+                      )}{" "}
                       ·{" "}
                       {formatRelativeDate(post.createdAt)} · 댓글 {post.commentCount}
                     </div>

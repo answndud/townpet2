@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PostStatus, ReportReason, ReportTarget } from "@prisma/client";
 import { useMemo, useState, useTransition } from "react";
 
@@ -24,6 +25,11 @@ type CommentItem = {
   reactions?: Array<{
     type: "LIKE" | "DISLIKE";
   }>;
+  guestDisplayName?: string | null;
+  guestPasswordHash?: string | null;
+  guestIpDisplay?: string | null;
+  guestIpLabel?: string | null;
+  isGuestAuthor?: boolean;
   author: { id: string; name: string | null; nickname: string | null };
 };
 
@@ -41,6 +47,23 @@ type CommentFormState = {
 };
 
 type CommentSort = "LATEST" | "OLDEST";
+
+const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
+
+function getGuestFingerprint() {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+
+  const existing = window.localStorage.getItem(GUEST_FP_STORAGE_KEY);
+  if (existing && existing.trim().length > 0) {
+    return existing;
+  }
+
+  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(GUEST_FP_STORAGE_KEY, created);
+  return created;
+}
 
 const reasonLabels: Record<ReportReason, string> = {
   SPAM: "스팸",
@@ -68,6 +91,7 @@ export function PostCommentThread({
   loginHref = "/login",
   interactionDisabledMessage,
 }: PostCommentThreadProps) {
+  const router = useRouter();
   const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({});
   const [editOpen, setEditOpen] = useState<Record<string, boolean>>({});
   const [replyContent, setReplyContent] = useState<CommentFormState>({});
@@ -76,9 +100,14 @@ export function PostCommentThread({
   const [reportDescription, setReportDescription] = useState<CommentFormState>({});
   const [reportOpen, setReportOpen] = useState<Record<string, boolean>>({});
   const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
+  const [guestActionPassword, setGuestActionPassword] = useState<Record<string, string>>({});
+  const [guestActionPrompt, setGuestActionPrompt] = useState<Record<string, "EDIT" | "DELETE" | null>>({});
   const [sortOrder, setSortOrder] = useState<CommentSort>("OLDEST");
+  const [guestDisplayName, setGuestDisplayName] = useState("");
+  const [guestPassword, setGuestPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const canComment = canInteract || !currentUserId;
 
   const repliesMap = useMemo(() => {
     const map = new Map<string, CommentItem[]>();
@@ -104,34 +133,82 @@ export function PostCommentThread({
   );
 
   const handleCreate = (parentId?: string) => {
-    if (!canInteract) {
-      setMessage("로그인 후 댓글을 작성할 수 있습니다.");
+    if (!canComment) {
+      setMessage("현재 상태에서는 댓글을 작성할 수 없습니다.");
       return;
     }
 
     const content = parentId ? replyContent[parentId] : replyContent.root;
     if (!content) return;
+    if (!currentUserId) {
+      if (!guestDisplayName.trim()) {
+        const nextMessage = "비회원 닉네임을 입력해 주세요.";
+        setMessage(nextMessage);
+        window.alert(nextMessage);
+        return;
+      }
+      if (!guestPassword.trim()) {
+        const nextMessage = "댓글 비밀번호를 입력해 주세요.";
+        setMessage(nextMessage);
+        window.alert(nextMessage);
+        return;
+      }
+    }
 
     startTransition(async () => {
       setMessage(null);
-      const result = await createCommentAction(
-        postId,
-        { content },
-        parentId,
-      );
+      const result = currentUserId
+        ? await createCommentAction(postId, { content }, parentId)
+        : await fetch(`/api/posts/${postId}/comments`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-guest-fingerprint": getGuestFingerprint(),
+              "x-guest-mode": "1",
+            },
+            body: JSON.stringify({
+              content,
+              parentId,
+              guestDisplayName,
+              guestPassword,
+            }),
+          })
+            .then(async (response) => {
+              const payload = (await response.json()) as {
+                ok: boolean;
+                error?: { message?: string };
+              };
+
+              if (response.ok && payload.ok) {
+                return { ok: true } as const;
+              }
+
+              return {
+                ok: false,
+                message: payload.error?.message ?? "댓글 등록에 실패했습니다.",
+              } as const;
+            })
+            .catch(() => ({ ok: false, message: "네트워크 오류가 발생했습니다." } as const));
+
       if (!result.ok) {
         setMessage(result.message);
+        if (!currentUserId) {
+          window.alert(result.message);
+        }
         return;
       }
       setReplyContent((prev) => ({ ...prev, [parentId ?? "root"]: "" }));
+      if (!currentUserId) {
+        router.refresh();
+      }
       if (parentId) {
         setReplyOpen((prev) => ({ ...prev, [parentId]: false }));
       }
     });
   };
 
-  const handleUpdate = (commentId: string) => {
-    if (!canInteract) {
+  const handleUpdate = (commentId: string, isGuestComment: boolean) => {
+    if (!canInteract && !isGuestComment) {
       setMessage("로그인 후 댓글을 수정할 수 있습니다.");
       return;
     }
@@ -141,28 +218,118 @@ export function PostCommentThread({
 
     startTransition(async () => {
       setMessage(null);
-      const result = await updateCommentAction(postId, commentId, { content });
+      const result = !isGuestComment
+        ? await updateCommentAction(postId, commentId, { content })
+        : await (async () => {
+            const password = (guestActionPassword[commentId] ?? "").trim();
+            if (!password) {
+              return { ok: false, message: "비밀번호가 필요합니다." } as const;
+            }
+
+            const response = await fetch(`/api/comments/${commentId}`, {
+              method: "PATCH",
+              headers: {
+                "content-type": "application/json",
+                "x-guest-fingerprint": getGuestFingerprint(),
+                "x-guest-mode": "1",
+              },
+              body: JSON.stringify({ content, guestPassword: password }),
+            });
+            const payload = (await response.json()) as {
+              ok: boolean;
+              error?: { message?: string };
+            };
+
+            if (response.ok && payload.ok) {
+              return { ok: true } as const;
+            }
+
+            return {
+              ok: false,
+              message: payload.error?.message ?? "댓글 수정에 실패했습니다.",
+            } as const;
+          })();
+
       if (!result.ok) {
         setMessage(result.message);
+        if (isGuestComment) {
+          window.alert(result.message);
+        }
         return;
       }
       setEditOpen((prev) => ({ ...prev, [commentId]: false }));
+      router.refresh();
     });
   };
 
-  const handleDelete = (commentId: string) => {
-    if (!canInteract) {
+  const handleDelete = (
+    commentId: string,
+    isGuestComment: boolean,
+    overridePassword?: string,
+  ) => {
+    if (!canInteract && !isGuestComment) {
       setMessage("로그인 후 댓글을 삭제할 수 있습니다.");
       return;
     }
 
     startTransition(async () => {
       setMessage(null);
-      const result = await deleteCommentAction(postId, commentId);
+      const result = !isGuestComment
+        ? await deleteCommentAction(postId, commentId)
+        : await (async () => {
+            const password = (overridePassword ?? guestActionPassword[commentId] ?? "").trim();
+            if (!password) {
+              return { ok: false, message: "비밀번호가 필요합니다." } as const;
+            }
+
+            const response = await fetch(`/api/comments/${commentId}`, {
+              method: "DELETE",
+              headers: {
+                "content-type": "application/json",
+                "x-guest-fingerprint": getGuestFingerprint(),
+                "x-guest-mode": "1",
+              },
+              body: JSON.stringify({ guestPassword: password }),
+            });
+            const payload = (await response.json()) as {
+              ok: boolean;
+              error?: { message?: string };
+            };
+            if (response.ok && payload.ok) {
+              return { ok: true } as const;
+            }
+            return {
+              ok: false,
+              message: payload.error?.message ?? "댓글 삭제에 실패했습니다.",
+            } as const;
+          })();
+
       if (!result.ok) {
         setMessage(result.message);
+        if (isGuestComment) {
+          window.alert(result.message);
+        }
+        return;
       }
+      setGuestActionPrompt((prev) => ({ ...prev, [commentId]: null }));
+      router.refresh();
     });
+  };
+
+  const confirmGuestAction = (commentId: string, action: "EDIT" | "DELETE") => {
+    const password = (guestActionPassword[commentId] ?? "").trim();
+    if (!password) {
+      setMessage("댓글 비밀번호를 입력해 주세요.");
+      return;
+    }
+
+    if (action === "EDIT") {
+      setGuestActionPrompt((prev) => ({ ...prev, [commentId]: null }));
+      setEditOpen((prev) => ({ ...prev, [commentId]: true }));
+      return;
+    }
+
+    void handleDelete(commentId, true, password);
   };
 
   const handleReport = (commentId: string) => {
@@ -197,22 +364,44 @@ export function PostCommentThread({
 
   const renderComment = (comment: CommentItem, depth = 0) => {
     const replies = repliesMap.get(comment.id) ?? [];
+    const isGuestComment = Boolean(
+      comment.isGuestAuthor || comment.guestDisplayName?.trim() || comment.guestPasswordHash,
+    );
+    const guestAuthorName = comment.guestDisplayName?.trim()
+      ? comment.guestDisplayName
+      : comment.author.nickname ?? comment.author.name ?? "익명";
+    const guestIpDisplay = comment.guestIpDisplay?.trim()
+      ? comment.guestIpDisplay
+      : `0.${comment.author.id.slice(-3)}`;
     const isAuthor = currentUserId && comment.author.id === currentUserId;
-    const canEdit = isAuthor && replies.length === 0 && comment.status === "ACTIVE";
+    const hasReplyByOthers = replies.some((reply) => reply.author.id !== comment.author.id);
+    const canEdit =
+      (isAuthor || isGuestComment) && !hasReplyByOthers && comment.status === "ACTIVE";
+    const actionButtonClass =
+      "inline-flex h-7 items-center gap-1.5 border border-[#bfd0ec] bg-[#f7fbff] px-2.5 text-[11px] font-semibold text-[#315484] transition hover:bg-[#edf4ff]";
 
     return (
       <div
         key={comment.id}
         id={`comment-${comment.id}`}
-        className={`rounded-sm border border-[#dbe5f3] bg-white px-4 py-3.5 ${
+        className={`rounded-sm border border-[#dbe5f3] bg-white px-4 py-4 ${
           depth > 0 ? "ml-4 border-l-2 border-l-[#cfe0f8]" : ""
         }`}
       >
         <div className="flex items-center justify-between text-xs text-[#4f6e99]">
-          <Link href={`/users/${comment.author.id}`} className="hover:text-[#2f5da4]">
-            {comment.author.nickname ?? comment.author.name ?? "익명"}
-          </Link>
-          <span>{comment.createdAt.toLocaleDateString("ko-KR")}</span>
+          {isGuestComment ? (
+            <span>
+              {guestAuthorName}
+              {` (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`}
+            </span>
+          ) : (
+            <Link href={`/users/${comment.author.id}`} className="hover:text-[#2f5da4]">
+              {comment.author.nickname ?? comment.author.name ?? "익명"}
+            </Link>
+          )}
+          <span suppressHydrationWarning className="text-[11px] text-[#6880a6]">
+            {comment.createdAt.toLocaleDateString("ko-KR")}
+          </span>
         </div>
         <div className="mt-2 text-sm text-[#27466f]">
           <LinkifiedContent
@@ -224,7 +413,7 @@ export function PostCommentThread({
           {depth === 0 && replies.length > 0 ? (
             <button
               type="button"
-              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
+              className={actionButtonClass}
               onClick={() =>
                 setCollapsedReplies((prev) => ({
                   ...prev,
@@ -237,36 +426,86 @@ export function PostCommentThread({
                 : `답글 ${replies.length}개 접기`}
             </button>
           ) : null}
-          {canInteract ? (
+          {canComment ? (
             <button
               type="button"
-              className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
+              className={actionButtonClass}
               onClick={() =>
                 setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
               }
               disabled={comment.status !== "ACTIVE"}
             >
-              답글
+              <span className="inline-flex h-4 w-4 items-center justify-center border border-[#bfd0ec] bg-white">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  className="h-3 w-3 text-[#315484]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                >
+                  <path d="M6.2 5.4H3.6v3" />
+                  <path d="M3.8 8.2c1.2-1.6 3-2.5 5-2.5h1.6c1.4 0 2.6 1.2 2.6 2.6v2.3" />
+                </svg>
+              </span>
+              {replyOpen[comment.id] ? "답글 취소" : "답글"}
             </button>
           ) : null}
           {canEdit ? (
             <>
               <button
                 type="button"
-                className="border border-[#bfd0ec] bg-[#f7fbff] px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
-                onClick={() =>
-                  setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
-                }
+                className={actionButtonClass}
+                onClick={() => {
+                  if (isGuestComment) {
+                    setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
+                    return;
+                  }
+                  setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
+                }}
                 disabled={isPending}
               >
+                <span className="inline-flex h-4 w-4 items-center justify-center border border-[#bfd0ec] bg-white">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 16 16"
+                    className="h-3 w-3 text-[#315484]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                  >
+                    <path d="M3.2 11.8l.4-2.2 5.3-5.3 1.8 1.8-5.3 5.3z" />
+                    <path d="M8.8 4.3l1.1-1.1a1.2 1.2 0 0 1 1.7 0l1.2 1.2a1.2 1.2 0 0 1 0 1.7l-1.1 1.1" />
+                  </svg>
+                </span>
                 수정
               </button>
               <button
                 type="button"
-                className="border border-rose-300 bg-rose-50 px-2.5 py-1 font-semibold text-rose-700 transition hover:bg-rose-100"
-                onClick={() => handleDelete(comment.id)}
+                className="inline-flex h-7 items-center gap-1.5 border border-rose-300 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
+                onClick={() => {
+                  if (isGuestComment) {
+                    setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
+                    return;
+                  }
+                  void handleDelete(comment.id, false);
+                }}
                 disabled={isPending}
               >
+                <span className="inline-flex h-4 w-4 items-center justify-center border border-rose-300 bg-white">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 16 16"
+                    className="h-3 w-3 text-rose-700"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                  >
+                    <path d="M3.8 4.8h8.4" />
+                    <path d="M6.1 4.8V3.7c0-.4.3-.7.7-.7h2.4c.4 0 .7.3.7.7v1.1" />
+                    <path d="M5.1 4.8l.5 7.1c0 .6.5 1 1.1 1h2.5c.6 0 1-.4 1.1-1l.5-7.1" />
+                  </svg>
+                </span>
                 삭제
               </button>
             </>
@@ -303,7 +542,7 @@ export function PostCommentThread({
           ) : null}
         </div>
 
-        <div className="mt-3 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2">
+        <div className="mt-3 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2 opacity-85 transition hover:opacity-100">
           <CommentReactionControls
             postId={postId}
             commentId={comment.id}
@@ -315,8 +554,27 @@ export function PostCommentThread({
           />
         </div>
 
-        {canInteract && replyOpen[comment.id] ? (
+          {canComment && replyOpen[comment.id] ? (
           <div className="mt-3">
+            {!currentUserId ? (
+              <div className="mb-2 grid gap-2 sm:grid-cols-2">
+                <input
+                  className="w-full border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
+                  value={guestDisplayName}
+                  onChange={(event) => setGuestDisplayName(event.target.value)}
+                  placeholder="비회원 닉네임"
+                  maxLength={24}
+                />
+                <input
+                  className="w-full border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
+                  type="password"
+                  value={guestPassword}
+                  onChange={(event) => setGuestPassword(event.target.value)}
+                  placeholder="댓글 비밀번호"
+                  maxLength={32}
+                />
+              </div>
+            ) : null}
             <textarea
               className="min-h-[80px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
               value={replyContent[comment.id] ?? ""}
@@ -328,7 +586,20 @@ export function PostCommentThread({
               }
               placeholder="답글을 입력하세요"
             />
-            <div className="mt-2 flex justify-end">
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                className="border border-[#bfd0ec] bg-white px-3 py-1 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+                onClick={() =>
+                  setReplyOpen((prev) => ({
+                    ...prev,
+                    [comment.id]: false,
+                  }))
+                }
+                disabled={isPending}
+              >
+                취소
+              </button>
               <button
                 type="button"
                 className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
@@ -341,7 +612,52 @@ export function PostCommentThread({
           </div>
         ) : null}
 
-        {canInteract && editOpen[comment.id] && canEdit ? (
+        {isGuestComment && guestActionPrompt[comment.id] ? (
+          <div className="mt-3 border border-[#dbe5f3] bg-[#f8fbff] p-2">
+            <p className="mb-2 text-xs text-[#5a7398]">
+              {guestActionPrompt[comment.id] === "EDIT"
+                ? "수정을 위해 댓글 비밀번호를 입력해 주세요."
+                : "삭제를 위해 댓글 비밀번호를 입력해 주세요."}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="password"
+                className="h-8 border border-[#bfd0ec] bg-white px-2.5 text-xs text-[#1f3f71]"
+                placeholder="댓글 비밀번호"
+                value={guestActionPassword[comment.id] ?? ""}
+                onChange={(event) =>
+                  setGuestActionPassword((prev) => ({
+                    ...prev,
+                    [comment.id]: event.target.value,
+                  }))
+                }
+              />
+              <button
+                type="button"
+                className="h-8 border border-[#3567b5] bg-[#3567b5] px-3 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+                onClick={() =>
+                  confirmGuestAction(
+                    comment.id,
+                    guestActionPrompt[comment.id] === "EDIT" ? "EDIT" : "DELETE",
+                  )
+                }
+                disabled={isPending}
+              >
+                확인
+              </button>
+              <button
+                type="button"
+                className="h-8 border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+                onClick={() => setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: null }))}
+                disabled={isPending}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {(canInteract || isGuestComment) && editOpen[comment.id] && canEdit ? (
           <div className="mt-3">
             <textarea
               className="min-h-[80px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
@@ -357,7 +673,7 @@ export function PostCommentThread({
               <button
                 type="button"
                 className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
-                onClick={() => handleUpdate(comment.id)}
+                onClick={() => handleUpdate(comment.id, isGuestComment)}
                 disabled={isPending}
               >
                 수정 저장
@@ -418,9 +734,9 @@ export function PostCommentThread({
   };
 
   return (
-    <div className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+    <div className="rounded-md border border-[#c8d7ef] bg-white p-5 shadow-[0_8px_18px_rgba(16,40,74,0.04)] sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[#1f3f71]">댓글 ({comments.length})</h2>
+        <h2 className="text-xl font-semibold tracking-[-0.01em] text-[#1f3f71]">댓글 {comments.length}</h2>
         {roots.length > 0 ? (
           <div className="flex items-center gap-2 text-xs text-[#4f678d]">
             <span>정렬</span>
@@ -452,10 +768,38 @@ export function PostCommentThread({
         ) : null}
       </div>
       {message ? <p className="mt-2 text-xs text-[#5a7398]">{message}</p> : null}
+
+      {roots.length === 0 ? (
+        <p className="mt-4 text-sm text-[#5a7398]">첫 댓글을 남겨주세요.</p>
+      ) : (
+        <div className="mt-4 flex flex-col gap-4">
+          {roots.map((comment) => renderComment(comment))}
+        </div>
+      )}
+
       <div className="mt-4 rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-3">
-        {canInteract ? (
+        {canComment ? (
           <>
             <p className="mb-2 text-xs text-[#5c7da8]">배려 있는 댓글 문화를 함께 만들어 주세요.</p>
+            {!currentUserId ? (
+              <div className="mb-2 grid gap-2 sm:grid-cols-2">
+                <input
+                  className="w-full border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
+                  value={guestDisplayName}
+                  onChange={(event) => setGuestDisplayName(event.target.value)}
+                  placeholder="비회원 닉네임"
+                  maxLength={24}
+                />
+                <input
+                  className="w-full border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
+                  type="password"
+                  value={guestPassword}
+                  onChange={(event) => setGuestPassword(event.target.value)}
+                  placeholder="댓글 비밀번호"
+                  maxLength={32}
+                />
+              </div>
+            ) : null}
             <textarea
               className="min-h-[104px] w-full border border-[#bfd0ec] bg-white px-3 py-2 text-sm text-[#1f3f71]"
               value={replyContent.root ?? ""}
@@ -493,14 +837,6 @@ export function PostCommentThread({
           </div>
         )}
       </div>
-
-      {roots.length === 0 ? (
-        <p className="mt-4 text-sm text-[#5a7398]">첫 댓글을 남겨주세요.</p>
-      ) : (
-        <div className="mt-4 flex flex-col gap-4">
-          {roots.map((comment) => renderComment(comment))}
-        </div>
-      )}
     </div>
   );
 }

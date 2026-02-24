@@ -8,6 +8,7 @@ import { PostType } from "@prisma/client";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
+import { GuestPostDetailActions } from "@/components/posts/guest-post-detail-actions";
 import { PostReactionControls } from "@/components/posts/post-reaction-controls";
 import { PostReportForm } from "@/components/posts/post-report-form";
 import { PostShareControls } from "@/components/posts/post-share-controls";
@@ -192,7 +193,14 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     );
   }
 
-  const comments = resolvedParams.id ? await listComments(resolvedParams.id, user?.id) : [];
+  const commentsRaw = resolvedParams.id ? await listComments(resolvedParams.id, user?.id) : [];
+  const comments = commentsRaw.map((comment) => ({
+    ...comment,
+    isGuestAuthor:
+      Boolean((comment as { guestDisplayName?: string | null }).guestDisplayName) ||
+      Boolean((comment as { guestPasswordHash?: string | null }).guestPasswordHash) ||
+      comment.author.email.endsWith("@guest.townpet.local"),
+  }));
 
   const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
   if (user && !primaryNeighborhood && post.scope !== "GLOBAL") {
@@ -209,6 +217,12 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const canInteract = Boolean(user);
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
   const isAuthor = user?.id === post.authorId;
+  const guestPostMeta = post as { guestDisplayName?: string | null };
+  const guestIpMeta = post as { guestIpDisplay?: string | null; guestIpLabel?: string | null };
+  const isGuestPost = Boolean(guestPostMeta.guestDisplayName?.trim());
+  const displayAuthorName = guestPostMeta.guestDisplayName?.trim()
+    ? guestPostMeta.guestDisplayName
+    : post.author.nickname ?? post.author.name ?? "익명";
   const relationState =
     canInteract && !isAuthor
       ? await getUserRelationState(user?.id, post.authorId)
@@ -283,7 +297,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           __html: JSON.stringify(structuredData),
         }}
       />
-      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-7 sm:px-6 lg:px-10">
+      <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
         <Link
           href="/feed"
           className="inline-flex w-fit items-center rounded-sm border border-[#bfd0ec] bg-white px-3.5 py-2 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
@@ -291,8 +305,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           목록으로
         </Link>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <section className="rounded-md border border-[#c8d7ef] bg-white p-5 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-6">
+        <div>
+          <section className="rounded-md border border-[#c8d7ef] bg-white p-5 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-7">
             {post.status === "HIDDEN" ? (
               <div className="mb-5 border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 신고 누적으로 숨김 처리된 게시물입니다. 관리자 검토 후 다시 공개될 수 있습니다.
@@ -313,22 +327,34 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               ) : null}
             </div>
 
-            <div className="mt-4 grid gap-4 border-b border-[#e0e9f5] pb-5 md:grid-cols-[minmax(0,1fr)_240px] md:items-start">
+            <div className="mt-4 grid gap-4 border-b border-[#e0e9f5] pb-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
               <div>
-                <h1 className="text-[30px] font-bold leading-tight tracking-tight text-[#10284a] sm:text-[38px]">
+                <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] text-[#10284a] sm:text-[42px]">
                   {post.title}
                 </h1>
               </div>
               <div className="text-sm text-[#4f678d] md:text-right">
                 <p className="font-semibold text-[#1f3f71]">
-                  <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
-                    {post.author.nickname ?? post.author.name ?? "익명"}
-                  </Link>
+                  {isGuestPost ? (
+                    <span>
+                      {displayAuthorName}
+                      {guestIpMeta.guestIpDisplay
+                        ? ` (${guestIpMeta.guestIpLabel ?? "아이피"} ${guestIpMeta.guestIpDisplay})`
+                        : ""}
+                    </span>
+                  ) : (
+                    <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                      {displayAuthorName}
+                    </Link>
+                  )}
                 </p>
-                <p className="mt-1">{formatRelativeDate(post.createdAt)}</p>
-                <p className="mt-2 text-xs font-medium text-[#5f7da8]">
-                  조회 {safeViewCount.toLocaleString()} · 좋아요 {safeLikeCount.toLocaleString()} · 싫어요{" "}
-                  {safeDislikeCount.toLocaleString()} · 댓글 {safeCommentCount.toLocaleString()}
+                <p className="mt-1 text-[13px]">{formatRelativeDate(post.createdAt)}</p>
+                <p className="mt-1 text-[11px] text-[#6b84ab] leading-5">
+                  {post.createdAt.toLocaleDateString("ko-KR")} · {post.scope === "LOCAL" ? "동네" : "온동네"} ·{" "}
+                  {post.neighborhood ? `${post.neighborhood.city} ${post.neighborhood.name}` : "전체"}
+                </p>
+                <p className="mt-2 text-[11px] font-medium text-[#5f7da8] leading-5">
+                  조회 {safeViewCount.toLocaleString()} · 좋아요 {safeLikeCount.toLocaleString()} · 싫어요 {safeDislikeCount.toLocaleString()} · 댓글 {safeCommentCount.toLocaleString()}
                 </p>
                 {canInteract && !isAuthor ? (
                   <div className="mt-3 md:flex md:justify-end">
@@ -342,11 +368,11 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             </div>
 
-            <section className="mt-4 rounded-sm border border-[#dbe6f6] bg-[#fcfdff] px-4 py-4">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4f6f9f]">
-                본문
+            <section className="mt-4 rounded-sm border border-[#dbe6f6] bg-[#fcfdff] px-4 py-4 sm:px-5">
+              <h2 className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-[#4f6f9f]">
+                내용
               </h2>
-              <article className="text-[15px] leading-8 text-[#17345f]">
+              <article className="text-[16px] leading-8 text-[#17345f]">
                 {shouldUsePlainFallback ? (
                   <div className="whitespace-pre-wrap">{post.content}</div>
                 ) : (
@@ -380,7 +406,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
             </section>
 
             <div className="mt-4 space-y-3 border-b border-[#e0e9f5] pb-4">
-              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-3 py-2">
+              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-3 py-3">
                 <div className="flex flex-col items-center gap-2">
                   <PostReactionControls
                     postId={post.id}
@@ -404,6 +430,9 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   <PostDetailActions postId={post.id} />
                 </div>
               ) : null}
+              {!canInteract && isGuestPost ? (
+                <GuestPostDetailActions postId={post.id} />
+              ) : null}
             </div>
 
             {canInteract && !isAuthor && !canInteractWithPostOwner ? (
@@ -412,39 +441,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             ) : null}
 
-          </section>
-
-          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-            <section className="rounded-md border border-[#c8d7ef] bg-white p-4 shadow-[0_10px_24px_rgba(16,40,74,0.05)]">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[#4f6f9f]">
-                게시글 정보
-              </h2>
-              <dl className="mt-3 space-y-2 text-sm text-[#355988]">
-                <div className="flex items-center justify-between border-b border-[#dde7f5] pb-2">
-                  <dt>작성일</dt>
-                  <dd>{post.createdAt.toLocaleDateString("ko-KR")}</dd>
-                </div>
-                <div className="flex items-center justify-between border-b border-[#dde7f5] pb-2">
-                  <dt>범위</dt>
-                  <dd>{post.scope === "LOCAL" ? "동네" : "온동네"}</dd>
-                </div>
-                <div className="flex items-center justify-between border-b border-[#dde7f5] pb-2">
-                  <dt>위치</dt>
-                  <dd>
-                    {post.neighborhood
-                      ? `${post.neighborhood.city} ${post.neighborhood.name}`
-                      : "전체"}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between pb-1">
-                  <dt>상태</dt>
-                  <dd>{post.status === "HIDDEN" ? "숨김" : "정상"}</dd>
-                </div>
-              </dl>
-            </section>
-
             {canInteract && !isAuthor && canInteractWithPostOwner ? (
-              <details className="border border-[#c8d7ef] bg-white p-4">
+              <details className="mt-4 border border-[#c8d7ef] bg-white p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-[#1f3f71]">
                   게시글 신고
                 </summary>
@@ -453,7 +451,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 </div>
               </details>
             ) : null}
-          </aside>
+
+          </section>
         </div>
 
         {post.hospitalReview ? (

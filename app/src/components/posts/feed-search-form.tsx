@@ -342,7 +342,7 @@ export function FeedSearchForm({
         </form>
 
         {showKeywordChips && isKeywordPanelOpen && popularTerms.length > 0 ? (
-          <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 border border-[#bfd0ec] bg-white p-2 shadow-[0_10px_24px_rgba(16,40,74,0.12)]">
+          <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 hidden border border-[#bfd0ec] bg-white p-2 shadow-[0_10px_24px_rgba(16,40,74,0.12)] sm:block">
             <p className="px-1 pb-1 text-[11px] font-semibold text-[#5b7398]">인기 검색어 TOP 10</p>
             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
               {popularTerms.slice(0, 10).map((term, index) => (
@@ -368,7 +368,7 @@ export function FeedSearchForm({
       </div>
 
       {showKeywordChips && recentTerms.length > 0 ? (
-        <div className={density === "ULTRA" ? "flex flex-wrap items-center gap-1 text-[11px]" : "flex flex-wrap items-center gap-1.5 text-xs"}>
+        <div className={density === "ULTRA" ? "hidden flex-wrap items-center gap-1 text-[11px] sm:flex" : "hidden flex-wrap items-center gap-1.5 text-xs sm:flex"}>
           <span className="text-[#5b7398]">최근 검색어</span>
           {recentTerms.map((term) => (
             <span

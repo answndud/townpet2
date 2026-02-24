@@ -13,6 +13,10 @@ const ALLOWED_MIME_TYPES = new Map<string, string>([
 
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 
+type SaveUploadedImageOptions = {
+  maxSizeBytes?: number;
+};
+
 function stripJpegExif(buffer: Buffer) {
   if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
     return buffer;
@@ -69,18 +73,19 @@ function getFileExtension(mimeType: string) {
   return extension;
 }
 
-export async function saveUploadedImage(file: File) {
+export async function saveUploadedImage(file: File, options?: SaveUploadedImageOptions) {
   const extension = getFileExtension(file.type);
   const arrayBuffer = await file.arrayBuffer();
   const rawBuffer = Buffer.from(arrayBuffer);
+  const maxSizeBytes = options?.maxSizeBytes ?? MAX_UPLOAD_SIZE_BYTES;
 
   if (rawBuffer.byteLength === 0) {
     throw new ServiceError("빈 파일은 업로드할 수 없습니다.", "EMPTY_FILE", 400);
   }
 
-  if (rawBuffer.byteLength > MAX_UPLOAD_SIZE_BYTES) {
+  if (rawBuffer.byteLength > maxSizeBytes) {
     throw new ServiceError(
-      "이미지 크기는 최대 5MB까지 업로드할 수 있습니다.",
+      `이미지 크기는 최대 ${Math.floor(maxSizeBytes / (1024 * 1024))}MB까지 업로드할 수 있습니다.`,
       "IMAGE_TOO_LARGE",
       400,
     );

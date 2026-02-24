@@ -1,15 +1,17 @@
 import { NextRequest } from "next/server";
 
 import { canGuestReadPost } from "@/lib/post-access";
-import { getCurrentUser, requireCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/server/auth";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
 import { getClientIp } from "@/server/request-context";
 import { jsonError, jsonOk } from "@/server/response";
 import { ServiceError } from "@/server/services/service-error";
 import {
+  deleteGuestPost,
   deletePost,
   registerPostView,
+  updateGuestPost,
   updatePost,
 } from "@/server/services/post.service";
 
@@ -77,8 +79,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const user = await requireCurrentUser();
-    const post = await updatePost({ postId: id, authorId: user.id, input: body });
+    const forceGuestMode =
+      process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
+    const user = forceGuestMode ? null : await getCurrentUser();
+    if (user) {
+      const post = await updatePost({ postId: id, authorId: user.id, input: body });
+      return jsonOk(post);
+    }
+
+    const guestPassword =
+      typeof body?.guestPassword === "string" ? body.guestPassword.trim() : "";
+    if (!guestPassword) {
+      return jsonError(400, {
+        code: "GUEST_PASSWORD_REQUIRED",
+        message: "비회원 수정에는 글 비밀번호가 필요합니다.",
+      });
+    }
+
+    const post = await updateGuestPost({
+      postId: id,
+      input: body,
+      guestPassword,
+      guestIdentity: {
+        ip: getClientIp(request),
+        fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
+      },
+    });
     return jsonOk(post);
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -95,11 +121,42 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const user = await requireCurrentUser();
-    const result = await deletePost({ postId: id, authorId: user.id });
+    const forceGuestMode =
+      process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
+    const user = forceGuestMode ? null : await getCurrentUser();
+    if (user) {
+      const result = await deletePost({ postId: id, authorId: user.id });
+      return jsonOk(result);
+    }
+
+    let guestPassword = request.headers.get("x-guest-password")?.trim() || "";
+    if (!guestPassword) {
+      try {
+        const body = (await request.json()) as { guestPassword?: string };
+        guestPassword = body.guestPassword?.trim() ?? "";
+      } catch {
+        guestPassword = "";
+      }
+    }
+
+    if (!guestPassword) {
+      return jsonError(400, {
+        code: "GUEST_PASSWORD_REQUIRED",
+        message: "비회원 삭제에는 글 비밀번호가 필요합니다.",
+      });
+    }
+
+    const result = await deleteGuestPost({
+      postId: id,
+      guestPassword,
+      guestIdentity: {
+        ip: getClientIp(request),
+        fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
+      },
+    });
     return jsonOk(result);
   } catch (error) {
     if (error instanceof ServiceError) {

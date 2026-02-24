@@ -346,6 +346,9 @@ export default async function Home({ searchParams }: HomePageProps) {
       nickname: post.author.nickname,
       image: post.author.image,
     },
+    guestDisplayName: post.guestDisplayName,
+    guestIpDisplay: post.guestIpDisplay,
+    guestIpLabel: post.guestIpLabel,
     neighborhood: post.neighborhood
       ? {
           id: post.neighborhood.id,
@@ -442,10 +445,10 @@ export default async function Home({ searchParams }: HomePageProps) {
       >
         <div className={isUltraDense ? "space-y-2" : "space-y-3"}>
           <header
-          className={`animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] ${
-            isUltraDense ? "px-2.5 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5"
-          }`}
-        >
+            className={`animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] ${
+              isUltraDense ? "px-2.5 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5"
+            }`}
+          >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[10px] uppercase tracking-[0.24em] text-[#3f5f90]">
@@ -455,22 +458,22 @@ export default async function Home({ searchParams }: HomePageProps) {
                 className={
                   isUltraDense
                     ? "mt-0.5 text-base font-bold tracking-tight text-[#10284a] sm:text-lg"
-                    : "mt-0.5 text-lg font-bold tracking-tight text-[#10284a] sm:text-xl"
+                    : "mt-0.5 text-[28px] font-bold tracking-tight text-[#10284a] sm:text-xl"
                 }
-                >
-                  {feedTitle}
-                </h1>
-                <p className="mt-1 text-xs text-[#49648c]">
-                  총 {items.length}건을 기준으로 현재 선택된 필터를 바로 확인할 수 있습니다.
-                </p>
-              </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#4f678d]">
+              >
+                {feedTitle}
+              </h1>
+              <p className="mt-1 hidden text-xs text-[#49648c] sm:block">
+                총 {items.length}건을 기준으로 현재 선택된 필터를 바로 확인할 수 있습니다.
+              </p>
+            </div>
+            <div className="hidden items-center gap-1.5 text-xs text-[#4f678d] sm:flex">
               <div className="border border-[#d4e1f3] bg-white px-2.5 py-1">
                 {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
               </div>
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1 text-xs sm:flex-wrap sm:overflow-visible sm:whitespace-normal sm:pb-0">
             <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
               {scopeLabel}
             </span>
@@ -484,17 +487,24 @@ export default async function Home({ searchParams }: HomePageProps) {
               검색: {SEARCH_IN_LABEL[selectedSearchIn]}
             </span>
             {type ? (
-              <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885]">
+              <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
                 카테고리: {postTypeMeta[type].label}
               </span>
             ) : null}
             {query ? (
-              <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885]">
+              <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
                 검색어: &quot;{query}&quot;
               </span>
             ) : null}
           </div>
         </header>
+
+        <a
+          href="#feed-list"
+          className="inline-flex w-fit items-center rounded-sm border border-[#bfd0ec] bg-white px-2.5 py-1 text-xs font-semibold text-[#2f548f] lg:hidden"
+        >
+          목록 바로가기
+        </a>
 
         <section
           className={`animate-fade-up border border-[#c8d7ef] bg-white ${
@@ -523,11 +533,6 @@ export default async function Home({ searchParams }: HomePageProps) {
               </Link>
             </div>
           ) : null}
-          {!isAuthenticated ? (
-            <div className="mb-3 border border-[#bfd0ec] bg-[#f6f9ff] px-3 py-2 text-sm text-[#2f548f]">
-              반응 기능은 로그인 후 이용할 수 있습니다. <Link href={loginHref("/feed")} className="font-semibold underline underline-offset-2">로그인하기</Link>
-            </div>
-          ) : null}
           <div
             className={`grid ${
               isUltraDense
@@ -553,9 +558,9 @@ export default async function Home({ searchParams }: HomePageProps) {
                 showKeywordChips
               />
 
-              <details open className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2 lg:hidden">
+              <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:hidden sm:p-2">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
-                  필터
+                  빠른 필터
                 </summary>
                 <div className="mt-2 space-y-2">
                   <div className="border border-[#dbe6f6] bg-white p-2">
@@ -618,7 +623,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                               </Link>
                             ))}
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="hidden flex-wrap gap-1.5 sm:flex">
                             <Link
                               href={makeHref({ nextPeriod: null, nextPage: 1 })}
                               className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
@@ -648,10 +653,45 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                   </div>
 
+                </div>
+              </details>
+
+              <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:hidden sm:p-2">
+                <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
+                  상세 필터
+                </summary>
+                <div className="mt-2 space-y-2">
                   <div className="border border-[#dbe6f6] bg-white p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                      분류
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">범위</p>
+                    <div className="mt-1.5 grid gap-1.5">
+                      <Link
+                        href={
+                          isAuthenticated
+                            ? makeHref({ nextScope: PostScope.LOCAL, nextPage: 1 })
+                            : loginHref("/feed?scope=LOCAL")
+                        }
+                        className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                          selectedScope === PostScope.LOCAL
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        동네
+                      </Link>
+                      <Link
+                        href={makeHref({ nextScope: PostScope.GLOBAL, nextPage: 1 })}
+                        className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                          selectedScope === PostScope.GLOBAL
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        온동네
+                      </Link>
                     </div>
+                  </div>
+                  <div className="border border-[#dbe6f6] bg-white p-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">분류</p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
                         href={makeHref({ nextType: null, nextPage: 1 })}
@@ -685,41 +725,6 @@ export default async function Home({ searchParams }: HomePageProps) {
                       })}
                     </div>
                   </div>
-                </div>
-              </details>
-
-              <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2 lg:hidden">
-                <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
-                  범위
-                </summary>
-                <div className="mt-2 grid gap-1.5">
-                  <Link
-                    href={
-                      isAuthenticated
-                        ? makeHref({ nextScope: PostScope.LOCAL, nextPage: 1 })
-                        : loginHref("/feed?scope=LOCAL")
-                    }
-                    className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
-                      selectedScope === PostScope.LOCAL
-                        ? "border-[#3567b5] bg-[#3567b5] text-white"
-                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                    }`}
-                  >
-                    동네
-                  </Link>
-                  <Link
-                    href={makeHref({ nextScope: PostScope.GLOBAL, nextPage: 1 })}
-                    className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
-                      selectedScope === PostScope.GLOBAL
-                        ? "border-[#3567b5] bg-[#3567b5] text-white"
-                        : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                    }`}
-                  >
-                    온동네
-                  </Link>
-                  <p className="mt-1 border-t border-[#dbe6f6] pt-1.5 text-[11px] text-[#4f678d]">
-                    동네 글 {localCount}건 · 온동네 글 {items.length - localCount}건
-                  </p>
                 </div>
               </details>
 
@@ -967,10 +972,15 @@ export default async function Home({ searchParams }: HomePageProps) {
           </div>
         </section>
 
-        <section className="animate-fade-up border border-[#c8d7ef] bg-white">
+        <section id="feed-list" className="animate-fade-up border border-[#c8d7ef] bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#dbe6f6] bg-[#f8fbff] px-4 py-2 text-xs text-[#3d5f8f] sm:px-5">
             <span className="font-semibold">게시글 목록</span>
-            <span>읽은 글은 연한 색상으로 표시됩니다.</span>
+            <span className="hidden sm:inline">읽은 글은 연한 색상으로 표시됩니다.</span>
+            {!isAuthenticated ? (
+              <span>
+                반응은 <Link href={loginHref("/feed")} className="font-semibold underline underline-offset-2">로그인</Link> 후 가능
+              </span>
+            ) : null}
           </div>
           {items.length === 0 ? (
             <EmptyState
@@ -987,18 +997,14 @@ export default async function Home({ searchParams }: HomePageProps) {
                   ? loginHref(`/feed${type ? `?type=${type}` : ""}`)
                   : mode === "BEST"
                     ? "/feed?mode=ALL"
-                    : isAuthenticated
-                      ? "/posts/new"
-                      : loginHref("/posts/new")
+                    : "/posts/new"
               }
               actionLabel={
                 isGuestTypeBlocked
                   ? "로그인하고 보기"
                   : mode === "BEST"
                     ? "전체글 보기"
-                    : isAuthenticated
-                      ? "첫 글 작성하기"
-                      : "로그인하고 글쓰기"
+                    : "첫 글 작성하기"
               }
             />
           ) : (
@@ -1073,10 +1079,10 @@ export default async function Home({ searchParams }: HomePageProps) {
             className="inline-flex h-8 items-center justify-center border border-[#b9cbeb] bg-white px-3 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
           />
           <Link
-            href={isAuthenticated ? "/posts/new" : loginHref("/posts/new")}
+            href="/posts/new"
             className="inline-flex h-8 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-3 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
           >
-            {isAuthenticated ? "글쓰기" : "로그인 후 글쓰기"}
+            글쓰기
           </Link>
         </div>
 

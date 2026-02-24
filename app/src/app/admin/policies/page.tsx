@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
 
 import { ForbiddenKeywordPolicyForm } from "@/components/admin/forbidden-keyword-policy-form";
+import { GuestPostPolicyForm } from "@/components/admin/guest-post-policy-form";
 import { GuestReadPolicyForm } from "@/components/admin/guest-read-policy-form";
 import { NewUserSafetyPolicyForm } from "@/components/admin/new-user-safety-policy-form";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { getCurrentUser } from "@/server/auth";
 import {
   getForbiddenKeywords,
+  getGuestPostPolicy,
   getGuestReadLoginRequiredPostTypes,
   getNewUserSafetyPolicy,
 } from "@/server/queries/policy.queries";
@@ -38,10 +40,11 @@ export default async function AdminPoliciesPage() {
     );
   }
 
-  const [loginRequiredTypes, forbiddenKeywords, newUserSafetyPolicy] = await Promise.all([
+  const [loginRequiredTypes, forbiddenKeywords, newUserSafetyPolicy, guestPostPolicy] = await Promise.all([
     getGuestReadLoginRequiredPostTypes(),
     getForbiddenKeywords(),
     getNewUserSafetyPolicy(),
+    getGuestPostPolicy(),
   ]);
 
   return (
@@ -113,6 +116,39 @@ export default async function AdminPoliciesPage() {
           </div>
           <div className="mt-4">
             <ForbiddenKeywordPolicyForm initialKeywords={forbiddenKeywords} />
+          </div>
+        </section>
+
+        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-[#153a6a]">비회원 작성 정책</h2>
+          <p className="mt-2 text-xs text-[#5a7398]">
+            비회원 즉시 공개 글의 작성 범위/카테고리/링크/연락처/이미지 제한을 조정합니다.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              차단 카테고리 {guestPostPolicy.blockedPostTypes.length}개
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              이미지 최대 {guestPostPolicy.maxImageCount}장
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              범위 {guestPostPolicy.enforceGlobalScope ? "온동네만" : "동네/온동네"}
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              링크 {guestPostPolicy.allowLinks ? "허용" : "차단"}
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              연락처 {guestPostPolicy.allowContact ? "허용" : "차단"}
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              글 제한 {guestPostPolicy.postRateLimit10m}/{guestPostPolicy.postRateLimit1h}/{guestPostPolicy.postRateLimit24h}
+            </span>
+            <span className="border border-[#bfd0ec] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
+              제재 임계치 {guestPostPolicy.banThreshold24h}/{guestPostPolicy.banThreshold7dMedium}/{guestPostPolicy.banThreshold7dHigh}
+            </span>
+          </div>
+          <div className="mt-4">
+            <GuestPostPolicyForm initialPolicy={guestPostPolicy} />
           </div>
         </section>
 

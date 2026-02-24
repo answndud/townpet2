@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ImageUploadField } from "@/components/ui/image-upload-field";
+import { GUEST_MAX_IMAGE_COUNT } from "@/lib/guest-post-policy";
 import { updatePostAction } from "@/server/actions/post";
 
 type NeighborhoodOption = {
@@ -22,7 +23,26 @@ type PostDetailEditFormProps = {
   neighborhoodId: string | null;
   imageUrls: string[];
   neighborhoods: NeighborhoodOption[];
+  isAuthenticated: boolean;
+  guestPassword?: string;
 };
+
+const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
+
+function getGuestFingerprint() {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+
+  const existing = window.localStorage.getItem(GUEST_FP_STORAGE_KEY);
+  if (existing && existing.trim().length > 0) {
+    return existing;
+  }
+
+  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(GUEST_FP_STORAGE_KEY, created);
+  return created;
+}
 
 export function PostDetailEditForm({
   postId,
@@ -32,6 +52,8 @@ export function PostDetailEditForm({
   neighborhoodId,
   imageUrls,
   neighborhoods,
+  isAuthenticated,
+  guestPassword = "",
 }: PostDetailEditFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -39,9 +61,10 @@ export function PostDetailEditForm({
   const [formState, setFormState] = useState({
     title,
     content,
-    scope,
+    scope: isAuthenticated ? scope : PostScope.GLOBAL,
     neighborhoodId: neighborhoodId ?? "",
     imageUrls,
+    guestPassword,
   });
 
   const neighborhoodOptions = useMemo(
@@ -60,16 +83,44 @@ export function PostDetailEditForm({
     setError(null);
 
     startTransition(async () => {
-      const result = await updatePostAction(postId, {
+      const payload = {
         title: formState.title,
         content: formState.content,
-        scope: formState.scope,
+        scope: isAuthenticated ? formState.scope : PostScope.GLOBAL,
         imageUrls: formState.imageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : null,
-      });
+        guestPassword: isAuthenticated ? undefined : formState.guestPassword,
+      };
+
+      const result = isAuthenticated
+        ? await updatePostAction(postId, payload)
+        : await fetch(`/api/posts/${postId}`, {
+            method: "PATCH",
+            headers: {
+              "content-type": "application/json",
+              "x-guest-fingerprint": getGuestFingerprint(),
+              "x-guest-mode": "1",
+            },
+            body: JSON.stringify(payload),
+          })
+            .then(async (response) => {
+              const payload = (await response.json()) as {
+                ok: boolean;
+                error?: { message?: string };
+              };
+
+              if (response.ok && payload.ok) {
+                return { ok: true } as const;
+              }
+              return {
+                ok: false,
+                message: payload.error?.message ?? "비회원 수정에 실패했습니다.",
+              } as const;
+            })
+            .catch(() => ({ ok: false, message: "네트워크 오류가 발생했습니다." } as const));
 
       if (!result.ok) {
-        setError(result.message);
+        setError(result.message ?? "수정에 실패했습니다.");
         return;
       }
 
@@ -121,6 +172,7 @@ export function PostDetailEditForm({
                   : "",
               }))
             }
+            disabled={!isAuthenticated}
           >
             <option value={PostScope.LOCAL}>동네</option>
             <option value={PostScope.GLOBAL}>온동네</option>
@@ -151,6 +203,23 @@ export function PostDetailEditForm({
         </label>
       </div>
 
+      {!isAuthenticated ? (
+        <label className="mt-4 flex flex-col gap-2 text-sm font-medium text-[#355988]">
+          글 비밀번호
+          <input
+            type="password"
+            className="max-w-[260px] border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
+            value={formState.guestPassword}
+            onChange={(event) =>
+              setFormState((prev) => ({ ...prev, guestPassword: event.target.value }))
+            }
+            minLength={4}
+            maxLength={32}
+            required
+          />
+        </label>
+      ) : null}
+
       <label className="mt-6 flex flex-col gap-2 text-sm font-medium text-[#355988]">
         내용
         <textarea
@@ -170,6 +239,7 @@ export function PostDetailEditForm({
             setFormState((prev) => ({ ...prev, imageUrls: nextUrls }))
           }
           label="게시글 이미지"
+          maxFiles={isAuthenticated ? 10 : GUEST_MAX_IMAGE_COUNT}
         />
       </div>
 

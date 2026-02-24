@@ -1,10 +1,12 @@
-import { PostReactionType, PostScope, PostStatus } from "@prisma/client";
-import { createHash, randomUUID } from "crypto";
+import { GuestViolationCategory, PostReactionType, PostScope, PostStatus } from "@prisma/client";
+import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "crypto";
 
 import { runtimeEnv } from "@/lib/env";
 import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
-import { moderateContactContent } from "@/lib/contact-policy";
+import { detectContactSignals, moderateContactContent } from "@/lib/contact-policy";
+import { buildGuestIpMeta } from "@/lib/guest-ip-display";
+import { isGuestPostTypeBlocked, isGuestScopeAllowed } from "@/lib/guest-post-policy";
 import { evaluateNewUserPostWritePolicy } from "@/lib/post-write-policy";
 import {
   hospitalReviewSchema,
@@ -16,18 +18,30 @@ import {
 import { logger, serializeError } from "@/server/logger";
 import {
   getForbiddenKeywords,
+  getGuestPostPolicy,
   getNewUserSafetyPolicy,
 } from "@/server/queries/policy.queries";
 import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
+import {
+  assertGuestNotBanned,
+  hashGuestIdentity,
+  registerGuestViolation,
+} from "@/server/services/guest-safety.service";
 import { notifyReactionOnPost } from "@/server/services/notification.service";
 import { ServiceError } from "@/server/services/service-error";
 
 type CreatePostParams = {
-  authorId: string;
+  authorId?: string;
   input: unknown;
+  guestIdentity?: {
+    ip: string;
+    fingerprint?: string;
+    userAgent?: string;
+  };
 };
 
 const MAX_POST_IMAGES = 10;
+const GUEST_LINK_PATTERN = /https?:\/\/[\S]+/i;
 const POST_VIEW_TTL_SECONDS = 60 * 60 * 6;
 const postViewStore = new Map<string, number>();
 let postViewRedisFailureLoggedAt = 0;
@@ -65,6 +79,47 @@ const buildImageCreateInput = (imageUrls: string[]) =>
     url,
     order: index,
   }));
+
+function hashGuestPassword(rawPassword: string) {
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(rawPassword, salt, 32).toString("hex");
+  return `${salt}:${derived}`;
+}
+
+function verifyGuestPassword(rawPassword: string, stored: string) {
+  const [salt, expectedHash] = stored.split(":");
+  if (!salt || !expectedHash) {
+    return false;
+  }
+
+  const actual = scryptSync(rawPassword, salt, 32);
+  const expected = Buffer.from(expectedHash, "hex");
+  if (actual.length !== expected.length) {
+    return false;
+  }
+
+  return timingSafeEqual(actual, expected);
+}
+
+function matchesGuestIdentity(
+  params: {
+    guestIpHash: string | null;
+    guestFingerprintHash: string | null;
+  },
+  identity: {
+    ip: string;
+    fingerprint?: string;
+  },
+) {
+  const { ipHash, fingerprintHash } = hashGuestIdentity(identity);
+  if (params.guestIpHash && params.guestIpHash === ipHash) {
+    return true;
+  }
+  if (params.guestFingerprintHash && fingerprintHash && params.guestFingerprintHash === fingerprintHash) {
+    return true;
+  }
+  return false;
+}
 
 type RegisterPostViewParams = {
   postId: string;
@@ -192,27 +247,39 @@ export async function registerPostView({
   }
 }
 
-export async function createPost({ authorId, input }: CreatePostParams) {
+export async function createPost({ authorId, input, guestIdentity }: CreatePostParams) {
   const parsed = postCreateSchema.safeParse(input);
   if (!parsed.success) {
     throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const normalizedImageUrls = normalizeImageUrls(parsed.data.imageUrls);
-  const postData = { ...parsed.data } as Omit<typeof parsed.data, "imageUrls"> & {
-    imageUrls?: string[];
-  };
-  delete postData.imageUrls;
+  const {
+    imageUrls,
+    guestDisplayName,
+    guestPassword,
+    ...postData
+  } = parsed.data;
+  const normalizedImageUrls = normalizeImageUrls(imageUrls);
   const rawInput = input as Record<string, unknown>;
-  const [forbiddenKeywords, newUserSafetyPolicy] = await Promise.all([
+  const [forbiddenKeywords, newUserSafetyPolicy, guestPostPolicy] = await Promise.all([
     getForbiddenKeywords(),
     getNewUserSafetyPolicy(),
+    getGuestPostPolicy(),
   ]);
   const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
     `${postData.title}\n${postData.content}`,
     forbiddenKeywords,
   );
   if (matchedForbiddenKeywords.length > 0) {
+    if (guestIdentity) {
+      await registerGuestViolation({
+        identity: guestIdentity,
+        category: GuestViolationCategory.POLICY,
+        reason: "금칙어 반복 위반",
+        source: "post-forbidden-keyword",
+        policy: guestPostPolicy,
+      });
+    }
     throw new ServiceError(
       `금칙어가 포함되어 게시글을 저장할 수 없습니다. (${matchedForbiddenKeywords
         .slice(0, 3)
@@ -222,47 +289,160 @@ export async function createPost({ authorId, input }: CreatePostParams) {
     );
   }
 
-  const author = await prisma.user.findUnique({
-    where: { id: authorId },
-    select: { id: true, role: true, createdAt: true },
-  });
-  if (!author) {
-    throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
-  }
+  let resolvedAuthorId: string;
+  let guestCreateMeta:
+    | {
+        guestDisplayName: string;
+        guestPasswordHash: string;
+        guestIpHash: string;
+        guestFingerprintHash: string | null;
+        guestIpDisplay: string | null;
+        guestIpLabel: string | null;
+      }
+    | undefined;
 
-  const writePolicy = evaluateNewUserPostWritePolicy({
-    role: author.role,
-    accountCreatedAt: author.createdAt,
-    postType: postData.type,
-    minAccountAgeHours: newUserSafetyPolicy.minAccountAgeHours,
-    restrictedTypes: newUserSafetyPolicy.restrictedPostTypes,
-  });
-  if (!writePolicy.allowed) {
-    throw new ServiceError(
-      writePolicy.message ?? "현재 계정으로는 이 카테고리 글을 작성할 수 없습니다.",
-      "NEW_USER_RESTRICTED_TYPE",
-      403,
-    );
-  }
+  if (authorId) {
+    const author = await prisma.user.findUnique({
+      where: { id: authorId },
+      select: { id: true, role: true, createdAt: true },
+    });
+    if (!author) {
+      throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+    }
 
-  const contactPolicy = moderateContactContent({
-    text: postData.content,
-    role: author.role,
-    accountCreatedAt: author.createdAt,
-    blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
-  });
-  if (contactPolicy.blocked) {
-    throw new ServiceError(
-      contactPolicy.message ?? "연락처가 포함된 내용은 현재 계정으로 작성할 수 없습니다.",
-      "CONTACT_RESTRICTED_FOR_NEW_USER",
-      403,
-    );
+    const writePolicy = evaluateNewUserPostWritePolicy({
+      role: author.role,
+      accountCreatedAt: author.createdAt,
+      postType: postData.type,
+      minAccountAgeHours: newUserSafetyPolicy.minAccountAgeHours,
+      restrictedTypes: newUserSafetyPolicy.restrictedPostTypes,
+    });
+    if (!writePolicy.allowed) {
+      throw new ServiceError(
+        writePolicy.message ?? "현재 계정으로는 이 카테고리 글을 작성할 수 없습니다.",
+        "NEW_USER_RESTRICTED_TYPE",
+        403,
+      );
+    }
+
+    const contactPolicy = moderateContactContent({
+      text: postData.content,
+      role: author.role,
+      accountCreatedAt: author.createdAt,
+      blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
+    });
+    if (contactPolicy.blocked) {
+      throw new ServiceError(
+        contactPolicy.message ?? "연락처가 포함된 내용은 현재 계정으로 작성할 수 없습니다.",
+        "CONTACT_RESTRICTED_FOR_NEW_USER",
+        403,
+      );
+    }
+    postData.content = contactPolicy.sanitizedText;
+    resolvedAuthorId = author.id;
+  } else {
+    if (!guestIdentity) {
+      throw new ServiceError("비회원 식별 정보가 필요합니다.", "INVALID_GUEST_CONTEXT", 400);
+    }
+
+    await assertGuestNotBanned(guestIdentity);
+
+    const normalizedGuestName = guestDisplayName?.trim();
+    const normalizedGuestPassword = guestPassword?.trim();
+    if (!normalizedGuestName || !normalizedGuestPassword) {
+      throw new ServiceError("비회원 닉네임과 비밀번호를 입력해 주세요.", "GUEST_AUTH_REQUIRED", 400);
+    }
+
+    if (isGuestPostTypeBlocked(postData.type, guestPostPolicy.blockedPostTypes)) {
+      throw new ServiceError(
+        "비회원은 해당 카테고리 글을 작성할 수 없습니다.",
+        "GUEST_RESTRICTED_TYPE",
+        403,
+      );
+    }
+
+    if (!isGuestScopeAllowed(postData.scope, guestPostPolicy.enforceGlobalScope)) {
+      throw new ServiceError(
+        "비회원은 온동네(글로벌) 글만 작성할 수 있습니다.",
+        "GUEST_SCOPE_RESTRICTED",
+        403,
+      );
+    }
+
+    if (normalizedImageUrls.length > guestPostPolicy.maxImageCount) {
+      throw new ServiceError(
+        `비회원은 이미지를 최대 ${guestPostPolicy.maxImageCount}장까지 첨부할 수 있습니다.`,
+        "GUEST_IMAGE_LIMIT_EXCEEDED",
+        400,
+      );
+    }
+
+    if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(postData.content)) {
+      await registerGuestViolation({
+        identity: guestIdentity,
+        category: GuestViolationCategory.SPAM,
+        reason: "외부 링크 반복 게시",
+        source: "post-link",
+        policy: guestPostPolicy,
+      });
+      throw new ServiceError("비회원 글에서는 외부 링크를 포함할 수 없습니다.", "GUEST_LINK_BLOCKED", 403);
+    }
+
+    if (!guestPostPolicy.allowContact && detectContactSignals(postData.content).length > 0) {
+      await registerGuestViolation({
+        identity: guestIdentity,
+        category: GuestViolationCategory.SPAM,
+        reason: "연락처/외부 연락 유도 반복",
+        source: "post-contact",
+        policy: guestPostPolicy,
+      });
+      throw new ServiceError(
+        "비회원 글에서는 연락처/외부 연락 수단을 포함할 수 없습니다.",
+        "GUEST_CONTACT_BLOCKED",
+        403,
+      );
+    }
+
+    const { ipHash, fingerprintHash } = hashGuestIdentity(guestIdentity);
+    const guestIpMeta = buildGuestIpMeta({
+      ip: guestIdentity.ip,
+      fingerprint: guestIdentity.fingerprint,
+      userAgent: guestIdentity.userAgent,
+    });
+    const guestUser = await prisma.user.create({
+      data: {
+        email: `guest-${Date.now()}-${randomUUID()}@guest.townpet.local`,
+        name: normalizedGuestName,
+      },
+      select: { id: true },
+    });
+    resolvedAuthorId = guestUser.id;
+    guestCreateMeta = {
+      guestDisplayName: normalizedGuestName,
+      guestPasswordHash: hashGuestPassword(normalizedGuestPassword),
+      guestIpHash: ipHash,
+      guestFingerprintHash: fingerprintHash,
+      guestIpDisplay: guestIpMeta.guestIpDisplay,
+      guestIpLabel: guestIpMeta.guestIpLabel,
+    };
   }
-  postData.content = contactPolicy.sanitizedText;
 
   if (postData.scope === PostScope.LOCAL && !postData.neighborhoodId) {
     throw new ServiceError("동네 정보가 필요합니다.", "NEIGHBORHOOD_REQUIRED", 400);
   }
+
+  const commonCreateData = {
+    ...postData,
+    authorId: resolvedAuthorId,
+    ...(guestCreateMeta ?? {}),
+    ...(normalizedImageUrls.length > 0
+      ? {
+          images: {
+            create: buildImageCreateInput(normalizedImageUrls),
+          },
+        }
+      : {}),
+  };
 
   if (postData.type === "HOSPITAL_REVIEW") {
     const reviewInput = hospitalReviewSchema.safeParse(rawInput.hospitalReview ?? {});
@@ -274,15 +454,7 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
     return prisma.post.create({
       data: {
-        ...postData,
-        authorId,
-        ...(normalizedImageUrls.length > 0
-          ? {
-              images: {
-                create: buildImageCreateInput(normalizedImageUrls),
-              },
-            }
-          : {}),
+        ...commonCreateData,
         ...(shouldCreateReview
           ? {
               hospitalReview: {
@@ -324,15 +496,7 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
     return prisma.post.create({
       data: {
-        ...postData,
-        authorId,
-        ...(normalizedImageUrls.length > 0
-          ? {
-              images: {
-                create: buildImageCreateInput(normalizedImageUrls),
-              },
-            }
-          : {}),
+        ...commonCreateData,
         ...(shouldCreateReview
           ? {
               placeReview: {
@@ -383,15 +547,7 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
     return prisma.post.create({
       data: {
-        ...postData,
-        authorId,
-        ...(normalizedImageUrls.length > 0
-          ? {
-              images: {
-                create: buildImageCreateInput(normalizedImageUrls),
-              },
-            }
-          : {}),
+        ...commonCreateData,
         ...(shouldCreateReview
           ? {
               walkRoute: {
@@ -448,15 +604,7 @@ export async function createPost({ authorId, input }: CreatePostParams) {
 
   return prisma.post.create({
     data: {
-      ...postData,
-      authorId,
-      ...(normalizedImageUrls.length > 0
-        ? {
-            images: {
-              create: buildImageCreateInput(normalizedImageUrls),
-            },
-          }
-        : {}),
+      ...commonCreateData,
     },
     include: {
       author: { select: { id: true, name: true, nickname: true } },
@@ -651,6 +799,275 @@ export async function deletePost({ postId, authorId }: DeletePostParams) {
 
   if (existing.authorId !== authorId) {
     throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
+  }
+
+  return prisma.post.update({
+    where: { id: postId },
+    data: { status: PostStatus.DELETED },
+    select: { id: true, status: true },
+  });
+}
+
+type UpdateGuestPostParams = {
+  postId: string;
+  input: unknown;
+  guestPassword: string;
+  guestIdentity: {
+    ip: string;
+    fingerprint?: string;
+  };
+};
+
+export async function updateGuestPost({
+  postId,
+  input,
+  guestPassword,
+  guestIdentity,
+}: UpdateGuestPostParams) {
+  const parsed = postUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  const existing = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      status: true,
+      guestPasswordHash: true,
+      guestIpHash: true,
+      guestFingerprintHash: true,
+    },
+  });
+
+  if (!existing || existing.status === PostStatus.DELETED) {
+    throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
+  }
+
+  if (!existing.guestPasswordHash) {
+    throw new ServiceError("비회원 게시글이 아닙니다.", "GUEST_POST_ONLY", 403);
+  }
+
+  if (
+    !matchesGuestIdentity(
+      {
+        guestIpHash: existing.guestIpHash,
+        guestFingerprintHash: existing.guestFingerprintHash,
+      },
+      guestIdentity,
+    )
+  ) {
+    const guestPostPolicy = await getGuestPostPolicy();
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 글 수정 시도 식별 불일치",
+      source: "guest-update-identity-mismatch",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("수정 권한이 없습니다.", "FORBIDDEN", 403);
+  }
+
+  if (!verifyGuestPassword(guestPassword, existing.guestPasswordHash)) {
+    const guestPostPolicy = await getGuestPostPolicy();
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 글 수정 비밀번호 실패",
+      source: "guest-update-password-failed",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
+  }
+
+  const guestPostPolicy = await getGuestPostPolicy();
+  if (parsed.data.scope && parsed.data.scope !== PostScope.GLOBAL) {
+    throw new ServiceError("비회원 게시글은 온동네 범위만 허용됩니다.", "GUEST_SCOPE_RESTRICTED", 403);
+  }
+
+  const normalizedImageUrls = normalizeImageUrls(parsed.data.imageUrls);
+  if (parsed.data.imageUrls && normalizedImageUrls.length > guestPostPolicy.maxImageCount) {
+    throw new ServiceError(
+      `비회원은 이미지를 최대 ${guestPostPolicy.maxImageCount}장까지 첨부할 수 있습니다.`,
+      "GUEST_IMAGE_LIMIT_EXCEEDED",
+      400,
+    );
+  }
+
+  const postData = { ...parsed.data };
+  if (postData.content !== undefined) {
+    if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(postData.content)) {
+      await registerGuestViolation({
+        identity: guestIdentity,
+        category: GuestViolationCategory.SPAM,
+        reason: "비회원 글 수정 링크 위반",
+        source: "guest-update-link",
+        policy: guestPostPolicy,
+      });
+      throw new ServiceError("비회원 글에서는 외부 링크를 포함할 수 없습니다.", "GUEST_LINK_BLOCKED", 403);
+    }
+
+    if (!guestPostPolicy.allowContact && detectContactSignals(postData.content).length > 0) {
+      await registerGuestViolation({
+        identity: guestIdentity,
+        category: GuestViolationCategory.SPAM,
+        reason: "비회원 글 수정 연락처 위반",
+        source: "guest-update-contact",
+        policy: guestPostPolicy,
+      });
+      throw new ServiceError(
+        "비회원 글에서는 연락처/외부 연락 수단을 포함할 수 없습니다.",
+        "GUEST_CONTACT_BLOCKED",
+        403,
+      );
+    }
+  }
+
+  if (postData.title !== undefined || postData.content !== undefined) {
+    const forbiddenKeywords = await getForbiddenKeywords();
+    const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
+      `${postData.title ?? ""}\n${postData.content ?? ""}`,
+      forbiddenKeywords,
+    );
+    if (matchedForbiddenKeywords.length > 0) {
+      await registerGuestViolation({
+        identity: guestIdentity,
+        category: GuestViolationCategory.POLICY,
+        reason: "비회원 글 수정 금칙어 위반",
+        source: "guest-update-forbidden-keyword",
+        policy: guestPostPolicy,
+      });
+      throw new ServiceError(
+        `금칙어가 포함되어 게시글을 수정할 수 없습니다. (${matchedForbiddenKeywords
+          .slice(0, 3)
+          .join(", ")})`,
+        "FORBIDDEN_KEYWORD_DETECTED",
+        400,
+      );
+    }
+  }
+
+  const { imageUrls, ...restData } = postData;
+
+  return prisma.post.update({
+    where: { id: postId },
+    data: {
+      ...restData,
+      scope: PostScope.GLOBAL,
+      neighborhoodId: null,
+      ...(imageUrls
+        ? {
+            images: {
+              deleteMany: {},
+              create: buildImageCreateInput(normalizedImageUrls),
+            },
+          }
+        : {}),
+    },
+    include: {
+      author: { select: { id: true, name: true, nickname: true } },
+      neighborhood: {
+        select: { id: true, name: true, city: true, district: true },
+      },
+      hospitalReview: {
+        select: {
+          hospitalName: true,
+          totalCost: true,
+          waitTime: true,
+          rating: true,
+        },
+      },
+      placeReview: {
+        select: {
+          placeName: true,
+          placeType: true,
+          address: true,
+          isPetAllowed: true,
+          rating: true,
+        },
+      },
+      walkRoute: {
+        select: {
+          routeName: true,
+          distance: true,
+          duration: true,
+          difficulty: true,
+          hasStreetLights: true,
+          hasRestroom: true,
+          hasParkingLot: true,
+          safetyTags: true,
+        },
+      },
+      images: {
+        select: { id: true, url: true, order: true },
+        orderBy: { order: "asc" },
+      },
+    },
+  });
+}
+
+type DeleteGuestPostParams = {
+  postId: string;
+  guestPassword: string;
+  guestIdentity: {
+    ip: string;
+    fingerprint?: string;
+  };
+};
+
+export async function deleteGuestPost({
+  postId,
+  guestPassword,
+  guestIdentity,
+}: DeleteGuestPostParams) {
+  const guestPostPolicy = await getGuestPostPolicy();
+  const existing = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      status: true,
+      guestPasswordHash: true,
+      guestIpHash: true,
+      guestFingerprintHash: true,
+    },
+  });
+
+  if (!existing || existing.status === PostStatus.DELETED) {
+    throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
+  }
+
+  if (!existing.guestPasswordHash) {
+    throw new ServiceError("비회원 게시글이 아닙니다.", "GUEST_POST_ONLY", 403);
+  }
+
+  if (
+    !matchesGuestIdentity(
+      {
+        guestIpHash: existing.guestIpHash,
+        guestFingerprintHash: existing.guestFingerprintHash,
+      },
+      guestIdentity,
+    )
+  ) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 글 삭제 시도 식별 불일치",
+      source: "guest-delete-identity-mismatch",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
+  }
+
+  if (!verifyGuestPassword(guestPassword, existing.guestPasswordHash)) {
+    await registerGuestViolation({
+      identity: guestIdentity,
+      category: GuestViolationCategory.POLICY,
+      reason: "비회원 글 삭제 비밀번호 실패",
+      source: "guest-delete-password-failed",
+      policy: guestPostPolicy,
+    });
+    throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
   }
 
   return prisma.post.update({
