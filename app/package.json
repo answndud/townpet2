@@ -24,6 +24,7 @@
     "db:seed:users": "tsx scripts/seed-users.ts",
     "db:seed:search-cases": "tsx scripts/seed-search-cases.ts",
     "db:seed:passwords": "tsx scripts/seed-passwords.ts",
+    "db:backfill:guest-authors": "tsx scripts/backfill-guest-authors.ts",
     "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
     "db:cleanup:legacy-search-setting": "tsx scripts/cleanup-legacy-site-setting.ts",
     "docs:refresh": "node ../scripts/refresh-docs-index.mjs",
