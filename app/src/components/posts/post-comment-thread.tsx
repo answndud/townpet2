@@ -377,18 +377,16 @@ export function PostCommentThread({
     const hasReplyByOthers = replies.some((reply) => reply.author.id !== comment.author.id);
     const canEdit =
       (isAuthor || isGuestComment) && !hasReplyByOthers && comment.status === "ACTIVE";
-    const desktopActionButtonClass =
-      "hidden h-6 items-center gap-1.5 border border-[#bfd0ec] bg-[#f7fbff] px-2.5 text-[11px] font-semibold text-[#315484] transition hover:bg-[#edf4ff] sm:inline-flex";
-    const mobileActionLinkClass =
-      "text-[12px] font-medium text-[#4a668f] transition hover:text-[#2f5da4] hover:underline";
+    const actionLinkClass =
+      "text-[12px] font-medium text-[#4a668f] transition hover:text-[#2f5da4] hover:underline disabled:cursor-not-allowed disabled:opacity-50";
 
     return (
       <div
         key={comment.id}
         id={`comment-${comment.id}`}
-        className={`border-t border-[#dbe5f3] py-2.5 sm:rounded-sm sm:border sm:bg-white sm:px-3.5 sm:py-3 ${
+        className={`border-t border-[#dbe5f3] py-2.5 sm:py-2.5 ${
           depth > 0
-            ? "ml-3 border-l border-l-[#cfe0f8] pl-2.5 sm:ml-4 sm:border-l-2 sm:pl-4"
+            ? "ml-3 border-l border-l-[#cfe0f8] pl-2.5 sm:ml-4 sm:border-l sm:pl-3.5"
             : ""
         }`}
       >
@@ -407,114 +405,46 @@ export function PostCommentThread({
             {comment.createdAt.toLocaleDateString("ko-KR")}
           </span>
         </div>
-        <div className="mt-1.5 text-[14px] leading-5 text-[#27466f] sm:mt-1.5 sm:text-sm">
+        <div className="mt-1.5 text-[14px] leading-5 text-[#27466f] sm:text-[14px]">
           <LinkifiedContent
             text={comment.status === "DELETED" ? "삭제된 댓글입니다." : comment.content}
             showYoutubeEmbeds
           />
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#3f628f] sm:mt-2 sm:gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#3f628f]">
           {depth === 0 && replies.length > 0 ? (
-            <>
-              <button
-                type="button"
-                className={mobileActionLinkClass}
-                onClick={() =>
-                  setCollapsedReplies((prev) => ({
-                    ...prev,
-                    [comment.id]: !prev[comment.id],
-                  }))
-                }
-              >
-                {collapsedReplies[comment.id]
-                  ? `답글 ${replies.length}개 펼치기`
-                  : `답글 ${replies.length}개 접기`}
-              </button>
-              <button
-                type="button"
-                className={desktopActionButtonClass}
-                onClick={() =>
-                  setCollapsedReplies((prev) => ({
-                    ...prev,
-                    [comment.id]: !prev[comment.id],
-                  }))
-                }
-              >
-                {collapsedReplies[comment.id]
-                  ? `답글 ${replies.length}개 펼치기`
-                  : `답글 ${replies.length}개 접기`}
-              </button>
-            </>
+            <button
+              type="button"
+              className={actionLinkClass}
+              onClick={() =>
+                setCollapsedReplies((prev) => ({
+                  ...prev,
+                  [comment.id]: !prev[comment.id],
+                }))
+              }
+            >
+              {collapsedReplies[comment.id]
+                ? `답글 ${replies.length}개 펼치기`
+                : `답글 ${replies.length}개 접기`}
+            </button>
           ) : null}
           {canComment ? (
-            <>
-              <button
-                type="button"
-                className={mobileActionLinkClass}
-                onClick={() =>
-                  setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
-                }
-                disabled={comment.status !== "ACTIVE"}
-              >
-                {replyOpen[comment.id] ? "답글 취소" : "답글"}
-              </button>
-              <button
-                type="button"
-                className={desktopActionButtonClass}
-                onClick={() =>
-                  setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
-                }
-                disabled={comment.status !== "ACTIVE"}
-              >
-                <span className="inline-flex h-4 w-4 items-center justify-center border border-[#bfd0ec] bg-white">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 16 16"
-                    className="h-3 w-3 text-[#315484]"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                  >
-                    <path d="M6.2 5.4H3.6v3" />
-                    <path d="M3.8 8.2c1.2-1.6 3-2.5 5-2.5h1.6c1.4 0 2.6 1.2 2.6 2.6v2.3" />
-                  </svg>
-                </span>
-                {replyOpen[comment.id] ? "답글 취소" : "답글"}
-              </button>
-            </>
+            <button
+              type="button"
+              className={actionLinkClass}
+              onClick={() =>
+                setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
+              }
+              disabled={comment.status !== "ACTIVE"}
+            >
+              {replyOpen[comment.id] ? "답글 취소" : "답글"}
+            </button>
           ) : null}
           {canEdit ? (
             <>
               <button
                 type="button"
-                className={desktopActionButtonClass}
-                onClick={() => {
-                  if (isGuestComment) {
-                    setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
-                    return;
-                  }
-                  setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
-                }}
-                disabled={isPending}
-              >
-                <span className="inline-flex h-4 w-4 items-center justify-center border border-[#bfd0ec] bg-white">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 16 16"
-                    className="h-3 w-3 text-[#315484]"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                  >
-                    <path d="M3.2 11.8l.4-2.2 5.3-5.3 1.8 1.8-5.3 5.3z" />
-                    <path d="M8.8 4.3l1.1-1.1a1.2 1.2 0 0 1 1.7 0l1.2 1.2a1.2 1.2 0 0 1 0 1.7l-1.1 1.1" />
-                  </svg>
-                </span>
-                수정
-              </button>
-              <button
-                type="button"
-                className={`sm:hidden ${mobileActionLinkClass}`}
+                className={actionLinkClass}
                 onClick={() => {
                   if (isGuestComment) {
                     setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
@@ -528,35 +458,7 @@ export function PostCommentThread({
               </button>
               <button
                 type="button"
-                className="hidden h-7 items-center gap-1.5 border border-rose-300 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100 sm:inline-flex"
-                onClick={() => {
-                  if (isGuestComment) {
-                    setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
-                    return;
-                  }
-                  void handleDelete(comment.id, false);
-                }}
-                disabled={isPending}
-              >
-                <span className="inline-flex h-4 w-4 items-center justify-center border border-rose-300 bg-white">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 16 16"
-                    className="h-3 w-3 text-rose-700"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                  >
-                    <path d="M3.8 4.8h8.4" />
-                    <path d="M6.1 4.8V3.7c0-.4.3-.7.7-.7h2.4c.4 0 .7.3.7.7v1.1" />
-                    <path d="M5.1 4.8l.5 7.1c0 .6.5 1 1.1 1h2.5c.6 0 1-.4 1.1-1l.5-7.1" />
-                  </svg>
-                </span>
-                삭제
-              </button>
-              <button
-                type="button"
-                className="text-[12px] font-medium text-rose-700 transition hover:text-rose-800 hover:underline sm:hidden"
+                className="text-[12px] font-medium text-rose-700 transition hover:text-rose-800 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => {
                   if (isGuestComment) {
                     setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
@@ -572,51 +474,37 @@ export function PostCommentThread({
           ) : null}
           {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
             <>
-              <button
-                type="button"
-                className={`${mobileActionLinkClass} sm:hidden`}
-                onClick={() =>
-                  setReportOpen((prev) => ({
-                    ...prev,
-                    [comment.id]: !prev[comment.id],
-                  }))
-                }
-              >
-                신고
-              </button>
-              <details className="group hidden sm:block">
-              <summary className="cursor-pointer list-none border border-[#bfd0ec] bg-white px-2.5 py-1 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]">
-                더보기
-              </summary>
-              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2">
-                <button
-                  type="button"
-                  className="border border-[#bfd0ec] bg-white px-2.5 py-1 font-semibold transition hover:bg-[#edf4ff]"
-                  onClick={() =>
-                    setReportOpen((prev) => ({
-                      ...prev,
-                      [comment.id]: !prev[comment.id],
-                    }))
-                  }
-                >
-                  신고
-                </button>
-                <UserRelationControls
-                  targetUserId={comment.author.id}
-                  initialState={{
-                    isBlockedByMe: false,
-                    hasBlockedMe: false,
-                    isMutedByMe: false,
-                  }}
-                  compact
-                />
-              </div>
+              <details className="group">
+                <summary className={`list-none ${actionLinkClass}`}>더보기</summary>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-1.5">
+                  <button
+                    type="button"
+                    className="border border-[#bfd0ec] bg-white px-2 py-0.5 text-[11px] font-semibold transition hover:bg-[#edf4ff]"
+                    onClick={() =>
+                      setReportOpen((prev) => ({
+                        ...prev,
+                        [comment.id]: !prev[comment.id],
+                      }))
+                    }
+                  >
+                    신고
+                  </button>
+                  <UserRelationControls
+                    targetUserId={comment.author.id}
+                    initialState={{
+                      isBlockedByMe: false,
+                      hasBlockedMe: false,
+                      isMutedByMe: false,
+                    }}
+                    compact
+                  />
+                </div>
               </details>
             </>
           ) : null}
         </div>
 
-        <div className="mt-2 hidden rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-1.5 opacity-85 transition hover:opacity-100 sm:block">
+        <div className="mt-1 hidden sm:block">
           <CommentReactionControls
             postId={postId}
             commentId={comment.id}
@@ -816,7 +704,7 @@ export function PostCommentThread({
         ) : null}
 
         {replies.length > 0 && !collapsedReplies[comment.id] ? (
-          <div className="mt-2.5 flex flex-col gap-1.5 sm:mt-3 sm:gap-2">
+          <div className="mt-2.5 flex flex-col gap-1 sm:mt-2.5 sm:gap-1">
             {replies.map((reply) => renderComment(reply, depth + 1))}
           </div>
         ) : null}
@@ -863,70 +751,75 @@ export function PostCommentThread({
       {roots.length === 0 ? (
         <p className="mt-4 text-sm text-[#5a7398]">첫 댓글을 남겨주세요.</p>
       ) : (
-        <div className="mt-3 flex flex-col gap-0.5 sm:mt-4 sm:gap-3">
+        <div className="mt-3 flex flex-col gap-0.5 sm:mt-4 sm:gap-0.5">
           {roots.map((comment) => renderComment(comment))}
         </div>
       )}
 
-      <div className="mt-3 rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2.5 sm:mt-4 sm:p-2.5">
-        {canComment ? (
-          <>
-            <p className="mb-1.5 text-xs text-[#5c7da8]">배려 있는 댓글 문화를 함께 만들어 주세요.</p>
-            {!currentUserId ? (
-              <div className="mb-1.5 grid gap-1.5 sm:grid-cols-2">
-                <input
-                  className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
-                  value={guestDisplayName}
-                  onChange={(event) => setGuestDisplayName(event.target.value)}
-                  placeholder="비회원 닉네임"
-                  maxLength={24}
-                />
-                <input
-                  className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
-                  type="password"
-                  value={guestPassword}
-                  onChange={(event) => setGuestPassword(event.target.value)}
-                  placeholder="댓글 비밀번호"
-                  maxLength={32}
-                />
-              </div>
-            ) : null}
-            <textarea
-              className="min-h-[78px] w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71] sm:min-h-[88px]"
-              value={replyContent.root ?? ""}
-              onChange={(event) =>
-                setReplyContent((prev) => ({ ...prev, root: event.target.value }))
-              }
-              placeholder="댓글을 입력해 주세요"
-            />
-            <div className="mt-1.5 flex justify-end">
-              <button
-                type="button"
-                className="border border-[#3567b5] bg-[#3567b5] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
-                onClick={() => handleCreate()}
-                disabled={isPending}
-              >
-                댓글 등록
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="border border-[#d3e0f4] bg-white px-4 py-3 text-sm text-[#355988]">
-            {interactionDisabledMessage ? (
-              interactionDisabledMessage
-            ) : (
-              <>
-                댓글 작성/답글/신고는 로그인 후 이용할 수 있습니다.{" "}
-                <Link
-                  href={loginHref}
-                  className="font-semibold text-[#2f5da4] underline underline-offset-2"
+      <div className="mt-3 border-t border-[#c8d7ef] pt-2.5 sm:mt-4 sm:pt-3">
+        <div className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2.5 sm:p-2.5">
+          {canComment ? (
+            <>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#4f6f9a]">
+                댓글 작성
+              </p>
+              <p className="mb-1.5 text-xs text-[#5c7da8]">배려 있는 댓글 문화를 함께 만들어 주세요.</p>
+              {!currentUserId ? (
+                <div className="mb-1.5 grid gap-1.5 sm:grid-cols-2">
+                  <input
+                    className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
+                    value={guestDisplayName}
+                    onChange={(event) => setGuestDisplayName(event.target.value)}
+                    placeholder="비회원 닉네임"
+                    maxLength={24}
+                  />
+                  <input
+                    className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
+                    type="password"
+                    value={guestPassword}
+                    onChange={(event) => setGuestPassword(event.target.value)}
+                    placeholder="댓글 비밀번호"
+                    maxLength={32}
+                  />
+                </div>
+              ) : null}
+              <textarea
+                className="min-h-[78px] w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71] sm:min-h-[88px]"
+                value={replyContent.root ?? ""}
+                onChange={(event) =>
+                  setReplyContent((prev) => ({ ...prev, root: event.target.value }))
+                }
+                placeholder="댓글을 입력해 주세요"
+              />
+              <div className="mt-1.5 flex justify-end">
+                <button
+                  type="button"
+                  className="border border-[#3567b5] bg-[#3567b5] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+                  onClick={() => handleCreate()}
+                  disabled={isPending}
                 >
-                  로그인하기
-                </Link>
-              </>
-            )}
-          </div>
-        )}
+                  댓글 등록
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="border border-[#d3e0f4] bg-white px-4 py-3 text-sm text-[#355988]">
+              {interactionDisabledMessage ? (
+                interactionDisabledMessage
+              ) : (
+                <>
+                  댓글 작성/답글/신고는 로그인 후 이용할 수 있습니다.{" "}
+                  <Link
+                    href={loginHref}
+                    className="font-semibold text-[#2f5da4] underline underline-offset-2"
+                  >
+                    로그인하기
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
