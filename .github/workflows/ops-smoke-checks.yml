@@ -10,7 +10,7 @@ on:
       verify_sentry:
         description: "Run Sentry ingestion verification"
         required: true
-        default: true
+        default: false
         type: boolean
 
 jobs:

@@ -34,3 +34,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Free Ops Weekly Routine (10 minutes)
+
+Use this routine to keep operations simple without adding new external services.
+
+1. Check recent Vercel deployments (last 3).
+2. Run GitHub Actions `ops-smoke-checks` with:
+   - `target_base_url=https://townpet2.vercel.app`
+   - `verify_sentry=false` (default)
+3. Review Vercel function logs for repeated `500`/timeout errors.
+4. Manual smoke: `/feed` -> open a post -> click `목록으로`.
+5. Record run URL and issues in your local operation notes.
+
+Notes:
+- Sentry is optional and not required for this weekly routine.
+- If you later enable Sentry, set repo secrets and run `verify_sentry=true` monthly.
