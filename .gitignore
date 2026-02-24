@@ -25,13 +25,8 @@ tmp-*.log
 .npmrc
 app/.npmrc
 
-# local agent/tooling artifacts (do not publish)
-.opencode/agents/
-.opencode/commands/
-.opencode/skills/cycle-kickoff/
-.opencode/skills/plan-progress-sync/
-.opencode/skills/release-readiness/
-.opencode/skills/research-memory/
+# local agent/tooling artifacts
+.opencode/
 docs/agent-memory/
 app/test-results/
 
