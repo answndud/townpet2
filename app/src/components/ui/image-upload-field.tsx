@@ -286,12 +286,15 @@ export function ImageUploadField({
             event.currentTarget.value = "";
           }}
           onChange={handleFileChange}
-          disabled={isBusy || remainCount <= 0}
+          disabled={isBusy}
           className="w-full text-xs text-[#355988] file:mr-3 file:border file:border-[#3567b5] file:bg-[#3567b5] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white file:transition hover:file:bg-[#2f5da4]"
         />
         <p className="mt-2 text-xs text-[#5d789f]">
           JPG/PNG/WEBP/GIF, 파일당 최대 5MB
         </p>
+        {remainCount <= 0 ? (
+          <p className="mt-1 text-xs text-[#5d789f]">현재 첨부 한도에 도달했습니다. 기존 이미지를 삭제한 뒤 다시 선택해 주세요.</p>
+        ) : null}
         {isUploading ? (
           <p className="mt-2 text-xs font-medium text-[#3567b5]">업로드 중...</p>
         ) : null}

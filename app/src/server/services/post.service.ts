@@ -42,6 +42,7 @@ type CreatePostParams = {
 
 const MAX_POST_IMAGES = 10;
 const GUEST_LINK_PATTERN = /https?:\/\/[\S]+/i;
+const GUEST_IMAGE_MARKDOWN_PATTERN = /!\[[^\]]*\]\(([^)\s]+)\)(?:\{\s*width\s*=\s*\d{2,4}\s*\})?/gi;
 const POST_VIEW_TTL_SECONDS = 60 * 60 * 6;
 const postViewStore = new Map<string, number>();
 let postViewRedisFailureLoggedAt = 0;
@@ -79,6 +80,10 @@ const buildImageCreateInput = (imageUrls: string[]) =>
     url,
     order: index,
   }));
+
+function stripImageTokensForGuestPolicy(value: string) {
+  return value.replace(GUEST_IMAGE_MARKDOWN_PATTERN, " ").replace(/\s+/g, " ").trim();
+}
 
 function hashGuestPassword(rawPassword: string) {
   const salt = randomBytes(16).toString("hex");
@@ -377,7 +382,9 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       );
     }
 
-    if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(postData.content)) {
+    const guestPolicyText = stripImageTokensForGuestPolicy(postData.content);
+
+    if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(guestPolicyText)) {
       await registerGuestViolation({
         identity: guestIdentity,
         category: GuestViolationCategory.SPAM,
@@ -388,7 +395,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       throw new ServiceError("비회원 글에서는 외부 링크를 포함할 수 없습니다.", "GUEST_LINK_BLOCKED", 403);
     }
 
-    if (!guestPostPolicy.allowContact && detectContactSignals(postData.content).length > 0) {
+    if (!guestPostPolicy.allowContact && detectContactSignals(guestPolicyText).length > 0) {
       await registerGuestViolation({
         identity: guestIdentity,
         category: GuestViolationCategory.SPAM,
@@ -896,7 +903,9 @@ export async function updateGuestPost({
 
   const postData = { ...parsed.data };
   if (postData.content !== undefined) {
-    if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(postData.content)) {
+    const guestPolicyText = stripImageTokensForGuestPolicy(postData.content);
+
+    if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(guestPolicyText)) {
       await registerGuestViolation({
         identity: guestIdentity,
         category: GuestViolationCategory.SPAM,
@@ -907,7 +916,7 @@ export async function updateGuestPost({
       throw new ServiceError("비회원 글에서는 외부 링크를 포함할 수 없습니다.", "GUEST_LINK_BLOCKED", 403);
     }
 
-    if (!guestPostPolicy.allowContact && detectContactSignals(postData.content).length > 0) {
+    if (!guestPostPolicy.allowContact && detectContactSignals(guestPolicyText).length > 0) {
       await registerGuestViolation({
         identity: guestIdentity,
         category: GuestViolationCategory.SPAM,
