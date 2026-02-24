@@ -384,7 +384,7 @@ export function PostCommentThread({
       <div
         key={comment.id}
         id={`comment-${comment.id}`}
-        className={`border-t border-[#dbe5f3] py-2.5 sm:py-2.5 ${
+        className={`py-2.5 sm:py-3 ${
           depth > 0
             ? "ml-3 border-l border-l-[#cfe0f8] pl-2.5 sm:ml-4 sm:border-l sm:pl-3.5"
             : ""
@@ -704,7 +704,7 @@ export function PostCommentThread({
         ) : null}
 
         {replies.length > 0 && !collapsedReplies[comment.id] ? (
-          <div className="mt-2.5 flex flex-col gap-1 sm:mt-2.5 sm:gap-1">
+          <div className="mt-2 space-y-1.5">
             {replies.map((reply) => renderComment(reply, depth + 1))}
           </div>
         ) : null}
@@ -751,7 +751,7 @@ export function PostCommentThread({
       {roots.length === 0 ? (
         <p className="mt-4 text-sm text-[#5a7398]">첫 댓글을 남겨주세요.</p>
       ) : (
-        <div className="mt-3 flex flex-col gap-0.5 sm:mt-4 sm:gap-0.5">
+        <div className="mt-3 divide-y divide-[#dbe5f3] sm:mt-4">
           {roots.map((comment) => renderComment(comment))}
         </div>
       )}
