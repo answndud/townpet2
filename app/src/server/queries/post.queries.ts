@@ -71,38 +71,8 @@ const buildPostListInclude = (viewerId?: string) =>
       },
       select: { type: true },
     },
-    hospitalReview: {
-      select: {
-        hospitalName: true,
-        totalCost: true,
-        waitTime: true,
-        rating: true,
-      },
-    },
-    placeReview: {
-      select: {
-        placeName: true,
-        placeType: true,
-        address: true,
-        isPetAllowed: true,
-        rating: true,
-      },
-    },
-    walkRoute: {
-      select: {
-        routeName: true,
-        distance: true,
-        duration: true,
-        difficulty: true,
-        hasStreetLights: true,
-        hasRestroom: true,
-        hasParkingLot: true,
-        safetyTags: true,
-      },
-    },
     images: {
-      select: { id: true, url: true, order: true },
-      orderBy: { order: "asc" },
+      select: { id: true },
     },
   }) as const;
 
@@ -112,38 +82,8 @@ const buildPostListIncludeWithoutReactions = () =>
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
-    hospitalReview: {
-      select: {
-        hospitalName: true,
-        totalCost: true,
-        waitTime: true,
-        rating: true,
-      },
-    },
-    placeReview: {
-      select: {
-        placeName: true,
-        placeType: true,
-        address: true,
-        isPetAllowed: true,
-        rating: true,
-      },
-    },
-    walkRoute: {
-      select: {
-        routeName: true,
-        distance: true,
-        duration: true,
-        difficulty: true,
-        hasStreetLights: true,
-        hasRestroom: true,
-        hasParkingLot: true,
-        safetyTags: true,
-      },
-    },
     images: {
-      select: { id: true, url: true, order: true },
-      orderBy: { order: "asc" },
+      select: { id: true },
     },
   }) as const;
 
@@ -297,7 +237,13 @@ const LEGACY_POST_RELATION_SELECT = {
 const buildLegacyPostListSelect = (viewerId?: string) =>
   ({
     ...LEGACY_POST_BASE_SELECT,
-    ...LEGACY_POST_RELATION_SELECT,
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
+    },
+    images: {
+      select: { id: true },
+    },
     reactions: {
       where: {
         userId: viewerId ?? NO_VIEWER_ID,
@@ -309,7 +255,13 @@ const buildLegacyPostListSelect = (viewerId?: string) =>
 const buildLegacyPostListSelectWithoutReactions = () =>
   ({
     ...LEGACY_POST_BASE_SELECT,
-    ...LEGACY_POST_RELATION_SELECT,
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
+    },
+    images: {
+      select: { id: true },
+    },
   }) as const;
 
 const buildLegacyPostDetailSelect = (viewerId?: string) =>
@@ -493,6 +445,7 @@ function buildPostListWhere({
   neighborhoodId,
   hiddenAuthorIds,
   days,
+  authorBreedCode,
 }: {
   type?: PostType;
   scope: PostScope;
@@ -502,10 +455,23 @@ function buildPostListWhere({
   neighborhoodId?: string;
   hiddenAuthorIds: string[];
   days?: number;
+  authorBreedCode?: string;
 }): Prisma.PostWhereInput {
   const since = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
   const typeFilter = type ? getEquivalentPostTypes(type) : null;
   const expandedExcludeTypes = expandExcludedPostTypes(excludeTypes);
+  const normalizedAuthorBreedCode = normalizeBreedCode(authorBreedCode);
+  const breedFilter = normalizedAuthorBreedCode
+    ? {
+        author: {
+          pets: {
+            some: {
+              breedCode: normalizedAuthorBreedCode,
+            },
+          },
+        },
+      }
+    : null;
 
   return {
     status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
@@ -530,6 +496,7 @@ function buildPostListWhere({
     ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
     ...(since ? { createdAt: { gte: since } } : {}),
     ...buildPostSearchWhere(q, searchIn),
+    ...(breedFilter ? { AND: [breedFilter] } : {}),
   };
 }
 
@@ -594,6 +561,7 @@ type PostListOptions = {
   neighborhoodId?: string;
   viewerId?: string;
   personalized?: boolean;
+  authorBreedCode?: string;
 };
 
 type BestPostListOptions = {
@@ -911,6 +879,35 @@ export async function getPostById(id?: string, viewerId?: string) {
   }
 }
 
+export async function getPostMetadataById(id?: string, viewerId?: string) {
+  if (!id) {
+    return null;
+  }
+
+  const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+  const visibilityFilter =
+    hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
+
+  return prisma.post.findFirst({
+    where: { id, ...visibilityFilter },
+    select: {
+      id: true,
+      type: true,
+      scope: true,
+      status: true,
+      title: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true,
+      images: {
+        select: { url: true },
+        orderBy: { order: "asc" },
+        take: 1,
+      },
+    },
+  });
+}
+
 export async function listPosts({
   cursor,
   limit: _limit,
@@ -925,6 +922,7 @@ export async function listPosts({
   neighborhoodId,
   viewerId,
   personalized,
+  authorBreedCode,
 }: PostListOptions) {
   const resolvedLimit = Math.min(Math.max(_limit, 1), FEED_PAGE_SIZE);
   const resolvedPage = Math.max(page ?? 1, 1);
@@ -945,6 +943,7 @@ export async function listPosts({
     neighborhoodId,
     hiddenAuthorIds,
     days,
+    authorBreedCode,
   });
   const orderBy: Prisma.PostOrderByWithRelationInput[] =
     resolvedSort === "LIKE"

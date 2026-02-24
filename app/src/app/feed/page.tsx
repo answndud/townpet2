@@ -20,12 +20,11 @@ import { postListSchema } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import {
   countBestPosts,
-  countPosts,
   listBestPosts,
   listPosts,
 } from "@/server/queries/post.queries";
 import { getPopularSearchTerms } from "@/server/queries/search.queries";
-import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
+import { getUserWithNeighborhoods, listPetsByUserId } from "@/server/queries/user.queries";
 
 type FeedMode = "ALL" | "BEST";
 type FeedSort = "LATEST" | "LIKE" | "COMMENT";
@@ -163,6 +162,14 @@ export default async function Home({ searchParams }: HomePageProps) {
     throw error;
   });
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
+  const viewerPets = user?.id
+    ? await listPetsByUserId(user.id).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return [];
+        }
+        throw error;
+      })
+    : [];
 
   const resolvedParams = (await searchParams) ?? {};
   await maybeDebugDelay(resolvedParams.debugDelayMs);
@@ -211,15 +218,16 @@ export default async function Home({ searchParams }: HomePageProps) {
       : undefined;
 
   const totalItemCount =
-    mode === "ALL" && !isGuestTypeBlocked
-      ? await countPosts({
+    mode === "BEST" && !isGuestTypeBlocked
+      ? await countBestPosts({
+          days: bestDays,
           type,
           scope: effectiveScope,
           q: query || undefined,
           searchIn: selectedSearchIn,
-          days: periodDays ?? undefined,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
           neighborhoodId,
+          minLikes: 1,
           viewerId: user?.id,
         }).catch((error) => {
           if (isDatabaseUnavailableError(error)) {
@@ -227,33 +235,15 @@ export default async function Home({ searchParams }: HomePageProps) {
           }
           throw error;
         })
-      : mode === "BEST" && !isGuestTypeBlocked
-        ? await countBestPosts({
-            days: bestDays,
-            type,
-            scope: effectiveScope,
-            q: query || undefined,
-            searchIn: selectedSearchIn,
-            excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
-            neighborhoodId,
-            minLikes: 1,
-            viewerId: user?.id,
-          }).catch((error) => {
-            if (isDatabaseUnavailableError(error)) {
-              return 0;
-            }
-            throw error;
-          })
-        : 0;
+      : 0;
 
-  const totalPages = Math.max(1, Math.ceil(totalItemCount / limit));
-  const resolvedPage = Math.min(currentPage, totalPages);
+  const totalPages = mode === "BEST" ? Math.max(1, Math.ceil(totalItemCount / limit)) : 1;
+  const resolvedPage = mode === "BEST" ? Math.min(currentPage, totalPages) : 1;
 
   const posts =
     mode === "ALL" && !isGuestTypeBlocked
       ? await listPosts({
           limit,
-          page: resolvedPage,
           type,
           scope: effectiveScope,
           q: query || undefined,
@@ -317,8 +307,25 @@ export default async function Home({ searchParams }: HomePageProps) {
     bestDays,
     periodDays ?? "ALL_TIME",
     query || "__EMPTY__",
-    resolvedPage,
+    mode === "BEST" ? resolvedPage : "CURSOR",
   ].join("|");
+  const primaryPet = viewerPets[0] ?? null;
+  const adAudienceKey = primaryPet?.breedCode?.trim()
+    ? primaryPet.breedCode.trim().toUpperCase()
+    : primaryPet?.species ?? null;
+  const adConfig =
+    mode === "ALL" && effectiveScope === PostScope.GLOBAL && adAudienceKey
+      ? {
+          audienceKey: adAudienceKey,
+          headline: `${primaryPet?.breedLabel?.trim() || adAudienceKey} 보호자를 위한 맞춤 공동구매`,
+          description:
+            "품종/체급에 맞춘 사료·간식·위생용품 공동구매 모집 글을 확인해 보세요. 광고는 세션/일 빈도 캡 정책으로 제한됩니다.",
+          ctaLabel: "맞춤 공동구매 보기",
+          ctaHref: "/feed?type=MARKET_LISTING&scope=GLOBAL",
+          sessionCap: 3,
+          dailyCap: 8,
+        }
+      : undefined;
   const initialFeedItems: FeedPostItem[] = items.map((post) => ({
     id: post.id,
     type: post.type,
@@ -350,8 +357,6 @@ export default async function Home({ searchParams }: HomePageProps) {
       : null,
     images: post.images.map((image) => ({
       id: image.id,
-      url: image.url,
-      order: image.order,
     })),
     reactions: post.reactions?.map((reaction) => ({ type: reaction.type })) ?? [],
   }));
@@ -394,7 +399,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     const resolvedPersonalized =
       nextPersonalized === undefined ? selectedPersonalized : nextPersonalized;
     const resolvedDensity = nextDensity === undefined ? density : nextDensity;
-    const effectivePage = nextPage === undefined ? resolvedPage : nextPage;
+    const effectivePage =
+      nextPage === undefined ? (resolvedMode === "BEST" ? resolvedPage : 1) : nextPage;
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
@@ -419,7 +425,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     } else if (resolvedMode === "ALL" && resolvedPeriod) {
       params.set("period", String(resolvedPeriod));
     }
-    if (effectivePage && effectivePage > 1) {
+    if (resolvedMode === "BEST" && effectivePage && effectivePage > 1) {
       params.set("page", String(effectivePage));
     }
 
@@ -1001,21 +1007,23 @@ export default async function Home({ searchParams }: HomePageProps) {
           ) : (
             <FeedInfiniteList
               initialItems={initialFeedItems}
-              initialNextCursor={null}
+              initialNextCursor={mode === "ALL" ? posts.nextCursor : null}
               mode={mode}
-              disableLoadMore
+              disableLoadMore={mode !== "ALL"}
               query={{
                 type,
                 scope: effectiveScope,
                 q: query || undefined,
                 searchIn: selectedSearchIn,
                 sort: selectedSort,
+                days: periodDays ?? undefined,
                 personalized: usePersonalizedFeed,
               }}
               queryKey={feedQueryKey}
+              adConfig={adConfig}
             />
           )}
-          {items.length > 0 && totalPages > 1 ? (
+          {mode === "BEST" && items.length > 0 && totalPages > 1 ? (
             <div className="flex flex-wrap items-center justify-center gap-1.5 border-t border-[#dbe6f6] bg-[#f8fbff] px-3 py-3">
               <Link
                 href={makeHref({ nextPage: Math.max(1, resolvedPage - 1) })}

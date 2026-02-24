@@ -109,6 +109,14 @@ export const postListSchema = z.object({
   q: z.string().min(1).max(100).optional(),
   searchIn: z.enum(["ALL", "TITLE", "CONTENT", "AUTHOR"]).optional(),
   sort: z.enum(["LATEST", "LIKE", "COMMENT"]).optional(),
+  days: z
+    .coerce
+    .number()
+    .int()
+    .refine((value) => value === 3 || value === 7 || value === 30, {
+      message: "days must be one of 3, 7, 30",
+    })
+    .optional(),
   personalized: z
     .preprocess((value) => {
       if (typeof value === "string") {

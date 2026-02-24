@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PostType } from "@prisma/client";
+import { cache } from "react";
 
+import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
@@ -20,7 +22,7 @@ import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
 import { listComments } from "@/server/queries/comment.queries";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
-import { getPostById } from "@/server/queries/post.queries";
+import { getPostById, getPostMetadataById } from "@/server/queries/post.queries";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { getClientIp } from "@/server/request-context";
@@ -29,6 +31,8 @@ import { registerPostView } from "@/server/services/post.service";
 type PostDetailPageProps = {
   params?: Promise<{ id?: string }>;
 };
+
+const getCachedPostById = cache((id?: string, viewerId?: string) => getPostById(id, viewerId));
 
 function buildExcerpt(text: string, maxLength = 160) {
   const normalized = text.replace(/\s+/g, " ").trim();
@@ -42,7 +46,7 @@ export async function generateMetadata({
   params,
 }: PostDetailPageProps): Promise<Metadata> {
   const resolvedParams = (await params) ?? {};
-  const post = await getPostById(resolvedParams.id);
+  const post = await getPostMetadataById(resolvedParams.id);
   if (!post) {
     return {
       title: "게시글을 찾을 수 없습니다",
@@ -167,7 +171,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const user = userId ? await getUserWithNeighborhoods(userId) : null;
 
   const [post, loginRequiredTypes] = await Promise.all([
-    getPostById(resolvedParams.id, user?.id),
+    getCachedPostById(resolvedParams.id, user?.id),
     getGuestReadLoginRequiredPostTypes(),
   ]);
 
@@ -236,17 +240,15 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const postUrl = toAbsoluteUrl(`/posts/${post.id}`);
   const meta = typeMeta[post.type];
   const requestHeaders = await headers();
-  const didCountView = await registerPostView({
+  void registerPostView({
     postId: post.id,
     userId: user?.id,
     clientIp: getClientIp(requestHeaders),
     userAgent: requestHeaders.get("user-agent") ?? undefined,
-  });
+  }).catch(() => undefined);
   const safeViewCount = Number.isFinite(post.viewCount)
-    ? Number(post.viewCount) + (didCountView ? 1 : 0)
-    : didCountView
-      ? 1
-      : 0;
+    ? Number(post.viewCount)
+    : 0;
   const safeLikeCount = Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0;
   const safeDislikeCount = Number.isFinite(post.dislikeCount)
     ? Number(post.dislikeCount)
@@ -297,16 +299,13 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           __html: JSON.stringify(structuredData),
         }}
       />
-      <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
-        <Link
-          href="/feed"
+      <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-4 px-4 py-5 sm:gap-5 sm:px-6 sm:py-6 lg:px-8">
+        <BackToFeedButton
           className="inline-flex w-fit items-center rounded-sm border border-[#bfd0ec] bg-white px-3.5 py-2 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-        >
-          목록으로
-        </Link>
+        />
 
         <div>
-          <section className="rounded-md border border-[#c8d7ef] bg-white p-5 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-7">
+          <section className="rounded-md border border-[#c8d7ef] bg-white p-4 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-7">
             {post.status === "HIDDEN" ? (
               <div className="mb-5 border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 신고 누적으로 숨김 처리된 게시물입니다. 관리자 검토 후 다시 공개될 수 있습니다.
@@ -327,37 +326,45 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               ) : null}
             </div>
 
-            <div className="mt-4 grid gap-4 border-b border-[#e0e9f5] pb-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
+            <div className="mt-3 grid gap-3 border-b border-[#e0e9f5] pb-4 md:mt-4 md:gap-4 md:pb-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
               <div>
-                <h1 className="text-[32px] font-bold leading-tight tracking-[-0.01em] text-[#10284a] sm:text-[42px]">
+                <h1 className="text-[26px] font-bold leading-tight tracking-[-0.01em] text-[#10284a] sm:text-[42px]">
                   {post.title}
                 </h1>
               </div>
               <div className="text-sm text-[#4f678d] md:text-right">
-                <p className="font-semibold text-[#1f3f71]">
-                  {isGuestPost ? (
-                    <span>
-                      {displayAuthorName}
-                      {guestIpMeta.guestIpDisplay
-                        ? ` (${guestIpMeta.guestIpLabel ?? "아이피"} ${guestIpMeta.guestIpDisplay})`
-                        : ""}
-                    </span>
-                  ) : (
-                    <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
-                      {displayAuthorName}
-                    </Link>
-                  )}
+                <div className="flex items-start justify-between gap-3 md:flex-col md:items-end">
+                  <p className="font-semibold text-[#1f3f71]">
+                    {isGuestPost ? (
+                      <span>
+                        {displayAuthorName}
+                        {guestIpMeta.guestIpDisplay
+                          ? ` (${guestIpMeta.guestIpLabel ?? "아이피"} ${guestIpMeta.guestIpDisplay})`
+                          : ""}
+                      </span>
+                    ) : (
+                      <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                        {displayAuthorName}
+                      </Link>
+                    )}
+                  </p>
+                  <p className="text-[12px] text-[#5a759c]">{formatRelativeDate(post.createdAt)}</p>
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-[#5f7da8] md:justify-end">
+                  <span>조회 {safeViewCount.toLocaleString()}</span>
+                  <span>좋아요 {safeLikeCount.toLocaleString()}</span>
+                  <span>싫어요 {safeDislikeCount.toLocaleString()}</span>
+                  <span>댓글 {safeCommentCount.toLocaleString()}</span>
                 </p>
-                <p className="mt-1 text-[13px]">{formatRelativeDate(post.createdAt)}</p>
-                <p className="mt-1 text-[11px] text-[#6b84ab] leading-5">
-                  {post.createdAt.toLocaleDateString("ko-KR")} · {post.scope === "LOCAL" ? "동네" : "온동네"} ·{" "}
-                  {post.neighborhood ? `${post.neighborhood.city} ${post.neighborhood.name}` : "전체"}
-                </p>
-                <p className="mt-2 text-[11px] font-medium text-[#5f7da8] leading-5">
-                  조회 {safeViewCount.toLocaleString()} · 좋아요 {safeLikeCount.toLocaleString()} · 싫어요 {safeDislikeCount.toLocaleString()} · 댓글 {safeCommentCount.toLocaleString()}
-                </p>
+                <details className="mt-1 text-[11px] text-[#6b84ab] md:text-right">
+                  <summary className="cursor-pointer list-none font-semibold text-[#5878a2]">상세 정보</summary>
+                  <p className="mt-1 leading-5">
+                    {post.createdAt.toLocaleDateString("ko-KR")} · {post.scope === "LOCAL" ? "동네" : "온동네"} ·{" "}
+                    {post.neighborhood ? `${post.neighborhood.city} ${post.neighborhood.name}` : "전체"}
+                  </p>
+                </details>
                 {canInteract && !isAuthor ? (
-                  <div className="mt-3 md:flex md:justify-end">
+                  <div className="mt-2 md:flex md:justify-end">
                     <UserRelationControls
                       targetUserId={post.authorId}
                       initialState={relationState}
@@ -368,7 +375,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </div>
             </div>
 
-            <section className="mt-4 rounded-sm border border-[#dbe6f6] bg-[#fcfdff] px-4 py-4 sm:px-5">
+            <section className="mt-3 rounded-sm border border-[#dbe6f6] bg-[#fcfdff] px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
               <h2 className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-[#4f6f9f]">
                 내용
               </h2>
@@ -405,9 +412,9 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
               </article>
             </section>
 
-            <div className="mt-4 space-y-3 border-b border-[#e0e9f5] pb-4">
-              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-3 py-3">
-                <div className="flex flex-col items-center gap-2">
+            <div className="mt-3 space-y-2 border-b border-[#e0e9f5] pb-3 sm:mt-4 sm:space-y-3 sm:pb-4">
+              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2.5 py-2.5 sm:px-3 sm:py-3">
+                <div className="flex items-center justify-between gap-2">
                   <PostReactionControls
                     postId={post.id}
                     likeCount={safeLikeCount}
@@ -420,15 +427,31 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 </div>
               </div>
               {isAuthor ? (
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Link
-                    href={`/posts/${post.id}/edit`}
-                    className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-                  >
-                    수정
-                  </Link>
-                  <PostDetailActions postId={post.id} />
-                </div>
+                <>
+                  <div className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
+                    <Link
+                      href={`/posts/${post.id}/edit`}
+                      className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+                    >
+                      수정
+                    </Link>
+                    <PostDetailActions postId={post.id} />
+                  </div>
+                  <details className="sm:hidden">
+                    <summary className="inline-flex h-8 items-center rounded-sm border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484]">
+                      글 관리
+                    </summary>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2">
+                      <Link
+                        href={`/posts/${post.id}/edit`}
+                        className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484]"
+                      >
+                        수정
+                      </Link>
+                      <PostDetailActions postId={post.id} />
+                    </div>
+                  </details>
+                </>
               ) : null}
               {!canInteract && isGuestPost ? (
                 <GuestPostDetailActions postId={post.id} />

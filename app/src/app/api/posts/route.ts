@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       q: searchParams.get("q") ?? undefined,
       searchIn: searchParams.get("searchIn") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,
+      days: searchParams.get("period") ?? searchParams.get("days") ?? undefined,
       personalized: searchParams.get("personalized") ?? undefined,
     });
 

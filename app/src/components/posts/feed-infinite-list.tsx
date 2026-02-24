@@ -48,8 +48,6 @@ export type FeedPostItem = {
   } | null;
   images: Array<{
     id: string;
-    url: string;
-    order: number;
   }>;
   reactions?: Array<{
     type: FeedReactionType;
@@ -62,6 +60,7 @@ type FeedQueryParams = {
   q?: string;
   searchIn?: FeedSearchIn;
   sort?: FeedSort;
+  days?: 3 | 7 | 30;
   personalized?: boolean;
 };
 
@@ -88,11 +87,22 @@ type FeedInfiniteListProps = {
   query: FeedQueryParams;
   queryKey: string;
   disableLoadMore?: boolean;
+  adConfig?: {
+    audienceKey: string;
+    headline: string;
+    description: string;
+    ctaLabel: string;
+    ctaHref: string;
+    sessionCap: number;
+    dailyCap: number;
+  };
 };
 
 const SCROLL_RESTORE_TTL_MS = 30 * 60 * 1000;
 const READ_POSTS_STORAGE_KEY = "feed:read-posts:v1";
 const MAX_READ_POSTS = 500;
+const AD_DAILY_STORAGE_KEY = "feed:ad-impressions:daily:v1";
+const AD_SESSION_STORAGE_KEY = "feed:ad-impressions:session:v1";
 
 type StoredReadPost = {
   id: string;
@@ -156,6 +166,7 @@ export function FeedInfiniteList({
   query,
   queryKey,
   disableLoadMore = false,
+  adConfig,
 }: FeedInfiniteListProps) {
   const [items, setItems] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
@@ -166,6 +177,7 @@ export function FeedInfiniteList({
   const restoreDoneRef = useRef(false);
   const scrollStorageKey = useMemo(() => `feed:scroll:${queryKey}`, [queryKey]);
   const [relativeNow, setRelativeNow] = useState<number | null>(null);
+  const [showAdSlot, setShowAdSlot] = useState(false);
 
   useEffect(() => {
     setItems(initialItems);
@@ -174,6 +186,56 @@ export function FeedInfiniteList({
     setLoadError(null);
     restoreDoneRef.current = false;
   }, [queryKey, initialItems, initialNextCursor]);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !adConfig ||
+      mode !== "ALL" ||
+      initialItems.length < 5
+    ) {
+      setShowAdSlot(false);
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const dailyRaw = window.localStorage.getItem(AD_DAILY_STORAGE_KEY);
+    const sessionRaw = window.sessionStorage.getItem(AD_SESSION_STORAGE_KEY);
+
+    let daily: Record<string, { date: string; count: number }> = {};
+    let session: Record<string, number> = {};
+
+    try {
+      daily = dailyRaw ? (JSON.parse(dailyRaw) as Record<string, { date: string; count: number }>) : {};
+    } catch {
+      daily = {};
+    }
+
+    try {
+      session = sessionRaw ? (JSON.parse(sessionRaw) as Record<string, number>) : {};
+    } catch {
+      session = {};
+    }
+
+    const dailyEntry = daily[adConfig.audienceKey];
+    const dailyCount = dailyEntry?.date === today ? dailyEntry.count : 0;
+    const sessionCount = session[adConfig.audienceKey] ?? 0;
+
+    if (dailyCount >= adConfig.dailyCap || sessionCount >= adConfig.sessionCap) {
+      setShowAdSlot(false);
+      return;
+    }
+
+    daily[adConfig.audienceKey] = {
+      date: today,
+      count: dailyCount + 1,
+    };
+    session[adConfig.audienceKey] = sessionCount + 1;
+
+    window.localStorage.setItem(AD_DAILY_STORAGE_KEY, JSON.stringify(daily));
+    window.sessionStorage.setItem(AD_SESSION_STORAGE_KEY, JSON.stringify(session));
+    setShowAdSlot(true);
+  }, [adConfig, initialItems.length, mode, queryKey]);
 
   useEffect(() => {
     setRelativeNow(Date.now());
@@ -324,6 +386,9 @@ export function FeedInfiniteList({
       if (query.sort && query.sort !== "LATEST") {
         params.set("sort", query.sort);
       }
+      if (query.days) {
+        params.set("period", String(query.days));
+      }
       if (query.personalized) {
         params.set("personalized", "1");
       }
@@ -368,6 +433,7 @@ export function FeedInfiniteList({
     query.searchIn,
     query.sort,
     query.type,
+    query.days,
     query.personalized,
   ]);
 
@@ -399,7 +465,7 @@ export function FeedInfiniteList({
   return (
     <>
       <div className="divide-y divide-[#e1e9f5]" data-testid="feed-post-list">
-        {items.map((post) => {
+        {items.map((post, index) => {
           const meta = postTypeMeta[post.type];
           const signals = getPostSignals({
             title: post.title,
@@ -408,76 +474,96 @@ export function FeedInfiniteList({
           });
 
           return (
-            <article
-              key={post.id}
-              data-testid="feed-post-item"
-              className={`grid gap-2 px-4 py-2.5 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_230px] md:items-center ${
-                post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
-              }`}
-            >
-              <div className="min-w-0">
-                <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[11px]">
-                  <span
-                    className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
-                  >
-                    <span>{meta.icon}</span>
-                    {meta.label}
-                  </span>
-                  <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                    {post.scope === "LOCAL" ? "동네" : "온동네"}
-                  </span>
-                  <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
-                    {post.neighborhood
-                      ? `${post.neighborhood.city} ${post.neighborhood.name}`
-                      : "전체"}
-                  </span>
-                  {post.status === "HIDDEN" ? (
-                    <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
-                      숨김
+            <div key={post.id}>
+              {showAdSlot && adConfig && index === 4 ? (
+                <article className="border-y border-[#d8e6fb] bg-[linear-gradient(180deg,#eef4ff_0%,#f7fbff_100%)] px-4 py-3 sm:px-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center border border-[#7aa5e6] bg-white px-2 py-0.5 text-[11px] font-semibold text-[#2f5da4]">
+                      광고
                     </span>
-                  ) : null}
+                    <span className="text-[11px] text-[#55749e]">맞춤 추천</span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-[#163764]">{adConfig.headline}</p>
+                  <p className="mt-1 text-xs leading-5 text-[#446792]">{adConfig.description}</p>
+                  <Link
+                    href={adConfig.ctaHref}
+                    className="mt-2 inline-flex items-center border border-[#3567b5] bg-[#3567b5] px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+                  >
+                    {adConfig.ctaLabel}
+                  </Link>
+                </article>
+              ) : null}
+              <article
+                data-testid="feed-post-item"
+                className={`grid gap-2 px-4 py-2.5 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_230px] md:items-center ${
+                  post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[11px]">
+                    <span
+                      className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
+                    >
+                      <span>{meta.icon}</span>
+                      {meta.label}
+                    </span>
+                    <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                      {post.scope === "LOCAL" ? "동네" : "온동네"}
+                    </span>
+                    <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
+                      {post.neighborhood
+                        ? `${post.neighborhood.city} ${post.neighborhood.name}`
+                        : "전체"}
+                    </span>
+                    {post.status === "HIDDEN" ? (
+                      <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
+                        숨김
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <Link
+                    href={`/posts/${post.id}`}
+                    prefetch={false}
+                    className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition ${
+                      readPostIds.has(post.id)
+                        ? "text-[#8c9db8] hover:text-[#7589a8]"
+                        : "text-[#10284a] hover:text-[#2f5da4]"
+                    } visited:text-[#8c9db8]`}
+                    onClick={() => markPostAsRead(post.id)}
+                  >
+                    <span className="truncate">{post.title}</span>
+                    <PostSignalIcons signals={signals} />
+                    {post.commentCount > 0 ? (
+                      <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
+                    ) : null}
+                  </Link>
                 </div>
 
-                <Link
-                  href={`/posts/${post.id}`}
-                  className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition ${
-                    readPostIds.has(post.id)
-                      ? "text-[#8c9db8] hover:text-[#7589a8]"
-                      : "text-[#10284a] hover:text-[#2f5da4]"
-                  } visited:text-[#8c9db8]`}
-                  onClick={() => markPostAsRead(post.id)}
-                >
-                  <span className="truncate">{post.title}</span>
-                  <PostSignalIcons signals={signals} />
-                  {post.commentCount > 0 ? (
-                    <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
-                  ) : null}
-                </Link>
-              </div>
-
-              <div className="text-xs text-[#4f678d] md:text-right">
-                <p className="font-semibold text-[#1f3f71]">
-                  {post.guestDisplayName ? (
-                    <span>
-                      {post.guestDisplayName}
-                      {post.guestIpDisplay ? ` (${post.guestIpLabel ?? "아이피"} ${post.guestIpDisplay})` : ""}
-                    </span>
-                  ) : (
-                    <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
-                      {post.author.nickname ?? post.author.name ?? "익명"}
-                    </Link>
-                  )}
-                </p>
-                <p className="mt-0.5">
-                  {relativeNow === null
-                    ? getStableDateLabel(post.createdAt)
-                    : formatRelativeDate(post.createdAt, relativeNow)}
-                </p>
-                <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
-                  조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
-                </p>
-              </div>
-            </article>
+                <div className="text-xs text-[#4f678d] md:text-right">
+                  <p className="font-semibold text-[#1f3f71]">
+                    {post.guestDisplayName ? (
+                      <span>
+                        {post.guestDisplayName}
+                        {post.guestIpDisplay ? ` (${post.guestIpLabel ?? "아이피"} ${post.guestIpDisplay})` : ""}
+                      </span>
+                    ) : (
+                      <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
+                        {post.author.nickname ?? post.author.name ?? "익명"}
+                      </Link>
+                    )}
+                  </p>
+                  <p className="mt-0.5">
+                    {relativeNow === null
+                      ? getStableDateLabel(post.createdAt)
+                      : formatRelativeDate(post.createdAt, relativeNow)}
+                  </p>
+                  <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
+                    조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
+                  </p>
+                </div>
+              </article>
+            </div>
           );
         })}
       </div>

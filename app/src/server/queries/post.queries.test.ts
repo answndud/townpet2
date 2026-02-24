@@ -143,6 +143,29 @@ describe("post queries", () => {
     expect(args.where.OR).toHaveLength(3);
   });
 
+  it("applies breed filter for breed lounge feed", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      authorBreedCode: "maltese",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.AND).toEqual([
+      {
+        author: {
+          pets: {
+            some: {
+              breedCode: "MALTESE",
+            },
+          },
+        },
+      },
+    ]);
+  });
+
   it("excludes configured post types for guest feeds", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
