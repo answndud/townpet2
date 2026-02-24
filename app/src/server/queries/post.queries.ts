@@ -233,8 +233,172 @@ const buildPostDetailIncludeWithoutReactions = () =>
     },
   }) as const;
 
+const LEGACY_POST_BASE_SELECT = {
+  id: true,
+  authorId: true,
+  neighborhoodId: true,
+  type: true,
+  scope: true,
+  status: true,
+  title: true,
+  content: true,
+  viewCount: true,
+  likeCount: true,
+  dislikeCount: true,
+  commentCount: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const LEGACY_POST_RELATION_SELECT = {
+  author: { select: { id: true, name: true, nickname: true, image: true } },
+  neighborhood: {
+    select: { id: true, name: true, city: true, district: true },
+  },
+  hospitalReview: {
+    select: {
+      hospitalName: true,
+      totalCost: true,
+      waitTime: true,
+      rating: true,
+    },
+  },
+  placeReview: {
+    select: {
+      placeName: true,
+      placeType: true,
+      address: true,
+      isPetAllowed: true,
+      rating: true,
+    },
+  },
+  walkRoute: {
+    select: {
+      routeName: true,
+      distance: true,
+      duration: true,
+      difficulty: true,
+      hasStreetLights: true,
+      hasRestroom: true,
+      hasParkingLot: true,
+      safetyTags: true,
+    },
+  },
+  images: {
+    select: { id: true, url: true, order: true },
+    orderBy: { order: "asc" },
+  },
+} as const;
+
+const buildLegacyPostListSelect = (viewerId?: string) =>
+  ({
+    ...LEGACY_POST_BASE_SELECT,
+    ...LEGACY_POST_RELATION_SELECT,
+    reactions: {
+      where: {
+        userId: viewerId ?? NO_VIEWER_ID,
+      },
+      select: { type: true },
+    },
+  }) as const;
+
+const buildLegacyPostListSelectWithoutReactions = () =>
+  ({
+    ...LEGACY_POST_BASE_SELECT,
+    ...LEGACY_POST_RELATION_SELECT,
+  }) as const;
+
+const buildLegacyPostDetailSelect = (viewerId?: string) =>
+  ({
+    ...LEGACY_POST_BASE_SELECT,
+    ...LEGACY_POST_RELATION_SELECT,
+    hospitalReview: {
+      select: {
+        hospitalName: true,
+        totalCost: true,
+        waitTime: true,
+        rating: true,
+        treatmentType: true,
+      },
+    },
+    reactions: {
+      where: {
+        userId: viewerId ?? NO_VIEWER_ID,
+      },
+      select: { type: true },
+    },
+  }) as const;
+
+const buildLegacyPostDetailSelectWithoutReactions = () =>
+  ({
+    ...LEGACY_POST_BASE_SELECT,
+    ...LEGACY_POST_RELATION_SELECT,
+    hospitalReview: {
+      select: {
+        hospitalName: true,
+        totalCost: true,
+        waitTime: true,
+        rating: true,
+        treatmentType: true,
+      },
+    },
+  }) as const;
+
 function isUnknownReactionsIncludeError(error: unknown) {
   return error instanceof Error && error.message.includes("Unknown field `reactions`");
+}
+
+function isUnknownGuestPostColumnError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message;
+  return (
+    message.includes("guestDisplayName") ||
+    message.includes("guestIpDisplay") ||
+    message.includes("guestIpLabel") ||
+    message.includes("guestPasswordHash") ||
+    message.includes("guestIpHash") ||
+    message.includes("guestFingerprintHash") ||
+    message.includes("P2022")
+  );
+}
+
+type GuestMetaFields = {
+  guestDisplayName: string | null;
+  guestIpDisplay: string | null;
+  guestIpLabel: string | null;
+  guestPasswordHash: string | null;
+  guestIpHash: string | null;
+  guestFingerprintHash: string | null;
+};
+
+function withEmptyGuestPostMetaOne<T extends object>(item: T | null): (T & GuestMetaFields) | null {
+  if (!item) {
+    return null;
+  }
+  return {
+    ...item,
+    guestDisplayName: null,
+    guestIpDisplay: null,
+    guestIpLabel: null,
+    guestPasswordHash: null,
+    guestIpHash: null,
+    guestFingerprintHash: null,
+  };
+}
+
+function withEmptyGuestPostMeta<T extends object>(items: T[]): Array<T & GuestMetaFields> {
+  return items.map((item) => ({
+    ...item,
+    guestDisplayName: null,
+    guestIpDisplay: null,
+    guestIpLabel: null,
+    guestPasswordHash: null,
+    guestIpHash: null,
+    guestFingerprintHash: null,
+  }));
 }
 
 function supportsPostReactionsField() {
@@ -666,28 +830,62 @@ export async function getPostById(id?: string, viewerId?: string) {
     hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
 
   if (!supportsPostReactionsField()) {
-    const post = await prisma.post.findFirst({
-      where: { id, ...visibilityFilter },
-      include: buildPostDetailIncludeWithoutReactions(),
-    });
-    return withEmptyReactionsOne(post);
+    const post = await prisma.post
+      .findFirst({
+        where: { id, ...visibilityFilter },
+        include: buildPostDetailIncludeWithoutReactions(),
+      })
+      .catch(async (error) => {
+        if (!isUnknownGuestPostColumnError(error)) {
+          throw error;
+        }
+
+        return prisma.post.findFirst({
+          where: { id, ...visibilityFilter },
+          select: buildLegacyPostDetailSelectWithoutReactions(),
+        });
+      });
+    return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
   }
 
   try {
-    return await prisma.post.findFirst({
-      where: { id, ...visibilityFilter },
-      include: buildPostDetailInclude(viewerId),
-    });
+    return await prisma.post
+      .findFirst({
+        where: { id, ...visibilityFilter },
+        include: buildPostDetailInclude(viewerId),
+      })
+      .catch(async (error) => {
+        if (!isUnknownGuestPostColumnError(error)) {
+          throw error;
+        }
+
+        const post = await prisma.post.findFirst({
+          where: { id, ...visibilityFilter },
+          select: buildLegacyPostDetailSelect(viewerId),
+        });
+        return withEmptyGuestPostMetaOne(post);
+      });
   } catch (error) {
-    if (!isUnknownReactionsIncludeError(error)) {
+    if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestPostColumnError(error)) {
       throw error;
     }
 
-    const post = await prisma.post.findFirst({
-      where: { id, ...visibilityFilter },
-      include: buildPostDetailIncludeWithoutReactions(),
-    });
-    return withEmptyReactionsOne(post);
+    const post = await prisma.post
+      .findFirst({
+        where: { id, ...visibilityFilter },
+        include: buildPostDetailIncludeWithoutReactions(),
+      })
+      .catch(async (innerError) => {
+        if (!isUnknownGuestPostColumnError(innerError)) {
+          throw innerError;
+        }
+
+        return prisma.post.findFirst({
+          where: { id, ...visibilityFilter },
+          select: buildLegacyPostDetailSelectWithoutReactions(),
+        });
+      });
+    return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
   }
 }
 
@@ -758,11 +956,22 @@ export async function listPosts({
   };
 
   if (!supportsPostReactionsField()) {
-    const fallbackItems = await prisma.post.findMany({
-      ...baseArgs,
-      include: buildPostListIncludeWithoutReactions(),
-    });
-    const items = withEmptyReactions(fallbackItems);
+    const fallbackItems = await prisma.post
+      .findMany({
+        ...baseArgs,
+        include: buildPostListIncludeWithoutReactions(),
+      })
+      .catch(async (error) => {
+        if (!isUnknownGuestPostColumnError(error)) {
+          throw error;
+        }
+
+        return prisma.post.findMany({
+          ...baseArgs,
+          select: buildLegacyPostListSelectWithoutReactions(),
+        });
+      });
+    const items = withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
     let nextCursor: string | null = null;
     if (items.length > resolvedLimit) {
       const nextItem = items.pop();
@@ -778,15 +987,34 @@ export async function listPosts({
       include: buildPostListInclude(viewerId),
     })
     .catch(async (error) => {
-      if (!isUnknownReactionsIncludeError(error)) {
+      if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestPostColumnError(error)) {
         throw error;
       }
 
-      const fallbackItems = await prisma.post.findMany({
-        ...baseArgs,
-        include: buildPostListIncludeWithoutReactions(),
-      });
-      return withEmptyReactions(fallbackItems);
+      if (isUnknownGuestPostColumnError(error)) {
+        const legacyItems = await prisma.post.findMany({
+          ...baseArgs,
+          select: buildLegacyPostListSelect(viewerId),
+        });
+        return withEmptyGuestPostMeta(legacyItems);
+      }
+
+      const fallbackItems = await prisma.post
+        .findMany({
+          ...baseArgs,
+          include: buildPostListIncludeWithoutReactions(),
+        })
+        .catch(async (innerError) => {
+          if (!isUnknownGuestPostColumnError(innerError)) {
+            throw innerError;
+          }
+
+          return prisma.post.findMany({
+            ...baseArgs,
+            select: buildLegacyPostListSelectWithoutReactions(),
+          });
+        });
+      return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
     });
 
   let nextCursor: string | null = null;
@@ -857,11 +1085,22 @@ export async function listBestPosts({
   };
 
   if (!supportsPostReactionsField()) {
-    const fallbackItems = await prisma.post.findMany({
-      ...baseArgs,
-      include: buildPostListIncludeWithoutReactions(),
-    });
-    return withEmptyReactions(fallbackItems);
+    const fallbackItems = await prisma.post
+      .findMany({
+        ...baseArgs,
+        include: buildPostListIncludeWithoutReactions(),
+      })
+      .catch(async (error) => {
+        if (!isUnknownGuestPostColumnError(error)) {
+          throw error;
+        }
+
+        return prisma.post.findMany({
+          ...baseArgs,
+          select: buildLegacyPostListSelectWithoutReactions(),
+        });
+      });
+    return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
   }
 
   return prisma.post
@@ -870,15 +1109,34 @@ export async function listBestPosts({
       include: buildPostListInclude(viewerId),
     })
     .catch(async (error) => {
-      if (!isUnknownReactionsIncludeError(error)) {
+      if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestPostColumnError(error)) {
         throw error;
       }
 
-      const fallbackItems = await prisma.post.findMany({
-        ...baseArgs,
-        include: buildPostListIncludeWithoutReactions(),
-      });
-      return withEmptyReactions(fallbackItems);
+      if (isUnknownGuestPostColumnError(error)) {
+        const legacyItems = await prisma.post.findMany({
+          ...baseArgs,
+          select: buildLegacyPostListSelect(viewerId),
+        });
+        return withEmptyGuestPostMeta(legacyItems);
+      }
+
+      const fallbackItems = await prisma.post
+        .findMany({
+          ...baseArgs,
+          include: buildPostListIncludeWithoutReactions(),
+        })
+        .catch(async (innerError) => {
+          if (!isUnknownGuestPostColumnError(innerError)) {
+            throw innerError;
+          }
+
+          return prisma.post.findMany({
+            ...baseArgs,
+            select: buildLegacyPostListSelectWithoutReactions(),
+          });
+        });
+      return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
     });
 }
 
