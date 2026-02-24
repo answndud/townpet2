@@ -14,6 +14,7 @@ const ALLOWED_MIME_TYPES = new Map<string, string>([
 ]);
 
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const EXIF_STRIP_MIN_BYTES = 1 * 1024 * 1024;
 
 type SaveUploadedImageOptions = {
   maxSizeBytes?: number;
@@ -94,7 +95,9 @@ export async function saveUploadedImage(file: File, options?: SaveUploadedImageO
   }
 
   const outputBuffer =
-    file.type === "image/jpeg" ? stripJpegExif(rawBuffer) : rawBuffer;
+    file.type === "image/jpeg" && rawBuffer.byteLength >= EXIF_STRIP_MIN_BYTES
+      ? stripJpegExif(rawBuffer)
+      : rawBuffer;
 
   const filename = `${Date.now()}-${randomUUID()}.${extension}`;
   const isHostedRuntime = runtimeEnv.isProduction || process.env.VERCEL === "1";

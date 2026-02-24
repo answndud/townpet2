@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
+import { upload } from "@vercel/blob/client";
 
 type UploadResponse = {
   ok: boolean;
@@ -30,6 +31,8 @@ type FailedUploadItem = {
 };
 
 const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
+const MAX_CLIENT_IMAGE_SIDE = 1920;
+const MAX_PARALLEL_UPLOADS = 3;
 
 function getGuestFingerprint() {
   if (typeof window === "undefined") {
@@ -67,6 +70,82 @@ function formatFileSize(bytes: number) {
   return `${(kb / 1024).toFixed(1)}MB`;
 }
 
+function normalizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+async function compressImageForUpload(file: File) {
+  if (typeof window === "undefined") {
+    return file;
+  }
+  if (file.type === "image/gif" || file.size < 300 * 1024) {
+    return file;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("이미지 디코딩에 실패했습니다."));
+      img.src = objectUrl;
+    });
+
+    const maxSide = Math.max(image.width, image.height);
+    const scale = maxSide > MAX_CLIENT_IMAGE_SIDE ? MAX_CLIENT_IMAGE_SIDE / maxSide : 1;
+    const targetWidth = Math.max(1, Math.round(image.width * scale));
+    const targetHeight = Math.max(1, Math.round(image.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return file;
+    }
+
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", 0.82);
+    });
+
+    if (!blob || blob.size >= file.size) {
+      return file;
+    }
+
+    const baseName = normalizeFileName(file.name.replace(/\.[^.]+$/, ""));
+    return new File([blob], `${baseName || "image"}.webp`, {
+      type: "image/webp",
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function runWithConcurrency<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number,
+) {
+  const results: T[] = new Array(tasks.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, tasks.length)) }).map(async () => {
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= tasks.length) {
+        return;
+      }
+      results[index] = await tasks[index]!();
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export function ImageUploadField({
   value,
   onChange,
@@ -98,23 +177,39 @@ export function ImageUploadField({
   };
 
   const uploadSingleFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
+    try {
+      const preparedFile = await compressImageForUpload(file);
+      const safeName = normalizeFileName(preparedFile.name);
+      const pathname = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
 
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      headers: {
-        "x-guest-fingerprint": getGuestFingerprint(),
-      },
-      body: formData,
-    });
+      const result = await upload(pathname, preparedFile, {
+        access: "public",
+        handleUploadUrl: "/api/upload/client",
+        headers: {
+          "x-guest-fingerprint": getGuestFingerprint(),
+        },
+      });
 
-    const payload = (await response.json()) as UploadResponse;
-    if (!response.ok || !payload.ok || !payload.data?.url) {
-      throw new Error(payload.error?.message ?? "이미지 업로드에 실패했습니다.");
+      return result.url;
+    } catch {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "x-guest-fingerprint": getGuestFingerprint(),
+        },
+        body: formData,
+      });
+
+      const payload = (await response.json()) as UploadResponse;
+      if (!response.ok || !payload.ok || !payload.data?.url) {
+        throw new Error(payload.error?.message ?? "이미지 업로드에 실패했습니다.");
+      }
+
+      return payload.data.url;
     }
-
-    return payload.data.url;
   };
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -137,22 +232,35 @@ export function ImageUploadField({
 
     setIsUploading(true);
 
-    const nextUrls = [...valueRef.current];
-    const failedItems: FailedUploadItem[] = [];
-
-    try {
-      for (const file of targetFiles) {
+    const uploadResults = await runWithConcurrency(
+      targetFiles.map((file) => async () => {
         try {
           const url = await uploadSingleFile(file);
-          nextUrls.push(url);
+          return { ok: true as const, file, url };
         } catch (uploadError) {
-          failedItems.push({
-            id: buildUploadId(),
+          return {
+            ok: false as const,
             file,
             message: formatUploadError(uploadError),
-          });
+          };
         }
-      }
+      }),
+      MAX_PARALLEL_UPLOADS,
+    );
+
+    try {
+      const succeededUrls = uploadResults
+        .filter((result): result is { ok: true; file: File; url: string } => result.ok)
+        .map((result) => result.url);
+      const failedItems = uploadResults
+        .filter((result): result is { ok: false; file: File; message: string } => !result.ok)
+        .map((result) => ({
+          id: buildUploadId(),
+          file: result.file,
+          message: result.message,
+        }));
+
+      const nextUrls = [...valueRef.current, ...succeededUrls];
 
       if (nextUrls.length !== valueRef.current.length) {
         onChange(nextUrls);
@@ -226,26 +334,41 @@ export function ImageUploadField({
     try {
       const nextUrls = [...valueRef.current];
       const retryTargets = [...failedUploads];
-      const nextFailed: FailedUploadItem[] = [];
       let availableSlots = Math.max(0, maxFiles - nextUrls.length);
+      const executableTargets = retryTargets.slice(0, availableSlots);
+      const skippedTargets = retryTargets.slice(availableSlots);
 
-      for (const target of retryTargets) {
-        if (availableSlots <= 0) {
-          nextFailed.push(target);
-          continue;
-        }
+      const retryResults = await runWithConcurrency(
+        executableTargets.map((target) => async () => {
+          try {
+            const url = await uploadSingleFile(target.file);
+            return { ok: true as const, target, url };
+          } catch (uploadError) {
+            return {
+              ok: false as const,
+              target,
+              message: formatUploadError(uploadError),
+            };
+          }
+        }),
+        MAX_PARALLEL_UPLOADS,
+      );
 
-        try {
-          const url = await uploadSingleFile(target.file);
-          nextUrls.push(url);
+      for (const result of retryResults) {
+        if (result.ok) {
+          nextUrls.push(result.url);
           availableSlots -= 1;
-        } catch (uploadError) {
-          nextFailed.push({
-            ...target,
-            message: formatUploadError(uploadError),
-          });
         }
       }
+
+      const retryFailed = retryResults
+        .filter((result): result is { ok: false; target: FailedUploadItem; message: string } => !result.ok)
+        .map((result) => ({
+          ...result.target,
+          message: result.message,
+        }));
+
+      const nextFailed: FailedUploadItem[] = [...retryFailed, ...skippedTargets];
 
       if (nextUrls.length !== valueRef.current.length) {
         onChange(nextUrls);
