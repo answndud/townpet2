@@ -20,7 +20,7 @@ describe("evaluateNewUserPostWritePolicy", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.remainingHours).toBe(15);
-    expect(result.message).toContain("마켓");
+    expect(result.message).toContain("중고/공동구매");
   });
 
   it("allows unrestricted categories for new users", () => {

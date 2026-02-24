@@ -170,6 +170,48 @@ describe("post queries", () => {
     expect(mockPrisma.post.findMany).not.toHaveBeenCalled();
   });
 
+  it("treats QA filter as grouped type filter", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      type: PostType.QA_QUESTION,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.type).toEqual({
+      in: [PostType.QA_QUESTION, PostType.QA_ANSWER],
+    });
+  });
+
+  it("expands grouped exclusions for guest feed", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      excludeTypes: [PostType.QA_QUESTION],
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.type).toEqual({
+      notIn: [PostType.QA_QUESTION, PostType.QA_ANSWER],
+    });
+  });
+
+  it("returns empty when grouped type is fully excluded", async () => {
+    const result = await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      type: PostType.QA_ANSWER,
+      excludeTypes: [PostType.QA_QUESTION],
+    });
+
+    expect(result).toEqual({ items: [], nextCursor: null });
+    expect(mockPrisma.post.findMany).not.toHaveBeenCalled();
+  });
+
   it("reorders feed with pet personalization when enabled", async () => {
     mockPrisma.post.findMany.mockResolvedValue([
       {

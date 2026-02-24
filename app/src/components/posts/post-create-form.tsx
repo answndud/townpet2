@@ -63,13 +63,15 @@ type PostCreateFormState = {
 
 const postTypeOptions = [
   { value: PostType.FREE_BOARD, label: "자유게시판" },
-  { value: PostType.DAILY_SHARE, label: "일상공유" },
-  { value: PostType.PET_SHOWCASE, label: "내 반려동물 자랑" },
-  { value: PostType.MEETUP, label: "번개" },
-  { value: PostType.WALK_ROUTE, label: "산책로" },
-  { value: PostType.PLACE_REVIEW, label: "장소 리뷰" },
-  { value: PostType.PRODUCT_REVIEW, label: "제품리뷰" },
-  { value: PostType.HOSPITAL_REVIEW, label: "병원 리뷰" },
+  { value: PostType.QA_QUESTION, label: "질문/답변" },
+  { value: PostType.HOSPITAL_REVIEW, label: "병원후기" },
+  { value: PostType.WALK_ROUTE, label: "산책코스" },
+  { value: PostType.LOST_FOUND, label: "실종/목격 제보" },
+  { value: PostType.MEETUP, label: "동네모임" },
+  { value: PostType.MARKET_LISTING, label: "중고/공동구매" },
+  { value: PostType.PLACE_REVIEW, label: "장소후기" },
+  { value: PostType.PRODUCT_REVIEW, label: "용품리뷰" },
+  { value: PostType.PET_SHOWCASE, label: "반려자랑" },
 ];
 
 const scopeOptions = [

@@ -11,19 +11,19 @@ export const NEW_USER_RESTRICTED_POST_TYPES: ReadonlyArray<PostType> =
   DEFAULT_NEW_USER_RESTRICTED_POST_TYPES;
 
 const restrictedTypeLabels: Record<PostType, string> = {
-  HOSPITAL_REVIEW: "병원 리뷰",
-  PLACE_REVIEW: "장소 리뷰",
-  WALK_ROUTE: "산책로",
-  MEETUP: "번개",
-  MARKET_LISTING: "마켓",
-  LOST_FOUND: "실종/발견",
-  QA_QUESTION: "질문",
-  QA_ANSWER: "답변",
-  FREE_POST: "자유",
+  HOSPITAL_REVIEW: "병원후기",
+  PLACE_REVIEW: "장소후기",
+  WALK_ROUTE: "산책코스",
+  MEETUP: "동네모임",
+  MARKET_LISTING: "중고/공동구매",
+  LOST_FOUND: "실종/목격 제보",
+  QA_QUESTION: "질문/답변",
+  QA_ANSWER: "질문/답변",
+  FREE_POST: "자유게시판",
   FREE_BOARD: "자유게시판",
-  DAILY_SHARE: "일상공유",
-  PRODUCT_REVIEW: "제품리뷰",
-  PET_SHOWCASE: "반려동물 자랑",
+  DAILY_SHARE: "자유게시판",
+  PRODUCT_REVIEW: "용품리뷰",
+  PET_SHOWCASE: "반려자랑",
 };
 
 type EvaluateNewUserPostWritePolicyParams = {

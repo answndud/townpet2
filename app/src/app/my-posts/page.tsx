@@ -7,6 +7,7 @@ import { PostSignalIcons } from "@/components/posts/post-signal-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { getPostSignals } from "@/lib/post-presenter";
+import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
 import { postListSchema } from "@/lib/validations/post";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
@@ -20,19 +21,19 @@ type MyPostsPageProps = {
 };
 
 const typeLabels: Record<PostType, string> = {
-  HOSPITAL_REVIEW: "병원",
-  PLACE_REVIEW: "장소",
-  WALK_ROUTE: "산책",
-  MEETUP: "번개",
-  MARKET_LISTING: "마켓",
-  LOST_FOUND: "실종",
-  QA_QUESTION: "Q&A",
-  QA_ANSWER: "답변",
-  FREE_POST: "자유",
+  HOSPITAL_REVIEW: "병원후기",
+  PLACE_REVIEW: "장소후기",
+  WALK_ROUTE: "산책코스",
+  MEETUP: "동네모임",
+  MARKET_LISTING: "중고/공동구매",
+  LOST_FOUND: "실종/목격 제보",
+  QA_QUESTION: "질문/답변",
+  QA_ANSWER: "질문/답변",
+  FREE_POST: "자유게시판",
   FREE_BOARD: "자유게시판",
-  DAILY_SHARE: "일상공유",
-  PRODUCT_REVIEW: "제품리뷰",
-  PET_SHOWCASE: "반려동물 자랑",
+  DAILY_SHARE: "자유게시판",
+  PRODUCT_REVIEW: "용품리뷰",
+  PET_SHOWCASE: "반려자랑",
 };
 
 function formatRelativeDate(date: Date) {
@@ -153,7 +154,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
 
               <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                  카테고리
+                  주요 게시판
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
@@ -166,7 +167,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
                   >
                     전체
                   </Link>
-                  {Object.values(PostType).map((value) => (
+                  {PRIMARY_POST_TYPES.map((value) => (
                     <Link
                       key={value}
                       href={makeHref({ nextType: value })}
@@ -179,6 +180,26 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
                       {typeLabels[value]}
                     </Link>
                   ))}
+                </div>
+                <div className="mt-3 border-t border-[#dbe6f6] pt-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                    추가 게시판
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {SECONDARY_POST_TYPES.map((value) => (
+                      <Link
+                        key={value}
+                        href={makeHref({ nextType: value })}
+                        className={`border px-3 py-1 text-xs font-medium transition ${
+                          type === value
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        {typeLabels[value]}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

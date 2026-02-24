@@ -15,6 +15,7 @@ import { auth } from "@/lib/auth";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { postTypeMeta } from "@/lib/post-presenter";
+import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
 import { postListSchema } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import {
@@ -48,14 +49,6 @@ const SEARCH_IN_LABEL: Record<FeedSearchIn, string> = {
   CONTENT: "내용",
   AUTHOR: "작성자",
 };
-
-const PRIMARY_CATEGORY_TYPES: PostType[] = [
-  PostType.FREE_POST,
-  PostType.HOSPITAL_REVIEW,
-  PostType.PLACE_REVIEW,
-  PostType.WALK_ROUTE,
-  PostType.QA_QUESTION,
-];
 
 export const metadata: Metadata = {
   title: "피드",
@@ -303,9 +296,7 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   const items = mode === "BEST" ? bestItems : posts.items;
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
-  const secondaryCategoryTypes = Object.values(PostType).filter(
-    (value) => !PRIMARY_CATEGORY_TYPES.includes(value),
-  );
+  const secondaryCategoryTypes = SECONDARY_POST_TYPES;
   const feedTitle = type ? `${postTypeMeta[type].label} 게시판` : "전체 게시판";
   const scopeLabel = effectiveScope === PostScope.LOCAL ? "동네" : "온동네";
   const modeLabel = mode === "BEST" ? "베스트글" : "전체글";
@@ -346,9 +337,9 @@ export default async function Home({ searchParams }: HomePageProps) {
       nickname: post.author.nickname,
       image: post.author.image,
     },
-    guestDisplayName: post.guestDisplayName,
-    guestIpDisplay: post.guestIpDisplay,
-    guestIpLabel: post.guestIpLabel,
+    guestDisplayName: (post as { guestDisplayName?: string | null }).guestDisplayName ?? null,
+    guestIpDisplay: (post as { guestIpDisplay?: string | null }).guestIpDisplay ?? null,
+    guestIpLabel: (post as { guestIpLabel?: string | null }).guestIpLabel ?? null,
     neighborhood: post.neighborhood
       ? {
           id: post.neighborhood.id,
@@ -691,7 +682,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                   </div>
                   <div className="border border-[#dbe6f6] bg-white p-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">분류</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">주요 게시판</p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
                         href={makeHref({ nextType: null, nextPage: 1 })}
@@ -703,7 +694,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                       >
                         전체
                       </Link>
-                      {PRIMARY_CATEGORY_TYPES.map((value) => {
+                      {PRIMARY_POST_TYPES.map((value) => {
                         const isRestricted =
                           !isAuthenticated &&
                           isLoginRequiredPostType(value, loginRequiredTypes);
@@ -859,7 +850,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 }
               >
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                  분류
+                  주요 게시판
                 </div>
                 <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                   <Link
@@ -872,7 +863,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                   >
                     전체
                   </Link>
-                  {PRIMARY_CATEGORY_TYPES.map((value) => {
+                  {PRIMARY_POST_TYPES.map((value) => {
                     const isRestricted =
                       !isAuthenticated &&
                       isLoginRequiredPostType(value, loginRequiredTypes);
@@ -895,7 +886,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
                 <div className="mt-2 border-t border-[#dbe6f6] pt-2">
                   <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                    기타
+                    추가 게시판
                   </p>
                   <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                     {secondaryCategoryTypes.map((value) => {

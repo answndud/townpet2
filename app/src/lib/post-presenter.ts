@@ -9,47 +9,47 @@ export const postTypeMeta: Record<
   { label: string; chipClass: string; icon: string }
 > = {
   HOSPITAL_REVIEW: {
-    label: "병원",
+    label: "병원후기",
     chipClass: "border-sky-200 bg-sky-50 text-sky-700",
     icon: "H",
   },
   PLACE_REVIEW: {
-    label: "장소",
+    label: "장소후기",
     chipClass: "border-blue-200 bg-blue-50 text-blue-700",
     icon: "P",
   },
   WALK_ROUTE: {
-    label: "산책",
+    label: "산책코스",
     chipClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
     icon: "W",
   },
   MEETUP: {
-    label: "번개",
+    label: "동네모임",
     chipClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
     icon: "M",
   },
   MARKET_LISTING: {
-    label: "마켓",
+    label: "중고/공동구매",
     chipClass: "border-slate-300 bg-slate-100 text-slate-700",
     icon: "K",
   },
   LOST_FOUND: {
-    label: "실종",
+    label: "실종/목격 제보",
     chipClass: "border-rose-200 bg-rose-50 text-rose-700",
     icon: "L",
   },
   QA_QUESTION: {
-    label: "Q&A",
+    label: "질문/답변",
     chipClass: "border-teal-200 bg-teal-50 text-teal-700",
     icon: "Q",
   },
   QA_ANSWER: {
-    label: "답변",
+    label: "질문/답변",
     chipClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
     icon: "A",
   },
   FREE_POST: {
-    label: "자유",
+    label: "자유게시판",
     chipClass: "border-zinc-300 bg-zinc-100 text-zinc-700",
     icon: "F",
   },
@@ -59,17 +59,17 @@ export const postTypeMeta: Record<
     icon: "B",
   },
   DAILY_SHARE: {
-    label: "일상공유",
+    label: "자유게시판",
     chipClass: "border-slate-300 bg-slate-100 text-slate-700",
     icon: "D",
   },
   PRODUCT_REVIEW: {
-    label: "제품리뷰",
+    label: "용품리뷰",
     chipClass: "border-blue-200 bg-blue-50 text-blue-700",
     icon: "R",
   },
   PET_SHOWCASE: {
-    label: "반려동물 자랑",
+    label: "반려자랑",
     chipClass: "border-sky-200 bg-sky-50 text-sky-700",
     icon: "S",
   },

@@ -8,6 +8,10 @@ import {
 
 import { prisma } from "@/lib/prisma";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
+import {
+  expandExcludedPostTypes,
+  getEquivalentPostTypes,
+} from "@/lib/post-type-groups";
 import { logger, serializeError } from "@/server/logger";
 import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.queries";
 
@@ -500,13 +504,22 @@ function buildPostListWhere({
   days?: number;
 }): Prisma.PostWhereInput {
   const since = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
+  const typeFilter = type ? getEquivalentPostTypes(type) : null;
+  const expandedExcludeTypes = expandExcludedPostTypes(excludeTypes);
 
   return {
     status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-    ...(type
-      ? { type }
-      : excludeTypes.length > 0
-        ? { type: { notIn: excludeTypes } }
+    ...(typeFilter
+      ? {
+          type:
+            typeFilter.length === 1
+              ? typeFilter[0]
+              : {
+                  in: typeFilter,
+                },
+        }
+      : expandedExcludeTypes.length > 0
+        ? { type: { notIn: expandedExcludeTypes } }
         : {}),
     scope,
     ...(scope === PostScope.LOCAL && neighborhoodId
@@ -518,6 +531,15 @@ function buildPostListWhere({
     ...(since ? { createdAt: { gte: since } } : {}),
     ...buildPostSearchWhere(q, searchIn),
   };
+}
+
+function isPostTypeFullyExcluded(type: PostType | undefined, excludeTypes: PostType[]) {
+  if (!type) {
+    return false;
+  }
+
+  const equivalentTypes = getEquivalentPostTypes(type);
+  return equivalentTypes.every((value) => excludeTypes.includes(value));
 }
 
 function buildBestPostWhere({
@@ -907,8 +929,8 @@ export async function listPosts({
   const resolvedLimit = Math.min(Math.max(_limit, 1), FEED_PAGE_SIZE);
   const resolvedPage = Math.max(page ?? 1, 1);
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const normalizedExcludeTypes = excludeTypes ?? [];
-  if (type && normalizedExcludeTypes.includes(type)) {
+  const normalizedExcludeTypes = expandExcludedPostTypes(excludeTypes ?? []);
+  if (isPostTypeFullyExcluded(type, normalizedExcludeTypes)) {
     return { items: [], nextCursor: null };
   }
 
@@ -1050,8 +1072,8 @@ export async function listBestPosts({
   const resolvedLimit = Math.min(Math.max(_limit, 1), FEED_PAGE_SIZE);
   const resolvedPage = Math.max(page ?? 1, 1);
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const normalizedExcludeTypes = excludeTypes ?? [];
-  if (type && normalizedExcludeTypes.includes(type)) {
+  const normalizedExcludeTypes = expandExcludedPostTypes(excludeTypes ?? []);
+  if (isPostTypeFullyExcluded(type, normalizedExcludeTypes)) {
     return [];
   }
 
@@ -1151,8 +1173,8 @@ export async function countPosts({
   viewerId,
 }: PostCountOptions) {
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const normalizedExcludeTypes = excludeTypes ?? [];
-  if (type && normalizedExcludeTypes.includes(type)) {
+  const normalizedExcludeTypes = expandExcludedPostTypes(excludeTypes ?? []);
+  if (isPostTypeFullyExcluded(type, normalizedExcludeTypes)) {
     return 0;
   }
 
@@ -1183,8 +1205,8 @@ export async function countBestPosts({
   viewerId,
 }: BestPostCountOptions) {
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const normalizedExcludeTypes = excludeTypes ?? [];
-  if (type && normalizedExcludeTypes.includes(type)) {
+  const normalizedExcludeTypes = expandExcludedPostTypes(excludeTypes ?? []);
+  if (isPostTypeFullyExcluded(type, normalizedExcludeTypes)) {
     return 0;
   }
 
@@ -1217,12 +1239,23 @@ export async function listUserPosts({
   type,
   q,
 }: UserPostListOptions) {
+  const equivalentTypes = type ? getEquivalentPostTypes(type) : null;
+
   return prisma.post.findMany({
     where: {
       authorId,
       status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
       ...(scope ? { scope } : {}),
-      ...(type ? { type } : {}),
+      ...(equivalentTypes
+        ? {
+            type:
+              equivalentTypes.length === 1
+                ? equivalentTypes[0]
+                : {
+                    in: equivalentTypes,
+                  },
+          }
+        : {}),
       ...(q
         ? {
             OR: [
@@ -1298,9 +1331,15 @@ function buildRankedSearchWhereSql({
   ];
 
   if (type) {
-    clauses.push(Prisma.sql`p."type"::text = ${type}`);
+    const equivalentTypes = getEquivalentPostTypes(type);
+    if (equivalentTypes.length === 1) {
+      clauses.push(Prisma.sql`p."type"::text = ${equivalentTypes[0]}`);
+    } else {
+      clauses.push(Prisma.sql`p."type"::text IN (${Prisma.join(equivalentTypes)})`);
+    }
   } else if (excludeTypes.length > 0) {
-    const excludedSql = Prisma.join(excludeTypes);
+    const expandedExcludeTypes = expandExcludedPostTypes(excludeTypes);
+    const excludedSql = Prisma.join(expandedExcludeTypes);
     clauses.push(Prisma.sql`p."type"::text NOT IN (${excludedSql})`);
   }
 
@@ -1398,8 +1437,8 @@ export async function listRankedSearchPosts({
     return [];
   }
 
-  const normalizedExcludeTypes = excludeTypes ?? [];
-  if (type && normalizedExcludeTypes.includes(type)) {
+  const normalizedExcludeTypes = expandExcludedPostTypes(excludeTypes ?? []);
+  if (isPostTypeFullyExcluded(type, normalizedExcludeTypes)) {
     return [];
   }
 
@@ -1552,8 +1591,8 @@ export async function listPostSearchSuggestions({
     return [];
   }
 
-  const normalizedExcludeTypes = excludeTypes ?? [];
-  if (type && normalizedExcludeTypes.includes(type)) {
+  const normalizedExcludeTypes = expandExcludedPostTypes(excludeTypes ?? []);
+  if (isPostTypeFullyExcluded(type, normalizedExcludeTypes)) {
     return [];
   }
 
@@ -1563,7 +1602,12 @@ export async function listPostSearchSuggestions({
     where: {
       status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
       ...(type
-        ? { type }
+        ? (() => {
+            const equivalentTypes = getEquivalentPostTypes(type);
+            return equivalentTypes.length === 1
+              ? { type: equivalentTypes[0] }
+              : { type: { in: equivalentTypes } };
+          })()
         : normalizedExcludeTypes.length > 0
           ? { type: { notIn: normalizedExcludeTypes } }
           : {}),

@@ -93,39 +93,39 @@ export async function generateMetadata({
 
 const typeMeta: Record<PostType, { label: string; chipClass: string }> = {
   HOSPITAL_REVIEW: {
-    label: "병원",
+    label: "병원후기",
     chipClass: "border-sky-200 bg-sky-50 text-sky-700",
   },
   PLACE_REVIEW: {
-    label: "장소",
+    label: "장소후기",
     chipClass: "border-blue-200 bg-blue-50 text-blue-700",
   },
   WALK_ROUTE: {
-    label: "산책",
+    label: "산책코스",
     chipClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
   },
   MEETUP: {
-    label: "번개",
+    label: "동네모임",
     chipClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
   },
   MARKET_LISTING: {
-    label: "마켓",
+    label: "중고/공동구매",
     chipClass: "border-slate-300 bg-slate-100 text-slate-700",
   },
   LOST_FOUND: {
-    label: "실종",
+    label: "실종/목격 제보",
     chipClass: "border-rose-200 bg-rose-50 text-rose-700",
   },
   QA_QUESTION: {
-    label: "Q&A",
+    label: "질문/답변",
     chipClass: "border-teal-200 bg-teal-50 text-teal-700",
   },
   QA_ANSWER: {
-    label: "답변",
+    label: "질문/답변",
     chipClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
   },
   FREE_POST: {
-    label: "자유",
+    label: "자유게시판",
     chipClass: "border-zinc-300 bg-zinc-100 text-zinc-700",
   },
   FREE_BOARD: {
@@ -133,15 +133,15 @@ const typeMeta: Record<PostType, { label: string; chipClass: string }> = {
     chipClass: "border-zinc-300 bg-zinc-100 text-zinc-700",
   },
   DAILY_SHARE: {
-    label: "일상공유",
+    label: "자유게시판",
     chipClass: "border-slate-300 bg-slate-100 text-slate-700",
   },
   PRODUCT_REVIEW: {
-    label: "제품리뷰",
+    label: "용품리뷰",
     chipClass: "border-blue-200 bg-blue-50 text-blue-700",
   },
   PET_SHOWCASE: {
-    label: "내 반려동물 자랑",
+    label: "반려자랑",
     chipClass: "border-sky-200 bg-sky-50 text-sky-700",
   },
 };
@@ -457,7 +457,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
 
         {post.hospitalReview ? (
           <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
-            <h2 className="text-lg font-semibold text-[#163462]">병원 리뷰 상세</h2>
+            <h2 className="text-lg font-semibold text-[#163462]">병원후기 상세</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
               <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">병원</p>
@@ -489,7 +489,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
 
         {post.placeReview ? (
           <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
-            <h2 className="text-lg font-semibold text-[#163462]">장소 리뷰 상세</h2>
+            <h2 className="text-lg font-semibold text-[#163462]">장소후기 상세</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
               <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">장소명</p>
@@ -517,7 +517,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
 
         {post.walkRoute ? (
           <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
-            <h2 className="text-lg font-semibold text-[#163462]">산책로 상세</h2>
+            <h2 className="text-lg font-semibold text-[#163462]">산책코스 상세</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
               <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">코스명</p>
