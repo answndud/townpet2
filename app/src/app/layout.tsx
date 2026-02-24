@@ -78,8 +78,8 @@ export default async function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[#edf3fb] text-[#10284a] antialiased`}
       >
-        <div className="relative min-h-screen bg-[radial-gradient(circle_at_0%_0%,#ffffff_0%,transparent_35%),radial-gradient(circle_at_100%_0%,#dfeaff_0%,transparent_30%),linear-gradient(180deg,#f3f8ff_0%,#ecf3fd_100%)]">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(50,88,146,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(50,88,146,0.04)_1px,transparent_1px)] bg-[size:28px_28px] opacity-35" />
+        <div className="app-shell-bg relative min-h-screen">
+          <div className="app-shell-grid pointer-events-none absolute inset-0" />
 
           <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
             <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">

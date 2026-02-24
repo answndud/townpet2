@@ -327,12 +327,11 @@ export async function updateComment({
       where: {
         parentId: commentId,
         status: PostStatus.ACTIVE,
-        authorId: { not: authorId },
       },
     });
 
     if (replyCount > 0) {
-      throw new ServiceError("다른 사용자의 답글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
+      throw new ServiceError("답글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
     }
 
     return tx.comment.update({
@@ -369,12 +368,11 @@ export async function deleteComment({ commentId, authorId }: DeleteCommentParams
       where: {
         parentId: commentId,
         status: PostStatus.ACTIVE,
-        authorId: { not: authorId },
       },
     });
 
     if (replyCount > 0) {
-      throw new ServiceError("다른 사용자의 답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
+      throw new ServiceError("답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
     }
 
     const deleted = await tx.comment.update({
@@ -493,11 +491,10 @@ export async function updateGuestComment({
     where: {
       parentId: commentId,
       status: PostStatus.ACTIVE,
-      authorId: { not: comment.authorId },
     },
   });
   if (replyCountByOthers > 0) {
-    throw new ServiceError("다른 사용자의 답글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
+    throw new ServiceError("답글이 있으면 수정할 수 없습니다.", "HAS_REPLIES", 400);
   }
 
   const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
@@ -637,11 +634,10 @@ export async function deleteGuestComment({
     where: {
       parentId: commentId,
       status: PostStatus.ACTIVE,
-      authorId: { not: comment.authorId },
     },
   });
   if (replyCountByOthers > 0) {
-    throw new ServiceError("다른 사용자의 답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
+    throw new ServiceError("답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
   }
 
   return prisma.$transaction(async (tx) => {

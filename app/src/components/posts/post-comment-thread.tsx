@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostStatus, ReportReason, ReportTarget } from "@prisma/client";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type KeyboardEvent } from "react";
 
 import { CommentReactionControls } from "@/components/posts/comment-reaction-controls";
 import { LinkifiedContent } from "@/components/content/linkified-content";
-import { UserRelationControls } from "@/components/user/user-relation-controls";
 import {
   createCommentAction,
   deleteCommentAction,
@@ -46,7 +45,7 @@ type CommentFormState = {
   [key: string]: string;
 };
 
-type CommentSort = "LATEST" | "OLDEST";
+const ROOTS_PER_PAGE = 30;
 
 const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
 
@@ -73,14 +72,20 @@ const reasonLabels: Record<ReportReason, string> = {
   OTHER: "기타",
 };
 
-function sortCommentsByCreatedAt(items: CommentItem[], sortOrder: CommentSort) {
-  const sorted = [...items];
-  sorted.sort((a, b) => {
-    const left = a.createdAt.getTime();
-    const right = b.createdAt.getTime();
-    return sortOrder === "LATEST" ? right - left : left - right;
-  });
-  return sorted;
+function buildPaginationItems(currentPage: number, totalPages: number) {
+  const pages = new Set<number>([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  const normalized = [...pages].filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
+  const items: Array<number | "..."> = [];
+
+  for (const page of normalized) {
+    const last = items[items.length - 1];
+    if (typeof last === "number" && page - last > 1) {
+      items.push("...");
+    }
+    items.push(page);
+  }
+
+  return items;
 }
 
 export function PostCommentThread({
@@ -102,12 +107,26 @@ export function PostCommentThread({
   const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
   const [guestActionPassword, setGuestActionPassword] = useState<Record<string, string>>({});
   const [guestActionPrompt, setGuestActionPrompt] = useState<Record<string, "EDIT" | "DELETE" | null>>({});
-  const [sortOrder, setSortOrder] = useState<CommentSort>("OLDEST");
+  const [page, setPage] = useState(1);
   const [guestDisplayName, setGuestDisplayName] = useState("");
   const [guestPassword, setGuestPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const canComment = canInteract || !currentUserId;
+
+  const handleCommentSubmitShortcut = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+    submit: () => void,
+  ) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      submit();
+    }
+  };
 
   const repliesMap = useMemo(() => {
     const map = new Map<string, CommentItem[]>();
@@ -117,20 +136,15 @@ export function PostCommentThread({
       list.push(comment);
       map.set(comment.parentId, list);
     }
-    for (const [key, list] of map.entries()) {
-      map.set(key, sortCommentsByCreatedAt(list, sortOrder));
-    }
     return map;
-  }, [comments, sortOrder]);
+  }, [comments]);
 
-  const roots = useMemo(
-    () =>
-      sortCommentsByCreatedAt(
-        comments.filter((comment) => comment.parentId === null),
-        sortOrder,
-      ),
-    [comments, sortOrder],
-  );
+  const roots = useMemo(() => comments.filter((comment) => comment.parentId === null), [comments]);
+
+  const totalPages = Math.max(1, Math.ceil(roots.length / ROOTS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = buildPaginationItems(currentPage, totalPages);
+  const pagedRoots = roots.slice((currentPage - 1) * ROOTS_PER_PAGE, currentPage * ROOTS_PER_PAGE);
 
   const handleCreate = (parentId?: string) => {
     if (!canComment) {
@@ -198,12 +212,11 @@ export function PostCommentThread({
         return;
       }
       setReplyContent((prev) => ({ ...prev, [parentId ?? "root"]: "" }));
-      if (!currentUserId) {
-        router.refresh();
-      }
       if (parentId) {
         setReplyOpen((prev) => ({ ...prev, [parentId]: false }));
+        setCollapsedReplies((prev) => ({ ...prev, [parentId]: false }));
       }
+      router.refresh();
     });
   };
 
@@ -364,6 +377,7 @@ export function PostCommentThread({
 
   const renderComment = (comment: CommentItem, depth = 0) => {
     const replies = repliesMap.get(comment.id) ?? [];
+    const isDeleted = comment.status === "DELETED";
     const isGuestComment = Boolean(
       comment.isGuestAuthor || comment.guestDisplayName?.trim() || comment.guestPasswordHash,
     );
@@ -374,9 +388,15 @@ export function PostCommentThread({
       ? comment.guestIpDisplay
       : `0.${comment.author.id.slice(-3)}`;
     const isAuthor = currentUserId && comment.author.id === currentUserId;
-    const hasReplyByOthers = replies.some((reply) => reply.author.id !== comment.author.id);
-    const canEdit =
-      (isAuthor || isGuestComment) && !hasReplyByOthers && comment.status === "ACTIVE";
+    const hasActiveReply = replies.some((reply) => reply.status === "ACTIVE");
+    const canEdit = (isAuthor || isGuestComment) && !hasActiveReply && comment.status === "ACTIVE";
+    const canOpenMenu =
+      !isDeleted && (canEdit || (canInteract && !isAuthor && comment.status === "ACTIVE"));
+    const canReply = canComment && comment.status === "ACTIVE";
+    const displayName = isGuestComment
+      ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
+      : comment.author.nickname ?? comment.author.name ?? "익명";
+    const avatarText = displayName.slice(0, 1).toUpperCase();
     const actionLinkClass =
       "text-[12px] font-medium text-[#4a668f] transition hover:text-[#2f5da4] hover:underline disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -384,212 +404,217 @@ export function PostCommentThread({
       <div
         key={comment.id}
         id={`comment-${comment.id}`}
-        className={`py-2.5 sm:py-3 ${
-          depth > 0
-            ? "ml-3 border-l border-l-[#cfe0f8] pl-2.5 sm:ml-4 sm:border-l sm:pl-3.5"
-            : ""
-        }`}
+        className={depth > 0 ? "mt-2" : undefined}
       >
-        <div className="flex items-center justify-between gap-2 text-[12px] text-[#4f6e99]">
-          {isGuestComment ? (
-            <span>
-              {guestAuthorName}
-              {` (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`}
-            </span>
-          ) : (
-            <Link href={`/users/${comment.author.id}`} className="hover:text-[#2f5da4]">
-              {comment.author.nickname ?? comment.author.name ?? "익명"}
-            </Link>
-          )}
-          <span suppressHydrationWarning className="text-[11px] text-[#6880a6]">
-            {comment.createdAt.toLocaleDateString("ko-KR")}
-          </span>
-        </div>
-        <div className="mt-1.5 text-[14px] leading-5 text-[#27466f] sm:text-[14px]">
-          <LinkifiedContent
-            text={comment.status === "DELETED" ? "삭제된 댓글입니다." : comment.content}
-            showYoutubeEmbeds
-          />
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#3f628f]">
-          {depth === 0 && replies.length > 0 ? (
-            <button
-              type="button"
-              className={actionLinkClass}
-              onClick={() =>
-                setCollapsedReplies((prev) => ({
-                  ...prev,
-                  [comment.id]: !prev[comment.id],
-                }))
-              }
-            >
-              {collapsedReplies[comment.id]
-                ? `답글 ${replies.length}개 펼치기`
-                : `답글 ${replies.length}개 접기`}
-            </button>
-          ) : null}
-          {canComment ? (
-            <button
-              type="button"
-              className={actionLinkClass}
-              onClick={() =>
-                setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
-              }
-              disabled={comment.status !== "ACTIVE"}
-            >
-              {replyOpen[comment.id] ? "답글 취소" : "답글"}
-            </button>
-          ) : null}
-          {canEdit ? (
-            <>
-              <button
-                type="button"
-                className={actionLinkClass}
-                onClick={() => {
-                  if (isGuestComment) {
-                    setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
-                    return;
-                  }
-                  setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
-                }}
-                disabled={isPending}
-              >
-                수정
-              </button>
-              <button
-                type="button"
-                className="text-[12px] font-medium text-rose-700 transition hover:text-rose-800 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  if (isGuestComment) {
-                    setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
-                    return;
-                  }
-                  void handleDelete(comment.id, false);
-                }}
-                disabled={isPending}
-              >
-                삭제
-              </button>
-            </>
-          ) : null}
-          {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
-            <>
-              <details className="group">
-                <summary className={`list-none ${actionLinkClass}`}>더보기</summary>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-1.5">
-                  <button
-                    type="button"
-                    className="border border-[#bfd0ec] bg-white px-2 py-0.5 text-[11px] font-semibold transition hover:bg-[#edf4ff]"
-                    onClick={() =>
-                      setReportOpen((prev) => ({
-                        ...prev,
-                        [comment.id]: !prev[comment.id],
-                      }))
-                    }
-                  >
-                    신고
-                  </button>
-                  <UserRelationControls
-                    targetUserId={comment.author.id}
-                    initialState={{
-                      isBlockedByMe: false,
-                      hasBlockedMe: false,
-                      isMutedByMe: false,
-                    }}
-                    compact
-                  />
-                </div>
-              </details>
-            </>
-          ) : null}
-        </div>
-
-        <div className="mt-1 hidden sm:block">
-          <CommentReactionControls
-            postId={postId}
-            commentId={comment.id}
-            likeCount={comment.likeCount}
-            dislikeCount={comment.dislikeCount}
-            currentReaction={comment.reactions?.[0]?.type ?? null}
-            canReact={canInteract && comment.status === "ACTIVE"}
-            loginHref={loginHref}
-          />
-        </div>
-
-        <details className="mt-1.5 sm:hidden">
-          <summary className="list-none text-[12px] font-medium text-[#4a668f]">
-            반응 보기
-          </summary>
-          <div className="mt-1.5 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-1.5">
-            <CommentReactionControls
-              postId={postId}
-              commentId={comment.id}
-              likeCount={comment.likeCount}
-              dislikeCount={comment.dislikeCount}
-              currentReaction={comment.reactions?.[0]?.type ?? null}
-              canReact={canInteract && comment.status === "ACTIVE"}
-              loginHref={loginHref}
-            />
+        <article className={`flex gap-3 px-1.5 py-3.5 ${isDeleted ? "bg-[#f8fbff] opacity-80" : ""}`}>
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#edf3fb] text-[12px] font-semibold text-[#44638f]">
+            {avatarText}
           </div>
-        </details>
 
-          {canComment && replyOpen[comment.id] ? (
-          <div className="mt-2.5">
-            {!currentUserId ? (
-              <div className="mb-2 grid gap-1.5 sm:grid-cols-2">
-                <input
-                  className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
-                  value={guestDisplayName}
-                  onChange={(event) => setGuestDisplayName(event.target.value)}
-                  placeholder="비회원 닉네임"
-                  maxLength={24}
-                />
-                <input
-                  className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
-                  type="password"
-                  value={guestPassword}
-                  onChange={(event) => setGuestPassword(event.target.value)}
-                  placeholder="댓글 비밀번호"
-                  maxLength={32}
-                />
+          <div className="min-w-0 flex-1">
+            <header className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                {isGuestComment ? (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <p className="truncate text-sm font-semibold text-[#2f4f7d]">{displayName}</p>
+                    <p suppressHydrationWarning className="text-[11px] text-[#7a8eae]">
+                      {comment.createdAt.toLocaleDateString("ko-KR")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <Link
+                      href={`/users/${comment.author.id}`}
+                      className="truncate text-sm font-semibold text-[#2f4f7d] hover:text-[#2f5da4]"
+                    >
+                      {displayName}
+                    </Link>
+                    <p suppressHydrationWarning className="text-[11px] text-[#7a8eae]">
+                      {comment.createdAt.toLocaleDateString("ko-KR")}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {canOpenMenu ? (
+                <details className="relative">
+                  <summary className="list-none rounded-full px-2 py-0.5 text-lg leading-none text-[#6a81a6] hover:bg-[#f1f5fb]">
+                    ···
+                  </summary>
+                  <div className="absolute right-0 z-20 mt-1.5 min-w-24 rounded-md border border-[#d6e1f3] bg-white p-1 shadow-[0_8px_18px_rgba(16,40,74,0.08)]">
+                    {canEdit ? (
+                      <>
+                        <button
+                          type="button"
+                          className="block w-full rounded px-2 py-1 text-left text-xs text-[#2f4f7d] hover:bg-[#f3f7ff]"
+                          onClick={() => {
+                            if (isGuestComment) {
+                              setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
+                              return;
+                            }
+                            setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
+                          }}
+                          disabled={isPending}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          className="block w-full rounded px-2 py-1 text-left text-xs text-rose-700 hover:bg-rose-50"
+                          onClick={() => {
+                            if (isGuestComment) {
+                              setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
+                              return;
+                            }
+                            void handleDelete(comment.id, false);
+                          }}
+                          disabled={isPending}
+                        >
+                          삭제
+                        </button>
+                      </>
+                    ) : null}
+                    {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
+                      <button
+                        type="button"
+                        className="block w-full rounded px-2 py-1 text-left text-xs text-[#2f4f7d] hover:bg-[#f3f7ff]"
+                        onClick={() =>
+                          setReportOpen((prev) => ({
+                            ...prev,
+                            [comment.id]: !prev[comment.id],
+                          }))
+                        }
+                      >
+                        신고
+                      </button>
+                    ) : null}
+                  </div>
+                </details>
+              ) : null}
+            </header>
+
+            <div className={`mt-1.5 text-[15px] leading-relaxed ${isDeleted ? "text-[#8ba0bf]" : "text-[#27466f]"}`}>
+              <LinkifiedContent
+                text={isDeleted ? "삭제된 댓글입니다." : comment.content}
+                showYoutubeEmbeds={!isDeleted}
+              />
+            </div>
+
+            {!isDeleted ? (
+              <div className="mt-2.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <CommentReactionControls
+                    postId={postId}
+                    commentId={comment.id}
+                    likeCount={comment.likeCount}
+                    dislikeCount={comment.dislikeCount}
+                    currentReaction={comment.reactions?.[0]?.type ?? null}
+                    canReact={canInteract && comment.status === "ACTIVE"}
+                    loginHref={loginHref}
+                    compact
+                    showDislike={false}
+                    hideLoginHint
+                  />
+                  {canReply ? (
+                    <button
+                      type="button"
+                      className={actionLinkClass}
+                      onClick={() =>
+                        setReplyOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))
+                      }
+                    >
+                      {replyOpen[comment.id] ? "답글 취소" : "답글"}
+                    </button>
+                  ) : null}
+                  {depth === 0 && replies.length > 0 ? (
+                    <button
+                      type="button"
+                      className={actionLinkClass}
+                      onClick={() =>
+                        setCollapsedReplies((prev) => ({
+                          ...prev,
+                          [comment.id]: !prev[comment.id],
+                        }))
+                      }
+                    >
+                      {collapsedReplies[comment.id]
+                        ? `답글 ${replies.length}개 펼치기`
+                        : `답글 ${replies.length}개 접기`}
+                    </button>
+                  ) : null}
+                </div>
+
+                {!canInteract && (
+                  <Link
+                    href={loginHref}
+                    className="text-[11px] text-[#5f77a0] underline underline-offset-2"
+                  >
+                    로그인 후 반응
+                  </Link>
+                )}
               </div>
             ) : null}
-            <textarea
-              className="min-h-[68px] w-full border border-[#bfd0ec] bg-[#f8fbff] px-2.5 py-1.5 text-sm text-[#1f3f71]"
-              value={replyContent[comment.id] ?? ""}
-              onChange={(event) =>
-                setReplyContent((prev) => ({
-                  ...prev,
-                  [comment.id]: event.target.value,
-                }))
-              }
-              placeholder="답글을 입력하세요"
-            />
-            <div className="mt-1.5 flex justify-end gap-1.5">
-              <button
-                type="button"
-                className="border border-[#bfd0ec] bg-white px-3 py-1 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-                onClick={() =>
-                  setReplyOpen((prev) => ({
-                    ...prev,
-                    [comment.id]: false,
-                  }))
-                }
-                disabled={isPending}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
-                onClick={() => handleCreate(comment.id)}
-                disabled={isPending}
-              >
-                답글 등록
-              </button>
-            </div>
-          </div>
-        ) : null}
+
+            {canReply && replyOpen[comment.id] ? (
+              <div className="mt-2.5 rounded-sm bg-[#f8fbff] p-2">
+                {!currentUserId ? (
+                  <div className="mb-2 grid gap-1.5 sm:grid-cols-2">
+                    <input
+                      className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
+                      value={guestDisplayName}
+                      onChange={(event) => setGuestDisplayName(event.target.value)}
+                      placeholder="비회원 닉네임"
+                      maxLength={24}
+                    />
+                    <input
+                      className="w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
+                      type="password"
+                      value={guestPassword}
+                      onChange={(event) => setGuestPassword(event.target.value)}
+                      placeholder="댓글 비밀번호"
+                      maxLength={32}
+                    />
+                  </div>
+                ) : null}
+                <textarea
+                  className="min-h-[68px] w-full border border-[#bfd0ec] bg-white px-2.5 py-1.5 text-sm text-[#1f3f71]"
+                  value={replyContent[comment.id] ?? ""}
+                  onChange={(event) =>
+                    setReplyContent((prev) => ({
+                      ...prev,
+                      [comment.id]: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) =>
+                    handleCommentSubmitShortcut(event, () => handleCreate(comment.id))
+                  }
+                  placeholder="답글을 입력하세요"
+                />
+                <div className="mt-1.5 flex justify-end gap-1.5">
+                  <button
+                    type="button"
+                    className="border border-[#bfd0ec] bg-white px-3 py-1 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+                    onClick={() =>
+                      setReplyOpen((prev) => ({
+                        ...prev,
+                        [comment.id]: false,
+                      }))
+                    }
+                    disabled={isPending}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    className="border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+                    onClick={() => handleCreate(comment.id)}
+                    disabled={isPending}
+                  >
+                    답글 등록
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
         {isGuestComment && guestActionPrompt[comment.id] ? (
           <div className="mt-3 border border-[#dbe5f3] bg-[#f8fbff] p-2">
@@ -703,46 +728,63 @@ export function PostCommentThread({
           </div>
         ) : null}
 
-        {replies.length > 0 && !collapsedReplies[comment.id] ? (
-          <div className="mt-2 space-y-1.5">
-            {replies.map((reply) => renderComment(reply, depth + 1))}
+            {replies.length > 0 && !collapsedReplies[comment.id] ? (
+              <div className="mt-2 ml-10 space-y-1.5 pl-4">
+                {replies.map((reply) => renderComment(reply, depth + 1))}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </article>
       </div>
     );
   };
 
   return (
-    <div className="rounded-md border border-[#c8d7ef] bg-white p-3 shadow-[0_8px_18px_rgba(16,40,74,0.04)] sm:p-5">
+    <div className="mt-6 w-full rounded-lg border border-[#c8d7ef] bg-white p-4 shadow-[0_8px_18px_rgba(16,40,74,0.04)] sm:mt-8 sm:p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-[-0.01em] text-[#1f3f71]">댓글 {comments.length}</h2>
         {roots.length > 0 ? (
           <div className="flex items-center gap-2 text-xs text-[#4f678d]">
-            <span>정렬</span>
-            <div className="inline-flex overflow-hidden border border-[#c7d7ef] bg-white">
-              <button
-                type="button"
-                className={`px-2.5 py-1 ${
-                  sortOrder === "OLDEST"
-                    ? "bg-[#3567b5] text-white"
-                    : "text-[#315484] hover:bg-[#f3f7ff]"
-                }`}
-                onClick={() => setSortOrder("OLDEST")}
-              >
-                오래된순
-              </button>
-              <button
-                type="button"
-                className={`px-2.5 py-1 ${
-                  sortOrder === "LATEST"
-                    ? "bg-[#3567b5] text-white"
-                    : "text-[#315484] hover:bg-[#f3f7ff]"
-                }`}
-                onClick={() => setSortOrder("LATEST")}
-              >
-                최신순
-              </button>
-            </div>
+            {totalPages > 1 ? (
+              <>
+                <button
+                  type="button"
+                  className="rounded border border-[#c7d7ef] bg-white px-2 py-0.5 text-[#315484] disabled:opacity-40"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  이전
+                </button>
+                {pageItems.map((item, index) =>
+                  item === "..." ? (
+                    <span key={`ellipsis-${index}`} className="px-1 text-[#8ca0bf]">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      className={`min-w-7 rounded border px-2 py-0.5 ${
+                        item === currentPage
+                          ? "border-[#3567b5] bg-[#3567b5] text-white"
+                          : "border-[#c7d7ef] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+                      }`}
+                      onClick={() => setPage(item)}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  className="rounded border border-[#c7d7ef] bg-white px-2 py-0.5 text-[#315484] disabled:opacity-40"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  다음
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -751,10 +793,51 @@ export function PostCommentThread({
       {roots.length === 0 ? (
         <p className="mt-4 text-sm text-[#5a7398]">첫 댓글을 남겨주세요.</p>
       ) : (
-        <div className="mt-3 divide-y divide-[#dbe5f3] sm:mt-4">
-          {roots.map((comment) => renderComment(comment))}
+        <div className="mt-3 rounded-md border border-[#dbe5f3] divide-y divide-[#dbe5f3] bg-white sm:mt-4">
+          {pagedRoots.map((comment) => renderComment(comment))}
         </div>
       )}
+
+      {totalPages > 1 ? (
+        <div className="mt-2.5 flex items-center justify-center gap-1.5 text-xs text-[#4f678d]">
+          <button
+            type="button"
+            className="rounded border border-[#c7d7ef] bg-white px-2 py-0.5 text-[#315484] disabled:opacity-40"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage <= 1}
+          >
+            이전
+          </button>
+          {pageItems.map((item, index) =>
+            item === "..." ? (
+              <span key={`bottom-ellipsis-${index}`} className="px-1 text-[#8ca0bf]">
+                ...
+              </span>
+            ) : (
+              <button
+                key={`bottom-${item}`}
+                type="button"
+                className={`min-w-7 rounded border px-2 py-0.5 ${
+                  item === currentPage
+                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                    : "border-[#c7d7ef] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+                }`}
+                onClick={() => setPage(item)}
+              >
+                {item}
+              </button>
+            ),
+          )}
+          <button
+            type="button"
+            className="rounded border border-[#c7d7ef] bg-white px-2 py-0.5 text-[#315484] disabled:opacity-40"
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage >= totalPages}
+          >
+            다음
+          </button>
+        </div>
+      ) : null}
 
       <div className="mt-3 border-t border-[#c8d7ef] pt-2.5 sm:mt-4 sm:pt-3">
         <div className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2.5 sm:p-2.5">
@@ -789,6 +872,7 @@ export function PostCommentThread({
                 onChange={(event) =>
                   setReplyContent((prev) => ({ ...prev, root: event.target.value }))
                 }
+                onKeyDown={(event) => handleCommentSubmitShortcut(event, () => handleCreate())}
                 placeholder="댓글을 입력해 주세요"
               />
               <div className="mt-1.5 flex justify-end">
