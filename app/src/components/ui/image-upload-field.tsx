@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 
 type UploadResponse = {
@@ -80,6 +80,11 @@ export function ImageUploadField({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const uploadIdRef = useRef(0);
+  const valueRef = useRef<string[]>(value);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const remainCount = useMemo(
     () => Math.max(0, maxFiles - value.length),
@@ -132,7 +137,7 @@ export function ImageUploadField({
 
     setIsUploading(true);
 
-    const nextUrls = [...value];
+    const nextUrls = [...valueRef.current];
     const failedItems: FailedUploadItem[] = [];
 
     try {
@@ -149,7 +154,7 @@ export function ImageUploadField({
         }
       }
 
-      if (nextUrls.length !== value.length) {
+      if (nextUrls.length !== valueRef.current.length) {
         onChange(nextUrls);
       }
 
@@ -219,7 +224,7 @@ export function ImageUploadField({
     setIsRetryingAll(true);
 
     try {
-      const nextUrls = [...value];
+      const nextUrls = [...valueRef.current];
       const retryTargets = [...failedUploads];
       const nextFailed: FailedUploadItem[] = [];
       let availableSlots = Math.max(0, maxFiles - nextUrls.length);
@@ -242,7 +247,7 @@ export function ImageUploadField({
         }
       }
 
-      if (nextUrls.length !== value.length) {
+      if (nextUrls.length !== valueRef.current.length) {
         onChange(nextUrls);
       }
       setFailedUploads(nextFailed);
@@ -277,6 +282,9 @@ export function ImageUploadField({
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
+          onClick={(event) => {
+            event.currentTarget.value = "";
+          }}
           onChange={handleFileChange}
           disabled={isBusy || remainCount <= 0}
           className="w-full text-xs text-[#355988] file:mr-3 file:border file:border-[#3567b5] file:bg-[#3567b5] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white file:transition hover:file:bg-[#2f5da4]"
