@@ -455,7 +455,7 @@ export function PostCommentThread({
             <>
               <button
                 type="button"
-                className={actionButtonClass}
+                className={`hidden sm:inline-flex ${actionButtonClass}`}
                 onClick={() => {
                   if (isGuestComment) {
                     setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
@@ -482,7 +482,7 @@ export function PostCommentThread({
               </button>
               <button
                 type="button"
-                className="inline-flex h-7 items-center gap-1.5 border border-rose-300 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
+                className="hidden h-7 items-center gap-1.5 border border-rose-300 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100 sm:inline-flex"
                 onClick={() => {
                   if (isGuestComment) {
                     setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
@@ -508,6 +508,41 @@ export function PostCommentThread({
                 </span>
                 삭제
               </button>
+              <details className="sm:hidden">
+                <summary className="cursor-pointer list-none border border-[#bfd0ec] bg-white px-2.5 py-1 font-semibold text-[#315484] transition hover:bg-[#f3f7ff]">
+                  관리
+                </summary>
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2">
+                  <button
+                    type="button"
+                    className={actionButtonClass}
+                    onClick={() => {
+                      if (isGuestComment) {
+                        setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
+                        return;
+                      }
+                      setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
+                    }}
+                    disabled={isPending}
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center border border-rose-300 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
+                    onClick={() => {
+                      if (isGuestComment) {
+                        setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
+                        return;
+                      }
+                      void handleDelete(comment.id, false);
+                    }}
+                    disabled={isPending}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </details>
             </>
           ) : null}
           {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
@@ -542,7 +577,7 @@ export function PostCommentThread({
           ) : null}
         </div>
 
-        <div className="mt-3 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2 opacity-85 transition hover:opacity-100">
+        <div className="mt-3 hidden rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2 opacity-85 transition hover:opacity-100 sm:block">
           <CommentReactionControls
             postId={postId}
             commentId={comment.id}
@@ -553,6 +588,23 @@ export function PostCommentThread({
             loginHref={loginHref}
           />
         </div>
+
+        <details className="mt-3 sm:hidden">
+          <summary className="inline-flex h-7 cursor-pointer list-none items-center border border-[#bfd0ec] bg-white px-2.5 text-[11px] font-semibold text-[#315484]">
+            반응
+          </summary>
+          <div className="mt-2 rounded-sm border border-[#dbe5f3] bg-[#f8fbff] p-2">
+            <CommentReactionControls
+              postId={postId}
+              commentId={comment.id}
+              likeCount={comment.likeCount}
+              dislikeCount={comment.dislikeCount}
+              currentReaction={comment.reactions?.[0]?.type ?? null}
+              canReact={canInteract && comment.status === "ACTIVE"}
+              loginHref={loginHref}
+            />
+          </div>
+        </details>
 
           {canComment && replyOpen[comment.id] ? (
           <div className="mt-3">

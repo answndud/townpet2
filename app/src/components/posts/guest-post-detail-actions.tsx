@@ -70,29 +70,63 @@ export function GuestPostDetailActions({ postId }: GuestPostDetailActionsProps) 
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <input
-        type="password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        placeholder="글 비밀번호"
-        className="h-8 border border-[#bfd0ec] bg-white px-2.5 text-xs text-[#1f3f71]"
-      />
-      <Link
-        href={`/posts/${postId}/edit?guest=1&pw=${encodeURIComponent(password.trim())}`}
-        className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
-      >
-        비회원 수정
-      </Link>
-      <button
-        type="button"
-        onClick={handleDelete}
-        className="inline-flex h-8 items-center border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
-        disabled={isPending}
-      >
-        {isPending ? "삭제 중..." : "비회원 삭제"}
-      </button>
-      {error ? <p className="w-full text-right text-xs text-rose-600">{error}</p> : null}
+    <div className="w-full">
+      <details className="sm:hidden">
+        <summary className="inline-flex h-8 items-center rounded-sm border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484]">
+          비회원 관리
+        </summary>
+        <div className="mt-2 space-y-2 rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-2">
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="글 비밀번호"
+            className="h-8 w-full border border-[#bfd0ec] bg-white px-2.5 text-xs text-[#1f3f71]"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/posts/${postId}/edit?guest=1&pw=${encodeURIComponent(password.trim())}`}
+              className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+            >
+              비회원 수정
+            </Link>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="inline-flex h-8 items-center border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
+              disabled={isPending}
+            >
+              {isPending ? "삭제 중..." : "비회원 삭제"}
+            </button>
+          </div>
+          {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+        </div>
+      </details>
+
+      <div className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="글 비밀번호"
+          className="h-8 border border-[#bfd0ec] bg-white px-2.5 text-xs text-[#1f3f71]"
+        />
+        <Link
+          href={`/posts/${postId}/edit?guest=1&pw=${encodeURIComponent(password.trim())}`}
+          className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-3 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+        >
+          비회원 수정
+        </Link>
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="inline-flex h-8 items-center border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
+          disabled={isPending}
+        >
+          {isPending ? "삭제 중..." : "비회원 삭제"}
+        </button>
+        {error ? <p className="w-full text-right text-xs text-rose-600">{error}</p> : null}
+      </div>
     </div>
   );
 }

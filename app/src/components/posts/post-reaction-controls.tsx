@@ -99,8 +99,8 @@ export function PostReactionControls({
   }, [loginIntent]);
 
   const buttonClass = compact
-    ? "inline-flex h-9 min-w-[100px] items-center justify-center border px-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-    : "inline-flex h-9 min-w-[98px] items-center justify-center border px-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+    ? "inline-flex h-9 min-w-[90px] items-center justify-center border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[100px] sm:px-2.5"
+    : "inline-flex h-8 min-w-[82px] items-center justify-center border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:min-w-[98px] sm:px-2.5";
 
   const handleToggle = (target: ReactionType) => {
     if (!canReact) {
@@ -134,7 +134,7 @@ export function PostReactionControls({
   };
 
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "justify-end" : "justify-center"}`}>
+    <div className={`flex flex-wrap items-center gap-1 ${compact ? "justify-end" : "justify-center"}`}>
       <div className="relative">
         <button
           type="button"

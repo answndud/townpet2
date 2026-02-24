@@ -38,11 +38,11 @@ export function PostShareControls({ url, title }: PostShareControlsProps) {
   };
 
   return (
-    <div className="relative flex flex-wrap items-center gap-2">
+    <div className="relative flex flex-wrap items-center gap-1.5">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+        className="inline-flex h-8 items-center border border-[#bfd0ec] bg-white px-2.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff] sm:h-9 sm:px-3"
         aria-expanded={isOpen}
         aria-controls="post-share-menu"
       >
@@ -90,7 +90,7 @@ export function PostShareControls({ url, title }: PostShareControlsProps) {
         </div>
       ) : null}
 
-      {message ? <span className="text-[11px] text-[#5a7398]">{message}</span> : null}
+      {message ? <span className="hidden text-[11px] text-[#5a7398] sm:inline">{message}</span> : null}
     </div>
   );
 }
