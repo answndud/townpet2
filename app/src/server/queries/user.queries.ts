@@ -2,6 +2,14 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
+const petListCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    pets: Array<Record<string, unknown>>;
+  }
+>();
+
 export async function getUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email },
@@ -300,7 +308,13 @@ export async function listPublicUserReactions({
   } satisfies CursorPageResult<(typeof items)[number]>;
 }
 
-export async function listPetsByUserId(userId: string) {
+export async function listPetsByUserId(
+  userId: string,
+  options?: {
+    limit?: number;
+    cacheTtlMs?: number;
+  },
+) {
   type PetSpeciesValue = "DOG" | "CAT";
   type PetSizeClassValue = "TOY" | "SMALL" | "MEDIUM" | "LARGE" | "GIANT" | "UNKNOWN";
   type PetLifeStageValue = "PUPPY_KITTEN" | "YOUNG" | "ADULT" | "SENIOR" | "UNKNOWN";
@@ -327,9 +341,14 @@ export async function listPetsByUserId(userId: string) {
         where: { userId: string };
         orderBy: Array<{ createdAt: "desc" }>;
         select: SelectShape;
+        take?: number;
       }) => Promise<Array<Record<string, unknown>>>;
     };
   }).pet;
+
+  const safeLimit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
+  const cacheTtlMs = Math.max(options?.cacheTtlMs ?? 0, 0);
+  const cacheKey = `${userId}:${safeLimit}`;
 
   const requiredSelect: SelectShape = {
     id: true,
@@ -376,13 +395,28 @@ export async function listPetsByUserId(userId: string) {
     createdAt: pet.createdAt instanceof Date ? pet.createdAt : new Date(0),
   });
 
+  if (cacheTtlMs > 0) {
+    const cached = petListCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.pets.map(toPetListItem);
+    }
+  }
+
   while (true) {
     try {
       const pets = await petDelegate.findMany({
         where: { userId },
         orderBy: [{ createdAt: "desc" }],
         select: currentSelect,
+        take: safeLimit,
       });
+
+      if (cacheTtlMs > 0) {
+        petListCache.set(cacheKey, {
+          expiresAt: Date.now() + cacheTtlMs,
+          pets,
+        });
+      }
 
       return pets.map(toPetListItem);
     } catch (error) {

@@ -15,7 +15,7 @@ export async function getCurrentUser() {
   }
 
   const demoEmail = process.env.DEMO_USER_EMAIL;
-  if (demoEmail) {
+  if (demoEmail && process.env.NODE_ENV !== "production") {
     return getUserByEmail(demoEmail);
   }
 

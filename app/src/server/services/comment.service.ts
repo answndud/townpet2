@@ -28,6 +28,7 @@ type CreateCommentParams = {
   input: unknown;
   parentId?: string;
   guestMeta?: {
+    guestAuthorId?: string;
     displayName: string;
     passwordHash: string;
     ipHash: string;
@@ -184,6 +185,7 @@ export async function createComment({
         content: safeContent,
         parentId: parentId ?? null,
         guestDisplayName: guestMeta?.displayName,
+        guestAuthorId: guestMeta?.guestAuthorId,
         guestPasswordHash: guestMeta?.passwordHash,
         guestIpHash: guestMeta?.ipHash,
         guestFingerprintHash: guestMeta?.fingerprintHash,

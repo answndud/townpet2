@@ -80,6 +80,21 @@ describe("auth helpers", () => {
     expect(mockGetUserByEmail).toHaveBeenCalledWith(demoEmail);
   });
 
+  it("does not use demo fallback in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.DEMO_USER_EMAIL = demoEmail;
+    mockAuth.mockResolvedValue(null as never);
+
+    try {
+      const user = await getCurrentUser();
+
+      expect(user).toBeNull();
+      expect(mockGetUserByEmail).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("requireCurrentUser throws when missing", async () => {
     mockAuth.mockResolvedValue(null as never);
 

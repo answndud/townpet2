@@ -1,5 +1,3 @@
-import { randomUUID } from "crypto";
-
 import { NextRequest } from "next/server";
 
 import { buildGuestIpMeta } from "@/lib/guest-ip-display";
@@ -10,8 +8,11 @@ import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
-import { createComment } from "@/server/services/comment.service";
-import { hashGuestCommentPassword } from "@/server/services/comment.service";
+import {
+  createComment,
+  hashGuestCommentPassword,
+} from "@/server/services/comment.service";
+import { getOrCreateGuestSystemUserId } from "@/server/services/guest-author.service";
 import { hashGuestIdentity } from "@/server/services/guest-safety.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -72,22 +73,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       fingerprint: guestFingerprint,
       userAgent: request.headers.get("user-agent") ?? undefined,
     });
-    const guestUser = await prisma.user.create({
+    const guestPasswordHash = hashGuestCommentPassword(guestPassword);
+    const guestSystemUserId = await getOrCreateGuestSystemUserId();
+    const guestAuthor = await prisma.guestAuthor.create({
       data: {
-        email: `guest-comment-${Date.now()}-${randomUUID()}@guest.townpet.local`,
-        name: guestDisplayName,
+        displayName: guestDisplayName,
+        passwordHash: guestPasswordHash,
+        ipHash,
+        fingerprintHash,
+        ipDisplay: guestIpMeta.guestIpDisplay,
+        ipLabel: guestIpMeta.guestIpLabel,
       },
       select: { id: true },
     });
 
     const comment = await createComment({
-      authorId: guestUser.id,
+      authorId: guestSystemUserId,
       postId,
       parentId: body.parentId,
       input: { content: body.content ?? "" },
       guestMeta: {
+        guestAuthorId: guestAuthor.id,
         displayName: guestDisplayName,
-        passwordHash: hashGuestCommentPassword(guestPassword),
+        passwordHash: guestPasswordHash,
         ipHash,
         fingerprintHash,
         ipDisplay: guestIpMeta.guestIpDisplay,

@@ -27,6 +27,7 @@ import {
   hashGuestIdentity,
   registerGuestViolation,
 } from "@/server/services/guest-safety.service";
+import { getOrCreateGuestSystemUserId } from "@/server/services/guest-author.service";
 import { notifyReactionOnPost } from "@/server/services/notification.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -297,6 +298,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
   let resolvedAuthorId: string;
   let guestCreateMeta:
     | {
+        guestAuthorId: string;
         guestDisplayName: string;
         guestPasswordHash: string;
         guestIpHash: string;
@@ -416,17 +418,24 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       fingerprint: guestIdentity.fingerprint,
       userAgent: guestIdentity.userAgent,
     });
-    const guestUser = await prisma.user.create({
+    const guestPasswordHash = hashGuestPassword(normalizedGuestPassword);
+    const guestSystemUserId = await getOrCreateGuestSystemUserId();
+    const guestAuthor = await prisma.guestAuthor.create({
       data: {
-        email: `guest-${Date.now()}-${randomUUID()}@guest.townpet.local`,
-        name: normalizedGuestName,
+        displayName: normalizedGuestName,
+        passwordHash: guestPasswordHash,
+        ipHash,
+        fingerprintHash,
+        ipDisplay: guestIpMeta.guestIpDisplay,
+        ipLabel: guestIpMeta.guestIpLabel,
       },
       select: { id: true },
     });
-    resolvedAuthorId = guestUser.id;
+    resolvedAuthorId = guestSystemUserId;
     guestCreateMeta = {
+      guestAuthorId: guestAuthor.id,
       guestDisplayName: normalizedGuestName,
-      guestPasswordHash: hashGuestPassword(normalizedGuestPassword),
+      guestPasswordHash,
       guestIpHash: ipHash,
       guestFingerprintHash: fingerprintHash,
       guestIpDisplay: guestIpMeta.guestIpDisplay,

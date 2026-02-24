@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { canGuestReadPost } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
+import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
 import { getClientIp } from "@/server/request-context";
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    await monitorUnhandledError(error, { route: "GET /api/posts/[id]", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",
@@ -114,6 +116,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    await monitorUnhandledError(error, { route: "PATCH /api/posts/[id]", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",
@@ -166,6 +169,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    await monitorUnhandledError(error, { route: "DELETE /api/posts/[id]", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",

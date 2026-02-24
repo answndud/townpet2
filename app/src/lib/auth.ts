@@ -187,7 +187,7 @@ if (runtimeEnv.isKakaoConfigured) {
     Kakao({
       clientId: runtimeEnv.kakaoClientId,
       clientSecret: runtimeEnv.kakaoClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     }),
   );
 }
@@ -197,7 +197,7 @@ if (runtimeEnv.isNaverConfigured) {
     Naver({
       clientId: runtimeEnv.naverClientId,
       clientSecret: runtimeEnv.naverClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     }),
   );
 }

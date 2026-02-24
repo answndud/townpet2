@@ -2,6 +2,9 @@ import { AuthAuditAction } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
+export const AUTH_AUDIT_LOG_LIMIT_MAX = 200;
+export const AUTH_AUDIT_LOG_LIMIT_DEFAULT = 50;
+
 type AuthAuditListOptions = {
   action?: AuthAuditAction | null;
   query?: string | null;
@@ -14,7 +17,10 @@ export async function listAuthAuditLogs({
   limit,
 }: AuthAuditListOptions) {
   const trimmedQuery = query?.trim();
-  const safeLimit = Math.min(Math.max(limit ?? 50, 1), 200);
+  const safeLimit = Math.min(
+    Math.max(limit ?? AUTH_AUDIT_LOG_LIMIT_DEFAULT, 1),
+    AUTH_AUDIT_LOG_LIMIT_MAX,
+  );
 
   return prisma.authAuditLog.findMany({
     where: {

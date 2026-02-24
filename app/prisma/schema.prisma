@@ -148,6 +148,7 @@ model UserNeighborhood {
 model Post {
   id               String          @id @default(cuid())
   authorId         String
+  guestAuthorId    String?
   guestDisplayName String?
   guestIpDisplay   String?
   guestIpLabel     String?
@@ -165,6 +166,7 @@ model Post {
   dislikeCount     Int             @default(0)
   commentCount     Int             @default(0)
   author           User            @relation(fields: [authorId], references: [id])
+  guestAuthor      GuestAuthor?    @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
   neighborhood     Neighborhood?   @relation(fields: [neighborhoodId], references: [id])
   comments         Comment[]
   images           PostImage[]
@@ -181,10 +183,28 @@ model Post {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   @@index([authorId])
+  @@index([guestAuthorId, createdAt(sort: Desc)])
   @@index([guestIpHash, createdAt(sort: Desc)])
   @@index([guestFingerprintHash, createdAt(sort: Desc)])
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
+}
+
+model GuestAuthor {
+  id              String    @id @default(cuid())
+  displayName     String
+  passwordHash    String
+  ipHash          String
+  fingerprintHash String?
+  ipDisplay       String?
+  ipLabel         String?
+  posts           Post[]
+  comments        Comment[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([ipHash, createdAt(sort: Desc)])
+  @@index([fingerprintHash, createdAt(sort: Desc)])
 }
 
 model GuestBan {
@@ -403,6 +423,7 @@ model Comment {
   id             String            @id @default(cuid())
   postId         String
   authorId       String
+  guestAuthorId  String?
   guestDisplayName String?
   guestIpDisplay String?
   guestIpLabel   String?
@@ -416,6 +437,7 @@ model Comment {
   dislikeCount   Int               @default(0)
   post           Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   author         User              @relation(fields: [authorId], references: [id])
+  guestAuthor    GuestAuthor?      @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
   parent         Comment?          @relation("CommentReplies", fields: [parentId], references: [id])
   replies        Comment[]         @relation("CommentReplies")
   reactions      CommentReaction[]
@@ -423,6 +445,7 @@ model Comment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   @@index([postId, createdAt(sort: Desc)])
+  @@index([guestAuthorId, createdAt(sort: Desc)])
   @@index([guestIpHash, createdAt(sort: Desc)])
   @@index([guestFingerprintHash, createdAt(sort: Desc)])
 }

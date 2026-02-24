@@ -162,14 +162,6 @@ export default async function Home({ searchParams }: HomePageProps) {
     throw error;
   });
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
-  const viewerPets = user?.id
-    ? await listPetsByUserId(user.id).catch((error) => {
-        if (isDatabaseUnavailableError(error)) {
-          return [];
-        }
-        throw error;
-      })
-    : [];
 
   const resolvedParams = (await searchParams) ?? {};
   await maybeDebugDelay(resolvedParams.debugDelayMs);
@@ -309,6 +301,17 @@ export default async function Home({ searchParams }: HomePageProps) {
     query || "__EMPTY__",
     mode === "BEST" ? resolvedPage : "CURSOR",
   ].join("|");
+  const viewerUserId = user?.id ?? null;
+  const shouldLoadViewerPetsForAd =
+    Boolean(viewerUserId) && mode === "ALL" && effectiveScope === PostScope.GLOBAL;
+  const viewerPets = shouldLoadViewerPetsForAd && viewerUserId
+    ? await listPetsByUserId(viewerUserId, { limit: 1, cacheTtlMs: 60_000 }).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return [];
+        }
+        throw error;
+      })
+    : [];
   const primaryPet = viewerPets[0] ?? null;
   const adAudienceKey = primaryPet?.breedCode?.trim()
     ? primaryPet.breedCode.trim().toUpperCase()
