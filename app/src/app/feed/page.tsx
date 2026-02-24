@@ -513,7 +513,7 @@ export default async function Home({ searchParams }: HomePageProps) {
               동네(Local) 피드는 로그인 후 이용할 수 있습니다.{" "}
               <Link
                 href={loginHref("/feed?scope=LOCAL")}
-                className="font-semibold text-[#2f5da4] underline underline-offset-2"
+                className="font-semibold text-[#2f5da4] hover:text-[#244b86]"
               >
                 로그인하기
               </Link>
@@ -524,7 +524,7 @@ export default async function Home({ searchParams }: HomePageProps) {
               선택한 카테고리({postTypeMeta[type].label})는 로그인 후 열람할 수 있습니다.{" "}
               <Link
                 href={loginHref(`/feed?type=${type}`)}
-                className="font-semibold text-[#2f5da4] underline underline-offset-2"
+                className="font-semibold text-[#2f5da4] hover:text-[#244b86]"
               >
                 로그인하기
               </Link>
@@ -975,7 +975,7 @@ export default async function Home({ searchParams }: HomePageProps) {
             <span className="hidden sm:inline">읽은 글은 연한 색상으로 표시됩니다.</span>
             {!isAuthenticated ? (
               <span>
-                반응은 <Link href={loginHref("/feed")} className="font-semibold underline underline-offset-2">로그인</Link> 후 가능
+                반응은 <Link href={loginHref("/feed")} className="font-semibold text-[#2f5da4] hover:text-[#244b86]">로그인</Link> 후 가능
               </span>
             ) : null}
           </div>

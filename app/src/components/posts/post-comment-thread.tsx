@@ -513,7 +513,6 @@ export function PostCommentThread({
                     loginHref={loginHref}
                     compact
                     showDislike={false}
-                    hideLoginHint
                   />
                   {canReply ? (
                     <button
@@ -544,14 +543,6 @@ export function PostCommentThread({
                   ) : null}
                 </div>
 
-                {!canInteract && (
-                  <Link
-                    href={loginHref}
-                    className="text-[11px] text-[#5f77a0] underline underline-offset-2"
-                  >
-                    로그인 후 반응
-                  </Link>
-                )}
               </div>
             ) : null}
 
