@@ -494,8 +494,9 @@ export async function updateGuestComment({
   }
 
   const nextPasswordHash = hasGuestCredential
-    ? guestCredential.passwordHash
+    ? (guestCredential.passwordHash ?? hashGuestCommentPassword(guestPassword))
     : hashGuestCommentPassword(guestPassword);
+  const nextIdentityHash = hashGuestIdentity(guestIdentity);
 
   if (hasGuestCredential && !verifyGuestPassword(guestPassword, guestCredential.passwordHash!)) {
     await registerGuestViolation({
@@ -563,8 +564,14 @@ export async function updateGuestComment({
       content: parsed.data.content,
       ...(isLegacyGuestComment
         ? {
-            guestPasswordHash: nextPasswordHash,
-            ...hashGuestIdentity(guestIdentity),
+            guestAuthor: {
+              create: {
+                displayName: comment.guestDisplayName?.trim() || "익명",
+                passwordHash: nextPasswordHash,
+                ipHash: nextIdentityHash.ipHash,
+                fingerprintHash: nextIdentityHash.fingerprintHash,
+              },
+            },
           }
         : {}),
     },

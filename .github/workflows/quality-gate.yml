@@ -70,7 +70,7 @@ jobs:
         run: pnpm db:verify:guest-authors
 
       - name: Check guest legacy cleanup readiness
-        run: pnpm db:check:guest-legacy-cleanup
+        run: GUEST_LEGACY_CLEANUP_STRICT=1 pnpm db:check:guest-legacy-cleanup
 
       - name: Rehearse guest legacy cleanup rollback
         run: pnpm db:rehearse:guest-legacy-cleanup
