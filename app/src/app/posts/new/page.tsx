@@ -3,6 +3,7 @@ import Link from "next/link";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCreateForm } from "@/components/posts/post-create-form";
 import { auth } from "@/lib/auth";
+import { listCommunities } from "@/server/queries/community.queries";
 import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
@@ -21,6 +22,7 @@ export default async function NewPostPage() {
   }
 
   const neighborhoods = userId ? await listNeighborhoods() : [];
+  const communities = await listCommunities({ limit: 50 });
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)]">
@@ -43,6 +45,7 @@ export default async function NewPostPage() {
           </div>
           <PostCreateForm
             neighborhoods={neighborhoods}
+            communities={communities.items}
             defaultNeighborhoodId={primaryNeighborhood?.neighborhood.id}
             isAuthenticated={Boolean(userId)}
           />

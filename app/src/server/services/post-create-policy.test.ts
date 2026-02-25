@@ -16,6 +16,9 @@ vi.mock("@/lib/prisma", () => ({
     siteSetting: {
       findUnique: vi.fn(),
     },
+    community: {
+      findUnique: vi.fn(),
+    },
     post: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -44,6 +47,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   siteSetting: {
     findUnique: ReturnType<typeof vi.fn>;
   };
+  community: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   post: {
     create: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
@@ -60,12 +66,16 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 };
 
 describe("createPost new-user restriction", () => {
+  const communityId = "ckc7k5qsj0000u0t8qv6d1d7k";
+
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
     mockPrisma.user.create.mockReset();
     mockPrisma.guestAuthor.create.mockReset();
     mockPrisma.siteSetting.findUnique.mockReset();
     mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
+    mockPrisma.community.findUnique.mockReset();
+    mockPrisma.community.findUnique.mockResolvedValue({ id: communityId, isActive: true });
     mockPrisma.guestBan.findFirst.mockReset();
     mockPrisma.guestBan.findFirst.mockResolvedValue(null);
     mockPrisma.guestBan.create.mockReset();
@@ -101,6 +111,7 @@ describe("createPost new-user restriction", () => {
           content: "새 계정 제한 검증",
           type: PostType.MARKET_LISTING,
           scope: PostScope.GLOBAL,
+          animalTags: ["강아지"],
           imageUrls: [],
         },
       }),
@@ -128,6 +139,7 @@ describe("createPost new-user restriction", () => {
           content: "작성 가능",
           type: PostType.FREE_POST,
           scope: PostScope.GLOBAL,
+          communityId,
           imageUrls: [],
         },
       }),
@@ -152,6 +164,7 @@ describe("createPost new-user restriction", () => {
           content: "문의는 010-1234-5678",
           type: PostType.FREE_POST,
           scope: PostScope.GLOBAL,
+          communityId,
           imageUrls: [],
         },
       }),
@@ -179,6 +192,7 @@ describe("createPost new-user restriction", () => {
           content: "작성 가능",
           type: PostType.LOST_FOUND,
           scope: PostScope.GLOBAL,
+          animalTags: ["강아지"],
           imageUrls: [],
         },
       }),
@@ -195,6 +209,7 @@ describe("createPost new-user restriction", () => {
           content: "텍스트만 작성",
           type: PostType.FREE_BOARD,
           scope: PostScope.GLOBAL,
+          communityId,
           guestDisplayName: "익명작성자",
           guestPassword: "1234",
           imageUrls: [],
@@ -219,6 +234,7 @@ describe("createPost new-user restriction", () => {
           content: "모임 글",
           type: PostType.MEETUP,
           scope: PostScope.GLOBAL,
+          communityId,
           guestDisplayName: "익명작성자",
           guestPassword: "1234",
           imageUrls: [],
@@ -234,5 +250,58 @@ describe("createPost new-user restriction", () => {
     });
 
     expect(mockPrisma.post.create).not.toHaveBeenCalled();
+  });
+
+  it("maps common board fields by post type", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await createPost({
+      authorId: "user-1",
+      input: {
+        title: "병원 후기",
+        content: "도움 됨",
+        type: PostType.HOSPITAL_REVIEW,
+        scope: PostScope.GLOBAL,
+        animalTags: ["강아지", "강아지", "  고양이  "],
+      },
+    });
+
+    expect(mockPrisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          boardScope: "COMMON",
+          commonBoardType: "HOSPITAL",
+          communityId: null,
+          animalTags: ["강아지", "고양이"],
+        }),
+      }),
+    );
+  });
+
+  it("requires community for community-board post types", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "자유글",
+          content: "본문",
+          type: PostType.FREE_BOARD,
+          scope: PostScope.GLOBAL,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      status: 400,
+    });
   });
 });

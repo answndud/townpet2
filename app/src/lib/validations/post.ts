@@ -1,6 +1,8 @@
 import { PostScope, PostType } from "@prisma/client";
 import { z } from "zod";
 
+import { isCommonBoardPostType } from "@/lib/community-board";
+
 const optionalTrimmedString = z.preprocess(
   (value) => {
     if (typeof value !== "string") {
@@ -64,10 +66,41 @@ export const postCreateSchema = z.object({
   type: z.nativeEnum(PostType),
   scope: z.nativeEnum(PostScope).default(PostScope.LOCAL),
   neighborhoodId: z.string().cuid().optional(),
+   communityId: z.string().cuid().optional(),
+   animalTags: z.array(z.string().trim().min(1).max(24)).max(5).optional().default([]),
   imageUrls: z.array(imageUrlSchema).max(10).optional().default([]),
   guestDisplayName: z.string().trim().min(2).max(24).optional(),
   guestPassword: z.string().min(4).max(32).optional(),
-});
+})
+  .superRefine((value, ctx) => {
+    if (isCommonBoardPostType(value.type)) {
+      if (value.communityId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["communityId"],
+          message: "공용 보드 글은 커뮤니티를 지정할 수 없습니다.",
+        });
+      }
+
+      if ((value.animalTags ?? []).length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["animalTags"],
+          message: "공용 보드 글은 동물 태그를 최소 1개 입력해 주세요.",
+        });
+      }
+
+      return;
+    }
+
+    if (!value.communityId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["communityId"],
+        message: "커뮤니티 글은 커뮤니티 선택이 필요합니다.",
+      });
+    }
+  });
 
 export const hospitalReviewSchema = z.object({
   hospitalName: optionalTrimmedString,

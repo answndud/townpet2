@@ -8,39 +8,39 @@ datasource db {
 }
 
 model User {
-  id              String             @id @default(cuid())
-  email           String             @unique
-  name            String?
-  nickname        String?            @unique
-  bio             String?            @db.Text
-  image           String?
-  passwordHash    String?
-  emailVerified   DateTime?
-  role            UserRole           @default(USER)
-  neighborhoods   UserNeighborhood[]
-  posts           Post[]
-  comments        Comment[]
-  reports         Report[]           @relation("ReportedBy")
-  receivedReports Report[]           @relation("ReportedUser")
-  reportAudits    ReportAudit[]      @relation("ReportAuditResolvedBy")
-  sanctionsReceived UserSanction[]   @relation("SanctionedUser")
-  sanctionsIssued   UserSanction[]   @relation("SanctionModerator")
-  blocksGiven       UserBlock[]      @relation("UserBlocksGiven")
-  blocksReceived    UserBlock[]      @relation("UserBlocksReceived")
-  mutesGiven        UserMute[]       @relation("UserMutesGiven")
-  mutesReceived     UserMute[]       @relation("UserMutesReceived")
+  id                String                @id @default(cuid())
+  email             String                @unique
+  name              String?
+  nickname          String?               @unique
+  bio               String?               @db.Text
+  image             String?
+  passwordHash      String?
+  emailVerified     DateTime?
+  role              UserRole              @default(USER)
+  neighborhoods     UserNeighborhood[]
+  posts             Post[]
+  comments          Comment[]
+  reports           Report[]              @relation("ReportedBy")
+  receivedReports   Report[]              @relation("ReportedUser")
+  reportAudits      ReportAudit[]         @relation("ReportAuditResolvedBy")
+  sanctionsReceived UserSanction[]        @relation("SanctionedUser")
+  sanctionsIssued   UserSanction[]        @relation("SanctionModerator")
+  blocksGiven       UserBlock[]           @relation("UserBlocksGiven")
+  blocksReceived    UserBlock[]           @relation("UserBlocksReceived")
+  mutesGiven        UserMute[]            @relation("UserMutesGiven")
+  mutesReceived     UserMute[]            @relation("UserMutesReceived")
   pets              Pet[]
   audienceSegments  UserAudienceSegment[]
-  passwordResets  PasswordResetToken[]
-  authAudits      AuthAuditLog[]
-  postReactions   PostReaction[]
-  commentReactions CommentReaction[]
-  notifications   Notification[]     @relation("NotificationRecipient")
-  actions         Notification[]     @relation("NotificationActor")
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  accounts        Account[]
-  sessions        Session[]
+  passwordResets    PasswordResetToken[]
+  authAudits        AuthAuditLog[]
+  postReactions     PostReaction[]
+  commentReactions  CommentReaction[]
+  notifications     Notification[]        @relation("NotificationRecipient")
+  actions           Notification[]        @relation("NotificationActor")
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  accounts          Account[]
+  sessions          Session[]
 }
 
 enum PetSpecies {
@@ -81,37 +81,38 @@ model BreedCatalog {
 }
 
 model Pet {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  species   PetSpecies
-  breedCode String?
+  id         String       @id @default(cuid())
+  userId     String
+  name       String
+  species    PetSpecies
+  breedCode  String?
   breedLabel String?
-  sizeClass PetSizeClass @default(UNKNOWN)
-  lifeStage PetLifeStage @default(UNKNOWN)
-  age       Int?
-  imageUrl  String?
-  bio       String?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sizeClass  PetSizeClass @default(UNKNOWN)
+  lifeStage  PetLifeStage @default(UNKNOWN)
+  age        Int?
+  imageUrl   String?
+  bio        String?
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([species, breedCode])
   @@index([sizeClass, lifeStage])
 }
 
 model UserAudienceSegment {
-  id              String       @id @default(cuid())
+  id              String        @id @default(cuid())
   userId          String
   species         PetSpecies?
   breedCode       String?
   sizeClass       PetSizeClass?
   lifeStage       PetLifeStage?
   interestTags    String[]
-  confidenceScore Float        @default(0.5)
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  confidenceScore Float         @default(0.5)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([userId])
   @@index([species, breedCode, sizeClass, lifeStage])
@@ -124,14 +125,15 @@ enum UserRole {
 }
 
 model Neighborhood {
-  id           String             @id @default(cuid())
-  name         String
-  city         String
-  district     String
-  lat          Float?
-  lng          Float?
-  users        UserNeighborhood[]
-  posts        Post[]
+  id       String             @id @default(cuid())
+  name     String
+  city     String
+  district String
+  lat      Float?
+  lng      Float?
+  users    UserNeighborhood[]
+  posts    Post[]
+
   @@unique([name, city, district], name: "name_city_district")
 }
 
@@ -142,44 +144,84 @@ model UserNeighborhood {
   isPrimary      Boolean      @default(false)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   neighborhood   Neighborhood @relation(fields: [neighborhoodId], references: [id])
+
   @@unique([userId, neighborhoodId])
 }
 
+model CommunityCategory {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  labelKo     String
+  description String?
+  sortOrder   Int         @default(100)
+  isActive    Boolean     @default(true)
+  communities Community[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Community {
+  id               String            @id @default(cuid())
+  categoryId       String
+  slug             String            @unique
+  labelKo          String
+  description      String?
+  isActive         Boolean           @default(true)
+  sortOrder        Int               @default(100)
+  defaultPostTypes PostType[]        @default([])
+  tags             String[]          @default([])
+  category         CommunityCategory @relation(fields: [categoryId], references: [id])
+  posts            Post[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([categoryId, sortOrder])
+}
+
 model Post {
-  id               String          @id @default(cuid())
-  authorId         String
-  guestAuthorId    String?
-  neighborhoodId   String?
-  type             PostType
-  scope            PostScope       @default(LOCAL)
-  status           PostStatus      @default(ACTIVE)
-  title            String
-  content          String          @db.Text
-  viewCount        Int             @default(0)
-  likeCount        Int             @default(0)
-  dislikeCount     Int             @default(0)
-  commentCount     Int             @default(0)
-  author           User            @relation(fields: [authorId], references: [id])
-  guestAuthor      GuestAuthor?    @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
-  neighborhood     Neighborhood?   @relation(fields: [neighborhoodId], references: [id])
-  comments         Comment[]
-  images           PostImage[]
-  reports          Report[]
-  reactions        PostReaction[]
-  notifications    Notification[]
-  hospitalReview   HospitalReview?
-  placeReview      PlaceReview?
-  walkRoute        WalkRoute?
-  meetup           Meetup?
-  marketListing    MarketListing?
-  lostFoundAlert   LostFoundAlert?
-  qaQuestion       QaQuestion?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id              String           @id @default(cuid())
+  authorId        String
+  guestAuthorId   String?
+  neighborhoodId  String?
+  boardScope      BoardScope       @default(COMMUNITY)
+  communityId     String?
+  commonBoardType CommonBoardType?
+  animalTags      String[]         @default([])
+  type            PostType
+  scope           PostScope        @default(LOCAL)
+  status          PostStatus       @default(ACTIVE)
+  title           String
+  content         String           @db.Text
+  viewCount       Int              @default(0)
+  likeCount       Int              @default(0)
+  dislikeCount    Int              @default(0)
+  commentCount    Int              @default(0)
+  author          User             @relation(fields: [authorId], references: [id])
+  guestAuthor     GuestAuthor?     @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
+  neighborhood    Neighborhood?    @relation(fields: [neighborhoodId], references: [id])
+  community       Community?       @relation(fields: [communityId], references: [id])
+  comments        Comment[]
+  images          PostImage[]
+  reports         Report[]
+  reactions       PostReaction[]
+  notifications   Notification[]
+  hospitalReview  HospitalReview?
+  placeReview     PlaceReview?
+  walkRoute       WalkRoute?
+  meetup          Meetup?
+  marketListing   MarketListing?
+  lostFoundAlert  LostFoundAlert?
+  qaQuestion      QaQuestion?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
   @@index([authorId])
   @@index([guestAuthorId, createdAt(sort: Desc)])
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
+  @@index([boardScope, createdAt(sort: Desc)])
+  @@index([communityId, createdAt(sort: Desc)])
+  @@index([commonBoardType, createdAt(sort: Desc)])
 }
 
 model GuestAuthor {
@@ -240,6 +282,7 @@ model PostReaction {
   updatedAt DateTime         @updatedAt
   post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([postId, userId])
   @@index([postId, type])
   @@index([userId, createdAt(sort: Desc)])
@@ -276,6 +319,17 @@ enum PostScope {
   GLOBAL
 }
 
+enum BoardScope {
+  COMMUNITY
+  COMMON
+}
+
+enum CommonBoardType {
+  HOSPITAL
+  LOST_FOUND
+  MARKET
+}
+
 enum PostStatus {
   ACTIVE
   HIDDEN
@@ -283,9 +337,9 @@ enum PostStatus {
 }
 
 model HospitalReview {
-  id            String   @id @default(cuid())
-  postId        String   @unique
-  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  postId        String    @unique
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   hospitalName  String?
   visitDate     DateTime?
   treatmentType String?
@@ -296,9 +350,9 @@ model HospitalReview {
 }
 
 model WalkRoute {
-  id              String          @id @default(cuid())
-  postId          String          @unique
-  post            Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id              String           @id @default(cuid())
+  postId          String           @unique
+  post            Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   routeName       String?
   distance        Float?
   duration        Int?
@@ -307,7 +361,7 @@ model WalkRoute {
   hasStreetLights Boolean?
   hasRestroom     Boolean?
   hasParkingLot   Boolean?
-  safetyTags      String[] @default([])
+  safetyTags      String[]         @default([])
 }
 
 enum RouteDifficulty {
@@ -349,9 +403,9 @@ enum MarketStatus {
 }
 
 model PlaceReview {
-  id           String  @id @default(cuid())
-  postId       String  @unique
-  post         Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  postId       String   @unique
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   placeName    String?
   placeType    String?
   address      String?
@@ -412,24 +466,25 @@ model QaQuestion {
 }
 
 model Comment {
-  id             String            @id @default(cuid())
-  postId         String
-  authorId       String
-  guestAuthorId  String?
-  parentId       String?
-  content        String            @db.Text
-  status         PostStatus        @default(ACTIVE)
-  likeCount      Int               @default(0)
-  dislikeCount   Int               @default(0)
-  post           Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author         User              @relation(fields: [authorId], references: [id])
-  guestAuthor    GuestAuthor?      @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
-  parent         Comment?          @relation("CommentReplies", fields: [parentId], references: [id])
-  replies        Comment[]         @relation("CommentReplies")
-  reactions      CommentReaction[]
-  notifications  Notification[]
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  postId        String
+  authorId      String
+  guestAuthorId String?
+  parentId      String?
+  content       String            @db.Text
+  status        PostStatus        @default(ACTIVE)
+  likeCount     Int               @default(0)
+  dislikeCount  Int               @default(0)
+  post          Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author        User              @relation(fields: [authorId], references: [id])
+  guestAuthor   GuestAuthor?      @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
+  parent        Comment?          @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       Comment[]         @relation("CommentReplies")
+  reactions     CommentReaction[]
+  notifications Notification[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
   @@index([postId, createdAt(sort: Desc)])
   @@index([guestAuthorId, createdAt(sort: Desc)])
 }
@@ -443,6 +498,7 @@ model CommentReaction {
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
+
   @@unique([commentId, userId])
   @@index([commentId, type])
   @@index([userId, createdAt(sort: Desc)])
@@ -473,6 +529,7 @@ model Report {
   resolution   String?
   createdAt    DateTime      @default(now())
   audits       ReportAudit[]
+
   @@index([targetType, targetId])
   @@index([status])
 }
@@ -486,6 +543,7 @@ model ReportAudit {
   report     Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
   resolver   User?        @relation("ReportAuditResolvedBy", fields: [resolvedBy], references: [id])
   createdAt  DateTime     @default(now())
+
   @@index([reportId, createdAt(sort: Desc)])
 }
 
@@ -528,6 +586,7 @@ model UserSanction {
   moderator      User          @relation("SanctionModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, expiresAt])
   @@index([sourceReportId])
@@ -540,6 +599,7 @@ model UserBlock {
   blocker   User     @relation("UserBlocksGiven", fields: [blockerId], references: [id], onDelete: Cascade)
   blocked   User     @relation("UserBlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
   @@unique([blockerId, blockedId])
   @@index([blockerId, createdAt(sort: Desc)])
   @@index([blockedId, createdAt(sort: Desc)])
@@ -552,6 +612,7 @@ model UserMute {
   user        User     @relation("UserMutesGiven", fields: [userId], references: [id], onDelete: Cascade)
   mutedUser   User     @relation("UserMutesReceived", fields: [mutedUserId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+
   @@unique([userId, mutedUserId])
   @@index([userId, createdAt(sort: Desc)])
   @@index([mutedUserId, createdAt(sort: Desc)])
@@ -571,6 +632,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
 }
 
@@ -586,17 +648,19 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([expiresAt])
 }
@@ -609,6 +673,7 @@ model AuthAuditLog {
   userAgent String?
   createdAt DateTime        @default(now())
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([action])
 }
@@ -626,6 +691,7 @@ model SearchTermStat {
   count          Int      @default(1)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
   @@index([count(sort: Desc), updatedAt(sort: Desc)])
   @@index([updatedAt(sort: Desc)])
 }
@@ -650,6 +716,7 @@ model Notification {
   comment    Comment?               @relation(fields: [commentId], references: [id], onDelete: SetNull)
   createdAt  DateTime               @default(now())
   updatedAt  DateTime               @updatedAt
+
   @@index([userId, isRead, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@index([entityType, entityId])

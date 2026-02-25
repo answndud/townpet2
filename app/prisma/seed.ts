@@ -1,5 +1,11 @@
 import "dotenv/config";
-import { Prisma, PrismaClient, PostReactionType } from "@prisma/client";
+import {
+  CommonBoardType,
+  PostType,
+  Prisma,
+  PrismaClient,
+  PostReactionType,
+} from "@prisma/client";
 import { hashPassword } from "../src/server/password";
 
 const prisma = new PrismaClient();
@@ -9,6 +15,137 @@ const neighborhoods = [
   { name: "연남동", city: "서울", district: "마포구" },
   { name: "수영동", city: "부산", district: "수영구" },
 ];
+
+const communityCategories = [
+  { slug: "dogs", labelKo: "강아지", sortOrder: 1 },
+  { slug: "cats", labelKo: "고양이", sortOrder: 2 },
+  { slug: "birds", labelKo: "조류", sortOrder: 3 },
+  { slug: "reptiles", labelKo: "파충류", sortOrder: 4 },
+  { slug: "small-pets", labelKo: "소동물", sortOrder: 5 },
+  { slug: "aquatics", labelKo: "어류/수조", sortOrder: 6 },
+  { slug: "amphibians", labelKo: "양서류", sortOrder: 7 },
+  { slug: "arthropods", labelKo: "절지류/곤충", sortOrder: 8 },
+  { slug: "special-others", labelKo: "특수동물/기타", sortOrder: 9 },
+] as const;
+
+const communitiesToSeed: Array<{
+  slug: string;
+  labelKo: string;
+  categorySlug: (typeof communityCategories)[number]["slug"];
+  sortOrder: number;
+  tags: string[];
+  defaultPostTypes: PostType[];
+}> = [
+  {
+    slug: "dogs",
+    labelKo: "강아지",
+    categorySlug: "dogs",
+    sortOrder: 1,
+    tags: ["훈련", "산책", "사료", "건강", "행동"],
+    defaultPostTypes: [PostType.FREE_BOARD, PostType.QA_QUESTION, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "cats",
+    labelKo: "고양이",
+    categorySlug: "cats",
+    sortOrder: 2,
+    tags: ["화장실", "사료", "스크래처", "건강", "행동"],
+    defaultPostTypes: [PostType.FREE_BOARD, PostType.QA_QUESTION, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "birds",
+    labelKo: "조류",
+    categorySlug: "birds",
+    sortOrder: 3,
+    tags: ["케이지", "먹이", "소음", "건강", "핸들링"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "parrots",
+    labelKo: "앵무새",
+    categorySlug: "birds",
+    sortOrder: 4,
+    tags: ["훈련", "발성", "장난감", "케이지", "영양"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "reptiles",
+    labelKo: "파충류",
+    categorySlug: "reptiles",
+    sortOrder: 5,
+    tags: ["온습도", "UVB", "사육장", "먹이", "탈피"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "lizards",
+    labelKo: "도마뱀",
+    categorySlug: "reptiles",
+    sortOrder: 6,
+    tags: ["온습도", "급이", "바닥재", "탈피", "행동"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "snakes",
+    labelKo: "뱀",
+    categorySlug: "reptiles",
+    sortOrder: 7,
+    tags: ["급이", "은신처", "탈피", "핸들링", "온도"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "turtles",
+    labelKo: "거북",
+    categorySlug: "reptiles",
+    sortOrder: 8,
+    tags: ["여과", "수질", "일광욕", "먹이", "성장"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "small-pets",
+    labelKo: "소동물",
+    categorySlug: "small-pets",
+    sortOrder: 9,
+    tags: ["케이지", "깔짚", "먹이", "건강", "합사"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "aquatics",
+    labelKo: "어류·수조",
+    categorySlug: "aquatics",
+    sortOrder: 10,
+    tags: ["수질", "여과기", "수초", "합사", "질병"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.PRODUCT_REVIEW, PostType.FREE_BOARD, PostType.PET_SHOWCASE],
+  },
+  {
+    slug: "amphibians",
+    labelKo: "양서류",
+    categorySlug: "amphibians",
+    sortOrder: 11,
+    tags: ["습도", "은신처", "급이", "수질", "환경세팅"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+  {
+    slug: "arthropods",
+    labelKo: "절지류·곤충",
+    categorySlug: "arthropods",
+    sortOrder: 12,
+    tags: ["탈피", "은신처", "먹이", "습도", "번식"],
+    defaultPostTypes: [PostType.QA_QUESTION, PostType.FREE_BOARD, PostType.PET_SHOWCASE, PostType.PRODUCT_REVIEW],
+  },
+];
+
+function resolveCommonBoardTypeByPostType(type: PostType): CommonBoardType | null {
+  if (type === PostType.HOSPITAL_REVIEW) {
+    return CommonBoardType.HOSPITAL;
+  }
+  if (type === PostType.LOST_FOUND) {
+    return CommonBoardType.LOST_FOUND;
+  }
+  if (type === PostType.MARKET_LISTING) {
+    return CommonBoardType.MARKET;
+  }
+  return null;
+}
 
 async function main() {
   const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
@@ -29,6 +166,62 @@ async function main() {
       update: {},
       create: neighborhood,
     });
+  }
+
+  const categoryIdBySlug = new Map<string, string>();
+  for (const category of communityCategories) {
+    const seeded = await prisma.communityCategory.upsert({
+      where: { slug: category.slug },
+      update: {
+        labelKo: category.labelKo,
+        sortOrder: category.sortOrder,
+        isActive: true,
+      },
+      create: {
+        slug: category.slug,
+        labelKo: category.labelKo,
+        sortOrder: category.sortOrder,
+        isActive: true,
+      },
+      select: { id: true, slug: true },
+    });
+    categoryIdBySlug.set(seeded.slug, seeded.id);
+  }
+
+  const communityIdBySlug = new Map<string, string>();
+  for (const community of communitiesToSeed) {
+    const categoryId = categoryIdBySlug.get(community.categorySlug);
+    if (!categoryId) {
+      continue;
+    }
+
+    const seeded = await prisma.community.upsert({
+      where: { slug: community.slug },
+      update: {
+        categoryId,
+        labelKo: community.labelKo,
+        sortOrder: community.sortOrder,
+        isActive: true,
+        tags: community.tags,
+        defaultPostTypes: community.defaultPostTypes,
+      },
+      create: {
+        slug: community.slug,
+        categoryId,
+        labelKo: community.labelKo,
+        sortOrder: community.sortOrder,
+        isActive: true,
+        tags: community.tags,
+        defaultPostTypes: community.defaultPostTypes,
+      },
+      select: { id: true, slug: true },
+    });
+    communityIdBySlug.set(seeded.slug, seeded.id);
+  }
+
+  const defaultCommunityId = communityIdBySlug.get("dogs");
+  if (!defaultCommunityId) {
+    throw new Error("Seed community data is not ready.");
   }
 
   const user = await prisma.user.upsert({
@@ -66,6 +259,9 @@ async function main() {
         title: "서초동 병원 첫 후기",
         content: "대기 시간은 짧고 설명이 자세했습니다.",
         type: "HOSPITAL_REVIEW",
+        boardScope: "COMMON",
+        commonBoardType: "HOSPITAL",
+        animalTags: ["강아지"],
         scope: "LOCAL",
         authorId: user.id,
         neighborhoodId: primaryNeighborhood.id,
@@ -93,6 +289,9 @@ async function main() {
         title: "연남동 카페 리뷰",
         content: "반려견 동반이 편하고 좌석이 넉넉했습니다.",
         type: "PLACE_REVIEW",
+        boardScope: "COMMUNITY",
+        communityId: defaultCommunityId,
+        animalTags: [],
         scope: "LOCAL",
         authorId: user.id,
         neighborhoodId: primaryNeighborhood.id,
@@ -119,6 +318,9 @@ async function main() {
         title: "양재천 산책 루트",
         content: "평일 오전에 한적하고 노면이 평평합니다.",
         type: "WALK_ROUTE",
+        boardScope: "COMMUNITY",
+        communityId: defaultCommunityId,
+        animalTags: [],
         scope: "LOCAL",
         authorId: user.id,
         neighborhoodId: primaryNeighborhood.id,
@@ -149,6 +351,9 @@ async function main() {
         title: "동네 자유게시판 첫 글",
         content: "이번 주말 산책 모임 할 분 있나요?",
         type: "FREE_BOARD",
+        boardScope: "COMMUNITY",
+        communityId: defaultCommunityId,
+        animalTags: [],
         scope: "LOCAL",
         authorId: user.id,
         neighborhoodId: primaryNeighborhood.id,
@@ -166,6 +371,9 @@ async function main() {
         title: "오늘의 일상 공유",
         content: "비 오는 날이라 실내 카페에서 쉬었어요.",
         type: "DAILY_SHARE",
+        boardScope: "COMMUNITY",
+        communityId: defaultCommunityId,
+        animalTags: [],
         scope: "LOCAL",
         authorId: user.id,
         neighborhoodId: primaryNeighborhood.id,
@@ -183,6 +391,9 @@ async function main() {
         title: "사료 제품 리뷰",
         content: "알러지 반응이 없고 기호성이 좋았습니다.",
         type: "PRODUCT_REVIEW",
+        boardScope: "COMMUNITY",
+        communityId: defaultCommunityId,
+        animalTags: [],
         scope: "GLOBAL",
         authorId: user.id,
       },
@@ -199,6 +410,9 @@ async function main() {
         title: "우리집 반려견 자랑",
         content: "오늘 산책에서 찍은 사진을 공유합니다.",
         type: "PET_SHOWCASE",
+        boardScope: "COMMUNITY",
+        communityId: defaultCommunityId,
+        animalTags: [],
         scope: "GLOBAL",
         authorId: user.id,
       },
@@ -298,11 +512,16 @@ async function main() {
     });
 
     if (!existing) {
+      const commonBoardType = resolveCommonBoardTypeByPostType(post.type as PostType);
       await prisma.post.create({
         data: {
           title: post.title,
           content: post.content,
           type: post.type as never,
+          boardScope: commonBoardType ? "COMMON" : "COMMUNITY",
+          communityId: commonBoardType ? null : defaultCommunityId,
+          commonBoardType: commonBoardType ?? undefined,
+          animalTags: commonBoardType ? ["강아지"] : [],
           scope: post.scope as never,
           authorId: user.id,
           neighborhoodId: post.scope === "LOCAL" ? primaryNeighborhood.id : null,

@@ -16,6 +16,7 @@ import {
   GUEST_BLOCKED_POST_TYPES,
   GUEST_MAX_IMAGE_COUNT,
 } from "@/lib/guest-post-policy";
+import { isCommonBoardPostType } from "@/lib/community-board";
 import {
   markupToEditorHtml,
   serializeEditorHtml,
@@ -30,8 +31,18 @@ type NeighborhoodOption = {
   district: string;
 };
 
+type CommunityOption = {
+  id: string;
+  slug: string;
+  labelKo: string;
+  category: {
+    labelKo: string;
+  };
+};
+
 type PostCreateFormProps = {
   neighborhoods: NeighborhoodOption[];
+  communities: CommunityOption[];
   defaultNeighborhoodId?: string;
   isAuthenticated: boolean;
 };
@@ -42,6 +53,8 @@ type PostCreateFormState = {
   type: PostType;
   scope: PostScope;
   neighborhoodId: string;
+  communityId: string;
+  animalTagsInput: string;
   hospitalReview: {
     hospitalName: string;
     treatmentType: string;
@@ -106,6 +119,8 @@ function isDraftFormState(value: unknown): value is PostCreateFormState {
     typeof candidate.type === "string" &&
     typeof candidate.scope === "string" &&
     typeof candidate.neighborhoodId === "string" &&
+    (typeof candidate.communityId === "string" || candidate.communityId === undefined) &&
+    (typeof candidate.animalTagsInput === "string" || candidate.animalTagsInput === undefined) &&
     Array.isArray(candidate.imageUrls) &&
     (typeof candidate.guestDisplayName === "string" || candidate.guestDisplayName === undefined) &&
     (typeof candidate.guestPassword === "string" || candidate.guestPassword === undefined) &&
@@ -132,6 +147,7 @@ function getGuestFingerprint() {
 
 export function PostCreateForm({
   neighborhoods,
+  communities,
   defaultNeighborhoodId = "",
   isAuthenticated,
 }: PostCreateFormProps) {
@@ -150,6 +166,8 @@ export function PostCreateForm({
     type: PostType.FREE_BOARD,
     scope: PostScope.GLOBAL,
     neighborhoodId: defaultNeighborhoodId,
+    communityId: communities[0]?.id ?? "",
+    animalTagsInput: "",
     hospitalReview: {
       hospitalName: "",
       treatmentType: "",
@@ -200,6 +218,8 @@ export function PostCreateForm({
         setFormState((prev) => ({
           ...prev,
           ...draftForm,
+          communityId: draftForm.communityId ?? prev.communityId,
+          animalTagsInput: draftForm.animalTagsInput ?? "",
           guestDisplayName: draftForm.guestDisplayName ?? "",
           guestPassword: "",
         }));
@@ -390,6 +410,15 @@ export function PostCreateForm({
     [neighborhoods],
   );
 
+  const communityOptions = useMemo(
+    () =>
+      communities.map((community) => ({
+        value: community.id,
+        label: `${community.labelKo} (${community.category.labelKo})`,
+      })),
+    [communities],
+  );
+
   const availablePostTypeOptions = useMemo(() => {
     if (isAuthenticated) {
       return postTypeOptions;
@@ -414,7 +443,25 @@ export function PostCreateForm({
     }
   }, [formState.scope, formState.type, isAuthenticated]);
 
+  useEffect(() => {
+    if (formState.communityId) {
+      return;
+    }
+
+    if (communityOptions.length === 0) {
+      return;
+    }
+
+    setFormState((prev) => ({
+      ...prev,
+      communityId: communityOptions[0].value,
+    }));
+  }, [communityOptions, formState.communityId]);
+
   const showNeighborhood = formState.scope === PostScope.LOCAL;
+  const isCommonBoardType = isCommonBoardPostType(formState.type);
+  const showCommunitySelector = !isCommonBoardType;
+  const showAnimalTagsInput = isCommonBoardType;
   const showHospitalReview = formState.type === PostType.HOSPITAL_REVIEW;
   const showPlaceReview = formState.type === PostType.PLACE_REVIEW;
   const showWalkRoute = formState.type === PostType.WALK_ROUTE;
@@ -579,6 +626,23 @@ export function PostCreateForm({
       setError("내용을 입력해 주세요.");
       return;
     }
+
+    const normalizedAnimalTags = formState.animalTagsInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0)
+      .slice(0, 5);
+
+    if (showCommunitySelector && !formState.communityId) {
+      setError("커뮤니티를 선택해 주세요.");
+      return;
+    }
+
+    if (showAnimalTagsInput && normalizedAnimalTags.length === 0) {
+      setError("공용 보드 글은 동물 태그를 1개 이상 입력해 주세요.");
+      return;
+    }
+
     setFormState((prev) => ({
       ...prev,
       content: serializedContent,
@@ -593,6 +657,8 @@ export function PostCreateForm({
         scope: isAuthenticated ? formState.scope : PostScope.GLOBAL,
         imageUrls: serializedImageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : undefined,
+        communityId: showCommunitySelector ? formState.communityId : undefined,
+        animalTags: showAnimalTagsInput ? normalizedAnimalTags : undefined,
         guestDisplayName: isAuthenticated ? undefined : formState.guestDisplayName,
         guestPassword: isAuthenticated ? undefined : formState.guestPassword,
         hospitalReview: hasHospitalReview
@@ -667,6 +733,8 @@ export function PostCreateForm({
         title: "",
         content: "",
         type: PostType.FREE_BOARD,
+        communityId: communities[0]?.id ?? "",
+        animalTagsInput: "",
         hospitalReview: {
           ...prev.hospitalReview,
           hospitalName: "",
@@ -787,6 +855,51 @@ export function PostCreateForm({
               ))}
             </select>
           </label>
+
+          {showCommunitySelector ? (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988]">
+              커뮤니티
+              <select
+                className="border border-[#bfd0ec] bg-[#fbfdff] px-3 py-2 text-sm text-[#1f3f71]"
+                value={formState.communityId}
+                onChange={(event) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    communityId: event.target.value,
+                  }))
+                }
+                required
+              >
+                <option value="">선택</option>
+                {communityOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {showAnimalTagsInput ? (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[#355988] md:col-span-2">
+              동물 태그
+              <input
+                className="border border-[#bfd0ec] bg-[#fbfdff] px-3 py-2 text-sm text-[#1f3f71]"
+                value={formState.animalTagsInput}
+                onChange={(event) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    animalTagsInput: event.target.value,
+                  }))
+                }
+                placeholder="예: 강아지, 고양이"
+                required
+              />
+              <span className="text-xs font-normal text-[#5d789f]">
+                공용 보드 글의 노출 향상을 위해 동물 태그를 쉼표로 구분해 입력해 주세요.
+              </span>
+            </label>
+          ) : null}
         </div>
         {!isAuthenticated ? (
           <div className="grid gap-3 border-t border-[#dbe6f6] bg-[#f8fbff] p-4 md:grid-cols-2">

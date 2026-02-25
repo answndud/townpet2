@@ -2,6 +2,7 @@ import { GuestViolationCategory, PostReactionType, PostScope, PostStatus } from 
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "crypto";
 
 import { runtimeEnv } from "@/lib/env";
+import { resolveBoardByPostType } from "@/lib/community-board";
 import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { detectContactSignals, moderateContactContent } from "@/lib/contact-policy";
@@ -75,6 +76,15 @@ const normalizeImageUrls = (imageUrls: string[] | undefined) =>
         .filter((url) => url.length > 0),
     ),
   ).slice(0, MAX_POST_IMAGES);
+
+const normalizeAnimalTags = (animalTags: string[] | undefined) =>
+  Array.from(
+    new Set(
+      (animalTags ?? [])
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0),
+    ),
+  ).slice(0, 5);
 
 const buildImageCreateInput = (imageUrls: string[]) =>
   imageUrls.map((url, index) => ({
@@ -277,11 +287,15 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
 
   const {
     imageUrls,
+    communityId,
+    animalTags,
     guestDisplayName,
     guestPassword,
     ...postData
   } = parsed.data;
   const normalizedImageUrls = normalizeImageUrls(imageUrls);
+  const normalizedAnimalTags = normalizeAnimalTags(animalTags);
+  const mappedBoard = resolveBoardByPostType(postData.type);
   const rawInput = input as Record<string, unknown>;
   const [forbiddenKeywords, newUserSafetyPolicy, guestPostPolicy] = await Promise.all([
     getForbiddenKeywords(),
@@ -450,8 +464,35 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     throw new ServiceError("동네 정보가 필요합니다.", "NEIGHBORHOOD_REQUIRED", 400);
   }
 
+  if (mappedBoard.boardScope === "COMMUNITY") {
+    if (!communityId) {
+      throw new ServiceError("커뮤니티를 선택해 주세요.", "POST_COMMUNITY_REQUIRED", 400);
+    }
+
+    const community = await prisma.community.findUnique({
+      where: { id: communityId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!community || !community.isActive) {
+      throw new ServiceError("유효한 커뮤니티를 찾을 수 없습니다.", "POST_COMMUNITY_INVALID", 400);
+    }
+  } else {
+    if (communityId) {
+      throw new ServiceError("공용 보드 글은 커뮤니티를 지정할 수 없습니다.", "POST_COMMUNITY_FORBIDDEN", 400);
+    }
+
+    if (normalizedAnimalTags.length === 0) {
+      throw new ServiceError("공용 보드 글은 동물 태그를 1개 이상 입력해 주세요.", "POST_COMMON_BOARD_TAGS_REQUIRED", 400);
+    }
+  }
+
   const commonCreateData = {
     ...postData,
+    boardScope: mappedBoard.boardScope,
+    communityId: mappedBoard.boardScope === "COMMUNITY" ? communityId : null,
+    commonBoardType: mappedBoard.commonBoardType,
+    animalTags: mappedBoard.boardScope === "COMMON" ? normalizedAnimalTags : [],
     authorId: resolvedAuthorId,
     ...(guestCreateMeta ?? {}),
     ...(normalizedImageUrls.length > 0

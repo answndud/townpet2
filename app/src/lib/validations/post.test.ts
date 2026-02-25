@@ -17,6 +17,7 @@ describe("post validations", () => {
       type: PostType.FREE_BOARD,
       scope: PostScope.LOCAL,
       neighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
     });
 
     expect(result.success).toBe(true);
@@ -56,6 +57,42 @@ describe("post validations", () => {
     const result = postListSchema.safeParse({
       type: PostType.PET_SHOWCASE,
       scope: PostScope.GLOBAL,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects community posts without communityId", () => {
+    const result = postCreateSchema.safeParse({
+      title: "테스트",
+      content: "내용",
+      type: PostType.FREE_BOARD,
+      scope: PostScope.GLOBAL,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects common-board posts with communityId", () => {
+    const result = postCreateSchema.safeParse({
+      title: "병원후기",
+      content: "내용",
+      type: PostType.HOSPITAL_REVIEW,
+      scope: PostScope.GLOBAL,
+      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      animalTags: ["강아지"],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("requires animal tags for common-board posts", () => {
+    const result = postCreateSchema.safeParse({
+      title: "거래글",
+      content: "내용",
+      type: PostType.MARKET_LISTING,
+      scope: PostScope.GLOBAL,
+      animalTags: ["강아지"],
     });
 
     expect(result.success).toBe(true);

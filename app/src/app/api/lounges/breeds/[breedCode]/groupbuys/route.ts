@@ -80,6 +80,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           }),
           type: PostType.MARKET_LISTING,
           scope: PostScope.GLOBAL,
+          animalTags: [parsedBreedCode.data],
           imageUrls: parsed.data.imageUrls ?? [],
         },
       });
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }),
         type: PostType.MARKET_LISTING,
         scope: PostScope.GLOBAL,
+        animalTags: [parsedBreedCode.data],
         imageUrls: parsed.data.imageUrls ?? [],
         guestDisplayName: parsed.data.guestDisplayName,
         guestPassword: parsed.data.guestPassword,
