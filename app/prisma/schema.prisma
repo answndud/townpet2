@@ -149,12 +149,6 @@ model Post {
   id               String          @id @default(cuid())
   authorId         String
   guestAuthorId    String?
-  guestDisplayName String?
-  guestIpDisplay   String?
-  guestIpLabel     String?
-  guestPasswordHash String?
-  guestIpHash      String?
-  guestFingerprintHash String?
   neighborhoodId   String?
   type             PostType
   scope            PostScope       @default(LOCAL)
@@ -184,8 +178,6 @@ model Post {
   updatedAt        DateTime        @updatedAt
   @@index([authorId])
   @@index([guestAuthorId, createdAt(sort: Desc)])
-  @@index([guestIpHash, createdAt(sort: Desc)])
-  @@index([guestFingerprintHash, createdAt(sort: Desc)])
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
 }
@@ -424,12 +416,6 @@ model Comment {
   postId         String
   authorId       String
   guestAuthorId  String?
-  guestDisplayName String?
-  guestIpDisplay String?
-  guestIpLabel   String?
-  guestPasswordHash String?
-  guestIpHash    String?
-  guestFingerprintHash String?
   parentId       String?
   content        String            @db.Text
   status         PostStatus        @default(ACTIVE)
@@ -446,8 +432,6 @@ model Comment {
   updatedAt      DateTime          @updatedAt
   @@index([postId, createdAt(sort: Desc)])
   @@index([guestAuthorId, createdAt(sort: Desc)])
-  @@index([guestIpHash, createdAt(sort: Desc)])
-  @@index([guestFingerprintHash, createdAt(sort: Desc)])
 }
 
 model CommentReaction {

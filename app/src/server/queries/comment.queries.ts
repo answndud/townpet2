@@ -81,10 +81,16 @@ export async function getCommentById(commentId: string) {
       authorId: true,
       postId: true,
       status: true,
-      guestPasswordHash: true,
-      guestIpHash: true,
-      guestFingerprintHash: true,
-      guestDisplayName: true,
+      guestAuthorId: true,
+      guestAuthor: {
+        select: {
+          id: true,
+          passwordHash: true,
+          ipHash: true,
+          fingerprintHash: true,
+          displayName: true,
+        },
+      },
     },
   });
 }

@@ -134,15 +134,12 @@ function resolveGuestPostCredential(params: {
     ipHash: string;
     fingerprintHash: string | null;
   } | null;
-  guestPasswordHash: string | null;
-  guestIpHash: string | null;
-  guestFingerprintHash: string | null;
 }) {
   return {
-    hasGuestMarker: Boolean(params.guestAuthorId || params.guestPasswordHash),
-    passwordHash: params.guestAuthor?.passwordHash ?? params.guestPasswordHash,
-    ipHash: params.guestAuthor?.ipHash ?? params.guestIpHash,
-    fingerprintHash: params.guestAuthor?.fingerprintHash ?? params.guestFingerprintHash,
+    hasGuestMarker: Boolean(params.guestAuthorId || params.guestAuthor),
+    passwordHash: params.guestAuthor?.passwordHash ?? null,
+    ipHash: params.guestAuthor?.ipHash ?? null,
+    fingerprintHash: params.guestAuthor?.fingerprintHash ?? null,
   };
 }
 
@@ -864,9 +861,6 @@ export async function updateGuestPost({
           fingerprintHash: true,
         },
       },
-      guestPasswordHash: true,
-      guestIpHash: true,
-      guestFingerprintHash: true,
     },
   });
 
@@ -1068,9 +1062,6 @@ export async function deleteGuestPost({
           fingerprintHash: true,
         },
       },
-      guestPasswordHash: true,
-      guestIpHash: true,
-      guestFingerprintHash: true,
     },
   });
 

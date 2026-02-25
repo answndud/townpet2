@@ -32,8 +32,6 @@ type CreateCommentParams = {
   };
 };
 
-const LEGACY_GUEST_COMMENT_CLAIM_WINDOW_HOURS = 24;
-
 function verifyGuestPassword(rawPassword: string, stored: string) {
   const [salt, expectedHash] = stored.split(":");
   if (!salt || !expectedHash) {
@@ -82,27 +80,14 @@ function resolveGuestCommentCredential(params: {
     ipHash: string;
     fingerprintHash: string | null;
   } | null;
-  guestDisplayName?: string | null;
-  guestPasswordHash: string | null;
-  guestIpHash: string | null;
-  guestFingerprintHash: string | null;
-  author: { email: string };
 }) {
-  const passwordHash = params.guestAuthor?.passwordHash ?? params.guestPasswordHash;
+  const passwordHash = params.guestAuthor?.passwordHash ?? null;
   return {
     passwordHash,
-    ipHash: params.guestAuthor?.ipHash ?? params.guestIpHash,
-    fingerprintHash: params.guestAuthor?.fingerprintHash ?? params.guestFingerprintHash,
-    hasGuestMarker: Boolean(
-      params.guestAuthorId ||
-        params.guestDisplayName ||
-        params.author.email.endsWith("@guest.townpet.local"),
-    ),
+    ipHash: params.guestAuthor?.ipHash ?? null,
+    fingerprintHash: params.guestAuthor?.fingerprintHash ?? null,
+    hasGuestMarker: Boolean(params.guestAuthorId || params.guestAuthor),
   };
-}
-
-function isLegacyGuestCommentClaimable(createdAt: Date) {
-  return Date.now() - createdAt.getTime() <= LEGACY_GUEST_COMMENT_CLAIM_WINDOW_HOURS * 60 * 60 * 1000;
 }
 
 export async function createComment({
@@ -435,7 +420,6 @@ export async function updateGuestComment({
         authorId: true,
         postId: true,
         status: true,
-        createdAt: true,
         guestAuthorId: true,
         guestAuthor: {
           select: {
@@ -444,11 +428,6 @@ export async function updateGuestComment({
             fingerprintHash: true,
           },
         },
-        guestDisplayName: true,
-        guestPasswordHash: true,
-        guestIpHash: true,
-        guestFingerprintHash: true,
-        author: { select: { email: true } },
       },
     }),
     getGuestPostPolicy(),
@@ -460,15 +439,11 @@ export async function updateGuestComment({
   }
 
   const guestCredential = resolveGuestCommentCredential(comment);
-  const hasGuestCredential = Boolean(guestCredential.passwordHash);
-  const isLegacyGuestComment = guestCredential.hasGuestMarker && !hasGuestCredential;
-
-  if (!hasGuestCredential && !isLegacyGuestComment) {
+  if (!guestCredential.hasGuestMarker || !guestCredential.passwordHash) {
     throw new ServiceError("비회원 댓글이 아닙니다.", "GUEST_COMMENT_ONLY", 403);
   }
 
   if (
-    hasGuestCredential &&
     !matchesGuestIdentity(
       {
         guestIpHash: guestCredential.ipHash,
@@ -487,12 +462,7 @@ export async function updateGuestComment({
     throw new ServiceError("수정 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  const nextPasswordHash = hasGuestCredential
-    ? (guestCredential.passwordHash ?? hashGuestCommentPassword(guestPassword))
-    : hashGuestCommentPassword(guestPassword);
-  const nextIdentityHash = hashGuestIdentity(guestIdentity);
-
-  if (hasGuestCredential && !verifyGuestPassword(guestPassword, guestCredential.passwordHash!)) {
+  if (!verifyGuestPassword(guestPassword, guestCredential.passwordHash)) {
     await registerGuestViolation({
       identity: guestIdentity,
       category: GuestViolationCategory.POLICY,
@@ -501,14 +471,6 @@ export async function updateGuestComment({
       policy: guestPostPolicy,
     });
     throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
-  }
-
-  if (isLegacyGuestComment && !isLegacyGuestCommentClaimable(comment.createdAt)) {
-    throw new ServiceError(
-      "기존 비회원 댓글은 작성 후 24시간 이내에만 비밀번호 등록으로 수정할 수 있습니다.",
-      "LEGACY_GUEST_COMMENT_CLAIM_EXPIRED",
-      403,
-    );
   }
 
   const replyCountByOthers = await prisma.comment.count({
@@ -556,18 +518,6 @@ export async function updateGuestComment({
     where: { id: commentId },
     data: {
       content: parsed.data.content,
-      ...(isLegacyGuestComment
-        ? {
-            guestAuthor: {
-              create: {
-                displayName: comment.guestDisplayName?.trim() || "익명",
-                passwordHash: nextPasswordHash,
-                ipHash: nextIdentityHash.ipHash,
-                fingerprintHash: nextIdentityHash.fingerprintHash,
-              },
-            },
-          }
-        : {}),
     },
     include: {
       author: { select: { id: true, name: true, nickname: true } },
@@ -597,7 +547,6 @@ export async function deleteGuestComment({
         authorId: true,
         postId: true,
         status: true,
-        createdAt: true,
         guestAuthorId: true,
         guestAuthor: {
           select: {
@@ -606,11 +555,6 @@ export async function deleteGuestComment({
             fingerprintHash: true,
           },
         },
-        guestDisplayName: true,
-        guestPasswordHash: true,
-        guestIpHash: true,
-        guestFingerprintHash: true,
-        author: { select: { email: true } },
       },
     }),
     getGuestPostPolicy(),
@@ -621,15 +565,11 @@ export async function deleteGuestComment({
   }
 
   const guestCredential = resolveGuestCommentCredential(comment);
-  const hasGuestCredential = Boolean(guestCredential.passwordHash);
-  const isLegacyGuestComment = guestCredential.hasGuestMarker && !hasGuestCredential;
-
-  if (!hasGuestCredential && !isLegacyGuestComment) {
+  if (!guestCredential.hasGuestMarker || !guestCredential.passwordHash) {
     throw new ServiceError("비회원 댓글이 아닙니다.", "GUEST_COMMENT_ONLY", 403);
   }
 
   if (
-    hasGuestCredential &&
     !matchesGuestIdentity(
       {
         guestIpHash: guestCredential.ipHash,
@@ -648,7 +588,7 @@ export async function deleteGuestComment({
     throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  if (hasGuestCredential && !verifyGuestPassword(guestPassword, guestCredential.passwordHash!)) {
+  if (!verifyGuestPassword(guestPassword, guestCredential.passwordHash)) {
     await registerGuestViolation({
       identity: guestIdentity,
       category: GuestViolationCategory.POLICY,
@@ -657,14 +597,6 @@ export async function deleteGuestComment({
       policy: guestPostPolicy,
     });
     throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
-  }
-
-  if (isLegacyGuestComment && !isLegacyGuestCommentClaimable(comment.createdAt)) {
-    throw new ServiceError(
-      "기존 비회원 댓글은 작성 후 24시간 이내에만 비밀번호 등록으로 삭제할 수 있습니다.",
-      "LEGACY_GUEST_COMMENT_CLAIM_EXPIRED",
-      403,
-    );
   }
 
   const replyCountByOthers = await prisma.comment.count({

@@ -92,9 +92,12 @@ describe("guest post management", () => {
     mockPrisma.post.findUnique.mockResolvedValue({
       id: "post-1",
       status: PostStatus.ACTIVE,
-      guestPasswordHash: buildPasswordHash("1234"),
-      guestIpHash: sha256("127.0.0.1"),
-      guestFingerprintHash: sha256("guest-fp-1"),
+      guestAuthorId: "guest-author-1",
+      guestAuthor: {
+        passwordHash: buildPasswordHash("1234"),
+        ipHash: sha256("127.0.0.1"),
+        fingerprintHash: sha256("guest-fp-1"),
+      },
     });
     mockPrisma.post.update.mockResolvedValue({ id: "post-1" });
 
@@ -122,9 +125,12 @@ describe("guest post management", () => {
     mockPrisma.post.findUnique.mockResolvedValue({
       id: "post-1",
       status: PostStatus.ACTIVE,
-      guestPasswordHash: buildPasswordHash("1234"),
-      guestIpHash: sha256("127.0.0.1"),
-      guestFingerprintHash: null,
+      guestAuthorId: "guest-author-1",
+      guestAuthor: {
+        passwordHash: buildPasswordHash("1234"),
+        ipHash: sha256("127.0.0.1"),
+        fingerprintHash: null,
+      },
     });
 
     await expect(
@@ -153,9 +159,12 @@ describe("guest post management", () => {
     mockPrisma.post.findUnique.mockResolvedValue({
       id: "post-1",
       status: PostStatus.ACTIVE,
-      guestPasswordHash: buildPasswordHash("1234"),
-      guestIpHash: sha256("127.0.0.1"),
-      guestFingerprintHash: null,
+      guestAuthorId: "guest-author-1",
+      guestAuthor: {
+        passwordHash: buildPasswordHash("1234"),
+        ipHash: sha256("127.0.0.1"),
+        fingerprintHash: null,
+      },
     });
 
     await expect(
@@ -179,9 +188,12 @@ describe("guest post management", () => {
     mockPrisma.post.findUnique.mockResolvedValue({
       id: "post-1",
       status: PostStatus.ACTIVE,
-      guestPasswordHash: buildPasswordHash("1234"),
-      guestIpHash: sha256("127.0.0.1"),
-      guestFingerprintHash: null,
+      guestAuthorId: "guest-author-1",
+      guestAuthor: {
+        passwordHash: buildPasswordHash("1234"),
+        ipHash: sha256("127.0.0.1"),
+        fingerprintHash: null,
+      },
     });
     mockPrisma.post.update.mockResolvedValue({
       id: "post-1",

@@ -101,18 +101,12 @@ describe("guest comment management", () => {
       authorId: "guest-system-user",
       postId: "post-1",
       status: PostStatus.ACTIVE,
-      createdAt: new Date(),
       guestAuthorId: "guest-author-1",
       guestAuthor: {
         passwordHash: buildPasswordHash("1234"),
         ipHash: sha256("127.0.0.1"),
         fingerprintHash: null,
       },
-      guestDisplayName: "익명",
-      guestPasswordHash: null,
-      guestIpHash: null,
-      guestFingerprintHash: null,
-      author: { email: "guest.system@townpet.local" },
     });
     mockPrisma.comment.update.mockResolvedValue({ id: "comment-1" });
 
@@ -139,18 +133,12 @@ describe("guest comment management", () => {
       authorId: "guest-system-user",
       postId: "post-1",
       status: PostStatus.ACTIVE,
-      createdAt: new Date(),
       guestAuthorId: "guest-author-1",
       guestAuthor: {
         passwordHash: buildPasswordHash("1234"),
         ipHash: sha256("127.0.0.1"),
         fingerprintHash: null,
       },
-      guestDisplayName: "익명",
-      guestPasswordHash: null,
-      guestIpHash: null,
-      guestFingerprintHash: null,
-      author: { email: "guest.system@townpet.local" },
     });
 
     await expect(
@@ -178,18 +166,12 @@ describe("guest comment management", () => {
       authorId: "guest-system-user",
       postId: "post-1",
       status: PostStatus.ACTIVE,
-      createdAt: new Date(),
       guestAuthorId: "guest-author-1",
       guestAuthor: {
         passwordHash: buildPasswordHash("1234"),
         ipHash: sha256("127.0.0.1"),
         fingerprintHash: null,
       },
-      guestDisplayName: "익명",
-      guestPasswordHash: null,
-      guestIpHash: null,
-      guestFingerprintHash: null,
-      author: { email: "guest.system@townpet.local" },
     });
 
     mockPrisma.$transaction.mockImplementation(async (callback) =>
@@ -219,22 +201,15 @@ describe("guest comment management", () => {
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
-  it("claims legacy guest comment by creating GuestAuthor instead of legacy hash write", async () => {
+  it("rejects guest comment update when GuestAuthor credential is missing", async () => {
     mockPrisma.comment.findUnique.mockResolvedValue({
       id: "legacy-comment-1",
       authorId: "legacy-guest-user",
       postId: "post-1",
       status: PostStatus.ACTIVE,
-      createdAt: new Date(),
       guestAuthorId: null,
       guestAuthor: null,
-      guestDisplayName: "레거시익명",
-      guestPasswordHash: null,
-      guestIpHash: null,
-      guestFingerprintHash: null,
-      author: { email: "guest-legacy@guest.townpet.local" },
     });
-    mockPrisma.comment.update.mockResolvedValue({ id: "legacy-comment-1" });
 
     await expect(
       updateGuestComment({
@@ -242,33 +217,16 @@ describe("guest comment management", () => {
         guestPassword: "1234",
         guestIdentity: {
           ip: "127.0.0.1",
-          fingerprint: "legacy-fp",
         },
         input: {
-          content: "legacy claim update",
+          content: "legacy update",
         },
       }),
-    ).resolves.toBeTruthy();
+    ).rejects.toMatchObject({
+      code: "GUEST_COMMENT_ONLY",
+      status: 403,
+    });
 
-    expect(mockPrisma.comment.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "legacy-comment-1" },
-        data: expect.objectContaining({
-          content: "legacy claim update",
-          guestAuthor: {
-            create: expect.objectContaining({
-              displayName: "레거시익명",
-            }),
-          },
-        }),
-      }),
-    );
-
-    const callArgs = mockPrisma.comment.update.mock.calls.at(-1)?.[0] as {
-      data?: { guestPasswordHash?: unknown; guestIpHash?: unknown; guestFingerprintHash?: unknown };
-    };
-    expect(callArgs.data?.guestPasswordHash).toBeUndefined();
-    expect(callArgs.data?.guestIpHash).toBeUndefined();
-    expect(callArgs.data?.guestFingerprintHash).toBeUndefined();
+    expect(mockPrisma.comment.update).not.toHaveBeenCalled();
   });
 });

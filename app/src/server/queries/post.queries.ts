@@ -349,12 +349,12 @@ function isUnknownGuestPostColumnError(error: unknown) {
 }
 
 type GuestMetaFields = {
-  guestDisplayName: string | null;
-  guestIpDisplay: string | null;
-  guestIpLabel: string | null;
-  guestPasswordHash: string | null;
-  guestIpHash: string | null;
-  guestFingerprintHash: string | null;
+  guestDisplayName?: string | null;
+  guestIpDisplay?: string | null;
+  guestIpLabel?: string | null;
+  guestPasswordHash?: string | null;
+  guestIpHash?: string | null;
+  guestFingerprintHash?: string | null;
 };
 
 function withEmptyGuestPostMetaOne<T extends object>(item: T | null): (T & GuestMetaFields) | null {
