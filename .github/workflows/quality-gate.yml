@@ -69,6 +69,9 @@ jobs:
       - name: Verify guest author backfill completion
         run: pnpm db:verify:guest-authors
 
+      - name: Check guest legacy cleanup readiness
+        run: pnpm db:check:guest-legacy-cleanup
+
       - name: Rehearse guest legacy cleanup rollback
         run: pnpm db:rehearse:guest-legacy-cleanup
 
