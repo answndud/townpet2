@@ -2,7 +2,16 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const BATCH_SIZE = 200;
+
+const BATCH_SIZE = (() => {
+  const raw = Number(process.env.GUEST_AUTHOR_BACKFILL_BATCH_SIZE ?? "200");
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 200;
+  }
+  return Math.min(Math.floor(raw), 1000);
+})();
+
+const DRY_RUN = process.env.GUEST_AUTHOR_BACKFILL_DRY_RUN === "1";
 
 type GuestMetaRecord = {
   id: string;
@@ -66,6 +75,11 @@ async function backfillPosts() {
         continue;
       }
 
+      if (DRY_RUN) {
+        updated += 1;
+        continue;
+      }
+
       await prisma.$transaction(async (tx) => {
         const guestAuthor = await tx.guestAuthor.create({ data: guestAuthorData, select: { id: true } });
         await tx.post.update({
@@ -118,6 +132,11 @@ async function backfillComments() {
         continue;
       }
 
+      if (DRY_RUN) {
+        updated += 1;
+        continue;
+      }
+
       await prisma.$transaction(async (tx) => {
         const guestAuthor = await tx.guestAuthor.create({ data: guestAuthorData, select: { id: true } });
         await tx.comment.update({
@@ -135,8 +154,17 @@ async function backfillComments() {
 }
 
 async function main() {
+  console.log(
+    `Guest author backfill started (dryRun=${DRY_RUN ? "yes" : "no"}, batchSize=${BATCH_SIZE})`,
+  );
+
   const posts = await backfillPosts();
   const comments = await backfillComments();
+
+  if (DRY_RUN) {
+    console.log(`Dry-run matched ${posts} posts and ${comments} comments for backfill.`);
+    return;
+  }
 
   console.log(`Backfilled guestAuthorId for ${posts} posts and ${comments} comments.`);
 }
