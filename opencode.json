@@ -5,6 +5,17 @@
     "FORcodex.md"
   ],
   "permission": {
+    "task": {
+      "*": "ask",
+      "orchestrator": "allow",
+      "delivery-engineer": "allow",
+      "safety-verifier": "allow",
+      "growth-operator": "allow",
+      "local-error-fixer": "allow",
+      "plan-coordinator": "allow",
+      "general": "allow",
+      "explore": "allow"
+    },
     "skill": {
       "*": "ask",
       "feature-implement": "allow",
@@ -16,6 +27,20 @@
       "cycle-kickoff": "allow",
       "release-readiness": "allow",
       "research-memory": "allow"
+    }
+  },
+  "agent": {
+    "orchestrator": {
+      "permission": {
+        "task": {
+          "*": "deny",
+          "delivery-engineer": "allow",
+          "safety-verifier": "allow",
+          "growth-operator": "allow",
+          "local-error-fixer": "allow",
+          "plan-coordinator": "allow"
+        }
+      }
     }
   },
   "mcp": {
