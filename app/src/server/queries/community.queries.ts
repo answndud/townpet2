@@ -17,6 +17,20 @@ type ListCommonBoardPostsOptions = {
   q?: string;
 };
 
+function isMissingCommunitySchemaError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code !== "P2021") {
+    return false;
+  }
+
+  const meta = error.meta as { table?: unknown } | undefined;
+  const tableName = typeof meta?.table === "string" ? meta.table : "";
+  return tableName.includes("Community") || tableName.includes("CommunityCategory");
+}
+
 export async function listCommunities({
   cursor,
   limit,
@@ -26,47 +40,55 @@ export async function listCommunities({
   const safeLimit = Math.min(Math.max(limit, 1), 50);
   const trimmedQ = q?.trim();
 
-  const items = await prisma.community.findMany({
-    where: {
-      isActive: true,
-      category: {
+  const items = await prisma.community
+    .findMany({
+      where: {
         isActive: true,
-        ...(category ? { slug: category } : {}),
+        category: {
+          isActive: true,
+          ...(category ? { slug: category } : {}),
+        },
+        ...(trimmedQ
+          ? {
+              OR: [
+                { labelKo: { contains: trimmedQ, mode: "insensitive" } },
+                { description: { contains: trimmedQ, mode: "insensitive" } },
+              ],
+            }
+          : {}),
       },
-      ...(trimmedQ
-        ? {
-            OR: [
-              { labelKo: { contains: trimmedQ, mode: "insensitive" } },
-              { description: { contains: trimmedQ, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      slug: true,
-      labelKo: true,
-      description: true,
-      sortOrder: true,
-      tags: true,
-      defaultPostTypes: true,
-      category: {
-        select: {
-          slug: true,
-          labelKo: true,
-          sortOrder: true,
+      select: {
+        id: true,
+        slug: true,
+        labelKo: true,
+        description: true,
+        sortOrder: true,
+        tags: true,
+        defaultPostTypes: true,
+        category: {
+          select: {
+            slug: true,
+            labelKo: true,
+            sortOrder: true,
+          },
         },
       },
-    },
-    orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { labelKo: "asc" }],
-    take: safeLimit + 1,
-    ...(cursor
-      ? {
-          cursor: { id: cursor },
-          skip: 1,
-        }
-      : {}),
-  });
+      orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { labelKo: "asc" }],
+      take: safeLimit + 1,
+      ...(cursor
+        ? {
+            cursor: { id: cursor },
+            skip: 1,
+          }
+        : {}),
+    })
+    .catch((error) => {
+      if (isMissingCommunitySchemaError(error)) {
+        return [];
+      }
+
+      throw error;
+    });
 
   let nextCursor: string | null = null;
   if (items.length > safeLimit) {
