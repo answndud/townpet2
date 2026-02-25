@@ -31,6 +31,8 @@ const buildCommentSelect = (viewerId?: string, includeGuestAuthor = true) => ({
           select: {
             id: true,
             displayName: true,
+            ipDisplay: true,
+            ipLabel: true,
           },
         },
       }

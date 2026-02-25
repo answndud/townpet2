@@ -136,8 +136,18 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
       (post as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
         ?.displayName ??
       null,
-    guestIpDisplay: (post as { guestIpDisplay?: string | null }).guestIpDisplay ?? null,
-    guestIpLabel: (post as { guestIpLabel?: string | null }).guestIpLabel ?? null,
+    guestIpDisplay:
+      (post as { guestIpDisplay?: string | null }).guestIpDisplay ??
+      (post as {
+        guestAuthor?: { ipDisplay?: string | null; ipLabel?: string | null } | null;
+      }).guestAuthor?.ipDisplay ??
+      null,
+    guestIpLabel:
+      (post as { guestIpLabel?: string | null }).guestIpLabel ??
+      (post as {
+        guestAuthor?: { ipDisplay?: string | null; ipLabel?: string | null } | null;
+      }).guestAuthor?.ipLabel ??
+      null,
     neighborhood: post.neighborhood
       ? {
           id: post.neighborhood.id,

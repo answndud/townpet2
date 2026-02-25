@@ -217,6 +217,14 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
       (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
         ?.displayName ||
       null,
+    guestIpDisplay:
+      (comment as { guestIpDisplay?: string | null }).guestIpDisplay ??
+      (comment as { guestAuthor?: { ipDisplay?: string | null } | null }).guestAuthor?.ipDisplay ??
+      null,
+    guestIpLabel:
+      (comment as { guestIpLabel?: string | null }).guestIpLabel ??
+      (comment as { guestAuthor?: { ipLabel?: string | null } | null }).guestAuthor?.ipLabel ??
+      null,
     isGuestAuthor:
       Boolean((comment as { guestDisplayName?: string | null }).guestDisplayName) ||
       Boolean(
@@ -247,7 +255,14 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     guestAuthor?: { displayName?: string | null } | null;
     guestAuthorId?: string | null;
   };
-  const guestIpMeta = post as { guestIpDisplay?: string | null; guestIpLabel?: string | null };
+  const guestIpMeta = post as {
+    guestIpDisplay?: string | null;
+    guestIpLabel?: string | null;
+    guestAuthor?: { ipDisplay?: string | null; ipLabel?: string | null } | null;
+  };
+  const resolvedGuestIpDisplay =
+    guestIpMeta.guestIpDisplay ?? guestIpMeta.guestAuthor?.ipDisplay ?? null;
+  const resolvedGuestIpLabel = guestIpMeta.guestIpLabel ?? guestIpMeta.guestAuthor?.ipLabel ?? null;
   const resolvedGuestAuthorName =
     guestPostMeta.guestDisplayName?.trim() || guestPostMeta.guestAuthor?.displayName?.trim() || "";
   const isGuestPost = Boolean(resolvedGuestAuthorName) || Boolean(guestPostMeta.guestAuthorId);
@@ -365,8 +380,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                     {isGuestPost ? (
                       <span>
                         {displayAuthorName}
-                        {guestIpMeta.guestIpDisplay
-                          ? ` (${guestIpMeta.guestIpLabel ?? "아이피"} ${guestIpMeta.guestIpDisplay})`
+                        {resolvedGuestIpDisplay
+                          ? ` (${resolvedGuestIpLabel ?? "아이피"} ${resolvedGuestIpDisplay})`
                           : ""}
                       </span>
                     ) : (

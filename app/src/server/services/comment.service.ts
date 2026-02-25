@@ -29,9 +29,6 @@ type CreateCommentParams = {
   parentId?: string;
   guestMeta?: {
     guestAuthorId?: string;
-    displayName: string;
-    ipDisplay: string | null;
-    ipLabel: string | null;
   };
 };
 
@@ -207,10 +204,7 @@ export async function createComment({
         authorId,
         content: safeContent,
         parentId: parentId ?? null,
-        guestDisplayName: guestMeta?.displayName,
         guestAuthorId: guestMeta?.guestAuthorId,
-        guestIpDisplay: guestMeta?.ipDisplay,
-        guestIpLabel: guestMeta?.ipLabel,
       },
       include: {
         author: { select: { id: true, name: true, nickname: true } },

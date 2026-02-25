@@ -114,7 +114,6 @@ describe("POST /api/posts/[id]/comments contract", () => {
         postId: "post-1",
         guestMeta: expect.objectContaining({
           guestAuthorId: "guest-author-1",
-          displayName: "동네손님",
         }),
       }),
     );

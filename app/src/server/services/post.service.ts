@@ -318,9 +318,6 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
   let guestCreateMeta:
     | {
         guestAuthorId: string;
-        guestDisplayName: string;
-        guestIpDisplay: string | null;
-        guestIpLabel: string | null;
       }
     | undefined;
 
@@ -449,9 +446,6 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     resolvedAuthorId = guestSystemUserId;
     guestCreateMeta = {
       guestAuthorId: guestAuthor.id,
-      guestDisplayName: normalizedGuestName,
-      guestIpDisplay: guestIpMeta.guestIpDisplay,
-      guestIpLabel: guestIpMeta.guestIpLabel,
     };
   }
 

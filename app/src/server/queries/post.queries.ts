@@ -66,7 +66,9 @@ const buildPostListInclude = (
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
+    ...(includeGuestAuthor
+      ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
+      : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -86,7 +88,9 @@ const buildPostListIncludeWithoutReactions = (
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
+    ...(includeGuestAuthor
+      ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
+      : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -101,7 +105,9 @@ const buildPostDetailInclude = (
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
+    ...(includeGuestAuthor
+      ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
+      : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -152,7 +158,9 @@ const buildPostDetailIncludeWithoutReactions = (
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
+    ...(includeGuestAuthor
+      ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
+      : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },

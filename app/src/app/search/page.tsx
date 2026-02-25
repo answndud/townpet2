@@ -162,10 +162,18 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               {resultItems.map((post) => {
                 const guestMeta = post as {
                   guestDisplayName?: string | null;
-                  guestAuthor?: { displayName?: string | null } | null;
+                  guestAuthor?: {
+                    displayName?: string | null;
+                    ipDisplay?: string | null;
+                    ipLabel?: string | null;
+                  } | null;
                   guestIpDisplay?: string | null;
                   guestIpLabel?: string | null;
                 };
+                const resolvedGuestIpDisplay =
+                  guestMeta.guestIpDisplay ?? guestMeta.guestAuthor?.ipDisplay ?? null;
+                const resolvedGuestIpLabel =
+                  guestMeta.guestIpLabel ?? guestMeta.guestAuthor?.ipLabel ?? null;
                 const meta = postTypeMeta[post.type];
                 const excerpt =
                   post.content.length > 180
@@ -203,8 +211,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       {guestMeta.guestDisplayName || guestMeta.guestAuthor?.displayName ? (
                         <span>
                           {guestMeta.guestDisplayName ?? guestMeta.guestAuthor?.displayName}
-                          {guestMeta.guestIpDisplay
-                            ? ` (${guestMeta.guestIpLabel ?? "아이피"} ${guestMeta.guestIpDisplay})`
+                          {resolvedGuestIpDisplay
+                            ? ` (${resolvedGuestIpLabel ?? "아이피"} ${resolvedGuestIpDisplay})`
                             : ""}
                         </span>
                       ) : (

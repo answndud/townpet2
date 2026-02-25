@@ -352,8 +352,14 @@ export default async function Home({ searchParams }: HomePageProps) {
       (post as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
         ?.displayName ??
       null,
-    guestIpDisplay: (post as { guestIpDisplay?: string | null }).guestIpDisplay ?? null,
-    guestIpLabel: (post as { guestIpLabel?: string | null }).guestIpLabel ?? null,
+    guestIpDisplay:
+      (post as { guestIpDisplay?: string | null }).guestIpDisplay ??
+      (post as { guestAuthor?: { ipDisplay?: string | null } | null }).guestAuthor?.ipDisplay ??
+      null,
+    guestIpLabel:
+      (post as { guestIpLabel?: string | null }).guestIpLabel ??
+      (post as { guestAuthor?: { ipLabel?: string | null } | null }).guestAuthor?.ipLabel ??
+      null,
     neighborhood: post.neighborhood
       ? {
           id: post.neighborhood.id,

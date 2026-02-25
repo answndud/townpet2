@@ -94,9 +94,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       input: { content: body.content ?? "" },
       guestMeta: {
         guestAuthorId: guestAuthor.id,
-        displayName: guestDisplayName,
-        ipDisplay: guestIpMeta.guestIpDisplay,
-        ipLabel: guestIpMeta.guestIpLabel,
       },
     });
 
