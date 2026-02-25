@@ -5,12 +5,57 @@ const CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const CORS_HEADERS = "Content-Type, Authorization, X-Requested-With, X-Request-Id";
 const CSP_REPORT_ENDPOINT = "/api/security/csp-report";
 
-const PROD_CSP_RELAXED =
-  `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; report-uri ${CSP_REPORT_ENDPOINT};`;
-const PROD_CSP_STRICT =
-  `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; report-uri ${CSP_REPORT_ENDPOINT};`;
-const DEV_CSP =
-  `default-src 'self'; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:; report-uri ${CSP_REPORT_ENDPOINT};`;
+function buildCspScriptSrc(nonce: string, isStrict: boolean) {
+  const strictSources = [`'self'`, `'nonce-${nonce}'`, "https:"];
+  if (isStrict) {
+    return strictSources.join(" ");
+  }
+
+  return [...strictSources, `'unsafe-inline'`].join(" ");
+}
+
+function buildCspPolicy(params: {
+  scriptSrc: string;
+  connectSrc: string;
+  includeUnsafeEval: boolean;
+}) {
+  const scriptSrc = params.includeUnsafeEval
+    ? `${params.scriptSrc} 'unsafe-eval'`
+    : params.scriptSrc;
+
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "img-src 'self' data: blob: https:",
+    `script-src ${scriptSrc}`,
+    "style-src 'self' 'unsafe-inline'",
+    `connect-src ${params.connectSrc}`,
+    `report-uri ${CSP_REPORT_ENDPOINT}`,
+  ].join("; ");
+}
+
+const PROD_CSP_RELAXED = (nonce: string) =>
+  buildCspPolicy({
+    scriptSrc: buildCspScriptSrc(nonce, false),
+    connectSrc: "'self' https:",
+    includeUnsafeEval: false,
+  });
+
+const PROD_CSP_STRICT = (nonce: string) =>
+  buildCspPolicy({
+    scriptSrc: buildCspScriptSrc(nonce, true),
+    connectSrc: "'self' https:",
+    includeUnsafeEval: false,
+  });
+
+const DEV_CSP = (nonce: string) =>
+  buildCspPolicy({
+    scriptSrc: `${buildCspScriptSrc(nonce, false)} http:`,
+    connectSrc: "'self' https: http: ws: wss:",
+    includeUnsafeEval: true,
+  });
 
 function isTruthy(value?: string) {
   if (!value) {
@@ -24,11 +69,12 @@ function isTruthy(value?: string) {
 export function resolveCspHeaders(env: {
   nodeEnv?: string;
   cspEnforceStrict?: string;
+  nonce: string;
 }) {
   const isProduction = env.nodeEnv === "production";
   if (!isProduction) {
     return {
-      csp: DEV_CSP,
+      csp: DEV_CSP(env.nonce),
       cspReportOnly: null,
     };
   }
@@ -36,14 +82,14 @@ export function resolveCspHeaders(env: {
   const isStrictEnforced = isTruthy(env.cspEnforceStrict);
   if (isStrictEnforced) {
     return {
-      csp: PROD_CSP_STRICT,
+      csp: PROD_CSP_STRICT(env.nonce),
       cspReportOnly: null,
     };
   }
 
   return {
-    csp: PROD_CSP_RELAXED,
-    cspReportOnly: PROD_CSP_STRICT,
+    csp: PROD_CSP_RELAXED(env.nonce),
+    cspReportOnly: PROD_CSP_STRICT(env.nonce),
   };
 }
 
@@ -63,10 +109,11 @@ function getAllowedCorsOrigins() {
   return new Set([...fromCsv, ...knownOrigins]);
 }
 
-function applySecurityHeaders(headers: Headers) {
+function applySecurityHeaders(headers: Headers, nonce: string) {
   const cspHeaders = resolveCspHeaders({
     nodeEnv: process.env.NODE_ENV,
     cspEnforceStrict: process.env.CSP_ENFORCE_STRICT,
+    nonce,
   });
 
   headers.set("x-frame-options", "DENY");
@@ -103,11 +150,13 @@ function applyCorsHeaders(request: NextRequest, headers: Headers) {
 export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const requestId = requestHeaders.get("x-request-id") ?? crypto.randomUUID();
+  const cspNonce = crypto.randomUUID().replaceAll("-", "");
   requestHeaders.set("x-request-id", requestId);
+  requestHeaders.set("x-csp-nonce", cspNonce);
 
   const responseHeaders = new Headers();
   responseHeaders.set("x-request-id", requestId);
-  applySecurityHeaders(responseHeaders);
+  applySecurityHeaders(responseHeaders, cspNonce);
 
   if (request.nextUrl.pathname.startsWith("/api")) {
     applyCorsHeaders(request, responseHeaders);
