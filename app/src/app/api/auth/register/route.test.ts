@@ -66,7 +66,7 @@ describe("POST /api/auth/register contract", () => {
       method: "POST",
       body: JSON.stringify({
         email: "user@townpet.dev",
-        password: "password123",
+        password: "Townpet!2026",
         nickname: "townpet_user",
         name: "user",
       }),
@@ -95,7 +95,7 @@ describe("POST /api/auth/register contract", () => {
       method: "POST",
       body: JSON.stringify({
         email: "user@townpet.dev",
-        password: "password123",
+        password: "Townpet!2026",
         nickname: "townpet_user",
         name: "user",
       }),
