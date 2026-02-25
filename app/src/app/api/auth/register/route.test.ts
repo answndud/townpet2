@@ -58,7 +58,7 @@ describe("POST /api/auth/register contract", () => {
     });
   });
 
-  it("maps register service errors to status/code", async () => {
+  it("normalizes duplicate account signals", async () => {
     mockRegisterUser.mockRejectedValue(
       new ServiceError("taken", "EMAIL_TAKEN", 409),
     );
@@ -76,10 +76,35 @@ describe("POST /api/auth/register contract", () => {
     const response = await POST(request);
     const payload = await response.json();
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(400);
     expect(payload).toMatchObject({
       ok: false,
-      error: { code: "EMAIL_TAKEN" },
+      error: { code: "REGISTER_REJECTED" },
+    });
+  });
+
+  it("normalizes duplicate nickname signals", async () => {
+    mockRegisterUser.mockRejectedValue(
+      new ServiceError("taken", "NICKNAME_TAKEN", 409),
+    );
+    const request = new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email: "user@townpet.dev",
+        password: "Townpet!2026",
+        nickname: "townpet_user",
+        name: "user",
+      }),
+      headers: { "content-type": "application/json" },
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "REGISTER_REJECTED" },
     });
   });
 

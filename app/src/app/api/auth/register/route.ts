@@ -9,6 +9,22 @@ import { jsonError, jsonOk } from "@/server/response";
 import { registerUser, requestEmailVerification } from "@/server/services/auth.service";
 import { ServiceError } from "@/server/services/service-error";
 
+function toPublicRegisterError(error: ServiceError) {
+  if (error.code === "EMAIL_TAKEN" || error.code === "NICKNAME_TAKEN") {
+    return {
+      status: 400,
+      code: "REGISTER_REJECTED",
+      message: "회원가입 정보를 확인해 주세요.",
+    } as const;
+  }
+
+  return {
+    status: error.status,
+    code: error.code,
+    message: error.message,
+  } as const;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const clientIp = getClientIp(request);
@@ -39,9 +55,10 @@ export async function POST(request: NextRequest) {
     return jsonOk(user, { status: 201 });
   } catch (error) {
     if (error instanceof ServiceError) {
-      return jsonError(error.status, {
-        code: error.code,
-        message: error.message,
+      const publicError = toPublicRegisterError(error);
+      return jsonError(publicError.status, {
+        code: publicError.code,
+        message: publicError.message,
       });
     }
 
