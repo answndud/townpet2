@@ -9,7 +9,21 @@ function isUnknownGuestAuthorIncludeError(error: unknown) {
   return error instanceof Error && error.message.includes("Unknown field `guestAuthor`");
 }
 
-const buildCommentInclude = (viewerId?: string, includeGuestAuthor = true) => ({
+const buildCommentSelect = (viewerId?: string, includeGuestAuthor = true) => ({
+  id: true,
+  postId: true,
+  parentId: true,
+  content: true,
+  status: true,
+  likeCount: true,
+  dislikeCount: true,
+  createdAt: true,
+  updatedAt: true,
+  authorId: true,
+  guestAuthorId: true,
+  guestDisplayName: true,
+  guestIpDisplay: true,
+  guestIpLabel: true,
   author: { select: { id: true, name: true, nickname: true, email: true } },
   ...(includeGuestAuthor
     ? {
@@ -43,7 +57,7 @@ export async function listComments(postId: string, viewerId?: string) {
   return prisma.comment
     .findMany({
       ...baseArgs,
-      include: buildCommentInclude(viewerId),
+      select: buildCommentSelect(viewerId),
     })
     .catch(async (error) => {
       if (!isUnknownGuestAuthorIncludeError(error)) {
@@ -52,7 +66,7 @@ export async function listComments(postId: string, viewerId?: string) {
 
       return prisma.comment.findMany({
         ...baseArgs,
-        include: buildCommentInclude(viewerId, false),
+        select: buildCommentSelect(viewerId, false),
       });
     });
 }
