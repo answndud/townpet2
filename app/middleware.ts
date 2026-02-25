@@ -3,13 +3,14 @@ import type { NextRequest } from "next/server";
 
 const CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const CORS_HEADERS = "Content-Type, Authorization, X-Requested-With, X-Request-Id";
+const CSP_REPORT_ENDPOINT = "/api/security/csp-report";
 
 const PROD_CSP_RELAXED =
-  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;";
+  `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; report-uri ${CSP_REPORT_ENDPOINT};`;
 const PROD_CSP_STRICT =
-  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;";
+  `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; report-uri ${CSP_REPORT_ENDPOINT};`;
 const DEV_CSP =
-  "default-src 'self'; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:;";
+  `default-src 'self'; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:; report-uri ${CSP_REPORT_ENDPOINT};`;
 
 function isTruthy(value?: string) {
   if (!value) {
