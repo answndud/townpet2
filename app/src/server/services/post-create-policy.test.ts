@@ -10,6 +10,9 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
     },
+    guestAuthor: {
+      create: vi.fn(),
+    },
     siteSetting: {
       findUnique: vi.fn(),
     },
@@ -35,6 +38,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
     findUnique: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
   };
+  guestAuthor: {
+    create: ReturnType<typeof vi.fn>;
+  };
   siteSetting: {
     findUnique: ReturnType<typeof vi.fn>;
   };
@@ -57,6 +63,7 @@ describe("createPost new-user restriction", () => {
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
     mockPrisma.user.create.mockReset();
+    mockPrisma.guestAuthor.create.mockReset();
     mockPrisma.siteSetting.findUnique.mockReset();
     mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
     mockPrisma.guestBan.findFirst.mockReset();
@@ -75,6 +82,7 @@ describe("createPost new-user restriction", () => {
       scope: PostScope.GLOBAL,
     });
     mockPrisma.user.create.mockResolvedValue({ id: "guest-user-1" });
+    mockPrisma.guestAuthor.create.mockResolvedValue({ id: "guest-author-1" });
   });
 
   it("blocks restricted post types for new users", async () => {
@@ -199,6 +207,7 @@ describe("createPost new-user restriction", () => {
     ).resolves.toBeTruthy();
 
     expect(mockPrisma.user.create).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.guestAuthor.create).toHaveBeenCalledTimes(1);
     expect(mockPrisma.post.create).toHaveBeenCalledTimes(1);
   });
 
