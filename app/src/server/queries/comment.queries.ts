@@ -5,31 +5,56 @@ import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.que
 
 const NO_VIEWER_ID = "__NO_VIEWER__";
 
+function isUnknownGuestAuthorIncludeError(error: unknown) {
+  return error instanceof Error && error.message.includes("Unknown field `guestAuthor`");
+}
+
+const buildCommentInclude = (viewerId?: string, includeGuestAuthor = true) => ({
+  author: { select: { id: true, name: true, nickname: true, email: true } },
+  ...(includeGuestAuthor
+    ? {
+        guestAuthor: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+      }
+    : {}),
+  reactions: {
+    where: {
+      userId: viewerId ?? NO_VIEWER_ID,
+    },
+    select: { type: true },
+  },
+});
+
 export async function listComments(postId: string, viewerId?: string) {
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  return prisma.comment.findMany({
+  const baseArgs = {
     where: {
       postId,
       status: { in: [PostStatus.ACTIVE, PostStatus.DELETED] },
       ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
     },
-    orderBy: { createdAt: "asc" },
-    include: {
-      author: { select: { id: true, name: true, nickname: true, email: true } },
-      guestAuthor: {
-        select: {
-          id: true,
-          displayName: true,
-        },
-      },
-      reactions: {
-        where: {
-          userId: viewerId ?? NO_VIEWER_ID,
-        },
-        select: { type: true },
-      },
-    },
-  });
+    orderBy: { createdAt: "asc" as const },
+  };
+
+  return prisma.comment
+    .findMany({
+      ...baseArgs,
+      include: buildCommentInclude(viewerId),
+    })
+    .catch(async (error) => {
+      if (!isUnknownGuestAuthorIncludeError(error)) {
+        throw error;
+      }
+
+      return prisma.comment.findMany({
+        ...baseArgs,
+        include: buildCommentInclude(viewerId, false),
+      });
+    });
 }
 
 export async function getCommentById(commentId: string) {

@@ -22,6 +22,7 @@ const DEFAULT_POST_LIST_SORT: PostListSort = "LATEST";
 const DEFAULT_POST_SEARCH_IN: PostSearchIn = "ALL";
 const SEARCH_SIMILARITY_THRESHOLD = 0.12;
 let postReactionsFieldSupport: boolean | null = null;
+let postGuestAuthorFieldSupport: boolean | null = null;
 let pgTrgmSupport: boolean | null = null;
 let pgTrgmSupportWarned = false;
 
@@ -59,10 +60,13 @@ async function supportsPgTrgm() {
   return pgTrgmSupport;
 }
 
-const buildPostListInclude = (viewerId?: string) =>
+const buildPostListInclude = (
+  viewerId?: string,
+  includeGuestAuthor = supportsPostGuestAuthorField(),
+) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    guestAuthor: { select: { id: true, displayName: true } },
+    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -77,10 +81,12 @@ const buildPostListInclude = (viewerId?: string) =>
     },
   }) as const;
 
-const buildPostListIncludeWithoutReactions = () =>
+const buildPostListIncludeWithoutReactions = (
+  includeGuestAuthor = supportsPostGuestAuthorField(),
+) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    guestAuthor: { select: { id: true, displayName: true } },
+    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -89,10 +95,13 @@ const buildPostListIncludeWithoutReactions = () =>
     },
   }) as const;
 
-const buildPostDetailInclude = (viewerId?: string) =>
+const buildPostDetailInclude = (
+  viewerId?: string,
+  includeGuestAuthor = supportsPostGuestAuthorField(),
+) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    guestAuthor: { select: { id: true, displayName: true } },
+    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -138,10 +147,12 @@ const buildPostDetailInclude = (viewerId?: string) =>
     },
   }) as const;
 
-const buildPostDetailIncludeWithoutReactions = () =>
+const buildPostDetailIncludeWithoutReactions = (
+  includeGuestAuthor = supportsPostGuestAuthorField(),
+) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
-    guestAuthor: { select: { id: true, displayName: true } },
+    ...(includeGuestAuthor ? { guestAuthor: { select: { id: true, displayName: true } } } : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -308,6 +319,10 @@ function isUnknownReactionsIncludeError(error: unknown) {
   return error instanceof Error && error.message.includes("Unknown field `reactions`");
 }
 
+function isUnknownGuestAuthorIncludeError(error: unknown) {
+  return error instanceof Error && error.message.includes("Unknown field `guestAuthor`");
+}
+
 function isUnknownGuestPostColumnError(error: unknown) {
   if (!(error instanceof Error)) {
     return false;
@@ -383,6 +398,29 @@ function supportsPostReactionsField() {
 
   postReactionsFieldSupport = postFields.some((field) => field.name === "reactions");
   return postReactionsFieldSupport;
+}
+
+function supportsPostGuestAuthorField() {
+  if (postGuestAuthorFieldSupport !== null) {
+    return postGuestAuthorFieldSupport;
+  }
+
+  const runtimeModels = (
+    prisma as unknown as {
+      _runtimeDataModel?: {
+        models?: Record<string, { fields?: Array<{ name: string }> }>;
+      };
+    }
+  )._runtimeDataModel?.models;
+
+  const postFields = runtimeModels?.Post?.fields;
+  if (!postFields || postFields.length === 0) {
+    postGuestAuthorFieldSupport = true;
+    return true;
+  }
+
+  postGuestAuthorFieldSupport = postFields.some((field) => field.name === "guestAuthor");
+  return postGuestAuthorFieldSupport;
 }
 
 function withEmptyReactions<T extends Record<string, unknown>>(items: T[]) {
@@ -830,8 +868,15 @@ export async function getPostById(id?: string, viewerId?: string) {
         include: buildPostDetailIncludeWithoutReactions(),
       })
       .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error)) {
+        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
           throw error;
+        }
+
+        if (isUnknownGuestAuthorIncludeError(error)) {
+          return prisma.post.findFirst({
+            where: { id, ...visibilityFilter },
+            include: buildPostDetailIncludeWithoutReactions(false),
+          });
         }
 
         return prisma.post.findFirst({
@@ -849,8 +894,15 @@ export async function getPostById(id?: string, viewerId?: string) {
         include: buildPostDetailInclude(viewerId),
       })
       .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error)) {
+        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
           throw error;
+        }
+
+        if (isUnknownGuestAuthorIncludeError(error)) {
+          return prisma.post.findFirst({
+            where: { id, ...visibilityFilter },
+            include: buildPostDetailInclude(viewerId, false),
+          });
         }
 
         const post = await prisma.post.findFirst({
@@ -860,18 +912,29 @@ export async function getPostById(id?: string, viewerId?: string) {
         return withEmptyGuestPostMetaOne(post);
       });
   } catch (error) {
-    if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestPostColumnError(error)) {
+    if (
+      !isUnknownReactionsIncludeError(error) &&
+      !isUnknownGuestPostColumnError(error) &&
+      !isUnknownGuestAuthorIncludeError(error)
+    ) {
       throw error;
     }
 
     const post = await prisma.post
       .findFirst({
         where: { id, ...visibilityFilter },
-        include: buildPostDetailIncludeWithoutReactions(),
+        include: buildPostDetailIncludeWithoutReactions(!isUnknownGuestAuthorIncludeError(error)),
       })
       .catch(async (innerError) => {
-        if (!isUnknownGuestPostColumnError(innerError)) {
+        if (!isUnknownGuestPostColumnError(innerError) && !isUnknownGuestAuthorIncludeError(innerError)) {
           throw innerError;
+        }
+
+        if (isUnknownGuestAuthorIncludeError(innerError)) {
+          return prisma.post.findFirst({
+            where: { id, ...visibilityFilter },
+            include: buildPostDetailIncludeWithoutReactions(false),
+          });
         }
 
         return prisma.post.findFirst({
@@ -987,8 +1050,15 @@ export async function listPosts({
         include: buildPostListIncludeWithoutReactions(),
       })
       .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error)) {
+        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
           throw error;
+        }
+
+        if (isUnknownGuestAuthorIncludeError(error)) {
+          return prisma.post.findMany({
+            ...baseArgs,
+            include: buildPostListIncludeWithoutReactions(false),
+          });
         }
 
         return prisma.post.findMany({
@@ -1012,8 +1082,19 @@ export async function listPosts({
       include: buildPostListInclude(viewerId),
     })
     .catch(async (error) => {
-      if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestPostColumnError(error)) {
+      if (
+        !isUnknownReactionsIncludeError(error) &&
+        !isUnknownGuestPostColumnError(error) &&
+        !isUnknownGuestAuthorIncludeError(error)
+      ) {
         throw error;
+      }
+
+      if (isUnknownGuestAuthorIncludeError(error)) {
+        return prisma.post.findMany({
+          ...baseArgs,
+          include: buildPostListInclude(viewerId, false),
+        });
       }
 
       if (isUnknownGuestPostColumnError(error)) {
@@ -1030,8 +1111,18 @@ export async function listPosts({
           include: buildPostListIncludeWithoutReactions(),
         })
         .catch(async (innerError) => {
-          if (!isUnknownGuestPostColumnError(innerError)) {
+          if (
+            !isUnknownGuestPostColumnError(innerError) &&
+            !isUnknownGuestAuthorIncludeError(innerError)
+          ) {
             throw innerError;
+          }
+
+          if (isUnknownGuestAuthorIncludeError(innerError)) {
+            return prisma.post.findMany({
+              ...baseArgs,
+              include: buildPostListIncludeWithoutReactions(false),
+            });
           }
 
           return prisma.post.findMany({
@@ -1116,8 +1207,15 @@ export async function listBestPosts({
         include: buildPostListIncludeWithoutReactions(),
       })
       .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error)) {
+        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
           throw error;
+        }
+
+        if (isUnknownGuestAuthorIncludeError(error)) {
+          return prisma.post.findMany({
+            ...baseArgs,
+            include: buildPostListIncludeWithoutReactions(false),
+          });
         }
 
         return prisma.post.findMany({
@@ -1134,8 +1232,19 @@ export async function listBestPosts({
       include: buildPostListInclude(viewerId),
     })
     .catch(async (error) => {
-      if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestPostColumnError(error)) {
+      if (
+        !isUnknownReactionsIncludeError(error) &&
+        !isUnknownGuestPostColumnError(error) &&
+        !isUnknownGuestAuthorIncludeError(error)
+      ) {
         throw error;
+      }
+
+      if (isUnknownGuestAuthorIncludeError(error)) {
+        return prisma.post.findMany({
+          ...baseArgs,
+          include: buildPostListInclude(viewerId, false),
+        });
       }
 
       if (isUnknownGuestPostColumnError(error)) {
@@ -1152,8 +1261,18 @@ export async function listBestPosts({
           include: buildPostListIncludeWithoutReactions(),
         })
         .catch(async (innerError) => {
-          if (!isUnknownGuestPostColumnError(innerError)) {
+          if (
+            !isUnknownGuestPostColumnError(innerError) &&
+            !isUnknownGuestAuthorIncludeError(innerError)
+          ) {
             throw innerError;
+          }
+
+          if (isUnknownGuestAuthorIncludeError(innerError)) {
+            return prisma.post.findMany({
+              ...baseArgs,
+              include: buildPostListIncludeWithoutReactions(false),
+            });
           }
 
           return prisma.post.findMany({
@@ -1543,9 +1662,17 @@ export async function listRankedSearchPosts({
             include: buildPostListInclude(viewerId),
           })
           .catch(async (error) => {
-            if (!isUnknownReactionsIncludeError(error)) {
+            if (!isUnknownReactionsIncludeError(error) && !isUnknownGuestAuthorIncludeError(error)) {
               throw error;
             }
+
+            if (isUnknownGuestAuthorIncludeError(error)) {
+              return prisma.post.findMany({
+                ...baseArgs,
+                include: buildPostListInclude(viewerId, false),
+              });
+            }
+
             const fallbackItems = await prisma.post.findMany({
               ...baseArgs,
               include: buildPostListIncludeWithoutReactions(),
