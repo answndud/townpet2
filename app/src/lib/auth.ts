@@ -8,6 +8,7 @@ import type { Provider } from "next-auth/providers";
 import { assertRuntimeEnv, runtimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { getClientIp } from "@/server/request-context";
+import { buildLoginRateLimitRules } from "@/server/auth-login-rate-limit";
 import { loginSchema } from "@/lib/validations/auth";
 import { verifyPassword } from "@/server/password";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -56,11 +57,14 @@ const providers: Provider[] = [
 
       try {
         const clientIp = request?.headers ? getClientIp(request.headers) : "anonymous";
-        await enforceRateLimit({
-          key: `auth:login:${clientIp}`,
-          limit: 5,
-          windowMs: 60_000,
+        const rateLimitRules = buildLoginRateLimitRules({
+          email: parsed.data.email,
+          clientIp,
         });
+
+        for (const rule of rateLimitRules) {
+          await enforceRateLimit(rule);
+        }
       } catch {
         return null;
       }
