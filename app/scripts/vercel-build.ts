@@ -7,6 +7,9 @@ type CommandResult = {
   output: string;
 };
 
+const PRISMA_DEPLOY_MAX_ATTEMPTS = 4;
+const PRISMA_DEPLOY_RETRY_DELAY_MS = 4_000;
+
 function runCommand(command: string, args: string[]) {
   return new Promise<CommandResult>((resolve, reject) => {
     const child = spawn(command, args, {
@@ -50,6 +53,21 @@ function isAlreadyAppliedError(output: string) {
   return output.includes("Error: P3008") || output.includes("already recorded as applied");
 }
 
+function isTransientPrismaDeployError(output: string) {
+  return (
+    output.includes("Error: P1001") ||
+    output.includes("Error: P1002") ||
+    output.includes("Can't reach database server") ||
+    output.includes("Timed out") ||
+    output.includes("ECONNRESET") ||
+    output.includes("Connection terminated")
+  );
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function listMigrationNames() {
   const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
   const entries = await readdir(migrationsDir, { withFileTypes: true });
@@ -83,21 +101,32 @@ async function baselineMigrations() {
 }
 
 async function runPrismaDeploy() {
-  const deployResult = await runCommand("pnpm", ["prisma", "migrate", "deploy"]);
-  if (deployResult.code === 0) {
-    return;
-  }
+  let baselineAttempted = false;
 
-  if (!isBaselineRequired(deployResult.output)) {
+  for (let attempt = 1; attempt <= PRISMA_DEPLOY_MAX_ATTEMPTS; attempt += 1) {
+    const deployResult = await runCommand("pnpm", ["prisma", "migrate", "deploy"]);
+    if (deployResult.code === 0) {
+      return;
+    }
+
+    if (isBaselineRequired(deployResult.output) && !baselineAttempted) {
+      baselineAttempted = true;
+      await baselineMigrations();
+      continue;
+    }
+
+    if (isTransientPrismaDeployError(deployResult.output) && attempt < PRISMA_DEPLOY_MAX_ATTEMPTS) {
+      console.log(
+        `[build:vercel] prisma migrate deploy transient failure (attempt ${attempt}/${PRISMA_DEPLOY_MAX_ATTEMPTS}). Retrying...`,
+      );
+      await sleep(PRISMA_DEPLOY_RETRY_DELAY_MS * attempt);
+      continue;
+    }
+
     throw new Error("[build:vercel] prisma migrate deploy failed.");
   }
 
-  await baselineMigrations();
-
-  const retryResult = await runCommand("pnpm", ["prisma", "migrate", "deploy"]);
-  if (retryResult.code !== 0) {
-    throw new Error("[build:vercel] prisma migrate deploy failed after baseline resolve.");
-  }
+  throw new Error("[build:vercel] prisma migrate deploy exhausted retry attempts.");
 }
 
 async function repairCommunityBoardSchema() {
