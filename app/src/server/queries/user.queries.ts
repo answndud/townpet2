@@ -315,7 +315,16 @@ export async function listPetsByUserId(
     cacheTtlMs?: number;
   },
 ) {
-  type PetSpeciesValue = "DOG" | "CAT";
+  type PetSpeciesValue =
+    | "DOG"
+    | "CAT"
+    | "BIRD"
+    | "REPTILE"
+    | "SMALL_PET"
+    | "AQUATIC"
+    | "AMPHIBIAN"
+    | "ARTHROPOD"
+    | "SPECIAL_OTHER";
   type PetSizeClassValue = "TOY" | "SMALL" | "MEDIUM" | "LARGE" | "GIANT" | "UNKNOWN";
   type PetLifeStageValue = "PUPPY_KITTEN" | "YOUNG" | "ADULT" | "SENIOR" | "UNKNOWN";
 
@@ -328,6 +337,8 @@ export async function listPetsByUserId(
     sizeClass: PetSizeClassValue;
     lifeStage: PetLifeStageValue;
     age: number | null;
+    weightKg: number | null;
+    birthYear: number | null;
     imageUrl: string | null;
     bio: string | null;
     createdAt: Date;
@@ -359,19 +370,38 @@ export async function listPetsByUserId(
     bio: true,
     createdAt: true,
   };
-  const optionalKeys = new Set(["breedCode", "breedLabel", "sizeClass", "lifeStage"]);
+  const optionalKeys = new Set([
+    "breedCode",
+    "breedLabel",
+    "sizeClass",
+    "lifeStage",
+    "weightKg",
+    "birthYear",
+  ]);
   const currentSelect: SelectShape = {
     ...requiredSelect,
     breedCode: true,
     breedLabel: true,
     sizeClass: true,
     lifeStage: true,
+    weightKg: true,
+    birthYear: true,
   };
 
   const toPetListItem = (pet: Record<string, unknown>): PetListItem => ({
     id: typeof pet.id === "string" ? pet.id : "",
     name: typeof pet.name === "string" ? pet.name : "",
-    species: pet.species === "CAT" ? "CAT" : "DOG",
+    species:
+      pet.species === "CAT" ||
+      pet.species === "BIRD" ||
+      pet.species === "REPTILE" ||
+      pet.species === "SMALL_PET" ||
+      pet.species === "AQUATIC" ||
+      pet.species === "AMPHIBIAN" ||
+      pet.species === "ARTHROPOD" ||
+      pet.species === "SPECIAL_OTHER"
+        ? pet.species
+        : "DOG",
     breedCode: typeof pet.breedCode === "string" ? pet.breedCode : null,
     breedLabel: typeof pet.breedLabel === "string" ? pet.breedLabel : null,
     sizeClass:
@@ -390,6 +420,8 @@ export async function listPetsByUserId(
         ? pet.lifeStage
         : "UNKNOWN",
     age: typeof pet.age === "number" ? pet.age : null,
+    weightKg: typeof pet.weightKg === "number" ? pet.weightKg : null,
+    birthYear: typeof pet.birthYear === "number" ? pet.birthYear : null,
     imageUrl: typeof pet.imageUrl === "string" ? pet.imageUrl : null,
     bio: typeof pet.bio === "string" ? pet.bio : null,
     createdAt: pet.createdAt instanceof Date ? pet.createdAt : new Date(0),

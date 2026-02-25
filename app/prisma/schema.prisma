@@ -46,6 +46,13 @@ model User {
 enum PetSpecies {
   DOG
   CAT
+  BIRD
+  REPTILE
+  SMALL_PET
+  AQUATIC
+  AMPHIBIAN
+  ARTHROPOD
+  SPECIAL_OTHER
 }
 
 enum PetSizeClass {
@@ -90,6 +97,8 @@ model Pet {
   sizeClass  PetSizeClass @default(UNKNOWN)
   lifeStage  PetLifeStage @default(UNKNOWN)
   age        Int?
+  weightKg   Float?
+  birthYear  Int?
   imageUrl   String?
   bio        String?
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)

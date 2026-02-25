@@ -13,23 +13,32 @@ type PetMutationParams = {
 
 function normalizePetData(data: {
   name: string;
-  species: "DOG" | "CAT";
-  breedCode?: string;
+  species:
+    | "DOG"
+    | "CAT"
+    | "BIRD"
+    | "REPTILE"
+    | "SMALL_PET"
+    | "AQUATIC"
+    | "AMPHIBIAN"
+    | "ARTHROPOD"
+    | "SPECIAL_OTHER";
   breedLabel?: string;
-  sizeClass: "TOY" | "SMALL" | "MEDIUM" | "LARGE" | "GIANT" | "UNKNOWN";
-  lifeStage: "PUPPY_KITTEN" | "YOUNG" | "ADULT" | "SENIOR" | "UNKNOWN";
-  age?: number;
+  weightKg?: number;
+  birthYear?: number;
   imageUrl?: string;
   bio?: string;
 }) {
   return {
     name: data.name.trim(),
     species: data.species,
-    breedCode: data.breedCode?.trim() ? data.breedCode.trim().toUpperCase() : null,
+    breedCode: null,
     breedLabel: data.breedLabel?.trim() ? data.breedLabel.trim() : null,
-    sizeClass: data.sizeClass,
-    lifeStage: data.lifeStage,
-    age: data.age ?? null,
+    sizeClass: "UNKNOWN" as const,
+    lifeStage: "UNKNOWN" as const,
+    age: null,
+    weightKg: data.weightKg ?? null,
+    birthYear: data.birthYear ?? null,
     imageUrl: data.imageUrl?.trim() ? data.imageUrl.trim() : null,
     bio: data.bio?.trim() ? data.bio.trim() : null,
   };

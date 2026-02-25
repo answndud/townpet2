@@ -1,4 +1,4 @@
-import { PetLifeStage, PetSizeClass, PetSpecies } from "@prisma/client";
+import { PetSpecies } from "@prisma/client";
 import { z } from "zod";
 
 const optionalTrimmedString = z.preprocess(
@@ -12,14 +12,14 @@ const optionalTrimmedString = z.preprocess(
   z.string().min(1).optional(),
 );
 
+const currentYear = new Date().getFullYear();
+
 export const petCreateSchema = z.object({
   name: z.string().trim().min(1).max(40),
   species: z.nativeEnum(PetSpecies),
-  breedCode: optionalTrimmedString,
   breedLabel: optionalTrimmedString,
-  sizeClass: z.nativeEnum(PetSizeClass).default(PetSizeClass.UNKNOWN),
-  lifeStage: z.nativeEnum(PetLifeStage).default(PetLifeStage.UNKNOWN),
-  age: z.coerce.number().int().min(0).max(40).optional(),
+  weightKg: z.coerce.number().min(0.1).max(200).optional(),
+  birthYear: z.coerce.number().int().min(1900).max(currentYear).optional(),
   imageUrl: z
     .string()
     .trim()

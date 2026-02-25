@@ -23,30 +23,15 @@ type UserProfilePageProps = {
 type ActivityTab = "posts" | "comments" | "reactions";
 
 function speciesLabel(species: string) {
-  return species === "CAT" ? "고양이" : "강아지";
-}
-
-function sizeClassLabel(sizeClass?: string | null) {
-  if (!sizeClass || sizeClass === "UNKNOWN") {
-    return null;
-  }
-  if (sizeClass === "TOY") return "초소형";
-  if (sizeClass === "SMALL") return "소형";
-  if (sizeClass === "MEDIUM") return "중형";
-  if (sizeClass === "LARGE") return "대형";
-  if (sizeClass === "GIANT") return "초대형";
-  return null;
-}
-
-function lifeStageLabel(lifeStage?: string | null) {
-  if (!lifeStage || lifeStage === "UNKNOWN") {
-    return null;
-  }
-  if (lifeStage === "PUPPY_KITTEN") return "퍼피/키튼";
-  if (lifeStage === "YOUNG") return "영/청년";
-  if (lifeStage === "ADULT") return "성견/성묘";
-  if (lifeStage === "SENIOR") return "시니어";
-  return null;
+  if (species === "CAT") return "고양이";
+  if (species === "BIRD") return "조류";
+  if (species === "REPTILE") return "파충류";
+  if (species === "SMALL_PET") return "소동물";
+  if (species === "AQUATIC") return "어류/수조";
+  if (species === "AMPHIBIAN") return "양서류";
+  if (species === "ARTHROPOD") return "절지류/곤충";
+  if (species === "SPECIAL_OTHER") return "특수동물/기타";
+  return "강아지";
 }
 
 function toTab(value?: string): ActivityTab {
@@ -242,17 +227,12 @@ export default async function PublicUserProfilePage({
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#1f3f71]">{pet.name}</p>
-                      <p className="text-xs text-[#4f678d]">
-                        {speciesLabel(pet.species)}
-                        {pet.breedLabel?.trim() ? ` · ${pet.breedLabel}` : ""}
-                        {sizeClassLabel(pet.sizeClass)
-                          ? ` · ${sizeClassLabel(pet.sizeClass)}`
-                          : ""}
-                        {lifeStageLabel(pet.lifeStage)
-                          ? ` · ${lifeStageLabel(pet.lifeStage)}`
-                          : ""}
-                        {pet.age !== null ? ` · ${pet.age}살` : ""}
-                      </p>
+                        <p className="text-xs text-[#4f678d]">
+                          {speciesLabel(pet.species)}
+                          {pet.breedLabel?.trim() ? ` · ${pet.breedLabel}` : ""}
+                          {pet.weightKg !== null ? ` · ${pet.weightKg}kg` : ""}
+                          {pet.birthYear !== null ? ` · ${pet.birthYear}년생` : ""}
+                        </p>
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-[#5a7398]">
