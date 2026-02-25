@@ -4,6 +4,48 @@ import type { NextRequest } from "next/server";
 const CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const CORS_HEADERS = "Content-Type, Authorization, X-Requested-With, X-Request-Id";
 
+const PROD_CSP_RELAXED =
+  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;";
+const PROD_CSP_STRICT =
+  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; script-src 'self' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;";
+const DEV_CSP =
+  "default-src 'self'; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:;";
+
+function isTruthy(value?: string) {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+export function resolveCspHeaders(env: {
+  nodeEnv?: string;
+  cspEnforceStrict?: string;
+}) {
+  const isProduction = env.nodeEnv === "production";
+  if (!isProduction) {
+    return {
+      csp: DEV_CSP,
+      cspReportOnly: null,
+    };
+  }
+
+  const isStrictEnforced = isTruthy(env.cspEnforceStrict);
+  if (isStrictEnforced) {
+    return {
+      csp: PROD_CSP_STRICT,
+      cspReportOnly: null,
+    };
+  }
+
+  return {
+    csp: PROD_CSP_RELAXED,
+    cspReportOnly: PROD_CSP_STRICT,
+  };
+}
+
 function getAllowedCorsOrigins() {
   const fromCsv = (process.env.CORS_ORIGIN ?? "")
     .split(",")
@@ -21,15 +63,22 @@ function getAllowedCorsOrigins() {
 }
 
 function applySecurityHeaders(headers: Headers) {
-  const isProduction = process.env.NODE_ENV === "production";
-  const csp = isProduction
-    ? "default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https:;"
-    : "default-src 'self'; img-src 'self' data: blob: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:;";
+  const cspHeaders = resolveCspHeaders({
+    nodeEnv: process.env.NODE_ENV,
+    cspEnforceStrict: process.env.CSP_ENFORCE_STRICT,
+  });
 
   headers.set("x-frame-options", "DENY");
   headers.set("x-content-type-options", "nosniff");
   headers.set("referrer-policy", "strict-origin-when-cross-origin");
-  headers.set("content-security-policy", csp);
+  headers.set("content-security-policy", cspHeaders.csp);
+
+  if (cspHeaders.cspReportOnly) {
+    headers.set("content-security-policy-report-only", cspHeaders.cspReportOnly);
+    return;
+  }
+
+  headers.delete("content-security-policy-report-only");
 }
 
 function applyCorsHeaders(request: NextRequest, headers: Headers) {
