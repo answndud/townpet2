@@ -1,13 +1,14 @@
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GET, PATCH } from "@/app/api/posts/[id]/route";
+import { DELETE, GET, PATCH } from "@/app/api/posts/[id]/route";
 import { getCurrentUser } from "@/server/auth";
 import { canGuestReadPost } from "@/lib/post-access";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostById } from "@/server/queries/post.queries";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
+import { deleteGuestPost, updateGuestPost } from "@/server/services/post.service";
 
 vi.mock("@/server/auth", () => ({ getCurrentUser: vi.fn() }));
 vi.mock("@/lib/post-access", () => ({ canGuestReadPost: vi.fn() }));
@@ -33,6 +34,8 @@ const mockGetGuestReadLoginRequiredPostTypes = vi.mocked(
   getGuestReadLoginRequiredPostTypes,
 );
 const mockGetClientIp = vi.mocked(getClientIp);
+const mockUpdateGuestPost = vi.mocked(updateGuestPost);
+const mockDeleteGuestPost = vi.mocked(deleteGuestPost);
 
 describe("/api/posts/[id] contract", () => {
   beforeEach(() => {
@@ -42,6 +45,8 @@ describe("/api/posts/[id] contract", () => {
     mockGetPostById.mockReset();
     mockGetGuestReadLoginRequiredPostTypes.mockReset();
     mockGetClientIp.mockReset();
+    mockUpdateGuestPost.mockReset();
+    mockDeleteGuestPost.mockReset();
 
     mockGetCurrentUser.mockResolvedValue(null);
     mockGetGuestReadLoginRequiredPostTypes.mockResolvedValue([]);
@@ -78,6 +83,63 @@ describe("/api/posts/[id] contract", () => {
       ok: false,
       error: { code: "GUEST_PASSWORD_REQUIRED" },
     });
+  });
+
+  it("uses updateGuestPost when guest password is provided", async () => {
+    mockUpdateGuestPost.mockResolvedValue({ id: "post-1", title: "edited" } as never);
+    const request = new Request("http://localhost/api/posts/post-1", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "edited", guestPassword: "1234" }),
+      headers: { "content-type": "application/json" },
+    }) as NextRequest;
+
+    const response = await PATCH(request, { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(response.status).toBe(200);
+    expect(mockUpdateGuestPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: "post-1",
+        guestPassword: "1234",
+        guestIdentity: expect.objectContaining({ ip: "127.0.0.1" }),
+      }),
+    );
+  });
+
+  it("returns GUEST_PASSWORD_REQUIRED on guest delete without password", async () => {
+    const request = new Request("http://localhost/api/posts/post-1", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+    }) as NextRequest;
+
+    const response = await DELETE(request, { params: Promise.resolve({ id: "post-1" }) });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "GUEST_PASSWORD_REQUIRED" },
+    });
+  });
+
+  it("uses deleteGuestPost when guest password header exists", async () => {
+    mockDeleteGuestPost.mockResolvedValue({ ok: true } as never);
+    const request = new Request("http://localhost/api/posts/post-1", {
+      method: "DELETE",
+      headers: {
+        "x-guest-password": "1234",
+      },
+    }) as NextRequest;
+
+    const response = await DELETE(request, { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(response.status).toBe(200);
+    expect(mockDeleteGuestPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: "post-1",
+        guestPassword: "1234",
+        guestIdentity: expect.objectContaining({ ip: "127.0.0.1" }),
+      }),
+    );
   });
 
   it("returns 500 and monitors unexpected errors", async () => {
