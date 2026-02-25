@@ -28,6 +28,7 @@ app/.npmrc
 # local agent/tooling artifacts
 .opencode/
 opencode.json
+AGENTS.md
 docs/agent-memory/
 app/test-results/
 
