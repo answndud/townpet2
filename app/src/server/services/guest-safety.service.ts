@@ -1,5 +1,5 @@
 import { GuestViolationCategory } from "@prisma/client";
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
 
 import { DEFAULT_GUEST_POST_POLICY, type GuestPostPolicy } from "@/lib/guest-post-policy";
 import { prisma } from "@/lib/prisma";
@@ -51,18 +51,61 @@ function hashValue(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function hashValueWithPepper(value: string, pepper: string) {
+  return createHmac("sha256", pepper).update(value).digest("hex");
+}
+
+function resolveGuestHashPepper() {
+  return process.env.GUEST_HASH_PEPPER?.trim() ?? "";
+}
+
+function getHashCandidates(value: string) {
+  const normalized = value.trim() || "anonymous";
+  const legacyHash = hashValue(normalized);
+  const pepper = resolveGuestHashPepper();
+  if (!pepper) {
+    return [legacyHash];
+  }
+
+  const pepperedHash = hashValueWithPepper(normalized, pepper);
+  if (pepperedHash === legacyHash) {
+    return [pepperedHash];
+  }
+
+  return [pepperedHash, legacyHash];
+}
+
+function buildIdentityOrConditions(params: {
+  ipHashes: string[];
+  fingerprintHashes: string[];
+}) {
+  return [
+    ...params.ipHashes.map((ipHash) => ({ ipHash })),
+    ...params.fingerprintHashes.map((fingerprintHash) => ({ fingerprintHash })),
+  ];
+}
+
+export function hashGuestIdentityCandidates(identity: GuestIdentity) {
+  const ipHashes = getHashCandidates(identity.ip);
+  const fingerprintHashes = identity.fingerprint?.trim()
+    ? getHashCandidates(identity.fingerprint)
+    : [];
+
+  return { ipHashes, fingerprintHashes };
+}
+
 export function hashGuestIdentity(identity: GuestIdentity) {
-  const ipHash = hashValue(identity.ip.trim() || "anonymous");
-  const fingerprintHash = identity.fingerprint?.trim()
-    ? hashValue(identity.fingerprint.trim())
-    : null;
+  const { ipHashes, fingerprintHashes } = hashGuestIdentityCandidates(identity);
+  const ipHash = ipHashes[0] ?? hashValue("anonymous");
+  const fingerprintHash = fingerprintHashes[0] ?? null;
 
   return { ipHash, fingerprintHash };
 }
 
 export async function assertGuestNotBanned(identity: GuestIdentity) {
   const now = new Date();
-  const { ipHash, fingerprintHash } = hashGuestIdentity(identity);
+  const { ipHashes, fingerprintHashes } = hashGuestIdentityCandidates(identity);
+  const orConditions = buildIdentityOrConditions({ ipHashes, fingerprintHashes });
   const guestBanDelegate = getGuestBanDelegate();
   if (!guestBanDelegate) {
     return;
@@ -73,7 +116,7 @@ export async function assertGuestNotBanned(identity: GuestIdentity) {
     activeBan = await guestBanDelegate.findFirst({
       where: {
         expiresAt: { gt: now },
-        OR: [{ ipHash }, ...(fingerprintHash ? [{ fingerprintHash }] : [])],
+        OR: orConditions,
       },
       orderBy: [{ expiresAt: "desc" }],
       select: { expiresAt: true },
@@ -122,6 +165,8 @@ export async function registerGuestViolation(params: {
 }) {
   const now = new Date();
   const { ipHash, fingerprintHash } = hashGuestIdentity(params.identity);
+  const { ipHashes, fingerprintHashes } = hashGuestIdentityCandidates(params.identity);
+  const orConditions = buildIdentityOrConditions({ ipHashes, fingerprintHashes });
   const guestViolationDelegate = getGuestViolationDelegate();
   const guestBanDelegate = getGuestBanDelegate();
   if (!guestViolationDelegate || !guestBanDelegate) {
@@ -141,13 +186,13 @@ export async function registerGuestViolation(params: {
       guestViolationDelegate.count({
         where: {
           createdAt: { gte: new Date(now.getTime() - 24 * HOUR_MS) },
-          OR: [{ ipHash }, ...(fingerprintHash ? [{ fingerprintHash }] : [])],
+          OR: orConditions,
         },
       }),
       guestViolationDelegate.count({
         where: {
           createdAt: { gte: new Date(now.getTime() - 7 * 24 * HOUR_MS) },
-          OR: [{ ipHash }, ...(fingerprintHash ? [{ fingerprintHash }] : [])],
+          OR: orConditions,
         },
       }),
     ]);
@@ -164,7 +209,7 @@ export async function registerGuestViolation(params: {
     const activeBan = await guestBanDelegate.findFirst({
       where: {
         expiresAt: { gt: now },
-        OR: [{ ipHash }, ...(fingerprintHash ? [{ fingerprintHash }] : [])],
+        OR: orConditions,
       },
     });
 

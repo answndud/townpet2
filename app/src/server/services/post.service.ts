@@ -26,6 +26,7 @@ import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
 import {
   assertGuestNotBanned,
   hashGuestIdentity,
+  hashGuestIdentityCandidates,
   registerGuestViolation,
 } from "@/server/services/guest-safety.service";
 import { getOrCreateGuestSystemUserId } from "@/server/services/guest-author.service";
@@ -127,11 +128,14 @@ function matchesGuestIdentity(
     fingerprint?: string;
   },
 ) {
-  const { ipHash, fingerprintHash } = hashGuestIdentity(identity);
-  if (params.guestIpHash && params.guestIpHash === ipHash) {
+  const { ipHashes, fingerprintHashes } = hashGuestIdentityCandidates(identity);
+  if (params.guestIpHash && ipHashes.includes(params.guestIpHash)) {
     return true;
   }
-  if (params.guestFingerprintHash && fingerprintHash && params.guestFingerprintHash === fingerprintHash) {
+  if (
+    params.guestFingerprintHash &&
+    fingerprintHashes.includes(params.guestFingerprintHash)
+  ) {
     return true;
   }
   return false;
