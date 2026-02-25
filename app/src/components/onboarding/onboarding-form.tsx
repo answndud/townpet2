@@ -16,6 +16,28 @@ type NeighborhoodOption = {
   district: string;
 };
 
+function toRegionKey(city: string, district: string) {
+  return `${city}::${district}`;
+}
+
+function resolvePrimaryRegionKey(
+  neighborhoods: NeighborhoodOption[],
+  primaryNeighborhoodId: string | null,
+) {
+  if (primaryNeighborhoodId) {
+    const primary = neighborhoods.find((item) => item.id === primaryNeighborhoodId);
+    if (primary) {
+      return toRegionKey(primary.city, primary.district);
+    }
+  }
+
+  if (neighborhoods[0]) {
+    return toRegionKey(neighborhoods[0].city, neighborhoods[0].district);
+  }
+
+  return "";
+}
+
 type NeighborhoodSearchResponse =
   | {
       ok: true;
@@ -51,17 +73,26 @@ export function OnboardingForm({
   const [profileName, setProfileName] = useState(nickname ?? "");
   const [profileBio, setProfileBio] = useState(bio ?? "");
   const [selectedIds, setSelectedIds] = useState<string[]>(
-    selectedNeighborhoods.map((item) => item.id).slice(0, 3),
+    Array.from(new Set(selectedNeighborhoods.map((item) => toRegionKey(item.city, item.district)))).slice(
+      0,
+      3,
+    ),
   );
   const [primaryId, setPrimaryId] = useState(
-    primaryNeighborhoodId ?? selectedNeighborhoods[0]?.id ?? "",
+    resolvePrimaryRegionKey(selectedNeighborhoods, primaryNeighborhoodId),
   );
   const [cityFilter, setCityFilter] = useState("");
   const [districtFilter, setDistrictFilter] = useState("");
   const [keyword, setKeyword] = useState("");
   const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
-  const [searchItems, setSearchItems] = useState<NeighborhoodOption[]>(selectedNeighborhoods);
+  const [searchItems, setSearchItems] = useState<NeighborhoodOption[]>(
+    selectedNeighborhoods.map((item) => ({
+      ...item,
+      id: toRegionKey(item.city, item.district),
+      name: item.district,
+    })),
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -110,7 +141,11 @@ export function OnboardingForm({
     const map = new Map<string, NeighborhoodOption>();
 
     for (const item of selectedNeighborhoods) {
-      map.set(item.id, item);
+      map.set(toRegionKey(item.city, item.district), {
+        ...item,
+        id: toRegionKey(item.city, item.district),
+        name: item.district,
+      });
     }
     for (const item of searchItems) {
       if (!map.has(item.id)) {
@@ -230,7 +265,7 @@ export function OnboardingForm({
           <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">동네</p>
           <h2 className="text-xl font-semibold text-[#153a6a]">내 동네 선택</h2>
           <p className="text-sm text-[#4f678d]">
-            대한민국 내 동네를 최대 3개까지 선택하고 기준 동네를 지정해 주세요.
+            대한민국 시/군/구를 최대 3개까지 선택하고 대표 동네를 지정해 주세요.
           </p>
         </div>
         <form onSubmit={handleNeighborhood} className="mt-4 flex flex-col gap-3">
@@ -291,7 +326,7 @@ export function OnboardingForm({
                     disabled={!selectedIds.includes(neighborhood.id) && selectedIds.length >= 3}
                   />
                   <span>
-                    {neighborhood.city} {neighborhood.district} {neighborhood.name}
+                    {neighborhood.city} {neighborhood.district}
                   </span>
                 </label>
               ))}
@@ -302,7 +337,7 @@ export function OnboardingForm({
           </div>
 
           <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-            기준 동네
+            대표 동네
             <select
               data-testid="onboarding-neighborhood"
               className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
@@ -319,12 +354,53 @@ export function OnboardingForm({
 
                 return (
                   <option key={id} value={id}>
-                    {neighborhood.city} {neighborhood.district} {neighborhood.name}
+                    {neighborhood.city} {neighborhood.district}
                   </option>
                 );
               })}
             </select>
           </label>
+
+          <div className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+            <span>현재 선택한 동네</span>
+            <div className="flex flex-wrap gap-2">
+              {selectedIds.length === 0 ? (
+                <span className="text-xs text-[#5a7398]">선택한 동네가 없습니다.</span>
+              ) : (
+                selectedIds.map((id) => {
+                  const neighborhood = selectedNeighborhoodMap.get(id);
+                  if (!neighborhood) {
+                    return null;
+                  }
+
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-2 border border-[#bfd0ec] bg-white px-3 py-1 text-xs text-[#1f3f71]"
+                    >
+                      {neighborhood.city} {neighborhood.district}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedIds((prev) => {
+                            const next = prev.filter((item) => item !== id);
+                            if (primaryId === id) {
+                              setPrimaryId(next[0] ?? "");
+                            }
+                            return next;
+                          });
+                        }}
+                        className="text-[#5a7398] hover:text-[#153a6a]"
+                        aria-label={`${neighborhood.city} ${neighborhood.district} 제거`}
+                      >
+                        x
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
           <p className="text-xs text-[#5a7398]">나중에 프로필에서 동네를 설정해도 됩니다.</p>
           <button

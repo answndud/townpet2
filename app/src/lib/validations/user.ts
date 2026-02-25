@@ -11,9 +11,9 @@ export const profileUpdateSchema = z.object({
 
 export const neighborhoodSelectSchema = z
   .object({
-    neighborhoodId: z.string().cuid().optional(),
-    neighborhoodIds: z.array(z.string().cuid()).max(3).optional(),
-    primaryNeighborhoodId: z.string().cuid().optional(),
+    neighborhoodId: z.string().trim().min(1).max(120).optional(),
+    neighborhoodIds: z.array(z.string().trim().min(1).max(120)).max(3).optional(),
+    primaryNeighborhoodId: z.string().trim().min(1).max(120).optional(),
   })
   .superRefine((value, ctx) => {
     const selected = value.neighborhoodIds ?? (value.neighborhoodId ? [value.neighborhoodId] : []);

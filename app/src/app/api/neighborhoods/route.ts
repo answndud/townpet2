@@ -5,7 +5,7 @@ import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   listNeighborhoodCities,
   listNeighborhoodDistricts,
-  searchNeighborhoods,
+  searchNeighborhoodRegions,
 } from "@/server/queries/neighborhood.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const [cities, districts, items] = await Promise.all([
       listNeighborhoodCities(),
       listNeighborhoodDistricts(parsed.data.city),
-      searchNeighborhoods(parsed.data),
+      searchNeighborhoodRegions(parsed.data),
     ]);
 
     return jsonOk({

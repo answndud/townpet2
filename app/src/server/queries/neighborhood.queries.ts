@@ -19,6 +19,22 @@ type SearchNeighborhoodsParams = {
   limit?: number;
 };
 
+export function toNeighborhoodRegionKey(city: string, district: string) {
+  return `${city}::${district}`;
+}
+
+export function parseNeighborhoodRegionKey(value: string) {
+  const [city, district] = value.split("::");
+  if (!city || !district) {
+    return null;
+  }
+
+  return {
+    city: city.trim(),
+    district: district.trim(),
+  };
+}
+
 export async function searchNeighborhoods({
   q,
   city,
@@ -50,6 +66,40 @@ export async function searchNeighborhoods({
     },
     take: Math.min(Math.max(limit, 1), 300),
   });
+}
+
+export async function searchNeighborhoodRegions({
+  q,
+  city,
+  district,
+  limit = 200,
+}: SearchNeighborhoodsParams) {
+  const trimmedQ = q?.trim();
+  const trimmedCity = city?.trim();
+  const trimmedDistrict = district?.trim();
+
+  const rows = await prisma.neighborhood.groupBy({
+    by: ["city", "district"],
+    where: {
+      city: trimmedCity || undefined,
+      district: trimmedDistrict || undefined,
+      OR: trimmedQ
+        ? [
+            { city: { contains: trimmedQ } },
+            { district: { contains: trimmedQ } },
+          ]
+        : undefined,
+    },
+    orderBy: [{ city: "asc" }, { district: "asc" }],
+    take: Math.min(Math.max(limit, 1), 300),
+  });
+
+  return rows.map((row) => ({
+    id: toNeighborhoodRegionKey(row.city, row.district),
+    name: row.district,
+    city: row.city,
+    district: row.district,
+  }));
 }
 
 export async function listNeighborhoodCities() {

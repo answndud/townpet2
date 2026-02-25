@@ -43,6 +43,59 @@ type UpdateNeighborhoodParams = {
   input: unknown;
 };
 
+function parseRegionSelection(value: string) {
+  const [city, district] = value.split("::");
+  if (!city || !district) {
+    return null;
+  }
+
+  const trimmedCity = city.trim();
+  const trimmedDistrict = district.trim();
+  if (!trimmedCity || !trimmedDistrict) {
+    return null;
+  }
+
+  return {
+    city: trimmedCity,
+    district: trimmedDistrict,
+  };
+}
+
+async function resolveNeighborhoodId(selection: string) {
+  const existingById = await prisma.neighborhood.findUnique({
+    where: { id: selection },
+    select: { id: true },
+  });
+
+  if (existingById) {
+    return existingById.id;
+  }
+
+  const region = parseRegionSelection(selection);
+  if (!region) {
+    return null;
+  }
+
+  const seeded = await prisma.neighborhood.upsert({
+    where: {
+      name_city_district: {
+        name: region.district,
+        city: region.city,
+        district: region.district,
+      },
+    },
+    update: {},
+    create: {
+      name: region.district,
+      city: region.city,
+      district: region.district,
+    },
+    select: { id: true },
+  });
+
+  return seeded.id;
+}
+
 export async function setPrimaryNeighborhood({
   userId,
   input,
@@ -52,13 +105,18 @@ export async function setPrimaryNeighborhood({
     throw new ServiceError("동네 선택이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const neighborhoods = await prisma.neighborhood.findMany({
-    where: { id: { in: parsed.data.neighborhoodIds } },
-    select: { id: true },
-  });
+  const resolvedIds = await Promise.all(
+    parsed.data.neighborhoodIds.map((item) => resolveNeighborhoodId(item)),
+  );
 
-  if (neighborhoods.length !== parsed.data.neighborhoodIds.length) {
+  if (resolvedIds.some((item) => !item)) {
     throw new ServiceError("동네 정보를 찾을 수 없습니다.", "NEIGHBORHOOD_NOT_FOUND", 404);
+  }
+
+  const normalizedNeighborhoodIds = Array.from(new Set(resolvedIds)) as string[];
+  const primaryResolvedId = await resolveNeighborhoodId(parsed.data.primaryNeighborhoodId);
+  if (!primaryResolvedId || !normalizedNeighborhoodIds.includes(primaryResolvedId)) {
+    throw new ServiceError("대표 동네를 찾을 수 없습니다.", "NEIGHBORHOOD_NOT_FOUND", 404);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -66,12 +124,12 @@ export async function setPrimaryNeighborhood({
       where: {
         userId,
         neighborhoodId: {
-          notIn: parsed.data.neighborhoodIds,
+          notIn: normalizedNeighborhoodIds,
         },
       },
     });
 
-    for (const neighborhoodId of parsed.data.neighborhoodIds) {
+    for (const neighborhoodId of normalizedNeighborhoodIds) {
       await tx.userNeighborhood.upsert({
         where: {
           userId_neighborhoodId: {
@@ -80,12 +138,12 @@ export async function setPrimaryNeighborhood({
           },
         },
         update: {
-          isPrimary: neighborhoodId === parsed.data.primaryNeighborhoodId,
+          isPrimary: neighborhoodId === primaryResolvedId,
         },
         create: {
           userId,
           neighborhoodId,
-          isPrimary: neighborhoodId === parsed.data.primaryNeighborhoodId,
+          isPrimary: neighborhoodId === primaryResolvedId,
         },
       });
     }
@@ -93,7 +151,7 @@ export async function setPrimaryNeighborhood({
     return tx.userNeighborhood.updateMany({
       where: {
         userId,
-        neighborhoodId: parsed.data.primaryNeighborhoodId,
+        neighborhoodId: primaryResolvedId,
       },
       data: { isPrimary: true },
     });

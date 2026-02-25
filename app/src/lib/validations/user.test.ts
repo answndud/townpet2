@@ -37,12 +37,8 @@ describe("user validations", () => {
 
   it("accepts up to three neighborhoods with primary", () => {
     const result = neighborhoodSelectSchema.safeParse({
-      neighborhoodIds: [
-        "ckc7k5qsj0000u0t8qv6d1d7k",
-        "ckc7k5qsj0000u0t8qv6d1d7l",
-        "ckc7k5qsj0000u0t8qv6d1d7m",
-      ],
-      primaryNeighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7l",
+      neighborhoodIds: ["서울특별시::강남구", "부산광역시::해운대구", "대전광역시::서구"],
+      primaryNeighborhoodId: "부산광역시::해운대구",
     });
 
     expect(result.success).toBe(true);

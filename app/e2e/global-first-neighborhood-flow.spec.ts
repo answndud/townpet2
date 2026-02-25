@@ -56,11 +56,11 @@ test.describe("global first neighborhood flow", () => {
     await firstCheckbox.check();
 
     const firstPrimaryOptionValue = await page
-      .locator("label:has-text('기준 동네') select option")
+      .locator("label:has-text('대표 동네') select option")
       .nth(1)
       .getAttribute("value");
     await page
-      .locator("label:has-text('기준 동네') select")
+      .locator("label:has-text('대표 동네') select")
       .selectOption(firstPrimaryOptionValue ?? "");
 
     await page.getByRole("button", { name: "동네 저장" }).click();

@@ -6,7 +6,7 @@ import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   listNeighborhoodCities,
   listNeighborhoodDistricts,
-  searchNeighborhoods,
+  searchNeighborhoodRegions,
 } from "@/server/queries/neighborhood.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -15,7 +15,7 @@ vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/neighborhood.queries", () => ({
   listNeighborhoodCities: vi.fn(),
   listNeighborhoodDistricts: vi.fn(),
-  searchNeighborhoods: vi.fn(),
+  searchNeighborhoodRegions: vi.fn(),
 }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
@@ -23,7 +23,7 @@ vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockListNeighborhoodCities = vi.mocked(listNeighborhoodCities);
 const mockListNeighborhoodDistricts = vi.mocked(listNeighborhoodDistricts);
-const mockSearchNeighborhoods = vi.mocked(searchNeighborhoods);
+const mockSearchNeighborhoods = vi.mocked(searchNeighborhoodRegions);
 const mockGetClientIp = vi.mocked(getClientIp);
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
 

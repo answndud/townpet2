@@ -11,6 +11,28 @@ type NeighborhoodOption = {
   district: string;
 };
 
+function toRegionKey(city: string, district: string) {
+  return `${city}::${district}`;
+}
+
+function resolvePrimaryRegionKey(
+  neighborhoods: NeighborhoodOption[],
+  primaryNeighborhoodId: string | null,
+) {
+  if (primaryNeighborhoodId) {
+    const primary = neighborhoods.find((item) => item.id === primaryNeighborhoodId);
+    if (primary) {
+      return toRegionKey(primary.city, primary.district);
+    }
+  }
+
+  if (neighborhoods[0]) {
+    return toRegionKey(neighborhoods[0].city, neighborhoods[0].district);
+  }
+
+  return "";
+}
+
 type NeighborhoodSearchResponse =
   | {
       ok: true;
@@ -35,10 +57,13 @@ export function NeighborhoodPreferenceForm({
   primaryNeighborhoodId,
 }: NeighborhoodPreferenceFormProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>(
-    selectedNeighborhoods.map((item) => item.id).slice(0, 3),
+    Array.from(new Set(selectedNeighborhoods.map((item) => toRegionKey(item.city, item.district)))).slice(
+      0,
+      3,
+    ),
   );
   const [primaryId, setPrimaryId] = useState(
-    primaryNeighborhoodId ?? selectedNeighborhoods[0]?.id ?? "",
+    resolvePrimaryRegionKey(selectedNeighborhoods, primaryNeighborhoodId),
   );
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -47,7 +72,13 @@ export function NeighborhoodPreferenceForm({
   const [keyword, setKeyword] = useState("");
   const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
-  const [searchItems, setSearchItems] = useState<NeighborhoodOption[]>(selectedNeighborhoods);
+  const [searchItems, setSearchItems] = useState<NeighborhoodOption[]>(
+    selectedNeighborhoods.map((item) => ({
+      ...item,
+      id: toRegionKey(item.city, item.district),
+      name: item.district,
+    })),
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,7 +127,11 @@ export function NeighborhoodPreferenceForm({
     const map = new Map<string, NeighborhoodOption>();
 
     for (const item of selectedNeighborhoods) {
-      map.set(item.id, item);
+      map.set(toRegionKey(item.city, item.district), {
+        ...item,
+        id: toRegionKey(item.city, item.district),
+        name: item.district,
+      });
     }
     for (const item of searchItems) {
       if (!map.has(item.id)) {
@@ -132,7 +167,7 @@ export function NeighborhoodPreferenceForm({
 
   const handleSave = () => {
     if (selectedIds.length === 0 || !primaryId) {
-      setMessage("동네를 선택하고 기준 동네를 지정해 주세요.");
+      setMessage("동네를 선택하고 대표 동네를 지정해 주세요.");
       return;
     }
 
@@ -156,7 +191,7 @@ export function NeighborhoodPreferenceForm({
     <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
       <h2 className="text-lg font-semibold text-[#153a6a]">내 동네 설정</h2>
       <p className="mt-2 text-xs text-[#5a7398]">
-        대한민국 동네를 최대 3개까지 선택하고 기준 동네 1개를 지정할 수 있습니다.
+        대한민국 시/군/구를 최대 3개까지 선택하고 대표 동네 1개를 지정할 수 있습니다.
       </p>
 
       <div className="mt-4 space-y-3">
@@ -214,7 +249,7 @@ export function NeighborhoodPreferenceForm({
                 disabled={!selectedIds.includes(neighborhood.id) && selectedIds.length >= 3}
               />
               <span>
-                {neighborhood.city} {neighborhood.district} {neighborhood.name}
+                {neighborhood.city} {neighborhood.district}
               </span>
             </label>
           ))}
@@ -224,7 +259,7 @@ export function NeighborhoodPreferenceForm({
         </div>
 
         <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-          기준 동네
+          대표 동네
           <select
             className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
             value={primaryId}
@@ -237,14 +272,55 @@ export function NeighborhoodPreferenceForm({
                 return null;
               }
 
-              return (
-                <option key={id} value={id}>
-                  {neighborhood.city} {neighborhood.district} {neighborhood.name}
-                </option>
-              );
-            })}
+                return (
+                  <option key={id} value={id}>
+                    {neighborhood.city} {neighborhood.district}
+                  </option>
+                );
+              })}
           </select>
         </label>
+
+        <div className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+          <span>현재 선택한 동네</span>
+          <div className="flex flex-wrap gap-2">
+            {selectedIds.length === 0 ? (
+              <span className="text-xs text-[#5a7398]">선택한 동네가 없습니다.</span>
+            ) : (
+              selectedIds.map((id) => {
+                const neighborhood = selectedNeighborhoodMap.get(id);
+                if (!neighborhood) {
+                  return null;
+                }
+
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-2 border border-[#bfd0ec] bg-white px-3 py-1 text-xs text-[#1f3f71]"
+                  >
+                    {neighborhood.city} {neighborhood.district}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedIds((prev) => {
+                          const next = prev.filter((item) => item !== id);
+                          if (primaryId === id) {
+                            setPrimaryId(next[0] ?? "");
+                          }
+                          return next;
+                        });
+                      }}
+                      className="text-[#5a7398] hover:text-[#153a6a]"
+                      aria-label={`${neighborhood.city} ${neighborhood.district} 제거`}
+                    >
+                      x
+                    </button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
