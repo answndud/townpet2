@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const scope = parsed.data.scope ?? (currentUser ? PostScope.LOCAL : PostScope.GLOBAL);
+    const scope = parsed.data.scope ?? PostScope.GLOBAL;
     let neighborhoodId: string | undefined;
 
     if (scope === PostScope.LOCAL) {

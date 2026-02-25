@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       return jsonOk({ items: [] as string[] });
     }
 
-    const scope = parsed.data.scope ?? (currentUser ? PostScope.LOCAL : PostScope.GLOBAL);
+    const scope = parsed.data.scope ?? PostScope.GLOBAL;
     let neighborhoodId: string | undefined;
 
     if (scope === PostScope.LOCAL) {

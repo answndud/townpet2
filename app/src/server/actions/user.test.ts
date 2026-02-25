@@ -61,6 +61,24 @@ describe("user actions", () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith("/onboarding");
   });
 
+  it("accepts multi-neighborhood payload", async () => {
+    mockRequireCurrentUser.mockResolvedValue({ id: "user-4" } as never);
+
+    const result = await setPrimaryNeighborhoodAction({
+      neighborhoodIds: ["hood-1", "hood-2"],
+      primaryNeighborhoodId: "hood-2",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(mockSetPrimaryNeighborhood).toHaveBeenCalledWith({
+      userId: "user-4",
+      input: {
+        neighborhoodIds: ["hood-1", "hood-2"],
+        primaryNeighborhoodId: "hood-2",
+      },
+    });
+  });
+
   it("returns service errors for onboarding actions", async () => {
     const error = new ServiceError("invalid", "INVALID_INPUT", 400);
     mockRequireCurrentUser.mockResolvedValue({ id: "user-3" } as never);

@@ -97,6 +97,10 @@ for (const scenario of scenarios) {
         });
       }
 
+      const firstCheckbox = page.locator('input[type="checkbox"]').first();
+      await expect(firstCheckbox).toBeVisible();
+      await firstCheckbox.check();
+
       const neighborhoodValues = await page
         .getByTestId("onboarding-neighborhood")
         .locator("option")
@@ -107,9 +111,7 @@ for (const scenario of scenarios) {
         );
       expect(neighborhoodValues.length).toBeGreaterThan(0);
 
-      await page
-        .getByTestId("onboarding-neighborhood")
-        .selectOption(neighborhoodValues[0] ?? "");
+      await page.getByTestId("onboarding-neighborhood").selectOption(neighborhoodValues[0] ?? "");
       await page.getByTestId("onboarding-neighborhood-submit").click();
 
       await expect(page).toHaveURL(/\/feed(?:\?.*)?$/);

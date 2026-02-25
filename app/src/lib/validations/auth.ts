@@ -10,6 +10,11 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email(),
   password: passwordSchema,
+  nickname: z
+    .string()
+    .min(2)
+    .max(20)
+    .regex(/^[a-zA-Z0-9가-힣_-]+$/, "닉네임은 한글/영문/숫자/특수기호(-,_)만 가능합니다."),
   name: z.string().min(1).max(40).optional(),
 });
 

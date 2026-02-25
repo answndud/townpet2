@@ -25,6 +25,7 @@ export function RegisterForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [email, setEmail] = useState("");
+  const [nickname, setNickname] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -46,6 +47,7 @@ export function RegisterForm({
         body: JSON.stringify({
           email,
           password,
+          nickname,
           name: name || undefined,
         }),
       });
@@ -74,6 +76,19 @@ export function RegisterForm({
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@townpet.dev"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">
+        닉네임
+        <input
+          autoComplete="nickname"
+          className="min-h-11 rounded-sm border border-[#adc3e6] bg-[#f7faff] px-3 py-2 text-sm text-[#1f3f71] placeholder:text-[#6887b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40"
+          value={nickname}
+          onChange={(event) => setNickname(event.target.value)}
+          placeholder="예: townpet_user"
+          minLength={2}
+          maxLength={20}
           required
         />
       </label>
@@ -124,7 +139,7 @@ export function RegisterForm({
       <button
         type="submit"
         className="min-h-11 rounded-sm border border-[#3567b5] bg-[#3567b5] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40 disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
-        disabled={isPending || !email.trim() || !password || !passwordConfirm}
+        disabled={isPending || !email.trim() || !nickname.trim() || !password || !passwordConfirm}
       >
         {isPending ? "가입 중..." : "이메일로 가입"}
       </button>

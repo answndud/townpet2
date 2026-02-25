@@ -1,10 +1,8 @@
 import Link from "next/link";
 
-import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCreateForm } from "@/components/posts/post-create-form";
 import { auth } from "@/lib/auth";
 import { listCommunities } from "@/server/queries/community.queries";
-import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 export default async function NewPostPage() {
@@ -12,16 +10,15 @@ export default async function NewPostPage() {
   const userId = session?.user?.id;
   const user = userId ? await getUserWithNeighborhoods(userId) : null;
   const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
-  if (userId && user && !primaryNeighborhood) {
-    return (
-      <NeighborhoodGateNotice
-        title="글쓰기를 하려면 동네 설정이 필요합니다."
-        description="대표 동네를 선택하면 로컬 정보를 작성할 수 있습니다."
-      />
-    );
-  }
 
-  const neighborhoods = userId ? await listNeighborhoods() : [];
+  const neighborhoods = user
+    ? user.neighborhoods.map((item) => ({
+        id: item.neighborhood.id,
+        name: item.neighborhood.name,
+        city: item.neighborhood.city,
+        district: item.neighborhood.district,
+      }))
+    : [];
   const communities = await listCommunities({ limit: 50 });
 
   return (

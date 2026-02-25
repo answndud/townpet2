@@ -60,7 +60,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
-  const selectedScope = scope ?? (isAuthenticated ? PostScope.LOCAL : PostScope.GLOBAL);
+  const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
   const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);

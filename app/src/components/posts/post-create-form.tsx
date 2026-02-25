@@ -409,6 +409,7 @@ export function PostCreateForm({
       })),
     [neighborhoods],
   );
+  const canUseLocalScope = isAuthenticated && neighborhoodOptions.length > 0;
 
   const communityOptions = useMemo(
     () =>
@@ -445,6 +446,16 @@ export function PostCreateForm({
       setFormState((prev) => ({ ...prev, type: PostType.FREE_BOARD }));
     }
   }, [formState.scope, formState.type, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || canUseLocalScope) {
+      return;
+    }
+
+    if (formState.scope === PostScope.LOCAL) {
+      setFormState((prev) => ({ ...prev, scope: PostScope.GLOBAL }));
+    }
+  }, [canUseLocalScope, formState.scope, isAuthenticated]);
 
   useEffect(() => {
     if (formState.communityId) {
@@ -825,8 +836,14 @@ export function PostCreateForm({
               disabled={!isAuthenticated}
             >
               {scopeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={option.value === PostScope.LOCAL && !canUseLocalScope}
+                >
+                  {option.value === PostScope.LOCAL && !canUseLocalScope
+                    ? "동네 (설정 필요)"
+                    : option.label}
                 </option>
               ))}
             </select>
@@ -1646,10 +1663,20 @@ export function PostCreateForm({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#dbe6f6] pt-3">
         <p className="text-xs text-[#5d769d]">
           {isAuthenticated
-            ? "동네 글은 동네 범위를 선택하고 대표 동네를 지정해야 등록됩니다."
+            ? canUseLocalScope
+              ? "동네 글은 동네 범위를 선택하고 대표 동네를 지정해야 등록됩니다."
+              : "지금은 온동네 글만 작성할 수 있습니다. 프로필에서 동네를 설정하면 동네 글도 작성할 수 있어요."
             : "비회원 글은 온동네로만 등록되며 외부 링크/연락처/고위험 카테고리는 제한됩니다."}
         </p>
         <div className="flex items-center gap-2">
+          {isAuthenticated && !canUseLocalScope ? (
+            <Link
+              href="/profile"
+              className="inline-flex h-10 items-center border border-[#bfd0ec] bg-white px-4 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+            >
+              프로필에서 동네 설정
+            </Link>
+          ) : null}
           <Link
             href="/feed"
             className="inline-flex h-10 items-center border border-[#9aa9bf] bg-[#5c677a] px-5 text-sm font-semibold text-white transition hover:bg-[#4d5666]"

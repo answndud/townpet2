@@ -24,10 +24,50 @@ describe("user validations", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts a neighborhood id", () => {
+  it("accepts a single neighborhood id (legacy payload)", () => {
     const result = neighborhoodSelectSchema.safeParse({
       neighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7k",
     });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.neighborhoodIds).toEqual(["ckc7k5qsj0000u0t8qv6d1d7k"]);
+      expect(result.data.primaryNeighborhoodId).toBe("ckc7k5qsj0000u0t8qv6d1d7k");
+    }
+  });
+
+  it("accepts up to three neighborhoods with primary", () => {
+    const result = neighborhoodSelectSchema.safeParse({
+      neighborhoodIds: [
+        "ckc7k5qsj0000u0t8qv6d1d7k",
+        "ckc7k5qsj0000u0t8qv6d1d7l",
+        "ckc7k5qsj0000u0t8qv6d1d7m",
+      ],
+      primaryNeighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7l",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects more than three neighborhoods", () => {
+    const result = neighborhoodSelectSchema.safeParse({
+      neighborhoodIds: [
+        "ckc7k5qsj0000u0t8qv6d1d7k",
+        "ckc7k5qsj0000u0t8qv6d1d7l",
+        "ckc7k5qsj0000u0t8qv6d1d7m",
+        "ckc7k5qsj0000u0t8qv6d1d7n",
+      ],
+      primaryNeighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7k",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects primary neighborhood outside selected list", () => {
+    const result = neighborhoodSelectSchema.safeParse({
+      neighborhoodIds: ["ckc7k5qsj0000u0t8qv6d1d7k"],
+      primaryNeighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7l",
+    });
+
+    expect(result.success).toBe(false);
   });
 });

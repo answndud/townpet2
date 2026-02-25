@@ -19,6 +19,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:sync:neighborhoods": "tsx scripts/sync-neighborhoods.ts",
     "db:seed:reports": "tsx scripts/seed-reports.ts",
     "db:seed:admin": "tsx scripts/seed-admin.ts",
     "db:seed:users": "tsx scripts/seed-users.ts",

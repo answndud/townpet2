@@ -34,7 +34,7 @@ export function LoginForm({
   const oauthError = searchParams.get("error");
   const nextPath = searchParams.get("next");
   const callbackUrl =
-    nextPath && nextPath.startsWith("/") ? nextPath : "/onboarding";
+    nextPath && nextPath.startsWith("/") ? nextPath : "/feed";
 
   const oauthMessage = useMemo(() => {
     if (!oauthError) return null;

@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostDetailEditForm } from "@/components/posts/post-detail-edit-form";
 import { auth } from "@/lib/auth";
-import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
 import { getPostById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
@@ -18,10 +17,7 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
   const userId = session?.user?.id;
   const user = userId ? await getUserWithNeighborhoods(userId) : null;
 
-  const [post, neighborhoods] = await Promise.all([
-    getPostById(resolvedParams.id),
-    listNeighborhoods(),
-  ]);
+  const post = await getPostById(resolvedParams.id);
 
   if (!post) {
     notFound();
@@ -64,7 +60,16 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
           scope={post.scope}
           neighborhoodId={post.neighborhood?.id ?? null}
           imageUrls={post.images.map((image) => image.url)}
-          neighborhoods={isGuestEdit ? [] : neighborhoods}
+          neighborhoods={
+            isGuestEdit || !user
+              ? []
+              : user.neighborhoods.map((item) => ({
+                  id: item.neighborhood.id,
+                  name: item.neighborhood.name,
+                  city: item.neighborhood.city,
+                  district: item.neighborhood.district,
+                }))
+          }
           isAuthenticated={Boolean(user)}
         />
       </main>

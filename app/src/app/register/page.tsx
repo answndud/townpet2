@@ -33,7 +33,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
     <AuthPageLayout
       eyebrow="계정 가입"
       title="회원가입"
-      description="이메일과 비밀번호로 TownPet을 시작해 보세요."
+      description="이메일, 닉네임, 비밀번호로 TownPet 계정을 만드세요."
       form={
         <RegisterForm
           kakaoEnabled={kakaoEnabled}

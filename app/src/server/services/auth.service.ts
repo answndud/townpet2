@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -31,21 +32,49 @@ export async function registerUser({ input }: RegisterUserParams) {
     throw new ServiceError("이미 사용 중인 이메일입니다.", "EMAIL_TAKEN", 409);
   }
 
+  const existingNickname = await prisma.user.findUnique({
+    where: { nickname: parsed.data.nickname },
+    select: { id: true },
+  });
+
+  if (existingNickname) {
+    throw new ServiceError("이미 사용 중인 닉네임입니다.", "NICKNAME_TAKEN", 409);
+  }
+
   const passwordHash = await hashPassword(parsed.data.password);
 
-  return prisma.user.create({
-    data: {
-      email: parsed.data.email,
-      name: parsed.data.name ?? null,
-      passwordHash,
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      nickname: true,
-    },
-  });
+  try {
+    return await prisma.user.create({
+      data: {
+        email: parsed.data.email,
+        name: parsed.data.name ?? null,
+        nickname: parsed.data.nickname,
+        passwordHash,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        nickname: true,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const targets = Array.isArray(error.meta?.target)
+        ? error.meta.target.map((value) => String(value))
+        : [];
+
+      if (targets.includes("nickname")) {
+        throw new ServiceError("이미 사용 중인 닉네임입니다.", "NICKNAME_TAKEN", 409);
+      }
+
+      if (targets.includes("email")) {
+        throw new ServiceError("이미 사용 중인 이메일입니다.", "EMAIL_TAKEN", 409);
+      }
+    }
+
+    throw error;
+  }
 }
 
 type EmailVerificationRequestParams = {

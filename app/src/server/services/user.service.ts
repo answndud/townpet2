@@ -52,43 +52,50 @@ export async function setPrimaryNeighborhood({
     throw new ServiceError("동네 선택이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const neighborhood = await prisma.neighborhood.findUnique({
-    where: { id: parsed.data.neighborhoodId },
+  const neighborhoods = await prisma.neighborhood.findMany({
+    where: { id: { in: parsed.data.neighborhoodIds } },
     select: { id: true },
   });
 
-  if (!neighborhood) {
+  if (neighborhoods.length !== parsed.data.neighborhoodIds.length) {
     throw new ServiceError("동네 정보를 찾을 수 없습니다.", "NEIGHBORHOOD_NOT_FOUND", 404);
   }
 
   return prisma.$transaction(async (tx) => {
-    await tx.userNeighborhood.updateMany({
-      where: { userId, isPrimary: true },
-      data: { isPrimary: false },
-    });
-
-    const existing = await tx.userNeighborhood.findUnique({
+    await tx.userNeighborhood.deleteMany({
       where: {
-        userId_neighborhoodId: {
-          userId,
-          neighborhoodId: parsed.data.neighborhoodId,
+        userId,
+        neighborhoodId: {
+          notIn: parsed.data.neighborhoodIds,
         },
       },
     });
 
-    if (existing) {
-      return tx.userNeighborhood.update({
-        where: { id: existing.id },
-        data: { isPrimary: true },
+    for (const neighborhoodId of parsed.data.neighborhoodIds) {
+      await tx.userNeighborhood.upsert({
+        where: {
+          userId_neighborhoodId: {
+            userId,
+            neighborhoodId,
+          },
+        },
+        update: {
+          isPrimary: neighborhoodId === parsed.data.primaryNeighborhoodId,
+        },
+        create: {
+          userId,
+          neighborhoodId,
+          isPrimary: neighborhoodId === parsed.data.primaryNeighborhoodId,
+        },
       });
     }
 
-    return tx.userNeighborhood.create({
-      data: {
+    return tx.userNeighborhood.updateMany({
+      where: {
         userId,
-        neighborhoodId: parsed.data.neighborhoodId,
-        isPrimary: true,
+        neighborhoodId: parsed.data.primaryNeighborhoodId,
       },
+      data: { isPrimary: true },
     });
   });
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
-import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
+import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-preference-form";
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
 import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
 import { ProfileInfoForm } from "@/components/profile/profile-info-form";
@@ -25,14 +25,6 @@ export default async function ProfilePage() {
   }
 
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood) {
-    return (
-      <NeighborhoodGateNotice
-        title="프로필을 보려면 동네 설정이 필요합니다."
-        description="대표 동네를 설정하면 프로필 요약을 확인할 수 있습니다."
-      />
-    );
-  }
 
   const [allPosts, localPosts, globalPosts, blockedUsers, mutedUsers, pets] = await Promise.all([
     listUserPosts({ authorId: user.id }),
@@ -99,8 +91,9 @@ export default async function ProfilePage() {
             <div>이메일: {user.email}</div>
             <div>온보딩 상태: 완료</div>
             <div>
-              대표 동네: {primaryNeighborhood.neighborhood.city} {" "}
-              {primaryNeighborhood.neighborhood.name}
+              대표 동네: {primaryNeighborhood
+                ? `${primaryNeighborhood.neighborhood.city} ${primaryNeighborhood.neighborhood.name}`
+                : "미설정"}
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -138,6 +131,10 @@ export default async function ProfilePage() {
         </section>
 
         <ProfileInfoForm initialNickname={user.nickname} initialBio={user.bio} />
+        <NeighborhoodPreferenceForm
+          selectedNeighborhoods={user.neighborhoods.map((item) => item.neighborhood)}
+          primaryNeighborhoodId={primaryNeighborhood?.neighborhood.id ?? null}
+        />
         <ProfileImageUploader initialImageUrl={user.image} />
         <PetProfileManager pets={pets} />
 

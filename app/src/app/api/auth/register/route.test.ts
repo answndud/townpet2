@@ -67,6 +67,7 @@ describe("POST /api/auth/register contract", () => {
       body: JSON.stringify({
         email: "user@townpet.dev",
         password: "password123",
+        nickname: "townpet_user",
         name: "user",
       }),
       headers: { "content-type": "application/json" },
@@ -95,6 +96,7 @@ describe("POST /api/auth/register contract", () => {
       body: JSON.stringify({
         email: "user@townpet.dev",
         password: "password123",
+        nickname: "townpet_user",
         name: "user",
       }),
       headers: { "content-type": "application/json" },
@@ -118,6 +120,7 @@ describe("POST /api/auth/register contract", () => {
       body: JSON.stringify({
         email: "user@townpet.dev",
         password: "password123",
+        nickname: "townpet_user",
       }),
       headers: { "content-type": "application/json" },
     }) as NextRequest;

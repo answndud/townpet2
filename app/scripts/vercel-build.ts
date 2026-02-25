@@ -120,6 +120,11 @@ async function main() {
   await runPrismaDeploy();
   await repairCommunityBoardSchema();
 
+  const syncNeighborhoodResult = await runCommand("pnpm", ["db:sync:neighborhoods"]);
+  if (syncNeighborhoodResult.code !== 0) {
+    throw new Error("[build:vercel] neighborhood sync failed.");
+  }
+
   const generateResult = await runCommand("pnpm", ["prisma", "generate"]);
   if (generateResult.code !== 0) {
     throw new Error("[build:vercel] prisma generate failed.");

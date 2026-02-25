@@ -68,9 +68,10 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+  const effectiveScope = scope ?? PostScope.GLOBAL;
 
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood && scope !== PostScope.GLOBAL) {
+  if (!primaryNeighborhood && effectiveScope === PostScope.LOCAL) {
     return (
       <NeighborhoodGateNotice
         title="내 작성글을 보려면 동네 설정이 필요합니다."

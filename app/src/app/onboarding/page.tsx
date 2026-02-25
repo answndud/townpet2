@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { OnboardingForm } from "@/components/onboarding/onboarding-form";
 import { auth } from "@/lib/auth";
-import { listNeighborhoods } from "@/server/queries/neighborhood.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 export default async function OnboardingPage() {
@@ -13,10 +12,7 @@ export default async function OnboardingPage() {
     redirect("/login");
   }
 
-  const [user, neighborhoods] = await Promise.all([
-    getUserWithNeighborhoods(userId),
-    listNeighborhoods(),
-  ]);
+  const user = await getUserWithNeighborhoods(userId);
 
   if (!user) {
     redirect("/login");
@@ -25,10 +21,6 @@ export default async function OnboardingPage() {
   const primaryNeighborhood = user.neighborhoods.find(
     (item) => item.isPrimary,
   );
-
-  if (user.nickname && primaryNeighborhood) {
-    redirect("/");
-  }
 
   return (
     <div className="min-h-screen">
@@ -39,7 +31,7 @@ export default async function OnboardingPage() {
           </p>
           <h1 className="text-3xl font-semibold text-[#10284a]">환영합니다</h1>
           <p className="text-sm text-[#4f678d]">
-            닉네임과 대표 동네를 설정하고 바로 동네 피드를 시작하세요.
+            닉네임을 먼저 만들고, 내 동네는 원할 때 최대 3개까지 설정할 수 있어요.
           </p>
         </header>
 
@@ -47,8 +39,8 @@ export default async function OnboardingPage() {
           email={user.email}
           nickname={user.nickname}
           bio={user.bio}
+          selectedNeighborhoods={user.neighborhoods.map((item) => item.neighborhood)}
           primaryNeighborhoodId={primaryNeighborhood?.neighborhood.id ?? null}
-          neighborhoods={neighborhoods}
         />
       </main>
     </div>
