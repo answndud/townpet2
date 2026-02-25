@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listCommonBoardPosts } from "@/server/queries/community.queries";
+import { getClientIp } from "@/server/request-context";
+import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 
 const commonBoardRouteParamSchema = z.enum(["hospital", "lost-found", "market"]);
@@ -37,6 +39,13 @@ export async function GET(
         message: "지원하지 않는 공용 보드입니다.",
       });
     }
+
+    const clientIp = getClientIp(request);
+    await enforceRateLimit({
+      key: `boards:${boardParsed.data}:ip:${clientIp}`,
+      limit: 60,
+      windowMs: 60_000,
+    });
 
     const { searchParams } = new URL(request.url);
     const queryParsed = commonBoardQuerySchema.safeParse({

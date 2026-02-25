@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listCommunities } from "@/server/queries/community.queries";
+import { getClientIp } from "@/server/request-context";
+import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 
 const communityListQuerySchema = z.object({
@@ -14,6 +16,9 @@ const communityListQuerySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const clientIp = getClientIp(request);
+    await enforceRateLimit({ key: `communities:ip:${clientIp}`, limit: 60, windowMs: 60_000 });
+
     const { searchParams } = new URL(request.url);
     const parsed = communityListQuerySchema.safeParse({
       category: searchParams.get("category") ?? undefined,
