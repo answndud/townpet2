@@ -80,6 +80,21 @@ describe("GET /api/posts contract", () => {
     });
   });
 
+  it("passes communityId filter to list query", async () => {
+    const request = new Request(
+      "http://localhost/api/posts?scope=GLOBAL&communityId=ckc7k5qsj0000u0t8qv6d1d7k",
+    ) as NextRequest;
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(mockListPosts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      }),
+    );
+  });
+
   it("maps service errors to status/code", async () => {
     const request = new Request("http://localhost/api/posts") as NextRequest;
     mockListPosts.mockRejectedValue(

@@ -72,6 +72,17 @@ const buildPostListInclude = (
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
+    community: {
+      select: {
+        id: true,
+        labelKo: true,
+        category: {
+          select: {
+            labelKo: true,
+          },
+        },
+      },
+    },
     reactions: {
       where: {
         userId: viewerId ?? NO_VIEWER_ID,
@@ -93,6 +104,17 @@ const buildPostListIncludeWithoutReactions = (
       : {}),
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
+    },
+    community: {
+      select: {
+        id: true,
+        labelKo: true,
+        category: {
+          select: {
+            labelKo: true,
+          },
+        },
+      },
     },
     images: {
       select: { id: true },
@@ -489,6 +511,7 @@ function buildPostSearchWhere(
 function buildPostListWhere({
   type,
   scope,
+  communityId,
   q,
   searchIn,
   excludeTypes,
@@ -499,6 +522,7 @@ function buildPostListWhere({
 }: {
   type?: PostType;
   scope: PostScope;
+  communityId?: string;
   q?: string;
   searchIn: PostSearchIn;
   excludeTypes: PostType[];
@@ -538,6 +562,7 @@ function buildPostListWhere({
         ? { type: { notIn: expandedExcludeTypes } }
         : {}),
     scope,
+    ...(communityId ? { communityId } : {}),
     ...(scope === PostScope.LOCAL && neighborhoodId
       ? { neighborhoodId }
       : scope === PostScope.LOCAL
@@ -564,6 +589,7 @@ function buildBestPostWhere({
   minLikes,
   type,
   scope,
+  communityId,
   q,
   searchIn,
   excludeTypes,
@@ -574,6 +600,7 @@ function buildBestPostWhere({
   minLikes: number;
   type?: PostType;
   scope: PostScope;
+  communityId?: string;
   q?: string;
   searchIn: PostSearchIn;
   excludeTypes: PostType[];
@@ -586,6 +613,7 @@ function buildBestPostWhere({
     ...buildPostListWhere({
       type,
       scope,
+      communityId,
       q,
       searchIn,
       excludeTypes,
@@ -603,6 +631,7 @@ type PostListOptions = {
   page?: number;
   type?: PostType;
   scope: PostScope;
+  communityId?: string;
   q?: string;
   searchIn?: PostSearchIn;
   sort?: PostListSort;
@@ -620,6 +649,7 @@ type BestPostListOptions = {
   days: number;
   type?: PostType;
   scope: PostScope;
+  communityId?: string;
   q?: string;
   searchIn?: PostSearchIn;
   excludeTypes?: PostType[];
@@ -631,6 +661,7 @@ type BestPostListOptions = {
 type PostCountOptions = {
   type?: PostType;
   scope: PostScope;
+  communityId?: string;
   q?: string;
   searchIn?: PostSearchIn;
   days?: number;
@@ -643,6 +674,7 @@ type BestPostCountOptions = {
   days: number;
   type?: PostType;
   scope: PostScope;
+  communityId?: string;
   q?: string;
   searchIn?: PostSearchIn;
   excludeTypes?: PostType[];
@@ -989,6 +1021,7 @@ export async function listPosts({
   page,
   type,
   scope,
+  communityId,
   q,
   searchIn,
   sort,
@@ -1012,6 +1045,7 @@ export async function listPosts({
   const where = buildPostListWhere({
     type,
     scope,
+    communityId,
     q,
     searchIn: resolvedSearchIn,
     excludeTypes: normalizedExcludeTypes,
@@ -1164,6 +1198,7 @@ export async function listBestPosts({
   days,
   type,
   scope,
+  communityId,
   q,
   searchIn,
   excludeTypes,
@@ -1185,6 +1220,7 @@ export async function listBestPosts({
     minLikes,
     type,
     scope,
+    communityId,
     q,
     searchIn: resolvedSearchIn,
     excludeTypes: normalizedExcludeTypes,
@@ -1295,6 +1331,7 @@ export async function listBestPosts({
 export async function countPosts({
   type,
   scope,
+  communityId,
   q,
   searchIn,
   days,
@@ -1312,6 +1349,7 @@ export async function countPosts({
   const where = buildPostListWhere({
     type,
     scope,
+    communityId,
     q,
     searchIn: resolvedSearchIn,
     excludeTypes: normalizedExcludeTypes,
@@ -1327,6 +1365,7 @@ export async function countBestPosts({
   days,
   type,
   scope,
+  communityId,
   q,
   searchIn,
   excludeTypes,
@@ -1346,6 +1385,7 @@ export async function countBestPosts({
     minLikes,
     type,
     scope,
+    communityId,
     q,
     searchIn: resolvedSearchIn,
     excludeTypes: normalizedExcludeTypes,

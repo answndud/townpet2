@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
       limit: FEED_PAGE_SIZE,
       type: searchParams.get("type") ?? undefined,
       scope: searchParams.get("scope") ?? undefined,
+      communityId: searchParams.get("communityId") ?? undefined,
       q: searchParams.get("q") ?? undefined,
       searchIn: searchParams.get("searchIn") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,

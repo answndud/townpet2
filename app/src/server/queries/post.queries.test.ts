@@ -80,6 +80,19 @@ describe("post queries", () => {
     expect(args.where.neighborhoodId).toBeUndefined();
   });
 
+  it("applies community filter when communityId is provided", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.communityId).toBe("ckc7k5qsj0000u0t8qv6d1d7k");
+  });
+
   it("applies requested sorting to feed queries", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 

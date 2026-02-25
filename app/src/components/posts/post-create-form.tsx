@@ -414,7 +414,10 @@ export function PostCreateForm({
     () =>
       communities.map((community) => ({
         value: community.id,
-        label: `${community.labelKo} (${community.category.labelKo})`,
+        label:
+          community.labelKo === community.category.labelKo
+            ? community.labelKo
+            : `${community.category.labelKo} · ${community.labelKo}`,
       })),
     [communities],
   );

@@ -57,9 +57,18 @@ describe("post validations", () => {
     const result = postListSchema.safeParse({
       type: PostType.PET_SHOWCASE,
       scope: PostScope.GLOBAL,
+      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid communityId in list filters", () => {
+    const result = postListSchema.safeParse({
+      communityId: "not-cuid",
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("rejects community posts without communityId", () => {

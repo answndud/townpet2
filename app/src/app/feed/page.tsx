@@ -13,11 +13,13 @@ import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
+import { isCommonBoardPostType } from "@/lib/community-board";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
 import { postListSchema } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
+import { listCommunities } from "@/server/queries/community.queries";
 import {
   countBestPosts,
   listBestPosts,
@@ -66,6 +68,7 @@ type HomePageProps = {
   searchParams?: Promise<{
     type?: PostType;
     scope?: "LOCAL" | "GLOBAL";
+    communityId?: string;
     q?: string;
     mode?: string;
     days?: string;
@@ -161,6 +164,12 @@ export default async function Home({ searchParams }: HomePageProps) {
     }
     throw error;
   });
+  const communities = await listCommunities({ limit: 50 }).catch((error) => {
+    if (isDatabaseUnavailableError(error)) {
+      return { items: [], nextCursor: null };
+    }
+    throw error;
+  });
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
   const resolvedParams = (await searchParams) ?? {};
@@ -171,6 +180,11 @@ export default async function Home({ searchParams }: HomePageProps) {
   });
   const type = parsedParams.success ? parsedParams.data.type : undefined;
   const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+  const requestedCommunityId =
+    parsedParams.success ? parsedParams.data.communityId : undefined;
+  const isCommonBoardType = type ? isCommonBoardPostType(type) : false;
+  const communityId = isCommonBoardType ? undefined : requestedCommunityId;
+  const selectedCommunity = communities.items.find((item) => item.id === communityId) ?? null;
   const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const mode = toFeedMode(resolvedParams.mode);
@@ -215,6 +229,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           days: bestDays,
           type,
           scope: effectiveScope,
+          communityId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
@@ -238,6 +253,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           limit,
           type,
           scope: effectiveScope,
+          communityId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           days: periodDays ?? undefined,
@@ -262,6 +278,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           days: bestDays,
           type,
           scope: effectiveScope,
+          communityId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
@@ -292,6 +309,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     mode,
     effectiveScope,
     type ?? "ALL",
+    communityId ?? "ALL_COMMUNITIES",
     selectedSort,
     selectedSearchIn,
     selectedPersonalized,
@@ -368,6 +386,21 @@ export default async function Home({ searchParams }: HomePageProps) {
           district: post.neighborhood.district,
         }
       : null,
+    community:
+      (post as {
+        community?: {
+          id: string;
+          labelKo: string;
+          category: { labelKo: string };
+        } | null;
+      }).community
+      ? {
+          id: (post as { community: { id: string } }).community.id,
+          labelKo: (post as { community: { labelKo: string } }).community.labelKo,
+          categoryLabelKo: (post as { community: { category: { labelKo: string } } }).community
+            .category.labelKo,
+        }
+      : null,
     images: post.images.map((image) => ({
       id: image.id,
     })),
@@ -377,6 +410,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const makeHref = ({
     nextType,
     nextScope,
+    nextCommunityId,
     nextQuery,
     nextPage,
     nextMode,
@@ -389,6 +423,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }: {
     nextType?: PostType | null;
     nextScope?: PostScope | null;
+    nextCommunityId?: string | null;
     nextQuery?: string | null;
     nextPage?: number | null;
     nextMode?: FeedMode | null;
@@ -402,6 +437,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
     const resolvedScope = nextScope === undefined ? selectedScope : nextScope;
+    const resolvedCommunityId =
+      nextCommunityId === undefined ? communityId : nextCommunityId;
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
     const resolvedMode = nextMode === undefined ? mode : nextMode;
     const resolvedDays = nextDays === undefined ? bestDays : nextDays;
@@ -417,6 +454,12 @@ export default async function Home({ searchParams }: HomePageProps) {
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
+    if (resolvedCommunityId) {
+      const canUseCommunityFilter = !resolvedType || !isCommonBoardPostType(resolvedType);
+      if (canUseCommunityFilter) {
+        params.set("communityId", resolvedCommunityId);
+      }
+    }
     if (resolvedQuery) params.set("q", resolvedQuery);
     if (resolvedSearchIn && resolvedSearchIn !== "ALL") {
       params.set("searchIn", resolvedSearchIn);
@@ -501,6 +544,11 @@ export default async function Home({ searchParams }: HomePageProps) {
                 카테고리: {postTypeMeta[type].label}
               </span>
             ) : null}
+            {selectedCommunity ? (
+              <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
+                커뮤니티: {selectedCommunity.labelKo}
+              </span>
+            ) : null}
             {query ? (
               <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
                 검색어: &quot;{query}&quot;
@@ -558,6 +606,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 personalized={selectedPersonalized}
                 type={type}
                 scope={selectedScope}
+                communityId={communityId}
                 mode={mode}
                 days={bestDays}
                 period={periodDays}
@@ -734,6 +783,39 @@ export default async function Home({ searchParams }: HomePageProps) {
                         );
                       })}
                     </div>
+                  </div>
+                  <div className="border border-[#dbe6f6] bg-white p-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">커뮤니티</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <Link
+                        href={makeHref({ nextCommunityId: null, nextPage: 1 })}
+                        className={`border px-2.5 py-0.5 text-xs font-medium transition ${
+                          !communityId
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        전체
+                      </Link>
+                      {communities.items.map((community) => (
+                        <Link
+                          key={`mobile-community-${community.id}`}
+                          href={makeHref({ nextCommunityId: community.id, nextPage: 1 })}
+                          className={`border px-2.5 py-0.5 text-xs font-medium transition ${
+                            communityId === community.id
+                              ? "border-[#3567b5] bg-[#3567b5] text-white"
+                              : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                          }`}
+                        >
+                          {community.labelKo}
+                        </Link>
+                      ))}
+                    </div>
+                    {isCommonBoardType ? (
+                      <p className="mt-1.5 text-[11px] text-[#5d789f]">
+                        공용 보드는 커뮤니티 필터 없이 전체 노출됩니다.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </details>
@@ -930,6 +1012,41 @@ export default async function Home({ searchParams }: HomePageProps) {
                     })}
                   </div>
                 </div>
+                <div className="mt-2 border-t border-[#dbe6f6] pt-2">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
+                    커뮤니티
+                  </p>
+                  <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
+                    <Link
+                      href={makeHref({ nextCommunityId: null, nextPage: 1 })}
+                      className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
+                        !communityId
+                          ? "border-[#3567b5] bg-[#3567b5] text-white"
+                          : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                      }`}
+                    >
+                      전체
+                    </Link>
+                    {communities.items.map((community) => (
+                      <Link
+                        key={`desktop-community-${community.id}`}
+                        href={makeHref({ nextCommunityId: community.id, nextPage: 1 })}
+                        className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
+                          communityId === community.id
+                            ? "border-[#3567b5] bg-[#3567b5] text-white"
+                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        }`}
+                      >
+                        {community.labelKo}
+                      </Link>
+                    ))}
+                  </div>
+                  {isCommonBoardType ? (
+                    <p className="mt-1.5 text-[11px] text-[#5d789f]">
+                      공용 보드는 커뮤니티 필터 없이 전체 노출됩니다.
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -1023,11 +1140,12 @@ export default async function Home({ searchParams }: HomePageProps) {
               initialNextCursor={mode === "ALL" ? posts.nextCursor : null}
               mode={mode}
               disableLoadMore={mode !== "ALL"}
-              query={{
-                type,
-                scope: effectiveScope,
-                q: query || undefined,
-                searchIn: selectedSearchIn,
+                query={{
+                  type,
+                  scope: effectiveScope,
+                  communityId,
+                  q: query || undefined,
+                  searchIn: selectedSearchIn,
                 sort: selectedSort,
                 days: periodDays ?? undefined,
                 personalized: usePersonalizedFeed,

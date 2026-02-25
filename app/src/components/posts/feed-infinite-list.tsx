@@ -46,6 +46,11 @@ export type FeedPostItem = {
     city: string;
     district: string;
   } | null;
+  community?: {
+    id: string;
+    labelKo: string;
+    categoryLabelKo: string;
+  } | null;
   images: Array<{
     id: string;
   }>;
@@ -57,6 +62,7 @@ export type FeedPostItem = {
 type FeedQueryParams = {
   type?: PostType;
   scope: FeedScope;
+  communityId?: string;
   q?: string;
   searchIn?: FeedSearchIn;
   sort?: FeedSort;
@@ -379,6 +385,9 @@ export function FeedInfiniteList({
       if (query.type) {
         params.set("type", query.type);
       }
+      if (query.communityId) {
+        params.set("communityId", query.communityId);
+      }
       if (query.q) {
         params.set("q", query.q);
       }
@@ -431,6 +440,7 @@ export function FeedInfiniteList({
     mode,
     nextCursor,
     query.q,
+    query.communityId,
     query.scope,
     query.searchIn,
     query.sort,
@@ -507,17 +517,23 @@ export function FeedInfiniteList({
                     <span
                       className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
                     >
-                      <span>{meta.icon}</span>
                       {meta.label}
                     </span>
                     <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
                       {post.scope === "LOCAL" ? "동네" : "온동네"}
                     </span>
-                    <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
-                      {post.neighborhood
-                        ? `${post.neighborhood.city} ${post.neighborhood.name}`
-                        : "전체"}
-                    </span>
+                    {post.neighborhood ? (
+                      <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
+                        {`${post.neighborhood.city} ${post.neighborhood.name}`}
+                      </span>
+                    ) : null}
+                    {post.community ? (
+                      <span className="border border-[#c9d8ef] bg-[#eef4ff] px-2 py-0.5 font-medium text-[#274a82]">
+                        {post.community.categoryLabelKo === post.community.labelKo
+                          ? post.community.labelKo
+                          : `${post.community.categoryLabelKo} · ${post.community.labelKo}`}
+                      </span>
+                    ) : null}
                     {post.status === "HIDDEN" ? (
                       <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
                         숨김
