@@ -49,12 +49,14 @@ async function main() {
     prisma.post.count({
       where: {
         createdAt: { gte: lookbackSince },
+        guestAuthorId: null,
         OR: [{ guestPasswordHash: { not: null } }, { guestIpHash: { not: null } }],
       },
     }),
     prisma.comment.count({
       where: {
         createdAt: { gte: lookbackSince },
+        guestAuthorId: null,
         OR: [{ guestPasswordHash: { not: null } }, { guestIpHash: { not: null } }],
       },
     }),
