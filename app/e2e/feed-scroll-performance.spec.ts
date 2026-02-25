@@ -1,6 +1,6 @@
 import { PostScope, PostStatus, PostType } from "@prisma/client";
 import { expect, test } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { prisma } from "../src/lib/prisma";
@@ -291,6 +291,7 @@ test.describe("feed infinite scroll performance", () => {
       process.cwd(),
       "../docs/plan/feed-scroll-performance-report.md",
     );
+    await mkdir(resolve(process.cwd(), "../docs/plan"), { recursive: true });
     await writeFile(reportPath, report, "utf8");
 
     await testInfo.attach("feed-scroll-metrics", {

@@ -41,18 +41,18 @@ test.describe("guest post management", () => {
     await page.goto(`/posts/${createdPostId}`);
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
-    await page.getByPlaceholder("글 비밀번호").fill(GUEST_PASSWORD);
+    await page.getByPlaceholder("글 비밀번호").nth(1).fill(GUEST_PASSWORD);
     await page.getByRole("link", { name: "비회원 수정" }).click();
     await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}/edit`));
 
-    await page.getByLabel("내용").fill(updatedContent);
+    await page.locator('[contenteditable="true"]').first().fill(updatedContent);
     await page.getByLabel("글 비밀번호").fill(GUEST_PASSWORD);
     await page.getByRole("button", { name: "수정 저장" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}$`));
     await expect(page.getByText(updatedContent)).toBeVisible();
 
-    await page.getByPlaceholder("글 비밀번호").fill(GUEST_PASSWORD);
+    await page.getByPlaceholder("글 비밀번호").nth(1).fill(GUEST_PASSWORD);
     page.once("dialog", (dialog) => {
       void dialog.accept();
     });

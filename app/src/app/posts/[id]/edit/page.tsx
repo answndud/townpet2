@@ -23,7 +23,12 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
     notFound();
   }
 
-  const isGuestEdit = Boolean((post as { guestDisplayName?: string | null }).guestDisplayName) && !user;
+  const isGuestPost = Boolean(
+    (post as { guestAuthorId?: string | null; guestDisplayName?: string | null })
+      .guestAuthorId ??
+      (post as { guestDisplayName?: string | null }).guestDisplayName,
+  );
+  const isGuestEdit = isGuestPost && !user;
   if (!isGuestEdit && !user) {
     redirect("/login");
   }

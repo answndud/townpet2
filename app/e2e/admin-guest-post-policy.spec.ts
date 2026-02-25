@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PostType, UserRole } from "@prisma/client";
+import type { Page } from "@playwright/test";
 
 import { prisma } from "../src/lib/prisma";
 import {
@@ -8,6 +9,16 @@ import {
 } from "../src/server/queries/policy.queries";
 
 const adminEmail = "admin.platform@townpet.dev";
+const adminPassword =
+  process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_DEFAULT_PASSWORD ?? "townpet123";
+
+async function loginAsAdmin(page: Page) {
+  await page.goto("/login?next=%2Fadmin%2Fpolicies");
+  await page.getByTestId("login-email").fill(adminEmail);
+  await page.getByTestId("login-password").fill(adminPassword);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/admin\/policies/, { timeout: 20_000 });
+}
 
 let originalPolicy: Awaited<ReturnType<typeof getGuestPostPolicy>> | null = null;
 
@@ -66,7 +77,7 @@ test.describe("admin guest post policy form", () => {
   });
 
   test("updates rate/ban thresholds and persists after reload", async ({ page }) => {
-    await page.goto("/admin/policies");
+    await loginAsAdmin(page);
 
     const postRate10m = page.getByTestId("guest-post-policy-rate-post-10m");
     const postRate24h = page.getByTestId("guest-post-policy-rate-post-24h");

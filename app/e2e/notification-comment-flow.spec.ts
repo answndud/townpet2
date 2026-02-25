@@ -41,6 +41,15 @@ test.describe("notification comment flow", () => {
       throw new Error("E2E users must be different.");
     }
 
+    const defaultCommunity = await prisma.community.findFirst({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true },
+    });
+    if (!defaultCommunity) {
+      throw new Error("No active community found for notification flow setup.");
+    }
+
     const runId = `pw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const postTitle = `[PW] notification ${runId}`;
 
@@ -49,8 +58,9 @@ test.describe("notification comment flow", () => {
       input: {
         title: postTitle,
         content: `Playwright notification setup ${runId}`,
-        type: PostType.FREE_POST,
+        type: PostType.FREE_BOARD,
         scope: PostScope.GLOBAL,
+        communityId: defaultCommunity.id,
         imageUrls: [],
       },
     });

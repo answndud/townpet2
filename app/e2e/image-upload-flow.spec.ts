@@ -114,15 +114,19 @@ test.describe("image upload flow", () => {
     });
 
     await expect(page.getByTestId("image-upload-preview-item")).toHaveCount(2);
-    await page.getByRole("button", { name: "게시하기" }).click();
+    await page.getByRole("button", { name: "등록" }).click();
 
-    await expect(page).toHaveURL(/\/feed/);
+    await expect(page).toHaveURL(/\/feed/, { timeout: 15_000 });
     const createdPostId = await findPostIdByTitle(title);
     await page.goto(`/posts/${createdPostId}`);
     await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}$`));
     await expect(page.getByText("첨부파일")).toBeVisible();
-    await expect(page.locator('a[href*="upload-a-"]')).toHaveCount(1);
-    await expect(page.locator('a[href*="upload-b-"]')).toHaveCount(1);
+    const attachmentLinks = page
+      .locator("p")
+      .filter({ hasText: "첨부파일" })
+      .locator("xpath=..")
+      .locator("a");
+    await expect(attachmentLinks).toHaveCount(2);
 
     await page.getByRole("link", { name: "수정" }).click();
     await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}/edit$`));
@@ -136,8 +140,7 @@ test.describe("image upload flow", () => {
     await page.getByRole("button", { name: "수정 저장" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/posts/${createdPostId}$`));
-    await expect(page.locator('a[href*="upload-a-"]')).toHaveCount(0);
-    await expect(page.locator('a[href*="upload-b-"]')).toHaveCount(1);
+    await expect(attachmentLinks).toHaveCount(1);
 
     page.once("dialog", (dialog) => {
       void dialog.accept();

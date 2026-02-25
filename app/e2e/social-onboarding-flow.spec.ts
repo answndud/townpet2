@@ -113,7 +113,9 @@ for (const scenario of scenarios) {
 
       await page.getByTestId("onboarding-neighborhood").selectOption(neighborhoodValues[0] ?? "");
       await page.getByTestId("onboarding-neighborhood-submit").click();
+      await expect(page.getByText("내 동네가 저장되었습니다.")).toBeVisible();
 
+      await page.getByRole("link", { name: "나중에 설정하기" }).click();
       await expect(page).toHaveURL(/\/feed(?:\?.*)?$/);
       const feedContent = page
         .getByTestId("feed-post-list")
