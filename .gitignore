@@ -27,11 +27,14 @@ app/.npmrc
 
 # local agent/tooling artifacts
 .opencode/
+opencode.json
 docs/agent-memory/
 app/test-results/
 
 # local planning artifacts
 PLAN.md
 PROGRESS.md
-business
+
+# private business planning notes (local-only)
+business/
 docs

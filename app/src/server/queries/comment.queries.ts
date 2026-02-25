@@ -21,9 +21,6 @@ const buildCommentSelect = (viewerId?: string, includeGuestAuthor = true) => ({
   updatedAt: true,
   authorId: true,
   guestAuthorId: true,
-  guestDisplayName: true,
-  guestIpDisplay: true,
-  guestIpLabel: true,
   author: { select: { id: true, name: true, nickname: true, email: true } },
   ...(includeGuestAuthor
     ? {
