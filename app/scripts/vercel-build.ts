@@ -100,8 +100,25 @@ async function runPrismaDeploy() {
   }
 }
 
+async function repairCommunityBoardSchema() {
+  const repairResult = await runCommand("pnpm", [
+    "prisma",
+    "db",
+    "execute",
+    "--schema",
+    "prisma/schema.prisma",
+    "--file",
+    "scripts/sql/community-board-repair.sql",
+  ]);
+
+  if (repairResult.code !== 0) {
+    throw new Error("[build:vercel] community-board schema repair failed.");
+  }
+}
+
 async function main() {
   await runPrismaDeploy();
+  await repairCommunityBoardSchema();
 
   const generateResult = await runCommand("pnpm", ["prisma", "generate"]);
   if (generateResult.code !== 0) {
