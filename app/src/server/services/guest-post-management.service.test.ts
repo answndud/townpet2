@@ -203,4 +203,74 @@ describe("guest post management", () => {
 
     expect(mockPrisma.post.update).toHaveBeenCalledTimes(1);
   });
+
+  it("updates guest post using GuestAuthor credential when legacy hash is absent", async () => {
+    mockPrisma.post.findUnique.mockResolvedValue({
+      id: "post-1",
+      status: PostStatus.ACTIVE,
+      guestAuthorId: "guest-author-1",
+      guestAuthor: {
+        passwordHash: buildPasswordHash("1234"),
+        ipHash: sha256("127.0.0.1"),
+        fingerprintHash: null,
+      },
+      guestPasswordHash: null,
+      guestIpHash: null,
+      guestFingerprintHash: null,
+    });
+    mockPrisma.post.update.mockResolvedValue({ id: "post-1" });
+
+    await expect(
+      updateGuestPost({
+        postId: "post-1",
+        guestPassword: "1234",
+        guestIdentity: {
+          ip: "127.0.0.1",
+        },
+        input: {
+          title: "GuestAuthor 수정",
+          content: "GuestAuthor credential",
+          scope: PostScope.GLOBAL,
+          imageUrls: [],
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.post.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes guest post using GuestAuthor credential when legacy hash is absent", async () => {
+    mockPrisma.post.findUnique.mockResolvedValue({
+      id: "post-1",
+      status: PostStatus.ACTIVE,
+      guestAuthorId: "guest-author-1",
+      guestAuthor: {
+        passwordHash: buildPasswordHash("1234"),
+        ipHash: sha256("127.0.0.1"),
+        fingerprintHash: null,
+      },
+      guestPasswordHash: null,
+      guestIpHash: null,
+      guestFingerprintHash: null,
+    });
+    mockPrisma.post.update.mockResolvedValue({
+      id: "post-1",
+      status: PostStatus.DELETED,
+    });
+
+    await expect(
+      deleteGuestPost({
+        postId: "post-1",
+        guestPassword: "1234",
+        guestIdentity: {
+          ip: "127.0.0.1",
+        },
+      }),
+    ).resolves.toMatchObject({
+      id: "post-1",
+      status: PostStatus.DELETED,
+    });
+
+    expect(mockPrisma.post.update).toHaveBeenCalledTimes(1);
+  });
 });

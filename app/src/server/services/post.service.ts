@@ -127,6 +127,25 @@ function matchesGuestIdentity(
   return false;
 }
 
+function resolveGuestPostCredential(params: {
+  guestAuthorId?: string | null;
+  guestAuthor?: {
+    passwordHash: string;
+    ipHash: string;
+    fingerprintHash: string | null;
+  } | null;
+  guestPasswordHash: string | null;
+  guestIpHash: string | null;
+  guestFingerprintHash: string | null;
+}) {
+  return {
+    hasGuestMarker: Boolean(params.guestAuthorId || params.guestPasswordHash),
+    passwordHash: params.guestAuthor?.passwordHash ?? params.guestPasswordHash,
+    ipHash: params.guestAuthor?.ipHash ?? params.guestIpHash,
+    fingerprintHash: params.guestAuthor?.fingerprintHash ?? params.guestFingerprintHash,
+  };
+}
+
 type RegisterPostViewParams = {
   postId: string;
   userId?: string;
@@ -850,6 +869,14 @@ export async function updateGuestPost({
     select: {
       id: true,
       status: true,
+      guestAuthorId: true,
+      guestAuthor: {
+        select: {
+          passwordHash: true,
+          ipHash: true,
+          fingerprintHash: true,
+        },
+      },
       guestPasswordHash: true,
       guestIpHash: true,
       guestFingerprintHash: true,
@@ -860,15 +887,17 @@ export async function updateGuestPost({
     throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
   }
 
-  if (!existing.guestPasswordHash) {
+  const guestCredential = resolveGuestPostCredential(existing);
+
+  if (!guestCredential.hasGuestMarker || !guestCredential.passwordHash) {
     throw new ServiceError("비회원 게시글이 아닙니다.", "GUEST_POST_ONLY", 403);
   }
 
   if (
     !matchesGuestIdentity(
       {
-        guestIpHash: existing.guestIpHash,
-        guestFingerprintHash: existing.guestFingerprintHash,
+        guestIpHash: guestCredential.ipHash,
+        guestFingerprintHash: guestCredential.fingerprintHash,
       },
       guestIdentity,
     )
@@ -884,7 +913,7 @@ export async function updateGuestPost({
     throw new ServiceError("수정 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  if (!verifyGuestPassword(guestPassword, existing.guestPasswordHash)) {
+  if (!verifyGuestPassword(guestPassword, guestCredential.passwordHash)) {
     const guestPostPolicy = await getGuestPostPolicy();
     await registerGuestViolation({
       identity: guestIdentity,
@@ -1044,6 +1073,14 @@ export async function deleteGuestPost({
     select: {
       id: true,
       status: true,
+      guestAuthorId: true,
+      guestAuthor: {
+        select: {
+          passwordHash: true,
+          ipHash: true,
+          fingerprintHash: true,
+        },
+      },
       guestPasswordHash: true,
       guestIpHash: true,
       guestFingerprintHash: true,
@@ -1054,15 +1091,17 @@ export async function deleteGuestPost({
     throw new ServiceError("게시물을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
   }
 
-  if (!existing.guestPasswordHash) {
+  const guestCredential = resolveGuestPostCredential(existing);
+
+  if (!guestCredential.hasGuestMarker || !guestCredential.passwordHash) {
     throw new ServiceError("비회원 게시글이 아닙니다.", "GUEST_POST_ONLY", 403);
   }
 
   if (
     !matchesGuestIdentity(
       {
-        guestIpHash: existing.guestIpHash,
-        guestFingerprintHash: existing.guestFingerprintHash,
+        guestIpHash: guestCredential.ipHash,
+        guestFingerprintHash: guestCredential.fingerprintHash,
       },
       guestIdentity,
     )
@@ -1077,7 +1116,7 @@ export async function deleteGuestPost({
     throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  if (!verifyGuestPassword(guestPassword, existing.guestPasswordHash)) {
+  if (!verifyGuestPassword(guestPassword, guestCredential.passwordHash)) {
     await registerGuestViolation({
       identity: guestIdentity,
       category: GuestViolationCategory.POLICY,

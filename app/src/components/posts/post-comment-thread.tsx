@@ -26,7 +26,6 @@ type CommentItem = {
   }>;
   guestAuthorId?: string | null;
   guestDisplayName?: string | null;
-  guestPasswordHash?: string | null;
   guestIpDisplay?: string | null;
   guestIpLabel?: string | null;
   isGuestAuthor?: boolean;

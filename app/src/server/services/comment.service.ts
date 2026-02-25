@@ -81,6 +81,32 @@ function matchesGuestIdentity(
   return false;
 }
 
+function resolveGuestCommentCredential(params: {
+  guestAuthorId?: string | null;
+  guestAuthor?: {
+    passwordHash: string;
+    ipHash: string;
+    fingerprintHash: string | null;
+  } | null;
+  guestDisplayName?: string | null;
+  guestPasswordHash: string | null;
+  guestIpHash: string | null;
+  guestFingerprintHash: string | null;
+  author: { email: string };
+}) {
+  const passwordHash = params.guestAuthor?.passwordHash ?? params.guestPasswordHash;
+  return {
+    passwordHash,
+    ipHash: params.guestAuthor?.ipHash ?? params.guestIpHash,
+    fingerprintHash: params.guestAuthor?.fingerprintHash ?? params.guestFingerprintHash,
+    hasGuestMarker: Boolean(
+      params.guestAuthorId ||
+        params.guestDisplayName ||
+        params.author.email.endsWith("@guest.townpet.local"),
+    ),
+  };
+}
+
 function isLegacyGuestCommentClaimable(createdAt: Date) {
   return Date.now() - createdAt.getTime() <= LEGACY_GUEST_COMMENT_CLAIM_WINDOW_HOURS * 60 * 60 * 1000;
 }
@@ -422,6 +448,14 @@ export async function updateGuestComment({
         postId: true,
         status: true,
         createdAt: true,
+        guestAuthorId: true,
+        guestAuthor: {
+          select: {
+            passwordHash: true,
+            ipHash: true,
+            fingerprintHash: true,
+          },
+        },
         guestDisplayName: true,
         guestPasswordHash: true,
         guestIpHash: true,
@@ -437,10 +471,9 @@ export async function updateGuestComment({
     throw new ServiceError("댓글을 찾을 수 없습니다.", "COMMENT_NOT_FOUND", 404);
   }
 
-  const hasGuestCredential = Boolean(comment.guestPasswordHash);
-  const isLegacyGuestComment =
-    !hasGuestCredential &&
-    (Boolean(comment.guestDisplayName) || comment.author.email.endsWith("@guest.townpet.local"));
+  const guestCredential = resolveGuestCommentCredential(comment);
+  const hasGuestCredential = Boolean(guestCredential.passwordHash);
+  const isLegacyGuestComment = guestCredential.hasGuestMarker && !hasGuestCredential;
 
   if (!hasGuestCredential && !isLegacyGuestComment) {
     throw new ServiceError("비회원 댓글이 아닙니다.", "GUEST_COMMENT_ONLY", 403);
@@ -450,8 +483,8 @@ export async function updateGuestComment({
     hasGuestCredential &&
     !matchesGuestIdentity(
       {
-        guestIpHash: comment.guestIpHash,
-        guestFingerprintHash: comment.guestFingerprintHash,
+        guestIpHash: guestCredential.ipHash,
+        guestFingerprintHash: guestCredential.fingerprintHash,
       },
       guestIdentity,
     )
@@ -467,10 +500,10 @@ export async function updateGuestComment({
   }
 
   const nextPasswordHash = hasGuestCredential
-    ? comment.guestPasswordHash
+    ? guestCredential.passwordHash
     : hashGuestCommentPassword(guestPassword);
 
-  if (hasGuestCredential && !verifyGuestPassword(guestPassword, comment.guestPasswordHash!)) {
+  if (hasGuestCredential && !verifyGuestPassword(guestPassword, guestCredential.passwordHash!)) {
     await registerGuestViolation({
       identity: guestIdentity,
       category: GuestViolationCategory.POLICY,
@@ -570,6 +603,14 @@ export async function deleteGuestComment({
         postId: true,
         status: true,
         createdAt: true,
+        guestAuthorId: true,
+        guestAuthor: {
+          select: {
+            passwordHash: true,
+            ipHash: true,
+            fingerprintHash: true,
+          },
+        },
         guestDisplayName: true,
         guestPasswordHash: true,
         guestIpHash: true,
@@ -584,10 +625,9 @@ export async function deleteGuestComment({
     throw new ServiceError("댓글을 찾을 수 없습니다.", "COMMENT_NOT_FOUND", 404);
   }
 
-  const hasGuestCredential = Boolean(comment.guestPasswordHash);
-  const isLegacyGuestComment =
-    !hasGuestCredential &&
-    (Boolean(comment.guestDisplayName) || comment.author.email.endsWith("@guest.townpet.local"));
+  const guestCredential = resolveGuestCommentCredential(comment);
+  const hasGuestCredential = Boolean(guestCredential.passwordHash);
+  const isLegacyGuestComment = guestCredential.hasGuestMarker && !hasGuestCredential;
 
   if (!hasGuestCredential && !isLegacyGuestComment) {
     throw new ServiceError("비회원 댓글이 아닙니다.", "GUEST_COMMENT_ONLY", 403);
@@ -597,8 +637,8 @@ export async function deleteGuestComment({
     hasGuestCredential &&
     !matchesGuestIdentity(
       {
-        guestIpHash: comment.guestIpHash,
-        guestFingerprintHash: comment.guestFingerprintHash,
+        guestIpHash: guestCredential.ipHash,
+        guestFingerprintHash: guestCredential.fingerprintHash,
       },
       guestIdentity,
     )
@@ -613,7 +653,7 @@ export async function deleteGuestComment({
     throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  if (hasGuestCredential && !verifyGuestPassword(guestPassword, comment.guestPasswordHash!)) {
+  if (hasGuestCredential && !verifyGuestPassword(guestPassword, guestCredential.passwordHash!)) {
     await registerGuestViolation({
       identity: guestIdentity,
       category: GuestViolationCategory.POLICY,
