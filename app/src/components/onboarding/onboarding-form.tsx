@@ -82,10 +82,7 @@ export function OnboardingForm({
     resolvePrimaryRegionKey(selectedNeighborhoods, primaryNeighborhoodId),
   );
   const [cityFilter, setCityFilter] = useState("");
-  const [districtFilter, setDistrictFilter] = useState("");
-  const [keyword, setKeyword] = useState("");
   const [cityOptions, setCityOptions] = useState<string[]>([]);
-  const [districtOptions, setDistrictOptions] = useState<string[]>([]);
   const [searchItems, setSearchItems] = useState<NeighborhoodOption[]>(
     selectedNeighborhoods.map((item) => ({
       ...item,
@@ -100,12 +97,6 @@ export function OnboardingForm({
       const params = new URLSearchParams();
       if (cityFilter) {
         params.set("city", cityFilter);
-      }
-      if (districtFilter) {
-        params.set("district", districtFilter);
-      }
-      if (keyword.trim()) {
-        params.set("q", keyword.trim());
       }
       params.set("limit", "200");
 
@@ -122,7 +113,6 @@ export function OnboardingForm({
         }
 
         setCityOptions(payload.data.cities);
-        setDistrictOptions(payload.data.districts);
         setSearchItems(payload.data.items);
       } catch (error) {
         if ((error as { name?: string }).name !== "AbortError") {
@@ -135,7 +125,7 @@ export function OnboardingForm({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [cityFilter, districtFilter, keyword]);
+  }, [cityFilter]);
 
   const selectedNeighborhoodMap = useMemo(() => {
     const map = new Map<string, NeighborhoodOption>();
@@ -269,16 +259,13 @@ export function OnboardingForm({
           </p>
         </div>
         <form onSubmit={handleNeighborhood} className="mt-4 flex flex-col gap-3">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-1">
             <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
               시/도
               <select
                 className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
                 value={cityFilter}
-                onChange={(event) => {
-                  setCityFilter(event.target.value);
-                  setDistrictFilter("");
-                }}
+                onChange={(event) => setCityFilter(event.target.value)}
               >
                 <option value="">전체</option>
                 {cityOptions.map((city) => (
@@ -287,30 +274,6 @@ export function OnboardingForm({
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-              시/군/구
-              <select
-                className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-                value={districtFilter}
-                onChange={(event) => setDistrictFilter(event.target.value)}
-              >
-                <option value="">전체</option>
-                {districtOptions.map((district) => (
-                  <option key={district} value={district}>
-                    {district}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-              동네 검색
-              <input
-                className="border border-[#bfd0ec] bg-[#f8fbff] px-3 py-2 text-sm text-[#1f3f71]"
-                value={keyword}
-                onChange={(event) => setKeyword(event.target.value)}
-                placeholder="예: 서초동"
-              />
             </label>
           </div>
 
