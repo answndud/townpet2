@@ -23,17 +23,12 @@ body {
 
 .app-shell-bg {
   background:
+    linear-gradient(to right, rgba(50, 88, 146, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(50, 88, 146, 0.04) 1px, transparent 1px),
     radial-gradient(circle at 0% 0%, #ffffff 0%, transparent 35%),
     radial-gradient(circle at 100% 0%, #dfeaff 0%, transparent 30%),
     linear-gradient(180deg, #f3f8ff 0%, #ecf3fd 100%);
-}
-
-.app-shell-grid {
-  background-image:
-    linear-gradient(to right, rgba(50, 88, 146, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(50, 88, 146, 0.04) 1px, transparent 1px);
-  background-size: 28px 28px;
-  opacity: 0.35;
+  background-size: 28px 28px, 28px 28px, auto, auto, auto;
 }
 
 @keyframes floatIn {
