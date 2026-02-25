@@ -31,6 +31,24 @@ function isMissingCommunitySchemaError(error: unknown) {
   return tableName.includes("Community") || tableName.includes("CommunityCategory");
 }
 
+function isMissingCommonBoardPostColumnError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code !== "P2022") {
+    return false;
+  }
+
+  const meta = error.meta as { column?: unknown } | undefined;
+  const columnName = typeof meta?.column === "string" ? meta.column : "";
+  return (
+    columnName.includes("Post.boardScope") ||
+    columnName.includes("Post.commonBoardType") ||
+    columnName.includes("Post.animalTags")
+  );
+}
+
 export async function listCommunities({
   cursor,
   limit,
@@ -110,56 +128,64 @@ export async function listCommonBoardPosts({
   const trimmedTag = animalTag?.trim();
   const trimmedQ = q?.trim();
 
-  const items = await prisma.post.findMany({
-    where: {
-      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-      boardScope: "COMMON",
-      commonBoardType,
-      ...(trimmedTag ? { animalTags: { has: trimmedTag } } : {}),
-      ...(trimmedQ
+  const items = await prisma.post
+    .findMany({
+      where: {
+        status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+        boardScope: "COMMON",
+        commonBoardType,
+        ...(trimmedTag ? { animalTags: { has: trimmedTag } } : {}),
+        ...(trimmedQ
+          ? {
+              OR: [
+                { title: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
+                { content: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        scope: true,
+        commonBoardType: true,
+        animalTags: true,
+        likeCount: true,
+        commentCount: true,
+        createdAt: true,
+        author: {
+          select: {
+            id: true,
+            nickname: true,
+            name: true,
+          },
+        },
+        neighborhood: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            district: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: safeLimit + 1,
+      ...(cursor
         ? {
-            OR: [
-              { title: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { content: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-            ],
+            cursor: { id: cursor },
+            skip: 1,
           }
         : {}),
-    },
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      scope: true,
-      commonBoardType: true,
-      animalTags: true,
-      likeCount: true,
-      commentCount: true,
-      createdAt: true,
-      author: {
-        select: {
-          id: true,
-          nickname: true,
-          name: true,
-        },
-      },
-      neighborhood: {
-        select: {
-          id: true,
-          name: true,
-          city: true,
-          district: true,
-        },
-      },
-    },
-    orderBy: [{ createdAt: "desc" }],
-    take: safeLimit + 1,
-    ...(cursor
-      ? {
-          cursor: { id: cursor },
-          skip: 1,
-        }
-      : {}),
-  });
+    })
+    .catch((error) => {
+      if (isMissingCommonBoardPostColumnError(error)) {
+        return [];
+      }
+
+      throw error;
+    });
 
   let nextCursor: string | null = null;
   if (items.length > safeLimit) {

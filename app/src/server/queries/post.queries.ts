@@ -370,6 +370,31 @@ function isUnknownGuestPostColumnError(error: unknown) {
   );
 }
 
+function isMissingCommunityBoardSchemaError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code === "P2021") {
+    const meta = error.meta as { table?: unknown } | undefined;
+    const tableName = typeof meta?.table === "string" ? meta.table : "";
+    return tableName.includes("Community") || tableName.includes("CommunityCategory");
+  }
+
+  if (error.code === "P2022") {
+    const meta = error.meta as { column?: unknown } | undefined;
+    const columnName = typeof meta?.column === "string" ? meta.column : "";
+    return (
+      columnName.includes("Post.boardScope") ||
+      columnName.includes("Post.communityId") ||
+      columnName.includes("Post.commonBoardType") ||
+      columnName.includes("Post.animalTags")
+    );
+  }
+
+  return false;
+}
+
 type GuestMetaFields = {
   guestDisplayName?: string | null;
   guestIpDisplay?: string | null;
@@ -1069,6 +1094,19 @@ export async function listPosts({
           ]
         : [{ createdAt: "desc" }];
 
+  const legacyCompatibleWhere = buildPostListWhere({
+    type,
+    scope,
+    communityId: undefined,
+    q,
+    searchIn: resolvedSearchIn,
+    excludeTypes: normalizedExcludeTypes,
+    neighborhoodId,
+    hiddenAuthorIds,
+    days,
+    authorBreedCode,
+  });
+
   const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
     where,
     take: resolvedLimit + 1,
@@ -1092,19 +1130,27 @@ export async function listPosts({
         include: buildPostListIncludeWithoutReactions(),
       })
       .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
+        if (
+          !isUnknownGuestPostColumnError(error) &&
+          !isUnknownGuestAuthorIncludeError(error) &&
+          !isMissingCommunityBoardSchemaError(error)
+        ) {
           throw error;
         }
 
+        const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
+          ? { ...baseArgs, where: legacyCompatibleWhere }
+          : baseArgs;
+
         if (isUnknownGuestAuthorIncludeError(error)) {
           return prisma.post.findMany({
-            ...baseArgs,
+            ...safeBaseArgs,
             include: buildPostListIncludeWithoutReactions(false),
           });
         }
 
         return prisma.post.findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           select: buildLegacyPostListSelectWithoutReactions(),
         });
       });
@@ -1127,21 +1173,26 @@ export async function listPosts({
       if (
         !isUnknownReactionsIncludeError(error) &&
         !isUnknownGuestPostColumnError(error) &&
-        !isUnknownGuestAuthorIncludeError(error)
+        !isUnknownGuestAuthorIncludeError(error) &&
+        !isMissingCommunityBoardSchemaError(error)
       ) {
         throw error;
       }
 
+      const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
+        ? { ...baseArgs, where: legacyCompatibleWhere }
+        : baseArgs;
+
       if (isUnknownGuestAuthorIncludeError(error)) {
         return prisma.post.findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           include: buildPostListInclude(viewerId, false),
         });
       }
 
-      if (isUnknownGuestPostColumnError(error)) {
+      if (isUnknownGuestPostColumnError(error) || isMissingCommunityBoardSchemaError(error)) {
         const legacyItems = await prisma.post.findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           select: buildLegacyPostListSelect(viewerId),
         });
         return withEmptyGuestPostMeta(legacyItems);
@@ -1149,26 +1200,31 @@ export async function listPosts({
 
       const fallbackItems = await prisma.post
         .findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           include: buildPostListIncludeWithoutReactions(),
         })
         .catch(async (innerError) => {
           if (
             !isUnknownGuestPostColumnError(innerError) &&
-            !isUnknownGuestAuthorIncludeError(innerError)
+            !isUnknownGuestAuthorIncludeError(innerError) &&
+            !isMissingCommunityBoardSchemaError(innerError)
           ) {
             throw innerError;
           }
 
+          const safeInnerBaseArgs = isMissingCommunityBoardSchemaError(innerError)
+            ? { ...baseArgs, where: legacyCompatibleWhere }
+            : safeBaseArgs;
+
           if (isUnknownGuestAuthorIncludeError(innerError)) {
             return prisma.post.findMany({
-              ...baseArgs,
+              ...safeInnerBaseArgs,
               include: buildPostListIncludeWithoutReactions(false),
             });
           }
 
           return prisma.post.findMany({
-            ...baseArgs,
+            ...safeInnerBaseArgs,
             select: buildLegacyPostListSelectWithoutReactions(),
           });
         });
@@ -1244,6 +1300,19 @@ export async function listBestPosts({
     ],
   };
 
+  const legacyCompatibleWhere = buildBestPostWhere({
+    days,
+    minLikes,
+    type,
+    scope,
+    communityId: undefined,
+    q,
+    searchIn: resolvedSearchIn,
+    excludeTypes: normalizedExcludeTypes,
+    neighborhoodId,
+    hiddenAuthorIds,
+  });
+
   if (!supportsPostReactionsField()) {
     const fallbackItems = await prisma.post
       .findMany({
@@ -1251,19 +1320,27 @@ export async function listBestPosts({
         include: buildPostListIncludeWithoutReactions(),
       })
       .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
+        if (
+          !isUnknownGuestPostColumnError(error) &&
+          !isUnknownGuestAuthorIncludeError(error) &&
+          !isMissingCommunityBoardSchemaError(error)
+        ) {
           throw error;
         }
 
+        const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
+          ? { ...baseArgs, where: legacyCompatibleWhere }
+          : baseArgs;
+
         if (isUnknownGuestAuthorIncludeError(error)) {
           return prisma.post.findMany({
-            ...baseArgs,
+            ...safeBaseArgs,
             include: buildPostListIncludeWithoutReactions(false),
           });
         }
 
         return prisma.post.findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           select: buildLegacyPostListSelectWithoutReactions(),
         });
       });
@@ -1279,21 +1356,26 @@ export async function listBestPosts({
       if (
         !isUnknownReactionsIncludeError(error) &&
         !isUnknownGuestPostColumnError(error) &&
-        !isUnknownGuestAuthorIncludeError(error)
+        !isUnknownGuestAuthorIncludeError(error) &&
+        !isMissingCommunityBoardSchemaError(error)
       ) {
         throw error;
       }
 
+      const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
+        ? { ...baseArgs, where: legacyCompatibleWhere }
+        : baseArgs;
+
       if (isUnknownGuestAuthorIncludeError(error)) {
         return prisma.post.findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           include: buildPostListInclude(viewerId, false),
         });
       }
 
-      if (isUnknownGuestPostColumnError(error)) {
+      if (isUnknownGuestPostColumnError(error) || isMissingCommunityBoardSchemaError(error)) {
         const legacyItems = await prisma.post.findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           select: buildLegacyPostListSelect(viewerId),
         });
         return withEmptyGuestPostMeta(legacyItems);
@@ -1301,26 +1383,31 @@ export async function listBestPosts({
 
       const fallbackItems = await prisma.post
         .findMany({
-          ...baseArgs,
+          ...safeBaseArgs,
           include: buildPostListIncludeWithoutReactions(),
         })
         .catch(async (innerError) => {
           if (
             !isUnknownGuestPostColumnError(innerError) &&
-            !isUnknownGuestAuthorIncludeError(innerError)
+            !isUnknownGuestAuthorIncludeError(innerError) &&
+            !isMissingCommunityBoardSchemaError(innerError)
           ) {
             throw innerError;
           }
 
+          const safeInnerBaseArgs = isMissingCommunityBoardSchemaError(innerError)
+            ? { ...baseArgs, where: legacyCompatibleWhere }
+            : safeBaseArgs;
+
           if (isUnknownGuestAuthorIncludeError(innerError)) {
             return prisma.post.findMany({
-              ...baseArgs,
+              ...safeInnerBaseArgs,
               include: buildPostListIncludeWithoutReactions(false),
             });
           }
 
           return prisma.post.findMany({
-            ...baseArgs,
+            ...safeInnerBaseArgs,
             select: buildLegacyPostListSelectWithoutReactions(),
           });
         });
@@ -1358,7 +1445,25 @@ export async function countPosts({
     days,
   });
 
-  return prisma.post.count({ where });
+  return prisma.post.count({ where }).catch((error) => {
+    if (!isMissingCommunityBoardSchemaError(error)) {
+      throw error;
+    }
+
+    const legacyWhere = buildPostListWhere({
+      type,
+      scope,
+      communityId: undefined,
+      q,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+      days,
+    });
+
+    return prisma.post.count({ where: legacyWhere });
+  });
 }
 
 export async function countBestPosts({
@@ -1393,7 +1498,26 @@ export async function countBestPosts({
     hiddenAuthorIds,
   });
 
-  return prisma.post.count({ where });
+  return prisma.post.count({ where }).catch((error) => {
+    if (!isMissingCommunityBoardSchemaError(error)) {
+      throw error;
+    }
+
+    const legacyWhere = buildBestPostWhere({
+      days,
+      minLikes,
+      type,
+      scope,
+      communityId: undefined,
+      q,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+    });
+
+    return prisma.post.count({ where: legacyWhere });
+  });
 }
 
 type UserPostListOptions = {
