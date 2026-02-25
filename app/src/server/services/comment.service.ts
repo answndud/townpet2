@@ -30,9 +30,6 @@ type CreateCommentParams = {
   guestMeta?: {
     guestAuthorId?: string;
     displayName: string;
-    passwordHash: string;
-    ipHash: string;
-    fingerprintHash: string | null;
     ipDisplay: string | null;
     ipLabel: string | null;
   };
@@ -212,9 +209,6 @@ export async function createComment({
         parentId: parentId ?? null,
         guestDisplayName: guestMeta?.displayName,
         guestAuthorId: guestMeta?.guestAuthorId,
-        guestPasswordHash: guestMeta?.passwordHash,
-        guestIpHash: guestMeta?.ipHash,
-        guestFingerprintHash: guestMeta?.fingerprintHash,
         guestIpDisplay: guestMeta?.ipDisplay,
         guestIpLabel: guestMeta?.ipLabel,
       },

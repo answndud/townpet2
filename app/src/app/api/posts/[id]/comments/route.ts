@@ -95,9 +95,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       guestMeta: {
         guestAuthorId: guestAuthor.id,
         displayName: guestDisplayName,
-        passwordHash: guestPasswordHash,
-        ipHash,
-        fingerprintHash,
         ipDisplay: guestIpMeta.guestIpDisplay,
         ipLabel: guestIpMeta.guestIpLabel,
       },

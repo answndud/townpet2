@@ -319,9 +319,6 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     | {
         guestAuthorId: string;
         guestDisplayName: string;
-        guestPasswordHash: string;
-        guestIpHash: string;
-        guestFingerprintHash: string | null;
         guestIpDisplay: string | null;
         guestIpLabel: string | null;
       }
@@ -437,12 +434,11 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       fingerprint: guestIdentity.fingerprint,
       userAgent: guestIdentity.userAgent,
     });
-    const guestPasswordHash = hashGuestPassword(normalizedGuestPassword);
     const guestSystemUserId = await getOrCreateGuestSystemUserId();
     const guestAuthor = await prisma.guestAuthor.create({
       data: {
         displayName: normalizedGuestName,
-        passwordHash: guestPasswordHash,
+        passwordHash: hashGuestPassword(normalizedGuestPassword),
         ipHash,
         fingerprintHash,
         ipDisplay: guestIpMeta.guestIpDisplay,
@@ -454,9 +450,6 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     guestCreateMeta = {
       guestAuthorId: guestAuthor.id,
       guestDisplayName: normalizedGuestName,
-      guestPasswordHash,
-      guestIpHash: ipHash,
-      guestFingerprintHash: fingerprintHash,
       guestIpDisplay: guestIpMeta.guestIpDisplay,
       guestIpLabel: guestIpMeta.guestIpLabel,
     };
