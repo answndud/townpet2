@@ -212,8 +212,18 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const commentsRaw = resolvedParams.id ? await listComments(resolvedParams.id, user?.id) : [];
   const comments = commentsRaw.map((comment) => ({
     ...comment,
+    guestDisplayName:
+      (comment as { guestDisplayName?: string | null }).guestDisplayName?.trim() ||
+      (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
+        ?.displayName ||
+      null,
     isGuestAuthor:
       Boolean((comment as { guestDisplayName?: string | null }).guestDisplayName) ||
+      Boolean(
+        (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
+          ?.displayName,
+      ) ||
+      Boolean((comment as { guestAuthorId?: string | null }).guestAuthorId) ||
       Boolean((comment as { guestPasswordHash?: string | null }).guestPasswordHash) ||
       comment.author.email.endsWith("@guest.townpet.local"),
   }));
@@ -233,11 +243,17 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const canInteract = Boolean(user);
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
   const isAuthor = user?.id === post.authorId;
-  const guestPostMeta = post as { guestDisplayName?: string | null };
+  const guestPostMeta = post as {
+    guestDisplayName?: string | null;
+    guestAuthor?: { displayName?: string | null } | null;
+    guestAuthorId?: string | null;
+  };
   const guestIpMeta = post as { guestIpDisplay?: string | null; guestIpLabel?: string | null };
-  const isGuestPost = Boolean(guestPostMeta.guestDisplayName?.trim());
-  const displayAuthorName = guestPostMeta.guestDisplayName?.trim()
-    ? guestPostMeta.guestDisplayName
+  const resolvedGuestAuthorName =
+    guestPostMeta.guestDisplayName?.trim() || guestPostMeta.guestAuthor?.displayName?.trim() || "";
+  const isGuestPost = Boolean(resolvedGuestAuthorName) || Boolean(guestPostMeta.guestAuthorId);
+  const displayAuthorName = resolvedGuestAuthorName
+    ? resolvedGuestAuthorName
     : post.author.nickname ?? post.author.name ?? "익명";
   const relationState =
     canInteract && !isAuthor

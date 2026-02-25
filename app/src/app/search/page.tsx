@@ -162,6 +162,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               {resultItems.map((post) => {
                 const guestMeta = post as {
                   guestDisplayName?: string | null;
+                  guestAuthor?: { displayName?: string | null } | null;
                   guestIpDisplay?: string | null;
                   guestIpLabel?: string | null;
                 };
@@ -199,9 +200,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       <HighlightText text={excerpt} query={query} />
                     </p>
                     <div className="mt-2 text-xs text-[#5f79a0]">
-                      {guestMeta.guestDisplayName ? (
+                      {guestMeta.guestDisplayName || guestMeta.guestAuthor?.displayName ? (
                         <span>
-                          {guestMeta.guestDisplayName}
+                          {guestMeta.guestDisplayName ?? guestMeta.guestAuthor?.displayName}
                           {guestMeta.guestIpDisplay
                             ? ` (${guestMeta.guestIpLabel ?? "아이피"} ${guestMeta.guestIpDisplay})`
                             : ""}

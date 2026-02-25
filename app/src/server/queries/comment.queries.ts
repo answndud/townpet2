@@ -16,6 +16,12 @@ export async function listComments(postId: string, viewerId?: string) {
     orderBy: { createdAt: "asc" },
     include: {
       author: { select: { id: true, name: true, nickname: true, email: true } },
+      guestAuthor: {
+        select: {
+          id: true,
+          displayName: true,
+        },
+      },
       reactions: {
         where: {
           userId: viewerId ?? NO_VIEWER_ID,

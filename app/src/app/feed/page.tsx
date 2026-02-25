@@ -347,7 +347,11 @@ export default async function Home({ searchParams }: HomePageProps) {
       nickname: post.author.nickname,
       image: post.author.image,
     },
-    guestDisplayName: (post as { guestDisplayName?: string | null }).guestDisplayName ?? null,
+    guestDisplayName:
+      (post as { guestDisplayName?: string | null }).guestDisplayName ??
+      (post as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
+        ?.displayName ??
+      null,
     guestIpDisplay: (post as { guestIpDisplay?: string | null }).guestIpDisplay ?? null,
     guestIpLabel: (post as { guestIpLabel?: string | null }).guestIpLabel ?? null,
     neighborhood: post.neighborhood

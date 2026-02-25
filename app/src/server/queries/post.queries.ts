@@ -62,6 +62,7 @@ async function supportsPgTrgm() {
 const buildPostListInclude = (viewerId?: string) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
+    guestAuthor: { select: { id: true, displayName: true } },
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -79,6 +80,7 @@ const buildPostListInclude = (viewerId?: string) =>
 const buildPostListIncludeWithoutReactions = () =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
+    guestAuthor: { select: { id: true, displayName: true } },
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -90,6 +92,7 @@ const buildPostListIncludeWithoutReactions = () =>
 const buildPostDetailInclude = (viewerId?: string) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
+    guestAuthor: { select: { id: true, displayName: true } },
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -138,6 +141,7 @@ const buildPostDetailInclude = (viewerId?: string) =>
 const buildPostDetailIncludeWithoutReactions = () =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
+    guestAuthor: { select: { id: true, displayName: true } },
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
