@@ -14,6 +14,7 @@ const runtimeEnvSchema = z.object({
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
+  HEALTH_INTERNAL_TOKEN: z.string().optional(),
   KAKAO_CLIENT_ID: z.string().optional(),
   KAKAO_CLIENT_SECRET: z.string().optional(),
   NAVER_CLIENT_ID: z.string().optional(),
@@ -49,6 +50,7 @@ export const runtimeEnv = {
   blobReadWriteToken: parsed.BLOB_READ_WRITE_TOKEN ?? "",
   sentryDsn: parsed.SENTRY_DSN ?? "",
   corsOrigin: parsed.CORS_ORIGIN ?? "",
+  healthInternalToken: parsed.HEALTH_INTERNAL_TOKEN ?? "",
   kakaoClientId: parsed.KAKAO_CLIENT_ID ?? "",
   kakaoClientSecret: parsed.KAKAO_CLIENT_SECRET ?? "",
   isKakaoConfigured:
