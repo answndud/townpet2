@@ -24,6 +24,7 @@ type CommentItem = {
   reactions?: Array<{
     type: "LIKE" | "DISLIKE";
   }>;
+  guestAuthorId?: string | null;
   guestDisplayName?: string | null;
   guestPasswordHash?: string | null;
   guestIpDisplay?: string | null;
@@ -379,7 +380,7 @@ export function PostCommentThread({
     const replies = repliesMap.get(comment.id) ?? [];
     const isDeleted = comment.status === "DELETED";
     const isGuestComment = Boolean(
-      comment.isGuestAuthor || comment.guestDisplayName?.trim() || comment.guestPasswordHash,
+      comment.isGuestAuthor || comment.guestAuthorId || comment.guestDisplayName?.trim(),
     );
     const guestAuthorName = comment.guestDisplayName?.trim()
       ? comment.guestDisplayName

@@ -64,6 +64,9 @@ jobs:
         run: pnpm db:push
 
       - name: Verify guest author backfill safety
+        run: GUEST_AUTHOR_BACKFILL_DRY_RUN=1 pnpm db:backfill:guest-authors
+
+      - name: Verify guest author backfill completion
         run: pnpm db:verify:guest-authors
 
       - name: Quality check (lint/typecheck/unit)

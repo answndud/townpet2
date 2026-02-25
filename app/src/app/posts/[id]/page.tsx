@@ -224,7 +224,6 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           ?.displayName,
       ) ||
       Boolean((comment as { guestAuthorId?: string | null }).guestAuthorId) ||
-      Boolean((comment as { guestPasswordHash?: string | null }).guestPasswordHash) ||
       comment.author.email.endsWith("@guest.townpet.local"),
   }));
 
