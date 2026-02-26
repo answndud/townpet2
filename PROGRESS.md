@@ -17,6 +17,25 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-26: 꼬리 지연 완화 1차 개선
+- 완료 내용
+- feed/search SSR에서 독립 호출 병렬화.
+- 커뮤니티 목록/게스트 읽기 정책 조회 캐시 적용.
+- 검색 후보군 상한 축소(4x -> 3x, max 200 -> 120).
+- 자동완성 요청의 클라이언트 `no-store` 제거.
+- 변경 파일(핵심)
+- `app/src/app/feed/page.tsx`
+- `app/src/app/search/page.tsx`
+- `app/src/server/queries/policy.queries.ts`
+- `app/src/server/queries/community.queries.ts`
+- `app/src/server/queries/post.queries.ts`
+- `app/src/components/posts/feed-search-form.tsx`
+- `docs/ops/cache-performance-rollout.md`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-26: 배포 통과 후 성능 재측정
 - 완료 내용
 - GitHub Actions/Vercel 배포 통과 후 `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 15회 재측정.

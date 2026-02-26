@@ -50,10 +50,12 @@ function toFeedSearchIn(value?: string): FeedSearchIn {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const session = await auth();
   const userId = session?.user?.id;
-  const user = userId ? await getUserWithNeighborhoods(userId) : null;
+  const [user, loginRequiredTypes, popularSearchTerms] = await Promise.all([
+    userId ? getUserWithNeighborhoods(userId) : Promise.resolve(null),
+    getGuestReadLoginRequiredPostTypes(),
+    getPopularSearchTerms(10),
+  ]);
   const isAuthenticated = Boolean(user);
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
-  const popularSearchTerms = await getPopularSearchTerms(10);
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
   const resolvedParams = (await searchParams) ?? {};

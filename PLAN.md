@@ -44,6 +44,11 @@
 |---|---|---|---|---|---|
 | 공용 읽기 경로 캐시(피드/검색/자동완성/인기어) | Codex | P1 | `done` | 비로그인 GLOBAL 경로에 TTL 캐시 + SWR 헤더가 적용되고 작성/반응 시 캐시 버전이 갱신됨 | `app/src/server/cache/query-cache.ts`, `app/src/server/queries/post.queries.ts`, `app/src/server/queries/search.queries.ts`, `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/suggestions/route.ts` |
 
+### Cycle 70: 꼬리 지연 완화 1차 개선 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| SSR 병렬화 + 정책/커뮤니티 캐시 + 검색 후보 축소 | Codex | P1 | `done` | feed/search SSR 직렬 await 제거, 정책/커뮤니티 캐시 적용, 검색 후보 상한 축소 | `app/src/app/feed/page.tsx`, `app/src/app/search/page.tsx`, `app/src/server/queries/policy.queries.ts`, `app/src/server/queries/community.queries.ts`, `app/src/server/queries/post.queries.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

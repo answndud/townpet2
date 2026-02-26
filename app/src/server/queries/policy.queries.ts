@@ -25,6 +25,7 @@ import {
   normalizeGuestPostPolicy,
 } from "@/lib/guest-post-policy";
 import { prisma } from "@/lib/prisma";
+import { bumpCacheVersion, createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
 
 type SiteSettingRecord = {
@@ -88,24 +89,31 @@ export async function getGuestReadLoginRequiredPostTypes() {
     return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
   }
 
-  let setting: { value: unknown } | null = null;
-  try {
-    setting = await delegate.findUnique({
-      where: { key: GUEST_READ_POLICY_KEY },
-      select: { value: true },
-    });
-  } catch (error) {
-    if (!isSiteSettingTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSiteSettingTable(error);
-    return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
-  }
+  const cacheKey = await createQueryCacheKey("policy", { key: GUEST_READ_POLICY_KEY });
+  return withQueryCache({
+    key: cacheKey,
+    ttlSeconds: 60,
+    fetcher: async () => {
+      let setting: { value: unknown } | null = null;
+      try {
+        setting = await delegate.findUnique({
+          where: { key: GUEST_READ_POLICY_KEY },
+          select: { value: true },
+        });
+      } catch (error) {
+        if (!isSiteSettingTableMissingError(error)) {
+          throw error;
+        }
+        warnMissingSiteSettingTable(error);
+        return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
+      }
 
-  return normalizeLoginRequiredPostTypes(
-    setting?.value,
-    DEFAULT_LOGIN_REQUIRED_POST_TYPES,
-  );
+      return normalizeLoginRequiredPostTypes(
+        setting?.value,
+        DEFAULT_LOGIN_REQUIRED_POST_TYPES,
+      );
+    },
+  });
 }
 
 export async function setGuestReadLoginRequiredPostTypes(types: PostType[]) {
@@ -134,6 +142,8 @@ export async function setGuestReadLoginRequiredPostTypes(types: PostType[]) {
     warnMissingSiteSettingTable(error);
     return { ok: false, reason: "SCHEMA_SYNC_REQUIRED" } as const;
   }
+
+  void bumpCacheVersion("policy").catch(() => undefined);
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
 }

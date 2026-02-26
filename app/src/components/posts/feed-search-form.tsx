@@ -226,7 +226,6 @@ export function FeedSearchForm({
         const response = await fetch(`/api/posts/suggestions?${params.toString()}`, {
           method: "GET",
           credentials: "same-origin",
-          cache: "no-store",
           signal: controller.signal,
         });
         const payload = (await response.json()) as SuggestionResponse;

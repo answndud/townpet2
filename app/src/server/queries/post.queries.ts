@@ -1787,7 +1787,7 @@ export async function listRankedSearchPosts({
     hiddenAuthorIds,
     searchSql: searchMatchSql,
   });
-  const candidateLimit = Math.min(Math.max(safeLimit * 4, safeLimit), 200);
+  const candidateLimit = Math.min(Math.max(safeLimit * 3, safeLimit), 120);
   const trigramScoreSql = useTrigram
     ? Prisma.sql`+ GREATEST(
           similarity(COALESCE(p."title", ''), ${trimmedQuery}),

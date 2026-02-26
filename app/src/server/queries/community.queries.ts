@@ -1,6 +1,7 @@
 import { CommonBoardType, PostStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 
 type ListCommunitiesOptions = {
   cursor?: string;
@@ -58,55 +59,73 @@ export async function listCommunities({
   const safeLimit = Math.min(Math.max(limit, 1), 50);
   const trimmedQ = q?.trim();
 
-  const items = await prisma.community
-    .findMany({
-      where: {
-        isActive: true,
-        category: {
+  const runListCommunities = async () =>
+    prisma.community
+      .findMany({
+        where: {
           isActive: true,
-          ...(category ? { slug: category } : {}),
+          category: {
+            isActive: true,
+            ...(category ? { slug: category } : {}),
+          },
+          ...(trimmedQ
+            ? {
+                OR: [
+                  { labelKo: { contains: trimmedQ, mode: "insensitive" } },
+                  { description: { contains: trimmedQ, mode: "insensitive" } },
+                ],
+              }
+            : {}),
         },
-        ...(trimmedQ
-          ? {
-              OR: [
-                { labelKo: { contains: trimmedQ, mode: "insensitive" } },
-                { description: { contains: trimmedQ, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        slug: true,
-        labelKo: true,
-        description: true,
-        sortOrder: true,
-        tags: true,
-        defaultPostTypes: true,
-        category: {
-          select: {
-            slug: true,
-            labelKo: true,
-            sortOrder: true,
+        select: {
+          id: true,
+          slug: true,
+          labelKo: true,
+          description: true,
+          sortOrder: true,
+          tags: true,
+          defaultPostTypes: true,
+          category: {
+            select: {
+              slug: true,
+              labelKo: true,
+              sortOrder: true,
+            },
           },
         },
-      },
-      orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { labelKo: "asc" }],
-      take: safeLimit + 1,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1,
-          }
-        : {}),
-    })
-    .catch((error) => {
-      if (isMissingCommunitySchemaError(error)) {
-        return [];
-      }
+        orderBy: [
+          { category: { sortOrder: "asc" } },
+          { sortOrder: "asc" },
+          { labelKo: "asc" },
+        ],
+        take: safeLimit + 1,
+        ...(cursor
+          ? {
+              cursor: { id: cursor },
+              skip: 1,
+            }
+          : {}),
+      })
+      .catch((error) => {
+        if (isMissingCommunitySchemaError(error)) {
+          return [];
+        }
 
-      throw error;
-    });
+        throw error;
+      });
+
+  const shouldCache = !cursor;
+  const items = shouldCache
+    ? await withQueryCache({
+        key: await createQueryCacheKey("communities", {
+          limit: safeLimit,
+          category: category ?? "",
+          q: trimmedQ ?? "",
+        }),
+        ttlSeconds: 120,
+        fetcher: runListCommunities,
+      })
+    : await runListCommunities();
 
   let nextCursor: string | null = null;
   if (items.length > safeLimit) {

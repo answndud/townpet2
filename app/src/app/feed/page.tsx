@@ -143,33 +143,35 @@ function isDatabaseUnavailableError(error: unknown) {
 export default async function Home({ searchParams }: HomePageProps) {
   const session = await auth();
   const userId = session?.user?.id;
-  const user = userId
-    ? await getUserWithNeighborhoods(userId).catch((error) => {
-        if (isDatabaseUnavailableError(error)) {
-          return null;
-        }
-        throw error;
-      })
-    : null;
+  const [user, loginRequiredTypes, popularSearchTerms, communities] = await Promise.all([
+    userId
+      ? getUserWithNeighborhoods(userId).catch((error) => {
+          if (isDatabaseUnavailableError(error)) {
+            return null;
+          }
+          throw error;
+        })
+      : Promise.resolve(null),
+    getGuestReadLoginRequiredPostTypes().catch((error) => {
+      if (isDatabaseUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }),
+    getPopularSearchTerms(8).catch((error) => {
+      if (isDatabaseUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }),
+    listCommunities({ limit: 50 }).catch((error) => {
+      if (isDatabaseUnavailableError(error)) {
+        return { items: [], nextCursor: null };
+      }
+      throw error;
+    }),
+  ]);
   const isAuthenticated = Boolean(user);
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch((error) => {
-    if (isDatabaseUnavailableError(error)) {
-      return [];
-    }
-    throw error;
-  });
-  const popularSearchTerms = await getPopularSearchTerms(8).catch((error) => {
-    if (isDatabaseUnavailableError(error)) {
-      return [];
-    }
-    throw error;
-  });
-  const communities = await listCommunities({ limit: 50 }).catch((error) => {
-    if (isDatabaseUnavailableError(error)) {
-      return { items: [], nextCursor: null };
-    }
-    throw error;
-  });
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
   const resolvedParams = (await searchParams) ?? {};
