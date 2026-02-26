@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PostScope, PostType } from "@prisma/client";
 
+vi.mock("@/lib/env", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/env")>("@/lib/env");
+  return {
+    ...actual,
+    runtimeEnv: {
+      ...actual.runtimeEnv,
+      queryCacheEnabled: false,
+    },
+  };
+});
+
 import {
   listBestPosts,
   listPostSearchSuggestions,
