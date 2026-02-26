@@ -17,6 +17,20 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-26: read rate-limit/guest SSR 캐시 배포 후 재측정
+- 완료 내용
+- `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 30회 재측정.
+- feed TTFB p50 451.1ms, p95 707.6ms.
+- api_posts TTFB p50 237.9ms, p95 360.7ms.
+- search TTFB p50 447.4ms, p95 581.6ms.
+- 결과 상세는 `docs/ops/cache-performance-rollout.md`에 업데이트.
+- 변경 파일(핵심)
+- `docs/ops/cache-performance-rollout.md`
+- 검증 결과
+- 배포 측정만 수행 (테스트 미실행).
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-26: 꼬리 지연 완화 2차 개선
 - 완료 내용
 - 비로그인 feed/search 컨텍스트 `unstable_cache` 적용.
