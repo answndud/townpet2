@@ -79,7 +79,7 @@ API 응답에 `Cache-Control` 헤더를 추가해 Vercel CDN 캐시를 활용한
 결과는 이 문서의 "측정 결과" 섹션에 업데이트한다.
 
 ## 측정 결과 (추가 예정)
-### 2026-02-26 (curl 15회)
+### 2026-02-26 (curl 15회, 배포 전 baseline)
 - 대상 URL
   - https://townpet2.vercel.app/feed
   - https://townpet2.vercel.app/api/posts?scope=GLOBAL
@@ -89,10 +89,25 @@ API 응답에 `Cache-Control` 헤더를 추가해 Vercel CDN 캐시를 활용한
   - api_posts: TTFB p50 514.0, p95 1035.2 / total p50 514.5, p95 1037.9
   - search: TTFB p50 502.1, p95 661.9 / total p50 534.1, p95 684.7
 
+### 2026-02-26 (curl 15회, 캐시 배포 후)
+- 대상 URL
+  - https://townpet2.vercel.app/feed
+  - https://townpet2.vercel.app/api/posts?scope=GLOBAL
+  - https://townpet2.vercel.app/search?q=%EC%82%B0%EC%B1%85%EC%BD%94%EC%8A%A4
+- 결과(ms)
+  - feed: TTFB p50 523.3, p95 578.1 / total p50 675.3, p95 724.7
+  - api_posts: TTFB p50 535.4, p95 672.1 / total p50 536.1, p95 674.2
+  - search: TTFB p50 484.3, p95 710.0 / total p50 499.5, p95 716.5
+
 ### 전회 대비 변화(2026-02-24 baseline)
-- feed TTFB p50: 586.7ms -> 569.1ms (약 -3.0%)
-- api_posts TTFB p50: 591.0ms -> 514.0ms (약 -13.0%)
-- search는 이전 측정값이 없어 비교 제외
+- feed TTFB p50: 586.7ms -> 523.3ms (약 -10.8%)
+- api_posts TTFB p50: 591.0ms -> 535.4ms (약 -9.4%)
+- search TTFB p50: (baseline 없음) -> 484.3ms
+
+### 배포 전 대비 변화(2026-02-26 baseline)
+- feed TTFB p50: 569.1ms -> 523.3ms (약 -8.1%)
+- api_posts TTFB p50: 514.0ms -> 535.4ms (약 +4.2%)
+- search TTFB p50: 502.1ms -> 484.3ms (약 -3.5%)
 
 ## 운영 주의사항
 - 캐시는 사용자/동네/차단 목록을 키에 포함해 Local/로그인 경로도 안전하게 분리한다.

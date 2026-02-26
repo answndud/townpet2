@@ -17,6 +17,18 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-26: 캐시 배포 후 성능 재측정
+- 완료 내용
+- Vercel 배포 후 `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 15회 재측정.
+- feed TTFB p50 523.3ms, api_posts TTFB p50 535.4ms, search TTFB p50 484.3ms 기록.
+- 결과 상세는 `docs/ops/cache-performance-rollout.md`에 업데이트.
+- 변경 파일(핵심)
+- `docs/ops/cache-performance-rollout.md`
+- 검증 결과
+- 배포 측정만 수행 (테스트 미실행).
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-26: 캐시 범위 확장 + 무효화 이벤트 보강
 - 완료 내용
 - 로그인/LOCAL 경로도 캐시 키 분리로 안전하게 캐싱하도록 확장.
