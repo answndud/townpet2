@@ -99,6 +99,16 @@ API 응답에 `Cache-Control` 헤더를 추가해 Vercel CDN 캐시를 활용한
   - api_posts: TTFB p50 535.4, p95 672.1 / total p50 536.1, p95 674.2
   - search: TTFB p50 484.3, p95 710.0 / total p50 499.5, p95 716.5
 
+### 2026-02-26 (curl 15회, 배포 통과 후 재측정)
+- 대상 URL
+  - https://townpet2.vercel.app/feed
+  - https://townpet2.vercel.app/api/posts?scope=GLOBAL
+  - https://townpet2.vercel.app/search?q=%EC%82%B0%EC%B1%85%EC%BD%94%EC%8A%A4
+- 결과(ms)
+  - feed: TTFB p50 549.0, p95 937.8 / total p50 680.9, p95 1119.0
+  - api_posts: TTFB p50 284.6, p95 594.8 / total p50 290.9, p95 606.7
+  - search: TTFB p50 511.4, p95 739.0 / total p50 525.4, p95 746.1
+
 ### 전회 대비 변화(2026-02-24 baseline)
 - feed TTFB p50: 586.7ms -> 523.3ms (약 -10.8%)
 - api_posts TTFB p50: 591.0ms -> 535.4ms (약 -9.4%)
