@@ -14,6 +14,7 @@ import {
 } from "@/lib/post-type-groups";
 import { logger, serializeError } from "@/server/logger";
 import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.queries";
+import { createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 
 const NO_VIEWER_ID = "__NO_VIEWER__";
 export type PostListSort = "LATEST" | "LIKE" | "COMMENT";
@@ -1036,72 +1037,114 @@ export async function listPosts({
     return { items: [], nextCursor: null };
   }
 
-  const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
-  const resolvedSort = sort ?? DEFAULT_POST_LIST_SORT;
-  const where = buildPostListWhere({
-    type,
-    scope,
-    communityId,
-    q,
-    searchIn: resolvedSearchIn,
-    excludeTypes: normalizedExcludeTypes,
-    neighborhoodId,
-    hiddenAuthorIds,
-    days,
-    authorBreedCode,
-  });
-  const orderBy: Prisma.PostOrderByWithRelationInput[] =
-    resolvedSort === "LIKE"
-      ? [
-          { likeCount: "desc" },
-          { commentCount: "desc" },
-          { createdAt: "desc" },
-        ]
-      : resolvedSort === "COMMENT"
+  const runListPosts = async () => {
+    const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
+    const resolvedSort = sort ?? DEFAULT_POST_LIST_SORT;
+    const where = buildPostListWhere({
+      type,
+      scope,
+      communityId,
+      q,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+      days,
+      authorBreedCode,
+    });
+    const orderBy: Prisma.PostOrderByWithRelationInput[] =
+      resolvedSort === "LIKE"
         ? [
-            { commentCount: "desc" },
             { likeCount: "desc" },
+            { commentCount: "desc" },
             { createdAt: "desc" },
           ]
-        : [{ createdAt: "desc" }];
+        : resolvedSort === "COMMENT"
+          ? [
+              { commentCount: "desc" },
+              { likeCount: "desc" },
+              { createdAt: "desc" },
+            ]
+          : [{ createdAt: "desc" }];
 
-  const legacyCompatibleWhere = buildPostListWhere({
-    type,
-    scope,
-    communityId: undefined,
-    q,
-    searchIn: resolvedSearchIn,
-    excludeTypes: normalizedExcludeTypes,
-    neighborhoodId,
-    hiddenAuthorIds,
-    days,
-    authorBreedCode,
-  });
+    const legacyCompatibleWhere = buildPostListWhere({
+      type,
+      scope,
+      communityId: undefined,
+      q,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+      days,
+      authorBreedCode,
+    });
 
-  const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
-    where,
-    take: resolvedLimit + 1,
-    ...(cursor
-      ? {
-          cursor: { id: cursor },
-          skip: 1,
-        }
-      : resolvedPage > 1
+    const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
+      where,
+      take: resolvedLimit + 1,
+      ...(cursor
         ? {
-            skip: (resolvedPage - 1) * resolvedLimit,
+            cursor: { id: cursor },
+            skip: 1,
           }
-        : {}),
-    orderBy,
-  };
+        : resolvedPage > 1
+          ? {
+              skip: (resolvedPage - 1) * resolvedLimit,
+            }
+          : {}),
+      orderBy,
+    };
 
-  if (!supportsPostReactionsField()) {
-    const fallbackItems = await prisma.post
+    if (!supportsPostReactionsField()) {
+      const fallbackItems = await prisma.post
+        .findMany({
+          ...baseArgs,
+          include: buildPostListIncludeWithoutReactions(),
+        })
+        .catch(async (error) => {
+          if (
+            !isUnknownGuestPostColumnError(error) &&
+            !isUnknownGuestAuthorIncludeError(error) &&
+            !isMissingCommunityBoardSchemaError(error)
+          ) {
+            throw error;
+          }
+
+          const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
+            ? { ...baseArgs, where: legacyCompatibleWhere }
+            : baseArgs;
+
+          if (isUnknownGuestAuthorIncludeError(error)) {
+            return prisma.post.findMany({
+              ...safeBaseArgs,
+              include: buildPostListIncludeWithoutReactions(false),
+            });
+          }
+
+          return prisma.post.findMany({
+            ...safeBaseArgs,
+            select: buildLegacyPostListSelectWithoutReactions(),
+          });
+        });
+      const items = withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
+      let nextCursor: string | null = null;
+      if (items.length > resolvedLimit) {
+        const nextItem = items.pop();
+        nextCursor = nextItem?.id ?? null;
+      }
+
+      return { items, nextCursor };
+    }
+
+    const items = await prisma.post
       .findMany({
         ...baseArgs,
-        include: buildPostListIncludeWithoutReactions(),
+        include: buildPostListInclude(viewerId),
       })
       .catch(async (error) => {
         if (
+          !isUnknownReactionsIncludeError(error) &&
           !isUnknownGuestPostColumnError(error) &&
           !isUnknownGuestAuthorIncludeError(error) &&
           !isMissingCommunityBoardSchemaError(error)
@@ -1116,107 +1159,96 @@ export async function listPosts({
         if (isUnknownGuestAuthorIncludeError(error)) {
           return prisma.post.findMany({
             ...safeBaseArgs,
-            include: buildPostListIncludeWithoutReactions(false),
+            include: buildPostListInclude(viewerId, false),
           });
         }
 
-        return prisma.post.findMany({
-          ...safeBaseArgs,
-          select: buildLegacyPostListSelectWithoutReactions(),
-        });
+        if (isUnknownGuestPostColumnError(error) || isMissingCommunityBoardSchemaError(error)) {
+          const legacyItems = await prisma.post.findMany({
+            ...safeBaseArgs,
+            select: buildLegacyPostListSelect(viewerId),
+          });
+          return withEmptyGuestPostMeta(legacyItems);
+        }
+
+        const fallbackItems = await prisma.post
+          .findMany({
+            ...safeBaseArgs,
+            include: buildPostListIncludeWithoutReactions(),
+          })
+          .catch(async (innerError) => {
+            if (
+              !isUnknownGuestPostColumnError(innerError) &&
+              !isUnknownGuestAuthorIncludeError(innerError) &&
+              !isMissingCommunityBoardSchemaError(innerError)
+            ) {
+              throw innerError;
+            }
+
+            const safeInnerBaseArgs = isMissingCommunityBoardSchemaError(innerError)
+              ? { ...baseArgs, where: legacyCompatibleWhere }
+              : safeBaseArgs;
+
+            if (isUnknownGuestAuthorIncludeError(innerError)) {
+              return prisma.post.findMany({
+                ...safeInnerBaseArgs,
+                include: buildPostListIncludeWithoutReactions(false),
+              });
+            }
+
+            return prisma.post.findMany({
+              ...safeInnerBaseArgs,
+              select: buildLegacyPostListSelectWithoutReactions(),
+            });
+          });
+        return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
       });
-    const items = withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
+
     let nextCursor: string | null = null;
     if (items.length > resolvedLimit) {
       const nextItem = items.pop();
       nextCursor = nextItem?.id ?? null;
     }
 
+    if (personalized && viewerId) {
+      const personalizedItems = await applyPetPersonalization(items, viewerId);
+      return {
+        items: personalizedItems,
+        nextCursor,
+      };
+    }
+
     return { items, nextCursor };
-  }
+  };
 
-  const items = await prisma.post
-    .findMany({
-      ...baseArgs,
-      include: buildPostListInclude(viewerId),
-    })
-    .catch(async (error) => {
-      if (
-        !isUnknownReactionsIncludeError(error) &&
-        !isUnknownGuestPostColumnError(error) &&
-        !isUnknownGuestAuthorIncludeError(error) &&
-        !isMissingCommunityBoardSchemaError(error)
-      ) {
-        throw error;
-      }
+  const normalizedAuthorBreedCode = normalizeBreedCode(authorBreedCode);
+  const shouldCache = !personalized && !cursor && resolvedPage === 1;
 
-      const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
-        ? { ...baseArgs, where: legacyCompatibleWhere }
-        : baseArgs;
-
-      if (isUnknownGuestAuthorIncludeError(error)) {
-        return prisma.post.findMany({
-          ...safeBaseArgs,
-          include: buildPostListInclude(viewerId, false),
-        });
-      }
-
-      if (isUnknownGuestPostColumnError(error) || isMissingCommunityBoardSchemaError(error)) {
-        const legacyItems = await prisma.post.findMany({
-          ...safeBaseArgs,
-          select: buildLegacyPostListSelect(viewerId),
-        });
-        return withEmptyGuestPostMeta(legacyItems);
-      }
-
-      const fallbackItems = await prisma.post
-        .findMany({
-          ...safeBaseArgs,
-          include: buildPostListIncludeWithoutReactions(),
-        })
-        .catch(async (innerError) => {
-          if (
-            !isUnknownGuestPostColumnError(innerError) &&
-            !isUnknownGuestAuthorIncludeError(innerError) &&
-            !isMissingCommunityBoardSchemaError(innerError)
-          ) {
-            throw innerError;
-          }
-
-          const safeInnerBaseArgs = isMissingCommunityBoardSchemaError(innerError)
-            ? { ...baseArgs, where: legacyCompatibleWhere }
-            : safeBaseArgs;
-
-          if (isUnknownGuestAuthorIncludeError(innerError)) {
-            return prisma.post.findMany({
-              ...safeInnerBaseArgs,
-              include: buildPostListIncludeWithoutReactions(false),
-            });
-          }
-
-          return prisma.post.findMany({
-            ...safeInnerBaseArgs,
-            select: buildLegacyPostListSelectWithoutReactions(),
-          });
-        });
-      return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("feed", {
+      scope,
+      type: type ?? "ALL",
+      communityId: communityId ?? "ALL",
+      q: q?.trim() ?? "",
+      searchIn: searchIn ?? DEFAULT_POST_SEARCH_IN,
+      sort: sort ?? DEFAULT_POST_LIST_SORT,
+      days: days ?? "",
+      excludeTypes: normalizedExcludeTypes,
+      limit: resolvedLimit,
+      page: resolvedPage,
+      authorBreedCode: normalizedAuthorBreedCode ?? "",
+      neighborhoodId: neighborhoodId ?? "",
+      viewerId: viewerId ?? "guest",
+      hiddenAuthorIds,
     });
-
-  let nextCursor: string | null = null;
-  if (items.length > resolvedLimit) {
-    const nextItem = items.pop();
-    nextCursor = nextItem?.id ?? null;
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 30,
+      fetcher: runListPosts,
+    });
   }
 
-  if (personalized && viewerId) {
-    const personalizedItems = await applyPetPersonalization(items, viewerId);
-    return {
-      items: personalizedItems,
-      nextCursor,
-    };
-  }
-
-  return { items, nextCursor };
+  return runListPosts();
 }
 
 export async function listBestPosts({
@@ -1241,57 +1273,92 @@ export async function listBestPosts({
     return [];
   }
 
-  const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
-  const where = buildBestPostWhere({
-    days,
-    minLikes,
-    type,
-    scope,
-    communityId,
-    q,
-    searchIn: resolvedSearchIn,
-    excludeTypes: normalizedExcludeTypes,
-    neighborhoodId,
-    hiddenAuthorIds,
-  });
+  const runListBestPosts = async () => {
+    const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
+    const where = buildBestPostWhere({
+      days,
+      minLikes,
+      type,
+      scope,
+      communityId,
+      q,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+    });
 
-  const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
-    where,
-    take: resolvedLimit,
-    ...(resolvedPage > 1
-      ? {
-          skip: (resolvedPage - 1) * resolvedLimit,
-        }
-      : {}),
-    orderBy: [
-      { likeCount: "desc" },
-      { commentCount: "desc" },
-      { viewCount: "desc" },
-      { createdAt: "desc" },
-    ],
-  };
+    const baseArgs: Omit<Prisma.PostFindManyArgs, "include"> = {
+      where,
+      take: resolvedLimit,
+      ...(resolvedPage > 1
+        ? {
+            skip: (resolvedPage - 1) * resolvedLimit,
+          }
+        : {}),
+      orderBy: [
+        { likeCount: "desc" },
+        { commentCount: "desc" },
+        { viewCount: "desc" },
+        { createdAt: "desc" },
+      ],
+    };
 
-  const legacyCompatibleWhere = buildBestPostWhere({
-    days,
-    minLikes,
-    type,
-    scope,
-    communityId: undefined,
-    q,
-    searchIn: resolvedSearchIn,
-    excludeTypes: normalizedExcludeTypes,
-    neighborhoodId,
-    hiddenAuthorIds,
-  });
+    const legacyCompatibleWhere = buildBestPostWhere({
+      days,
+      minLikes,
+      type,
+      scope,
+      communityId: undefined,
+      q,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      neighborhoodId,
+      hiddenAuthorIds,
+    });
 
-  if (!supportsPostReactionsField()) {
-    const fallbackItems = await prisma.post
+    if (!supportsPostReactionsField()) {
+      const fallbackItems = await prisma.post
+        .findMany({
+          ...baseArgs,
+          include: buildPostListIncludeWithoutReactions(),
+        })
+        .catch(async (error) => {
+          if (
+            !isUnknownGuestPostColumnError(error) &&
+            !isUnknownGuestAuthorIncludeError(error) &&
+            !isMissingCommunityBoardSchemaError(error)
+          ) {
+            throw error;
+          }
+
+          const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
+            ? { ...baseArgs, where: legacyCompatibleWhere }
+            : baseArgs;
+
+          if (isUnknownGuestAuthorIncludeError(error)) {
+            return prisma.post.findMany({
+              ...safeBaseArgs,
+              include: buildPostListIncludeWithoutReactions(false),
+            });
+          }
+
+          return prisma.post.findMany({
+            ...safeBaseArgs,
+            select: buildLegacyPostListSelectWithoutReactions(),
+          });
+        });
+      return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
+    }
+
+    return prisma.post
       .findMany({
         ...baseArgs,
-        include: buildPostListIncludeWithoutReactions(),
+        include: buildPostListInclude(viewerId),
       })
       .catch(async (error) => {
         if (
+          !isUnknownReactionsIncludeError(error) &&
           !isUnknownGuestPostColumnError(error) &&
           !isUnknownGuestAuthorIncludeError(error) &&
           !isMissingCommunityBoardSchemaError(error)
@@ -1306,84 +1373,77 @@ export async function listBestPosts({
         if (isUnknownGuestAuthorIncludeError(error)) {
           return prisma.post.findMany({
             ...safeBaseArgs,
-            include: buildPostListIncludeWithoutReactions(false),
+            include: buildPostListInclude(viewerId, false),
           });
         }
 
-        return prisma.post.findMany({
-          ...safeBaseArgs,
-          select: buildLegacyPostListSelectWithoutReactions(),
-        });
-      });
-    return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
-  }
+        if (isUnknownGuestPostColumnError(error) || isMissingCommunityBoardSchemaError(error)) {
+          const legacyItems = await prisma.post.findMany({
+            ...safeBaseArgs,
+            select: buildLegacyPostListSelect(viewerId),
+          });
+          return withEmptyGuestPostMeta(legacyItems);
+        }
 
-  return prisma.post
-    .findMany({
-      ...baseArgs,
-      include: buildPostListInclude(viewerId),
-    })
-    .catch(async (error) => {
-      if (
-        !isUnknownReactionsIncludeError(error) &&
-        !isUnknownGuestPostColumnError(error) &&
-        !isUnknownGuestAuthorIncludeError(error) &&
-        !isMissingCommunityBoardSchemaError(error)
-      ) {
-        throw error;
-      }
+        const fallbackItems = await prisma.post
+          .findMany({
+            ...safeBaseArgs,
+            include: buildPostListIncludeWithoutReactions(),
+          })
+          .catch(async (innerError) => {
+            if (
+              !isUnknownGuestPostColumnError(innerError) &&
+              !isUnknownGuestAuthorIncludeError(innerError) &&
+              !isMissingCommunityBoardSchemaError(innerError)
+            ) {
+              throw innerError;
+            }
 
-      const safeBaseArgs = isMissingCommunityBoardSchemaError(error)
-        ? { ...baseArgs, where: legacyCompatibleWhere }
-        : baseArgs;
+            const safeInnerBaseArgs = isMissingCommunityBoardSchemaError(innerError)
+              ? { ...baseArgs, where: legacyCompatibleWhere }
+              : safeBaseArgs;
 
-      if (isUnknownGuestAuthorIncludeError(error)) {
-        return prisma.post.findMany({
-          ...safeBaseArgs,
-          include: buildPostListInclude(viewerId, false),
-        });
-      }
+            if (isUnknownGuestAuthorIncludeError(innerError)) {
+              return prisma.post.findMany({
+                ...safeInnerBaseArgs,
+                include: buildPostListIncludeWithoutReactions(false),
+              });
+            }
 
-      if (isUnknownGuestPostColumnError(error) || isMissingCommunityBoardSchemaError(error)) {
-        const legacyItems = await prisma.post.findMany({
-          ...safeBaseArgs,
-          select: buildLegacyPostListSelect(viewerId),
-        });
-        return withEmptyGuestPostMeta(legacyItems);
-      }
-
-      const fallbackItems = await prisma.post
-        .findMany({
-          ...safeBaseArgs,
-          include: buildPostListIncludeWithoutReactions(),
-        })
-        .catch(async (innerError) => {
-          if (
-            !isUnknownGuestPostColumnError(innerError) &&
-            !isUnknownGuestAuthorIncludeError(innerError) &&
-            !isMissingCommunityBoardSchemaError(innerError)
-          ) {
-            throw innerError;
-          }
-
-          const safeInnerBaseArgs = isMissingCommunityBoardSchemaError(innerError)
-            ? { ...baseArgs, where: legacyCompatibleWhere }
-            : safeBaseArgs;
-
-          if (isUnknownGuestAuthorIncludeError(innerError)) {
             return prisma.post.findMany({
               ...safeInnerBaseArgs,
-              include: buildPostListIncludeWithoutReactions(false),
+              select: buildLegacyPostListSelectWithoutReactions(),
             });
-          }
-
-          return prisma.post.findMany({
-            ...safeInnerBaseArgs,
-            select: buildLegacyPostListSelectWithoutReactions(),
           });
-        });
-      return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
+        return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
+      });
+  };
+
+  const shouldCache = true;
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("feed", {
+      scope,
+      type: type ?? "ALL",
+      communityId: communityId ?? "ALL",
+      q: q?.trim() ?? "",
+      searchIn: searchIn ?? DEFAULT_POST_SEARCH_IN,
+      days,
+      excludeTypes: normalizedExcludeTypes,
+      limit: resolvedLimit,
+      page: resolvedPage,
+      minLikes,
+      neighborhoodId: neighborhoodId ?? "",
+      viewerId: viewerId ?? "guest",
+      hiddenAuthorIds,
     });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 30,
+      fetcher: runListBestPosts,
+    });
+  }
+
+  return runListBestPosts();
 }
 
 export async function countPosts({
@@ -1737,7 +1797,7 @@ export async function listRankedSearchPosts({
         ) * 4.0`
     : Prisma.sql``;
 
-  try {
+  const runRankedSearch = async () => {
     const candidates = await prisma.$queryRaw<RankedSearchRow[]>(Prisma.sql`
       SELECT p."id"
       FROM "Post" p
@@ -1828,6 +1888,38 @@ export async function listRankedSearchPosts({
       .map((id) => byId.get(id))
       .filter((item): item is (typeof fetchedPosts)[number] => Boolean(item))
       .slice(0, safeLimit);
+  };
+
+  const shouldCache = true;
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("search", {
+      scope,
+      type: type ?? "ALL",
+      q: trimmedQuery,
+      searchIn: resolvedSearchIn,
+      excludeTypes: normalizedExcludeTypes,
+      limit: safeLimit,
+      neighborhoodId: neighborhoodId ?? "",
+      viewerId: viewerId ?? "guest",
+      hiddenAuthorIds,
+    });
+    try {
+      return await withQueryCache({
+        key: cacheKey,
+        ttlSeconds: 45,
+        fetcher: runRankedSearch,
+      });
+    } catch (error) {
+      logger.warn("검색 캐시 실패로 원본 검색을 사용합니다.", {
+        query: trimmedQuery,
+        searchIn: resolvedSearchIn,
+        error: serializeError(error),
+      });
+    }
+  }
+
+  try {
+    return await runRankedSearch();
   } catch (error) {
     logger.warn("고급 검색 쿼리 실패로 기본 검색으로 fallback합니다.", {
       query: trimmedQuery,
@@ -1871,40 +1963,61 @@ export async function listPostSearchSuggestions({
 
   const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const rows = await prisma.post.findMany({
-    where: {
-      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-      ...(type
-        ? (() => {
-            const equivalentTypes = getEquivalentPostTypes(type);
-            return equivalentTypes.length === 1
-              ? { type: equivalentTypes[0] }
-              : { type: { in: equivalentTypes } };
-          })()
-        : normalizedExcludeTypes.length > 0
-          ? { type: { notIn: normalizedExcludeTypes } }
-          : {}),
-      scope,
-      ...(scope === PostScope.LOCAL && neighborhoodId
-        ? { neighborhoodId }
-        : scope === PostScope.LOCAL
-          ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
-          : {}),
-      ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
-      ...buildPostSearchWhere(trimmedQuery, resolvedSearchIn),
-    },
-    select: {
-      title: true,
-      author: {
-        select: {
-          nickname: true,
-          name: true,
+
+  const runSuggestions = async () =>
+    prisma.post.findMany({
+      where: {
+        status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+        ...(type
+          ? (() => {
+              const equivalentTypes = getEquivalentPostTypes(type);
+              return equivalentTypes.length === 1
+                ? { type: equivalentTypes[0] }
+                : { type: { in: equivalentTypes } };
+            })()
+          : normalizedExcludeTypes.length > 0
+            ? { type: { notIn: normalizedExcludeTypes } }
+            : {}),
+        scope,
+        ...(scope === PostScope.LOCAL && neighborhoodId
+          ? { neighborhoodId }
+          : scope === PostScope.LOCAL
+            ? { neighborhoodId: "__NO_NEIGHBORHOOD__" }
+            : {}),
+        ...(hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {}),
+        ...buildPostSearchWhere(trimmedQuery, resolvedSearchIn),
+      },
+      select: {
+        title: true,
+        author: {
+          select: {
+            nickname: true,
+            name: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: Math.min(Math.max(limit * 3, limit), 30),
-  });
+      orderBy: { createdAt: "desc" },
+      take: Math.min(Math.max(limit * 3, limit), 30),
+    });
+
+  const shouldCache = true;
+  const rows = shouldCache
+    ? await withQueryCache({
+        key: await createQueryCacheKey("suggest", {
+          scope,
+          type: type ?? "ALL",
+          q: trimmedQuery,
+          searchIn: resolvedSearchIn,
+          excludeTypes: normalizedExcludeTypes,
+          limit,
+          neighborhoodId: neighborhoodId ?? "",
+          viewerId: viewerId ?? "guest",
+          hiddenAuthorIds,
+        }),
+        ttlSeconds: 60,
+        fetcher: runSuggestions,
+      })
+    : await runSuggestions();
 
   const lowerQuery = trimmedQuery.toLowerCase();
   const suggestions: string[] = [];

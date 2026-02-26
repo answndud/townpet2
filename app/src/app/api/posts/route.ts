@@ -6,6 +6,7 @@ import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { postListSchema } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
 import { getCurrentUser } from "@/server/auth";
+import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   getGuestPostPolicy,
@@ -88,7 +89,16 @@ export async function GET(request: NextRequest) {
       viewerId: currentUser?.id,
       personalized: parsed.data.personalized && Boolean(currentUser?.id),
     });
-    return jsonOk(data);
+    const canCache =
+      !currentUser &&
+      scope === PostScope.GLOBAL &&
+      !parsed.data.cursor &&
+      !parsed.data.personalized;
+    return jsonOk(data, {
+      headers: {
+        "cache-control": canCache ? buildCacheControlHeader(30, 300) : "no-store",
+      },
+    });
   } catch (error) {
     if (error instanceof ServiceError) {
       return jsonError(error.status, {

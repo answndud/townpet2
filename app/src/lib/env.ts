@@ -12,6 +12,7 @@ const runtimeEnvSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  QUERY_CACHE_ENABLED: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
   HEALTH_INTERNAL_TOKEN: z.string().optional(),
@@ -36,6 +37,21 @@ function splitCsv(value?: string) {
 
 const authSecret = parsed.AUTH_SECRET ?? parsed.NEXTAUTH_SECRET ?? "";
 
+function parseBoolean(value: string | undefined, fallback: boolean) {
+  if (!value) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "1" || normalized === "true" || normalized === "yes") {
+    return true;
+  }
+  if (normalized === "0" || normalized === "false" || normalized === "no") {
+    return false;
+  }
+  return fallback;
+}
+
 export const runtimeEnv = {
   nodeEnv: parsed.NODE_ENV,
   databaseUrl: parsed.DATABASE_URL ?? "",
@@ -48,6 +64,7 @@ export const runtimeEnv = {
   upstashRedisRestUrl: parsed.UPSTASH_REDIS_REST_URL ?? "",
   upstashRedisRestToken: parsed.UPSTASH_REDIS_REST_TOKEN ?? "",
   blobReadWriteToken: parsed.BLOB_READ_WRITE_TOKEN ?? "",
+  queryCacheEnabled: parseBoolean(parsed.QUERY_CACHE_ENABLED, true),
   sentryDsn: parsed.SENTRY_DSN ?? "",
   corsOrigin: parsed.CORS_ORIGIN ?? "",
   healthInternalToken: parsed.HEALTH_INTERNAL_TOKEN ?? "",

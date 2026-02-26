@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { reportCreateSchema } from "@/lib/validations/report";
 import { reportBulkActionSchema } from "@/lib/validations/report-bulk";
 import { reportUpdateSchema } from "@/lib/validations/report-update";
+import {
+  bumpFeedCacheVersion,
+  bumpSearchCacheVersion,
+  bumpSuggestCacheVersion,
+} from "@/server/cache/query-cache";
 import { hasBlockingRelation } from "@/server/queries/user-relation.queries";
 import {
   formatSanctionLevelLabel,
@@ -68,7 +73,8 @@ export async function createReport({ reporterId, input }: CreateReportParams) {
     throw new ServiceError("이미 신고한 대상입니다.", "DUPLICATE_REPORT", 409);
   }
 
-  return prisma.$transaction(async (tx) => {
+  let shouldBumpCache = false;
+  const report = await prisma.$transaction(async (tx) => {
     const targetUserId = await resolveReportTargetUserId(
       tx,
       parsed.data.targetType,
@@ -114,11 +120,18 @@ export async function createReport({ reporterId, input }: CreateReportParams) {
           where: { id: parsed.data.targetId },
           data: { status: PostStatus.HIDDEN },
         });
+        shouldBumpCache = true;
       }
     }
 
     return report;
   });
+  if (shouldBumpCache) {
+    void bumpFeedCacheVersion().catch(() => undefined);
+    void bumpSearchCacheVersion().catch(() => undefined);
+    void bumpSuggestCacheVersion().catch(() => undefined);
+  }
+  return report;
 }
 
 type UpdateReportParams = {
@@ -137,6 +150,7 @@ export async function updateReport({
     throw new ServiceError("처리 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
+  let shouldBumpCache = false;
   const transactionResult = await prisma.$transaction(async (tx) => {
     const report = await tx.report.findUnique({
       where: { id: reportId },
@@ -176,6 +190,7 @@ export async function updateReport({
           where: { id: report.targetId },
           data: { status: PostStatus.ACTIVE },
         });
+        shouldBumpCache = true;
       }
     }
 
@@ -223,6 +238,12 @@ export async function updateReport({
     }
   }
 
+  if (shouldBumpCache) {
+    void bumpFeedCacheVersion().catch(() => undefined);
+    void bumpSearchCacheVersion().catch(() => undefined);
+    void bumpSuggestCacheVersion().catch(() => undefined);
+  }
+
   return transactionResult.updated;
 }
 
@@ -238,8 +259,8 @@ export async function bulkUpdateReports({ input, moderatorId }: BulkUpdateReport
   }
 
   const { reportIds, action, resolution } = parsed.data;
-
-  return prisma.$transaction(async (tx) => {
+  let shouldBumpCache = false;
+  const result = await prisma.$transaction(async (tx) => {
     const reports = await tx.report.findMany({
       where: { id: { in: reportIds } },
       select: { id: true, targetType: true, targetId: true },
@@ -306,8 +327,19 @@ export async function bulkUpdateReports({ input, moderatorId }: BulkUpdateReport
           data: { status: PostStatus.ACTIVE },
         });
       }
+
+      if (action === "HIDE_POST" || action === "UNHIDE_POST" || action === "DISMISS") {
+        shouldBumpCache = true;
+      }
     }
 
     return { count: reports.length, status };
   });
+
+  if (shouldBumpCache) {
+    void bumpFeedCacheVersion().catch(() => undefined);
+    void bumpSearchCacheVersion().catch(() => undefined);
+    void bumpSuggestCacheVersion().catch(() => undefined);
+  }
+  return result;
 }

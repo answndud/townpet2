@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
+import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listPostSearchSuggestions } from "@/server/queries/post.queries";
@@ -80,8 +81,15 @@ export async function GET(request: NextRequest) {
       neighborhoodId,
       viewerId: currentUser?.id,
     });
-
-    return jsonOk({ items });
+    const canCache = !currentUser && scope === PostScope.GLOBAL;
+    return jsonOk(
+      { items },
+      {
+        headers: {
+          "cache-control": canCache ? buildCacheControlHeader(60, 600) : "no-store",
+        },
+      },
+    );
   } catch (error) {
     await monitorUnhandledError(error, { route: "GET /api/posts/suggestions", request });
     return jsonError(500, {

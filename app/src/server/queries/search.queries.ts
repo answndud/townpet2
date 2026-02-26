@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/server/logger";
+import { bumpPopularCacheVersion, createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 
 type SearchTermStatRecord = {
   termDisplay: string;
@@ -57,15 +58,22 @@ export async function getPopularSearchTerms(limit = 8) {
     return [] as string[];
   }
 
-  const rows = await statsDelegate.findMany({
-    take: safeLimit,
-    orderBy: [{ count: "desc" }, { updatedAt: "desc" }],
-    select: { termDisplay: true },
-  });
+  const cacheKey = await createQueryCacheKey("popular", { limit: safeLimit });
+  return withQueryCache({
+    key: cacheKey,
+    ttlSeconds: 300,
+    fetcher: async () => {
+      const rows = await statsDelegate.findMany({
+        take: safeLimit,
+        orderBy: [{ count: "desc" }, { updatedAt: "desc" }],
+        select: { termDisplay: true },
+      });
 
-  return rows
-    .map((row) => normalizeTerm(row.termDisplay))
-    .filter((term): term is string => Boolean(term));
+      return rows
+        .map((row) => normalizeTerm(row.termDisplay))
+        .filter((term): term is string => Boolean(term));
+    },
+  });
 }
 
 export async function recordSearchTerm(rawTerm: string) {
@@ -92,6 +100,8 @@ export async function recordSearchTerm(rawTerm: string) {
       count: 1,
     },
   });
+
+  void bumpPopularCacheVersion().catch(() => undefined);
 
   return { ok: true } as const;
 }

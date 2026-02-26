@@ -16,6 +16,11 @@ import {
   postUpdateSchema,
   walkRouteSchema,
 } from "@/lib/validations/post";
+import {
+  bumpFeedCacheVersion,
+  bumpSearchCacheVersion,
+  bumpSuggestCacheVersion,
+} from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
 import {
   getForbiddenKeywords,
@@ -86,6 +91,12 @@ const normalizeAnimalTags = (animalTags: string[] | undefined) =>
         .filter((tag) => tag.length > 0),
     ),
   ).slice(0, 5);
+
+const notifyPostCacheChange = () => {
+  void bumpFeedCacheVersion().catch(() => undefined);
+  void bumpSearchCacheVersion().catch(() => undefined);
+  void bumpSuggestCacheVersion().catch(() => undefined);
+};
 
 const buildImageCreateInput = (imageUrls: string[]) =>
   imageUrls.map((url, index) => ({
@@ -516,7 +527,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
 
     const shouldCreateReview = hasAnyValue(reviewInput.data);
 
-    return prisma.post.create({
+    const created = await prisma.post.create({
       data: {
         ...commonCreateData,
         ...(shouldCreateReview
@@ -548,6 +559,8 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    notifyPostCacheChange();
+    return created;
   }
 
   if (postData.type === "PLACE_REVIEW") {
@@ -558,7 +571,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
 
     const shouldCreateReview = hasAnyValue(reviewInput.data);
 
-    return prisma.post.create({
+    const created = await prisma.post.create({
       data: {
         ...commonCreateData,
         ...(shouldCreateReview
@@ -599,6 +612,8 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    notifyPostCacheChange();
+    return created;
   }
 
   if (postData.type === "WALK_ROUTE") {
@@ -609,7 +624,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
 
     const shouldCreateReview = hasAnyValue(routeInput.data);
 
-    return prisma.post.create({
+    const created = await prisma.post.create({
       data: {
         ...commonCreateData,
         ...(shouldCreateReview
@@ -664,9 +679,11 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    notifyPostCacheChange();
+    return created;
   }
 
-  return prisma.post.create({
+  const created = await prisma.post.create({
     data: {
       ...commonCreateData,
     },
@@ -710,6 +727,8 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       },
     },
   });
+  notifyPostCacheChange();
+  return created;
 }
 
 type UpdatePostParams = {
@@ -789,7 +808,7 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
     throw new ServiceError("수정 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  return prisma.post.update({
+  const updated = await prisma.post.update({
     where: { id: postId },
     data: {
       ...postData,
@@ -844,6 +863,8 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
       },
     },
   });
+  notifyPostCacheChange();
+  return updated;
 }
 
 type DeletePostParams = {
@@ -865,11 +886,13 @@ export async function deletePost({ postId, authorId }: DeletePostParams) {
     throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  return prisma.post.update({
+  const deleted = await prisma.post.update({
     where: { id: postId },
     data: { status: PostStatus.DELETED },
     select: { id: true, status: true },
   });
+  notifyPostCacheChange();
+  return deleted;
 }
 
 type UpdateGuestPostParams = {
@@ -1022,7 +1045,7 @@ export async function updateGuestPost({
 
   const { imageUrls, ...restData } = postData;
 
-  return prisma.post.update({
+  const updated = await prisma.post.update({
     where: { id: postId },
     data: {
       ...restData,
@@ -1077,6 +1100,8 @@ export async function updateGuestPost({
       },
     },
   });
+  notifyPostCacheChange();
+  return updated;
 }
 
 type DeleteGuestPostParams = {
@@ -1150,11 +1175,13 @@ export async function deleteGuestPost({
     throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
   }
 
-  return prisma.post.update({
+  const deleted = await prisma.post.update({
     where: { id: postId },
     data: { status: PostStatus.DELETED },
     select: { id: true, status: true },
   });
+  notifyPostCacheChange();
+  return deleted;
 }
 
 type TogglePostReactionParams = {
@@ -1382,6 +1409,8 @@ export async function togglePostReaction({
       });
     }
   }
+
+  void bumpFeedCacheVersion().catch(() => undefined);
 
   return result;
 }

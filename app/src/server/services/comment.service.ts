@@ -5,6 +5,7 @@ import { moderateContactContent } from "@/lib/contact-policy";
 import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { commentCreateSchema, commentUpdateSchema } from "@/lib/validations/comment";
+import { bumpFeedCacheVersion } from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
 import {
   getForbiddenKeywords,
@@ -254,6 +255,8 @@ export async function createComment({
     }
   }
 
+  void bumpFeedCacheVersion().catch(() => undefined);
+
   return transactionResult.comment;
 }
 
@@ -354,7 +357,7 @@ type DeleteCommentParams = {
 };
 
 export async function deleteComment({ commentId, authorId }: DeleteCommentParams) {
-  return prisma.$transaction(async (tx) => {
+  const deleted = await prisma.$transaction(async (tx) => {
     const comment = await tx.comment.findUnique({
       where: { id: commentId },
       select: { id: true, authorId: true, status: true, postId: true },
@@ -392,6 +395,8 @@ export async function deleteComment({ commentId, authorId }: DeleteCommentParams
 
     return deleted;
   });
+  void bumpFeedCacheVersion().catch(() => undefined);
+  return deleted;
 }
 
 type UpdateGuestCommentParams = {
@@ -612,7 +617,7 @@ export async function deleteGuestComment({
     throw new ServiceError("답글이 있으면 삭제할 수 없습니다.", "HAS_REPLIES", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const deleted = await prisma.$transaction(async (tx) => {
     const deleted = await tx.comment.update({
       where: { id: commentId },
       data: { status: PostStatus.DELETED },
@@ -626,6 +631,8 @@ export async function deleteGuestComment({
 
     return deleted;
   });
+  void bumpFeedCacheVersion().catch(() => undefined);
+  return deleted;
 }
 
 type ToggleCommentReactionParams = {
