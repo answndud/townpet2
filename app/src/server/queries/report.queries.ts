@@ -111,8 +111,11 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
   }));
 
   const resolutionDurations = resolvedReports
-    .filter((report) => report.resolvedAt)
-    .map((report) => report.resolvedAt!.getTime() - report.createdAt.getTime())
+    .flatMap((report) =>
+      report.resolvedAt
+        ? [report.resolvedAt.getTime() - report.createdAt.getTime()]
+        : [],
+    )
     .filter((value) => value >= 0);
 
   const averageResolutionHours =

@@ -23,3 +23,33 @@ export async function getOrCreateGuestSystemUserId() {
 
   return created.id;
 }
+
+type CreateGuestAuthorParams = {
+  displayName: string;
+  passwordHash: string;
+  ipHash: string;
+  fingerprintHash: string | null;
+  ipDisplay: string | null;
+  ipLabel: string | null;
+};
+
+export async function createGuestAuthor({
+  displayName,
+  passwordHash,
+  ipHash,
+  fingerprintHash,
+  ipDisplay,
+  ipLabel,
+}: CreateGuestAuthorParams) {
+  return prisma.guestAuthor.create({
+    data: {
+      displayName,
+      passwordHash,
+      ipHash,
+      fingerprintHash,
+      ipDisplay,
+      ipLabel,
+    },
+    select: { id: true },
+  });
+}

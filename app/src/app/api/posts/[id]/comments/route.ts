@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 
 import { buildGuestIpMeta } from "@/lib/guest-ip-display";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
@@ -12,7 +11,10 @@ import {
   createComment,
   hashGuestCommentPassword,
 } from "@/server/services/comment.service";
-import { getOrCreateGuestSystemUserId } from "@/server/services/guest-author.service";
+import {
+  createGuestAuthor,
+  getOrCreateGuestSystemUserId,
+} from "@/server/services/guest-author.service";
 import { hashGuestIdentity } from "@/server/services/guest-safety.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -75,16 +77,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
     const guestPasswordHash = hashGuestCommentPassword(guestPassword);
     const guestSystemUserId = await getOrCreateGuestSystemUserId();
-    const guestAuthor = await prisma.guestAuthor.create({
-      data: {
-        displayName: guestDisplayName,
-        passwordHash: guestPasswordHash,
-        ipHash,
-        fingerprintHash,
-        ipDisplay: guestIpMeta.guestIpDisplay,
-        ipLabel: guestIpMeta.guestIpLabel,
-      },
-      select: { id: true },
+    const guestAuthor = await createGuestAuthor({
+      displayName: guestDisplayName,
+      passwordHash: guestPasswordHash,
+      ipHash,
+      fingerprintHash,
+      ipDisplay: guestIpMeta.guestIpDisplay,
+      ipLabel: guestIpMeta.guestIpLabel,
     });
 
     const comment = await createComment({

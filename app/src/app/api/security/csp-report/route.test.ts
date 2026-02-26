@@ -64,9 +64,11 @@ describe("POST /api/security/csp-report contract", () => {
     expect(mockLoggerWarn).toHaveBeenCalledWith(
       "CSP violation report",
       expect.objectContaining({
-        clientIp: "127.0.0.1",
+        clientIp: "127.0.0.0",
         report: expect.objectContaining({
           violatedDirective: "script-src",
+          documentUri: "https://townpet.dev/feed",
+          blockedUri: "https://evil.example/script.js",
         }),
       }),
     );

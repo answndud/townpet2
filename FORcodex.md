@@ -157,7 +157,7 @@ A cycle is done when:
 - it has at least one failure-path test
 - it has monitoring hooks
 - it has rollback notes
-- it is reflected in `docs/plan/todo.md`
+- it is reflected in `PLAN.md`
 
 If one of those is missing, it is work-in-progress.
 

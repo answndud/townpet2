@@ -2,7 +2,9 @@ import { NextRequest } from "next/server";
 
 import { getCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
+import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
+import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 import {
   deleteComment,
@@ -23,13 +25,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const guestPassword = typeof body.guestPassword === "string" ? body.guestPassword.trim() : "";
 
     if (guestPassword) {
+      const clientIp = getClientIp(request);
+      const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
+      const guestRateKey = `comments:guest-update:ip:${clientIp}:fp:${guestFingerprint ?? "none"}`;
+      const guestPostPolicy = await getGuestPostPolicy();
+      await enforceRateLimit({
+        key: `${guestRateKey}:10m`,
+        limit: Math.max(5, guestPostPolicy.postRateLimit10m),
+        windowMs: 10 * 60_000,
+      });
+      await enforceRateLimit({
+        key: `${guestRateKey}:1h`,
+        limit: guestPostPolicy.postRateLimit1h,
+        windowMs: 60 * 60_000,
+      });
+
       const updated = await updateGuestComment({
         commentId,
         input: { content: body.content },
         guestPassword,
         guestIdentity: {
-          ip: getClientIp(request),
-          fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
+          ip: clientIp,
+          fingerprint: guestFingerprint,
         },
       });
 
@@ -49,24 +66,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return jsonOk(updated);
     }
 
-    if (!guestPassword) {
-      return jsonError(400, {
-        code: "GUEST_PASSWORD_REQUIRED",
-        message: "비회원 댓글 수정에는 비밀번호가 필요합니다.",
-      });
-    }
-
-    const updated = await updateGuestComment({
-      commentId,
-      input: { content: body.content },
-      guestPassword,
-      guestIdentity: {
-        ip: getClientIp(request),
-        fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
-      },
+    return jsonError(400, {
+      code: "GUEST_PASSWORD_REQUIRED",
+      message: "비회원 댓글 수정에는 비밀번호가 필요합니다.",
     });
-
-    return jsonOk(updated);
   } catch (error) {
     if (error instanceof ServiceError) {
       return jsonError(error.status, {
@@ -98,12 +101,27 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     if (guestPassword) {
+      const clientIp = getClientIp(request);
+      const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
+      const guestRateKey = `comments:guest-delete:ip:${clientIp}:fp:${guestFingerprint ?? "none"}`;
+      const guestPostPolicy = await getGuestPostPolicy();
+      await enforceRateLimit({
+        key: `${guestRateKey}:10m`,
+        limit: Math.max(5, guestPostPolicy.postRateLimit10m),
+        windowMs: 10 * 60_000,
+      });
+      await enforceRateLimit({
+        key: `${guestRateKey}:1h`,
+        limit: guestPostPolicy.postRateLimit1h,
+        windowMs: 60 * 60_000,
+      });
+
       const deleted = await deleteGuestComment({
         commentId,
         guestPassword,
         guestIdentity: {
-          ip: getClientIp(request),
-          fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
+          ip: clientIp,
+          fingerprint: guestFingerprint,
         },
       });
 
@@ -119,23 +137,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return jsonOk(deleted);
     }
 
-    if (!guestPassword) {
-      return jsonError(400, {
-        code: "GUEST_PASSWORD_REQUIRED",
-        message: "비회원 댓글 삭제에는 비밀번호가 필요합니다.",
-      });
-    }
-
-    const deleted = await deleteGuestComment({
-      commentId,
-      guestPassword,
-      guestIdentity: {
-        ip: getClientIp(request),
-        fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
-      },
+    return jsonError(400, {
+      code: "GUEST_PASSWORD_REQUIRED",
+      message: "비회원 댓글 삭제에는 비밀번호가 필요합니다.",
     });
-
-    return jsonOk(deleted);
   } catch (error) {
     if (error instanceof ServiceError) {
       return jsonError(error.status, {

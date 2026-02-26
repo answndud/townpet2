@@ -170,6 +170,7 @@ export async function listPublicUserPosts({
       where: {
         authorId: userId,
         status: "ACTIVE",
+        scope: "GLOBAL",
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: safeLimit + 1,
@@ -217,6 +218,7 @@ export async function listPublicUserComments({
         status: "ACTIVE",
         post: {
           status: "ACTIVE",
+          scope: "GLOBAL",
         },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -265,6 +267,7 @@ export async function listPublicUserReactions({
         userId,
         post: {
           status: "ACTIVE",
+          scope: "GLOBAL",
         },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],

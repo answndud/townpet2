@@ -36,6 +36,43 @@ function safeString(value: unknown) {
   return value.slice(0, 512);
 }
 
+function sanitizeUrl(value: unknown) {
+  const raw = safeString(value);
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    const withoutHash = raw.split("#")[0];
+    return withoutHash.split("?")[0];
+  }
+}
+
+function maskClientIp(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.includes(".")) {
+    const parts = value.split(".");
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+    }
+  }
+
+  if (value.includes(":")) {
+    const parts = value.split(":").filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts.slice(0, 2).join(":")}::`;
+    }
+  }
+
+  return value;
+}
+
 function sanitizeCspReport(body: unknown) {
   const payload =
     body && typeof body === "object" && "csp-report" in body
@@ -45,12 +82,12 @@ function sanitizeCspReport(body: unknown) {
   const report = (payload ?? {}) as CspReportBody;
 
   return {
-    documentUri: safeString(report["document-uri"]),
+    documentUri: sanitizeUrl(report["document-uri"]),
     violatedDirective: safeString(report["violated-directive"]),
     effectiveDirective: safeString(report["effective-directive"]),
     disposition: safeString(report.disposition),
-    blockedUri: safeString(report["blocked-uri"]),
-    sourceFile: safeString(report["source-file"]),
+    blockedUri: sanitizeUrl(report["blocked-uri"]),
+    sourceFile: sanitizeUrl(report["source-file"]),
     lineNumber:
       typeof report["line-number"] === "number" ? report["line-number"] : undefined,
     columnNumber:
@@ -172,7 +209,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const clientIp = getClientIp(request);
+    const clientIp = maskClientIp(getClientIp(request));
     await enforceRateLimit({
       key: `security:csp-report:${clientIp}`,
       limit: 60,

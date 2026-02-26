@@ -1,11 +1,17 @@
 import { NextRequest } from "next/server";
+import { PostScope, PostStatus } from "@prisma/client";
 
 import { canGuestReadPost } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
-import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
+import {
+  getGuestPostPolicy,
+  getGuestReadLoginRequiredPostTypes,
+} from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
+import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { getClientIp } from "@/server/request-context";
+import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 import { ServiceError } from "@/server/services/service-error";
 import {
@@ -34,6 +40,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    if (post.status !== PostStatus.ACTIVE) {
+      return jsonError(404, {
+        code: "POST_NOT_FOUND",
+        message: "게시물을 찾을 수 없습니다.",
+      });
+    }
+
     if (
       !user &&
       !canGuestReadPost({
@@ -46,6 +59,34 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         code: "AUTH_REQUIRED",
         message: "이 게시글은 로그인 후 열람할 수 있습니다.",
       });
+    }
+
+    if (post.scope === PostScope.LOCAL) {
+      if (!user) {
+        return jsonError(401, {
+          code: "AUTH_REQUIRED",
+          message: "이 게시글은 로그인 후 열람할 수 있습니다.",
+        });
+      }
+
+      const userWithNeighborhoods = await getUserWithNeighborhoods(user.id);
+      const primaryNeighborhood = userWithNeighborhoods?.neighborhoods.find(
+        (item) => item.isPrimary,
+      );
+
+      if (!primaryNeighborhood) {
+        return jsonError(400, {
+          code: "NEIGHBORHOOD_REQUIRED",
+          message: "대표 동네를 설정해 주세요.",
+        });
+      }
+
+      if (post.neighborhood?.id !== primaryNeighborhood.neighborhood.id) {
+        return jsonError(403, {
+          code: "FORBIDDEN",
+          message: "다른 동네 게시글은 열람할 수 없습니다.",
+        });
+      }
     }
 
     const didCountView = await registerPostView({
@@ -98,13 +139,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    const clientIp = getClientIp(request);
+    const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
+    const guestRateKey = `posts:guest-update:ip:${clientIp}:fp:${guestFingerprint ?? "none"}`;
+    const guestPostPolicy = await getGuestPostPolicy();
+    await enforceRateLimit({
+      key: `${guestRateKey}:10m`,
+      limit: Math.max(5, guestPostPolicy.postRateLimit10m),
+      windowMs: 10 * 60_000,
+    });
+    await enforceRateLimit({
+      key: `${guestRateKey}:1h`,
+      limit: guestPostPolicy.postRateLimit1h,
+      windowMs: 60 * 60_000,
+    });
+
     const post = await updateGuestPost({
       postId: id,
       input: body,
       guestPassword,
       guestIdentity: {
-        ip: getClientIp(request),
-        fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
+        ip: clientIp,
+        fingerprint: guestFingerprint,
       },
     });
     return jsonOk(post);
@@ -152,12 +208,27 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    const clientIp = getClientIp(request);
+    const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
+    const guestRateKey = `posts:guest-delete:ip:${clientIp}:fp:${guestFingerprint ?? "none"}`;
+    const guestPostPolicy = await getGuestPostPolicy();
+    await enforceRateLimit({
+      key: `${guestRateKey}:10m`,
+      limit: Math.max(5, guestPostPolicy.postRateLimit10m),
+      windowMs: 10 * 60_000,
+    });
+    await enforceRateLimit({
+      key: `${guestRateKey}:1h`,
+      limit: guestPostPolicy.postRateLimit1h,
+      windowMs: 60 * 60_000,
+    });
+
     const result = await deleteGuestPost({
       postId: id,
       guestPassword,
       guestIdentity: {
-        ip: getClientIp(request),
-        fingerprint: request.headers.get("x-guest-fingerprint")?.trim() || undefined,
+        ip: clientIp,
+        fingerprint: guestFingerprint,
       },
     });
     return jsonOk(result);

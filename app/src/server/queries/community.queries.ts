@@ -131,7 +131,7 @@ export async function listCommonBoardPosts({
   const items = await prisma.post
     .findMany({
       where: {
-        status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+        status: PostStatus.ACTIVE,
         boardScope: "COMMON",
         commonBoardType,
         ...(trimmedTag ? { animalTags: { has: trimmedTag } } : {}),

@@ -436,23 +436,8 @@ function supportsPostReactionsField() {
     return postReactionsFieldSupport;
   }
 
-  const runtimeModels = (
-    prisma as unknown as {
-      _runtimeDataModel?: {
-        models?: Record<string, { fields?: Array<{ name: string }> }>;
-      };
-    }
-  )._runtimeDataModel?.models;
-
-  const postFields = runtimeModels?.Post?.fields;
-  if (!postFields || postFields.length === 0) {
-    // If runtime metadata is unavailable, keep current behavior and fall back via catch.
-    postReactionsFieldSupport = true;
-    return true;
-  }
-
-  postReactionsFieldSupport = postFields.some((field) => field.name === "reactions");
-  return postReactionsFieldSupport;
+  postReactionsFieldSupport = true;
+  return true;
 }
 
 function supportsPostGuestAuthorField() {
@@ -460,22 +445,8 @@ function supportsPostGuestAuthorField() {
     return postGuestAuthorFieldSupport;
   }
 
-  const runtimeModels = (
-    prisma as unknown as {
-      _runtimeDataModel?: {
-        models?: Record<string, { fields?: Array<{ name: string }> }>;
-      };
-    }
-  )._runtimeDataModel?.models;
-
-  const postFields = runtimeModels?.Post?.fields;
-  if (!postFields || postFields.length === 0) {
-    postGuestAuthorFieldSupport = true;
-    return true;
-  }
-
-  postGuestAuthorFieldSupport = postFields.some((field) => field.name === "guestAuthor");
-  return postGuestAuthorFieldSupport;
+  postGuestAuthorFieldSupport = true;
+  return true;
 }
 
 function withEmptyReactions<T extends Record<string, unknown>>(items: T[]) {
@@ -573,7 +544,7 @@ function buildPostListWhere({
     : null;
 
   return {
-    status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+    status: PostStatus.ACTIVE,
     ...(typeFilter
       ? {
           type:

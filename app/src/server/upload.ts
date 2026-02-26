@@ -76,6 +76,61 @@ function getFileExtension(mimeType: string) {
   return extension;
 }
 
+function hasJpegSignature(buffer: Buffer) {
+  return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+}
+
+function hasPngSignature(buffer: Buffer) {
+  return (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  );
+}
+
+function hasGifSignature(buffer: Buffer) {
+  return (
+    buffer.length >= 6 &&
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38 &&
+    (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+    buffer[5] === 0x61
+  );
+}
+
+function hasWebpSignature(buffer: Buffer) {
+  return (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  );
+}
+
+function validateImageSignature(mimeType: string, buffer: Buffer) {
+  const isValid =
+    mimeType === "image/jpeg"
+      ? hasJpegSignature(buffer)
+      : mimeType === "image/png"
+        ? hasPngSignature(buffer)
+        : mimeType === "image/gif"
+          ? hasGifSignature(buffer)
+          : mimeType === "image/webp"
+            ? hasWebpSignature(buffer)
+            : true;
+
+  if (!isValid) {
+    throw new ServiceError("이미지 파일 형식이 올바르지 않습니다.", "IMAGE_SIGNATURE_MISMATCH", 400);
+  }
+}
+
 export async function saveUploadedImage(file: File, options?: SaveUploadedImageOptions) {
   const extension = getFileExtension(file.type);
   const arrayBuffer = await file.arrayBuffer();
@@ -93,6 +148,8 @@ export async function saveUploadedImage(file: File, options?: SaveUploadedImageO
       400,
     );
   }
+
+  validateImageSignature(file.type, rawBuffer);
 
   const outputBuffer =
     file.type === "image/jpeg" && rawBuffer.byteLength >= EXIF_STRIP_MIN_BYTES

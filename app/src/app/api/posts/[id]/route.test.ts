@@ -6,8 +6,12 @@ import { getCurrentUser } from "@/server/auth";
 import { canGuestReadPost } from "@/lib/post-access";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostById } from "@/server/queries/post.queries";
-import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
+import {
+  getGuestPostPolicy,
+  getGuestReadLoginRequiredPostTypes,
+} from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
+import { enforceRateLimit } from "@/server/rate-limit";
 import { deleteGuestPost, updateGuestPost } from "@/server/services/post.service";
 
 vi.mock("@/server/auth", () => ({ getCurrentUser: vi.fn() }));
@@ -15,9 +19,11 @@ vi.mock("@/lib/post-access", () => ({ canGuestReadPost: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/post.queries", () => ({ getPostById: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({
+  getGuestPostPolicy: vi.fn(),
   getGuestReadLoginRequiredPostTypes: vi.fn(),
 }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
+vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
 vi.mock("@/server/services/post.service", () => ({
   deleteGuestPost: vi.fn(),
   deletePost: vi.fn(),
@@ -30,10 +36,12 @@ const mockGetCurrentUser = vi.mocked(getCurrentUser);
 const mockCanGuestReadPost = vi.mocked(canGuestReadPost);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetPostById = vi.mocked(getPostById);
+const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetGuestReadLoginRequiredPostTypes = vi.mocked(
   getGuestReadLoginRequiredPostTypes,
 );
 const mockGetClientIp = vi.mocked(getClientIp);
+const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
 const mockUpdateGuestPost = vi.mocked(updateGuestPost);
 const mockDeleteGuestPost = vi.mocked(deleteGuestPost);
 
@@ -43,15 +51,22 @@ describe("/api/posts/[id] contract", () => {
     mockCanGuestReadPost.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetPostById.mockReset();
+    mockGetGuestPostPolicy.mockReset();
     mockGetGuestReadLoginRequiredPostTypes.mockReset();
     mockGetClientIp.mockReset();
+    mockEnforceRateLimit.mockReset();
     mockUpdateGuestPost.mockReset();
     mockDeleteGuestPost.mockReset();
 
     mockGetCurrentUser.mockResolvedValue(null);
+    mockGetGuestPostPolicy.mockResolvedValue({
+      postRateLimit10m: 5,
+      postRateLimit1h: 10,
+    } as never);
     mockGetGuestReadLoginRequiredPostTypes.mockResolvedValue([]);
     mockCanGuestReadPost.mockReturnValue(true);
     mockGetClientIp.mockReturnValue("127.0.0.1");
+    mockEnforceRateLimit.mockResolvedValue();
   });
 
   it("returns POST_NOT_FOUND when post is missing", async () => {
