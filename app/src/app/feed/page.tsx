@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 import { PostScope, PostType } from "@prisma/client";
 
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
@@ -140,37 +141,76 @@ function isDatabaseUnavailableError(error: unknown) {
   return error instanceof Prisma.PrismaClientInitializationError;
 }
 
+const getGuestFeedContext = unstable_cache(
+  async () => {
+    const [loginRequiredTypes, popularSearchTerms, communities] = await Promise.all([
+      getGuestReadLoginRequiredPostTypes().catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return [];
+        }
+        throw error;
+      }),
+      getPopularSearchTerms(8).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return [];
+        }
+        throw error;
+      }),
+      listCommunities({ limit: 50 }).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return { items: [], nextCursor: null };
+        }
+        throw error;
+      }),
+    ]);
+
+    return {
+      loginRequiredTypes,
+      popularSearchTerms,
+      communities,
+    };
+  },
+  ["feed-guest-context"],
+  { revalidate: 60 },
+);
+
 export default async function Home({ searchParams }: HomePageProps) {
   const session = await auth();
   const userId = session?.user?.id;
-  const [user, loginRequiredTypes, popularSearchTerms, communities] = await Promise.all([
-    userId
-      ? getUserWithNeighborhoods(userId).catch((error) => {
+  const user = userId
+    ? await getUserWithNeighborhoods(userId).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return null;
+        }
+        throw error;
+      })
+    : null;
+  const { loginRequiredTypes, popularSearchTerms, communities } = user
+    ? await Promise.all([
+        getGuestReadLoginRequiredPostTypes().catch((error) => {
           if (isDatabaseUnavailableError(error)) {
-            return null;
+            return [];
           }
           throw error;
-        })
-      : Promise.resolve(null),
-    getGuestReadLoginRequiredPostTypes().catch((error) => {
-      if (isDatabaseUnavailableError(error)) {
-        return [];
-      }
-      throw error;
-    }),
-    getPopularSearchTerms(8).catch((error) => {
-      if (isDatabaseUnavailableError(error)) {
-        return [];
-      }
-      throw error;
-    }),
-    listCommunities({ limit: 50 }).catch((error) => {
-      if (isDatabaseUnavailableError(error)) {
-        return { items: [], nextCursor: null };
-      }
-      throw error;
-    }),
-  ]);
+        }),
+        getPopularSearchTerms(8).catch((error) => {
+          if (isDatabaseUnavailableError(error)) {
+            return [];
+          }
+          throw error;
+        }),
+        listCommunities({ limit: 50 }).catch((error) => {
+          if (isDatabaseUnavailableError(error)) {
+            return { items: [], nextCursor: null };
+          }
+          throw error;
+        }),
+      ]).then(([loginRequiredTypes, popularSearchTerms, communities]) => ({
+        loginRequiredTypes,
+        popularSearchTerms,
+        communities,
+      }))
+    : await getGuestFeedContext();
   const isAuthenticated = Boolean(user);
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 

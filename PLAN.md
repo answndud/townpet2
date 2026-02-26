@@ -49,6 +49,11 @@
 |---|---|---|---|---|---|
 | SSR 병렬화 + 정책/커뮤니티 캐시 + 검색 후보 축소 | Codex | P1 | `done` | feed/search SSR 직렬 await 제거, 정책/커뮤니티 캐시 적용, 검색 후보 상한 축소 | `app/src/app/feed/page.tsx`, `app/src/app/search/page.tsx`, `app/src/server/queries/policy.queries.ts`, `app/src/server/queries/community.queries.ts`, `app/src/server/queries/post.queries.ts` |
 
+### Cycle 71: 꼬리 지연 완화 2차 개선 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest 컨텍스트 캐시 + read rate-limit 캐시 | Codex | P1 | `done` | 비로그인 SSR 컨텍스트 캐시 + read rate-limit cacheMs 적용 | `app/src/app/feed/page.tsx`, `app/src/app/search/page.tsx`, `app/src/server/rate-limit.ts`, `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/suggestions/route.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

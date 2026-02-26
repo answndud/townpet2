@@ -8,11 +8,13 @@ type RateLimitState = {
 };
 
 const memoryStore = new Map<string, RateLimitState>();
+const recentAllowCache = new Map<string, number>();
 
 type RateLimitOptions = {
   key: string;
   limit: number;
   windowMs: number;
+  cacheMs?: number;
 };
 
 type UpstashPipelineCommand = Array<string | number>;
@@ -104,9 +106,20 @@ async function runUpstashPipeline(
 }
 
 export async function enforceRateLimit(options: RateLimitOptions) {
+  if (options.cacheMs && options.cacheMs > 0) {
+    const cachedAt = recentAllowCache.get(options.key);
+    const now = Date.now();
+    if (cachedAt && now - cachedAt < options.cacheMs) {
+      return;
+    }
+  }
+
   if (runtimeEnv.isUpstashConfigured) {
     try {
       await enforceUpstashRateLimit(options);
+      if (options.cacheMs && options.cacheMs > 0) {
+        recentAllowCache.set(options.key, Date.now());
+      }
       return;
     } catch (error) {
       if (error instanceof ServiceError) {
@@ -125,6 +138,9 @@ export async function enforceRateLimit(options: RateLimitOptions) {
   }
 
   enforceMemoryRateLimit(options);
+  if (options.cacheMs && options.cacheMs > 0) {
+    recentAllowCache.set(options.key, Date.now());
+  }
 }
 
 export async function checkRateLimitHealth() {

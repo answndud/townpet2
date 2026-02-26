@@ -139,3 +139,5 @@ API 응답에 `Cache-Control` 헤더를 추가해 Vercel CDN 캐시를 활용한
 - 커뮤니티 목록/게스트 읽기 정책 조회에 단기 캐시(TTL 60~120s) 적용.
 - 검색 후보군 상한을 축소해 p95 꼬리 지연 완화 시도.
 - 자동완성 요청에서 클라이언트 `no-store` 제거(Edge 캐시 활용).
+- guest 컨텍스트는 `unstable_cache`로 재사용(비로그인 SSR 비용 절감).
+- read rate-limit은 1초 이내 중복 호출을 메모리에서 스킵(Upstash RTT 감소).

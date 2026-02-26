@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
     const currentUser = await getCurrentUser();
     const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
     const rateKey = currentUser ? `feed:user:${currentUser.id}` : `feed:ip:${clientIp}`;
-    await enforceRateLimit({ key: rateKey, limit: 30, windowMs: 60_000 });
+    await enforceRateLimit({
+      key: rateKey,
+      limit: 30,
+      windowMs: 60_000,
+      cacheMs: 1_000,
+    });
     const { searchParams } = new URL(request.url);
     const parsed = postListSchema.safeParse({
       cursor: searchParams.get("cursor") ?? undefined,

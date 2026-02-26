@@ -44,7 +44,12 @@ export async function GET(request: NextRequest) {
     const rateKey = currentUser
       ? `feed-suggest:user:${currentUser.id}`
       : `feed-suggest:ip:${clientIp}`;
-    await enforceRateLimit({ key: rateKey, limit: 60, windowMs: 60_000 });
+    await enforceRateLimit({
+      key: rateKey,
+      limit: 60,
+      windowMs: 60_000,
+      cacheMs: 1_000,
+    });
 
     const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
     if (!currentUser && isLoginRequiredPostType(parsed.data.type, loginRequiredTypes)) {

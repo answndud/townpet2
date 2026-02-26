@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { PostScope, PostType } from "@prisma/client";
 
 import { HighlightText } from "@/components/content/highlight-text";
@@ -40,6 +41,22 @@ export const metadata: Metadata = {
   },
 };
 
+const getGuestSearchContext = unstable_cache(
+  async () => {
+    const [loginRequiredTypes, popularSearchTerms] = await Promise.all([
+      getGuestReadLoginRequiredPostTypes(),
+      getPopularSearchTerms(10),
+    ]);
+
+    return {
+      loginRequiredTypes,
+      popularSearchTerms,
+    };
+  },
+  ["search-guest-context"],
+  { revalidate: 60 },
+);
+
 function toFeedSearchIn(value?: string): FeedSearchIn {
   if (value === "TITLE" || value === "CONTENT" || value === "AUTHOR") {
     return value;
@@ -50,11 +67,16 @@ function toFeedSearchIn(value?: string): FeedSearchIn {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const session = await auth();
   const userId = session?.user?.id;
-  const [user, loginRequiredTypes, popularSearchTerms] = await Promise.all([
-    userId ? getUserWithNeighborhoods(userId) : Promise.resolve(null),
-    getGuestReadLoginRequiredPostTypes(),
-    getPopularSearchTerms(10),
-  ]);
+  const user = userId ? await getUserWithNeighborhoods(userId) : null;
+  const { loginRequiredTypes, popularSearchTerms } = user
+    ? await Promise.all([
+        getGuestReadLoginRequiredPostTypes(),
+        getPopularSearchTerms(10),
+      ]).then(([loginRequiredTypes, popularSearchTerms]) => ({
+        loginRequiredTypes,
+        popularSearchTerms,
+      }))
+    : await getGuestSearchContext();
   const isAuthenticated = Boolean(user);
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
