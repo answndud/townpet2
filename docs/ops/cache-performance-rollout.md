@@ -139,6 +139,11 @@ API 응답에 `Cache-Control` 헤더를 추가해 Vercel CDN 캐시를 활용한
   - api_posts: TTFB p50 238.6, p95 289.3 / total p50 243.1, p95 295.6
   - search: TTFB p50 459.9, p95 594.0 / total p50 463.4, p95 594.5
 
+### 2026-02-26 (Playwright feed scroll perf)
+- 보고서: `docs/plan/feed-scroll-performance-report.md`
+- 판정: PASS
+- 요약: p95 프레임 17.5ms, Jank 1.12%, 100ms+ 프레임 0회
+
 ### 전회 대비 변화(2026-02-24 baseline)
 - feed TTFB p50: 586.7ms -> 523.3ms (약 -10.8%)
 - api_posts TTFB p50: 591.0ms -> 535.4ms (약 -9.4%)

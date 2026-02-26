@@ -17,6 +17,18 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-26: Playwright feed scroll 성능 체크
+- 완료 내용
+- `e2e/feed-scroll-performance.spec.ts` 실행, PASS.
+- 보고서 생성: `docs/plan/feed-scroll-performance-report.md`
+- 변경 파일(핵심)
+- `docs/plan/feed-scroll-performance-report.md`
+- `docs/ops/cache-performance-rollout.md`
+- 검증 결과
+- Playwright 단일 테스트 PASS.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-26: 리전 정합/연결 경로 점검 체크리스트 작성
 - 완료 내용
 - Vercel/DB 리전 정합 및 DB 연결 경로 점검 체크리스트 문서화.
