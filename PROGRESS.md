@@ -17,6 +17,20 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-26: guest /feed CDN 캐시 배포 후 재측정
+- 완료 내용
+- `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 30회 재측정.
+- feed TTFB p50 472.1ms, p95 584.7ms.
+- api_posts TTFB p50 238.6ms, p95 289.3ms.
+- search TTFB p50 459.9ms, p95 594.0ms.
+- 결과 상세는 `docs/ops/cache-performance-rollout.md`에 업데이트.
+- 변경 파일(핵심)
+- `docs/ops/cache-performance-rollout.md`
+- 검증 결과
+- 배포 측정만 수행 (테스트 미실행).
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-26: 비로그인 피드 CDN 캐시 적용
 - 완료 내용
 - 미들웨어에서 비로그인 `/feed`에 CDN 캐시 헤더 추가(LOCAL/개인화 제외).
