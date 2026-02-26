@@ -147,6 +147,21 @@ function applyCorsHeaders(request: NextRequest, headers: Headers) {
   headers.set("vary", "Origin");
 }
 
+function appendVary(headers: Headers, value: string) {
+  const existing = headers.get("vary");
+  if (!existing) {
+    headers.set("vary", value);
+    return;
+  }
+
+  const parts = existing.split(",").map((part) => part.trim().toLowerCase());
+  if (parts.includes(value.toLowerCase())) {
+    return;
+  }
+
+  headers.set("vary", `${existing}, ${value}`);
+}
+
 export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const requestId = requestHeaders.get("x-request-id") ?? crypto.randomUUID();
@@ -163,6 +178,19 @@ export function middleware(request: NextRequest) {
 
     if (request.method === "OPTIONS") {
       return new NextResponse(null, { status: 204, headers: responseHeaders });
+    }
+  }
+
+  const isGuest = !request.cookies.get("townpet.session-token");
+  if (isGuest && request.method === "GET" && request.nextUrl.pathname === "/feed") {
+    const scope = request.nextUrl.searchParams.get("scope");
+    const personalized = request.nextUrl.searchParams.get("personalized");
+    if (scope !== "LOCAL" && personalized !== "1") {
+      responseHeaders.set(
+        "cache-control",
+        "public, s-maxage=60, stale-while-revalidate=300",
+      );
+      appendVary(responseHeaders, "Cookie");
     }
   }
 

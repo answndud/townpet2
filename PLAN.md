@@ -54,6 +54,11 @@
 |---|---|---|---|---|---|
 | guest 컨텍스트 캐시 + read rate-limit 캐시 | Codex | P1 | `done` | 비로그인 SSR 컨텍스트 캐시 + read rate-limit cacheMs 적용 | `app/src/app/feed/page.tsx`, `app/src/app/search/page.tsx`, `app/src/server/rate-limit.ts`, `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/suggestions/route.ts` |
 
+### Cycle 72: 비로그인 피드 CDN 캐시 분리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest /feed cache-control 분리 | Codex | P1 | `done` | 비로그인 /feed에 CDN 캐시 헤더 적용, LOCAL/개인화 제외 | `app/middleware.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
