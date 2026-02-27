@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 
+import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { canGuestReadPost } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
+import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
@@ -62,11 +64,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           isMutedByMe: false,
         };
 
-    return jsonOk({
-      post,
-      viewerId: user?.id ?? null,
-      relationState,
-    });
+    const renderedContentHtml = renderLiteMarkdown(post.content);
+    const renderedContentText = renderedContentHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return jsonOk(
+      {
+        post: {
+          ...post,
+          renderedContentHtml,
+          renderedContentText,
+        },
+        viewerId: user?.id ?? null,
+        relationState,
+      },
+      {
+        headers: {
+          "cache-control": user ? "no-store" : buildCacheControlHeader(30, 300),
+        },
+      },
+    );
   } catch (error) {
     await monitorUnhandledError(error, { route: "GET /api/posts/[id]/detail", request });
     return jsonError(500, {

@@ -17,6 +17,18 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 상세 API 마크다운 선계산 + 캐시 헤더
+- 완료 내용
+- 상세 API에서 markdown HTML/텍스트를 선계산해 클라이언트 렌더 비용을 절감.
+- 비로그인 상세 API 응답에 캐시 헤더 적용.
+- 변경 파일(핵심)
+- `app/src/app/api/posts/[id]/detail/route.ts`
+- `app/src/components/posts/post-detail-client.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 상세 클라이언트 훅 오류 수정
 - 완료 내용
 - PostDetailClient에서 조건부 hook(useMemo) 제거.

@@ -83,6 +83,8 @@ type PostDetailItem = {
     hasParkingLot?: boolean | null;
     safetyTags?: string[] | null;
   } | null;
+  renderedContentHtml?: string | null;
+  renderedContentText?: string | null;
 };
 
 const typeMeta: Record<PostType, { label: string; chipClass: string }> = {
@@ -306,11 +308,12 @@ export function PostDetailClient({ postId }: { postId: string }) {
   const safeLikeCount = Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0;
   const safeDislikeCount = Number.isFinite(post.dislikeCount) ? Number(post.dislikeCount) : 0;
   const safeCommentCount = Number.isFinite(post.commentCount) ? Number(post.commentCount) : 0;
-  const renderedContentHtml = renderLiteMarkdown(post.content);
-  const renderedContentText = renderedContentHtml
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const renderedContentHtml = post.renderedContentHtml?.trim()
+    ? post.renderedContentHtml
+    : renderLiteMarkdown(post.content);
+  const renderedContentText = post.renderedContentText?.trim()
+    ? post.renderedContentText
+    : renderedContentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const shouldUsePlainFallback =
     renderedContentText.length === 0 || renderedContentText.includes("미리보기 내용이 없습니다");
   const postUrl = toAbsoluteUrl(`/posts/${post.id}`);

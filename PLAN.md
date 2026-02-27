@@ -169,6 +169,11 @@
 |---|---|---|---|---|---|
 | useMemo 제거 | Codex | P1 | `done` | 조건부 hook 제거 | `app/src/components/posts/post-detail-client.tsx` |
 
+### Cycle 95: 상세 API 마크다운 선계산 + 캐시 헤더 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 상세 API 응답 최적화 | Codex | P1 | `done` | 상세 API에서 마크다운 HTML/텍스트를 선계산하고 guest 응답에 캐시 헤더를 적용 | `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
