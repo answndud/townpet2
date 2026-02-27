@@ -182,15 +182,41 @@ export function middleware(request: NextRequest) {
   }
 
   const isGuest = !request.cookies.get("townpet.session-token");
-  if (isGuest && request.method === "GET" && request.nextUrl.pathname === "/feed") {
-    const scope = request.nextUrl.searchParams.get("scope");
-    const personalized = request.nextUrl.searchParams.get("personalized");
-    if (scope !== "LOCAL" && personalized !== "1") {
-      responseHeaders.set(
-        "cache-control",
-        "public, s-maxage=60, stale-while-revalidate=300",
-      );
-      appendVary(responseHeaders, "Cookie");
+  if (isGuest && request.method === "GET") {
+    if (request.nextUrl.pathname === "/feed") {
+      const scope = request.nextUrl.searchParams.get("scope");
+      const personalized = request.nextUrl.searchParams.get("personalized");
+      if (scope !== "LOCAL" && personalized !== "1") {
+        responseHeaders.set(
+          "cache-control",
+          "public, s-maxage=60, stale-while-revalidate=300",
+        );
+        appendVary(responseHeaders, "Cookie");
+      }
+    }
+
+    if (request.nextUrl.pathname.startsWith("/posts/")) {
+      const segments = request.nextUrl.pathname.split("/").filter(Boolean);
+      const isDetailPage = segments.length === 2 && segments[0] === "posts";
+      if (isDetailPage) {
+        responseHeaders.set(
+          "cache-control",
+          "public, s-maxage=30, stale-while-revalidate=300",
+        );
+        appendVary(responseHeaders, "Cookie");
+      }
+    }
+
+    if (request.nextUrl.pathname === "/api/posts") {
+      const scope = request.nextUrl.searchParams.get("scope") ?? "GLOBAL";
+      const cursor = request.nextUrl.searchParams.get("cursor");
+      const personalized = request.nextUrl.searchParams.get("personalized");
+      if (scope !== "LOCAL" && !cursor && personalized !== "1") {
+        responseHeaders.set(
+          "cache-control",
+          "public, s-maxage=30, stale-while-revalidate=300",
+        );
+      }
     }
   }
 

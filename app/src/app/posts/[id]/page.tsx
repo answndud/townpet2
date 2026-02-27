@@ -265,9 +265,16 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
         throw error;
       })
     : null;
-
-  const [post, loginRequiredTypes] = await Promise.all([
-    getCachedPostById(resolvedParams.id, user?.id),
+  let post: Awaited<ReturnType<typeof getPostById>> | null = null;
+  let postLoadFailed = false;
+  const [postResult, loginRequiredTypes] = await Promise.all([
+    getCachedPostById(resolvedParams.id, user?.id).catch((error) => {
+      if (isDatabaseUnavailableError(error)) {
+        postLoadFailed = true;
+        return null;
+      }
+      throw error;
+    }),
     getGuestReadLoginRequiredPostTypes().catch((error) => {
       if (isDatabaseUnavailableError(error)) {
         return [];
@@ -275,6 +282,20 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
       throw error;
     }),
   ]);
+  post = postResult;
+
+  if (postLoadFailed) {
+    return (
+      <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">
+        <main className="mx-auto flex max-w-[1000px] flex-col gap-4 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+          <div className="rounded-sm border border-[#f0d3d3] bg-white p-6 text-center">
+            <h2 className="text-lg font-semibold text-[#153a6a]">게시글을 불러오지 못했습니다.</h2>
+            <p className="mt-2 text-sm text-[#5a7398]">잠시 후 다시 시도해 주세요.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!post) {
     notFound();

@@ -79,6 +79,11 @@
 |---|---|---|---|---|---|
 | 댓글/정책 조회 오류 fallback | Codex | P1 | `done` | 댓글 로딩 실패 시 페이지 오류 대신 fallback 렌더 | `app/src/app/posts/[id]/page.tsx` |
 
+### Cycle 77: 상세 페이지 guest 캐시 헤더 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest /posts 캐시 헤더 부여 | Codex | P1 | `done` | guest /posts/[id] CDN 캐시 헤더 적용 | `app/middleware.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
