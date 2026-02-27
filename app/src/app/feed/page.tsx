@@ -1182,6 +1182,7 @@ export default async function Home({ searchParams }: HomePageProps) {
               initialNextCursor={mode === "ALL" ? posts.nextCursor : null}
               mode={mode}
               disableLoadMore={mode !== "ALL"}
+              preferGuestDetail={!isAuthenticated}
                 query={{
                   type,
                   scope: effectiveScope,

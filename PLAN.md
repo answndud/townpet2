@@ -109,6 +109,11 @@
 |---|---|---|---|---|---|
 | guest /posts rewrite | Codex | P1 | `done` | 비로그인 상세 페이지를 정적 guest 페이지로 rewrite | `app/middleware.ts`, `app/src/app/posts/[id]/guest/page.tsx` |
 
+### Cycle 83: 게스트 상세 링크 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| feed/search 링크 업데이트 | Codex | P1 | `done` | 게스트는 /posts/[id]/guest로 이동 | `app/src/components/posts/feed-infinite-list.tsx`, `app/src/app/search/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

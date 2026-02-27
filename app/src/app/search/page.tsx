@@ -223,7 +223,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                     </div>
 
                     <Link
-                      href={`/posts/${post.id}`}
+                      href={
+                        isAuthenticated
+                          ? `/posts/${post.id}`
+                          : `/posts/${post.id}/guest`
+                      }
                       className="text-base font-semibold text-[#10284a] transition hover:text-[#2f5da4] sm:text-lg"
                     >
                       <HighlightText text={post.title} query={query} />

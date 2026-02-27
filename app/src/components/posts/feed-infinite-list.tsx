@@ -94,6 +94,7 @@ type FeedInfiniteListProps = {
   queryKey: string;
   disableLoadMore?: boolean;
   apiPath?: string;
+  preferGuestDetail?: boolean;
   adConfig?: {
     audienceKey: string;
     headline: string;
@@ -174,6 +175,7 @@ export function FeedInfiniteList({
   queryKey,
   disableLoadMore = false,
   apiPath = "/api/posts",
+  preferGuestDetail,
   adConfig,
 }: FeedInfiniteListProps) {
   const [items, setItems] = useState(initialItems);
@@ -542,7 +544,9 @@ export function FeedInfiniteList({
                   </div>
 
                   <Link
-                    href={`/posts/${post.id}`}
+                    href={
+                      preferGuestDetail ? `/posts/${post.id}/guest` : `/posts/${post.id}`
+                    }
                     prefetch={false}
                     className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition ${
                       readPostIds.has(post.id)
