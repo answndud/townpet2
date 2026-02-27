@@ -255,6 +255,33 @@ const WALK_ROUTE_SELECT = {
   safetyTags: true,
 } as const;
 
+type PostDetailExtras = {
+  hospitalReview: {
+    hospitalName: string | null;
+    totalCost: number | null;
+    waitTime: number | null;
+    rating: number | null;
+    treatmentType: string | null;
+  } | null;
+  placeReview: {
+    placeName: string | null;
+    placeType: string | null;
+    address: string | null;
+    isPetAllowed: boolean | null;
+    rating: number | null;
+  } | null;
+  walkRoute: {
+    routeName: string | null;
+    distance: number | null;
+    duration: number | null;
+    difficulty: string | null;
+    hasStreetLights: boolean | null;
+    hasRestroom: boolean | null;
+    hasParkingLot: boolean | null;
+    safetyTags: string[] | null;
+  } | null;
+};
+
 const buildPostDetailBaseInclude = (
   viewerId?: string,
   includeGuestAuthor = supportsPostGuestAuthorField(),
@@ -303,7 +330,7 @@ const buildPostDetailBaseIncludeWithoutReactions = (
 
 async function attachPostDetailExtras<T extends { id: string; type: PostType }>(
   post: T | null,
-) {
+): Promise<(T & PostDetailExtras) | null> {
   if (!post) {
     return null;
   }
@@ -312,11 +339,7 @@ async function attachPostDetailExtras<T extends { id: string; type: PostType }>(
   const needsPlace = post.type === PostType.PLACE_REVIEW;
   const needsWalk = post.type === PostType.WALK_ROUTE;
   const tasks: Array<Promise<void>> = [];
-  const target = post as T & {
-    hospitalReview?: unknown;
-    placeReview?: unknown;
-    walkRoute?: unknown;
-  };
+  const target = post as T & PostDetailExtras;
 
   if (needsHospital) {
     if (target.hospitalReview === undefined) {
@@ -364,7 +387,7 @@ async function attachPostDetailExtras<T extends { id: string; type: PostType }>(
     await Promise.all(tasks);
   }
 
-  return post;
+  return target;
 }
 
 const LEGACY_POST_BASE_SELECT = {

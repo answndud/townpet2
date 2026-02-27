@@ -194,6 +194,11 @@
 |---|---|---|---|---|---|
 | 타입별 상세 관계 조회 | Codex | P1 | `done` | 상세 조회에서 hospital/place/walk 관계를 타입에 따라 선택적으로 로드 | `app/src/server/queries/post.queries.ts` |
 
+### Cycle 100: 상세 타입 정합 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 상세 extras 타입 보강 | Codex | P1 | `done` | 상세 조회 결과 타입에 hospital/place/walk 필드가 포함되도록 타입 보강 | `app/src/server/queries/post.queries.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
