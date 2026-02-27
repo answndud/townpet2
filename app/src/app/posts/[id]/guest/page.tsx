@@ -20,6 +20,7 @@ import { getPostById, getPostMetadataById } from "@/server/queries/post.queries"
 
 export const revalidate = 30;
 export const dynamic = "force-static";
+export const fetchCache = "force-cache";
 
 type PostDetailPageProps = {
   params?: Promise<{ id?: string }>;

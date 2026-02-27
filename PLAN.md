@@ -119,6 +119,11 @@
 |---|---|---|---|---|---|
 | 캐시 TTL/헤더 보정 | Codex | P1 | `done` | guest 상세 CDN 캐시 헤더 적용 + 댓글 TTL 상향 | `app/middleware.ts`, `app/src/app/api/posts/[id]/comments/route.ts` |
 
+### Cycle 85: guest 상세 캐시 강제화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| fetchCache 적용 | Codex | P1 | `done` | guest 상세 fetchCache force-cache 적용 | `app/src/app/posts/[id]/guest/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
