@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PostType } from "@prisma/client";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
@@ -32,6 +33,11 @@ type PostDetailPageProps = {
 };
 
 const getCachedPostById = cache((id?: string, viewerId?: string) => getPostById(id, viewerId));
+const getGuestPostMetadata = unstable_cache(
+  (id?: string) => getPostMetadataById(id),
+  ["post-meta-guest"],
+  { revalidate: 30 },
+);
 
 function buildExcerpt(text: string, maxLength = 160) {
   const normalized = text.replace(/\s+/g, " ").trim();
@@ -58,7 +64,7 @@ export async function generateMetadata({
   params,
 }: PostDetailPageProps): Promise<Metadata> {
   const resolvedParams = (await params) ?? {};
-  const post = await getPostMetadataById(resolvedParams.id);
+  const post = await getGuestPostMetadata(resolvedParams.id);
   if (!post) {
     return {
       title: "게시글을 찾을 수 없습니다",

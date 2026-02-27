@@ -1,6 +1,7 @@
 import { PostStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.queries";
 
 const NO_VIEWER_ID = "__NO_VIEWER__";
@@ -53,21 +54,34 @@ export async function listComments(postId: string, viewerId?: string) {
     orderBy: { createdAt: "asc" as const },
   };
 
-  return prisma.comment
-    .findMany({
-      ...baseArgs,
-      select: buildCommentSelect(viewerId),
-    })
-    .catch(async (error) => {
-      if (!isUnknownGuestAuthorIncludeError(error)) {
-        throw error;
-      }
-
-      return prisma.comment.findMany({
+  const runListComments = async () =>
+    prisma.comment
+      .findMany({
         ...baseArgs,
-        select: buildCommentSelect(viewerId, false),
+        select: buildCommentSelect(viewerId),
+      })
+      .catch(async (error) => {
+        if (!isUnknownGuestAuthorIncludeError(error)) {
+          throw error;
+        }
+
+        return prisma.comment.findMany({
+          ...baseArgs,
+          select: buildCommentSelect(viewerId, false),
+        });
       });
+
+  const shouldCache = !viewerId && hiddenAuthorIds.length === 0;
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("post-comments", { postId });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 30,
+      fetcher: runListComments,
     });
+  }
+
+  return runListComments();
 }
 
 export async function getCommentById(commentId: string) {

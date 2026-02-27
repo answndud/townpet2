@@ -17,6 +17,24 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-26: 게시글 상세 guest 캐시 적용
+- 완료 내용
+- 게시글 상세/메타/댓글을 guest 경로에서 캐시(30s)로 전환.
+- 댓글/게시글/신고 변경 시 detail/comments 캐시 버전 갱신.
+- 변경 파일(핵심)
+- `app/src/server/queries/post.queries.ts`
+- `app/src/server/queries/comment.queries.ts`
+- `app/src/server/cache/query-cache.ts`
+- `app/src/server/services/post.service.ts`
+- `app/src/server/services/comment.service.ts`
+- `app/src/server/services/report.service.ts`
+- `app/src/app/posts/[id]/page.tsx`
+- `docs/ops/cache-performance-rollout.md`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-26: Playwright feed scroll 성능 체크
 - 완료 내용
 - `e2e/feed-scroll-performance.spec.ts` 실행, PASS.

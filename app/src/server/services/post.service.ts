@@ -18,6 +18,8 @@ import {
 } from "@/lib/validations/post";
 import {
   bumpFeedCacheVersion,
+  bumpPostCommentsCacheVersion,
+  bumpPostDetailCacheVersion,
   bumpSearchCacheVersion,
   bumpSuggestCacheVersion,
 } from "@/server/cache/query-cache";
@@ -96,6 +98,8 @@ const notifyPostCacheChange = () => {
   void bumpFeedCacheVersion().catch(() => undefined);
   void bumpSearchCacheVersion().catch(() => undefined);
   void bumpSuggestCacheVersion().catch(() => undefined);
+  void bumpPostDetailCacheVersion().catch(() => undefined);
+  void bumpPostCommentsCacheVersion().catch(() => undefined);
 };
 
 const buildImageCreateInput = (imageUrls: string[]) =>
@@ -1411,6 +1415,7 @@ export async function togglePostReaction({
   }
 
   void bumpFeedCacheVersion().catch(() => undefined);
+  void bumpPostDetailCacheVersion().catch(() => undefined);
 
   return result;
 }

@@ -5,7 +5,11 @@ import { moderateContactContent } from "@/lib/contact-policy";
 import { findMatchedForbiddenKeywords } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { commentCreateSchema, commentUpdateSchema } from "@/lib/validations/comment";
-import { bumpFeedCacheVersion } from "@/server/cache/query-cache";
+import {
+  bumpFeedCacheVersion,
+  bumpPostCommentsCacheVersion,
+  bumpPostDetailCacheVersion,
+} from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
 import {
   getForbiddenKeywords,
@@ -256,6 +260,8 @@ export async function createComment({
   }
 
   void bumpFeedCacheVersion().catch(() => undefined);
+  void bumpPostDetailCacheVersion().catch(() => undefined);
+  void bumpPostCommentsCacheVersion().catch(() => undefined);
 
   return transactionResult.comment;
 }
@@ -396,6 +402,8 @@ export async function deleteComment({ commentId, authorId }: DeleteCommentParams
     return deleted;
   });
   void bumpFeedCacheVersion().catch(() => undefined);
+  void bumpPostDetailCacheVersion().catch(() => undefined);
+  void bumpPostCommentsCacheVersion().catch(() => undefined);
   return deleted;
 }
 
@@ -632,6 +640,8 @@ export async function deleteGuestComment({
     return deleted;
   });
   void bumpFeedCacheVersion().catch(() => undefined);
+  void bumpPostDetailCacheVersion().catch(() => undefined);
+  void bumpPostCommentsCacheVersion().catch(() => undefined);
   return deleted;
 }
 

@@ -64,6 +64,11 @@
 |---|---|---|---|---|---|
 | 리전/풀링 체크리스트 작성 | Codex | P1 | `done` | 리전 정합/연결 경로 점검 체크리스트 문서화 | `docs/ops/region-latency-checklist.md` |
 
+### Cycle 74: 게시글 상세 guest 캐시 적용 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| post/detail/comments guest 캐시 | Codex | P1 | `done` | 게시글 상세/메타/댓글 캐시 적용 + 무효화 버전 갱신 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/comment.queries.ts`, `app/src/server/cache/query-cache.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

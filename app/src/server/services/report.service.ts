@@ -6,6 +6,7 @@ import { reportBulkActionSchema } from "@/lib/validations/report-bulk";
 import { reportUpdateSchema } from "@/lib/validations/report-update";
 import {
   bumpFeedCacheVersion,
+  bumpPostDetailCacheVersion,
   bumpSearchCacheVersion,
   bumpSuggestCacheVersion,
 } from "@/server/cache/query-cache";
@@ -130,6 +131,7 @@ export async function createReport({ reporterId, input }: CreateReportParams) {
     void bumpFeedCacheVersion().catch(() => undefined);
     void bumpSearchCacheVersion().catch(() => undefined);
     void bumpSuggestCacheVersion().catch(() => undefined);
+    void bumpPostDetailCacheVersion().catch(() => undefined);
   }
   return report;
 }
@@ -242,6 +244,7 @@ export async function updateReport({
     void bumpFeedCacheVersion().catch(() => undefined);
     void bumpSearchCacheVersion().catch(() => undefined);
     void bumpSuggestCacheVersion().catch(() => undefined);
+    void bumpPostDetailCacheVersion().catch(() => undefined);
   }
 
   return transactionResult.updated;
@@ -340,6 +343,7 @@ export async function bulkUpdateReports({ input, moderatorId }: BulkUpdateReport
     void bumpFeedCacheVersion().catch(() => undefined);
     void bumpSearchCacheVersion().catch(() => undefined);
     void bumpSuggestCacheVersion().catch(() => undefined);
+    void bumpPostDetailCacheVersion().catch(() => undefined);
   }
   return result;
 }

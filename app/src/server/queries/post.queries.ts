@@ -894,122 +894,149 @@ export async function getPostById(id?: string, viewerId?: string) {
   if (!id) {
     return null;
   }
-  const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const visibilityFilter =
-    hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
+  const shouldCache = !viewerId;
+  const runGetPost = async () => {
+    const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+    const visibilityFilter =
+      hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
 
-  if (!supportsPostReactionsField()) {
-    const post = await prisma.post
-      .findFirst({
-        where: { id, ...visibilityFilter },
-        include: buildPostDetailIncludeWithoutReactions(),
-      })
-      .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
-          throw error;
-        }
+    if (!supportsPostReactionsField()) {
+      const post = await prisma.post
+        .findFirst({
+          where: { id, ...visibilityFilter },
+          include: buildPostDetailIncludeWithoutReactions(),
+        })
+        .catch(async (error) => {
+          if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
+            throw error;
+          }
 
-        if (isUnknownGuestAuthorIncludeError(error)) {
+          if (isUnknownGuestAuthorIncludeError(error)) {
+            return prisma.post.findFirst({
+              where: { id, ...visibilityFilter },
+              include: buildPostDetailIncludeWithoutReactions(false),
+            });
+          }
+
           return prisma.post.findFirst({
             where: { id, ...visibilityFilter },
-            include: buildPostDetailIncludeWithoutReactions(false),
+            select: buildLegacyPostDetailSelectWithoutReactions(),
           });
-        }
-
-        return prisma.post.findFirst({
-          where: { id, ...visibilityFilter },
-          select: buildLegacyPostDetailSelectWithoutReactions(),
         });
-      });
-    return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
-  }
-
-  try {
-    return await prisma.post
-      .findFirst({
-        where: { id, ...visibilityFilter },
-        include: buildPostDetailInclude(viewerId),
-      })
-      .catch(async (error) => {
-        if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
-          throw error;
-        }
-
-        if (isUnknownGuestAuthorIncludeError(error)) {
-          return prisma.post.findFirst({
-            where: { id, ...visibilityFilter },
-            include: buildPostDetailInclude(viewerId, false),
-          });
-        }
-
-        const post = await prisma.post.findFirst({
-          where: { id, ...visibilityFilter },
-          select: buildLegacyPostDetailSelect(viewerId),
-        });
-        return withEmptyGuestPostMetaOne(post);
-      });
-  } catch (error) {
-    if (
-      !isUnknownReactionsIncludeError(error) &&
-      !isUnknownGuestPostColumnError(error) &&
-      !isUnknownGuestAuthorIncludeError(error)
-    ) {
-      throw error;
+      return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
     }
 
-    const post = await prisma.post
-      .findFirst({
-        where: { id, ...visibilityFilter },
-        include: buildPostDetailIncludeWithoutReactions(!isUnknownGuestAuthorIncludeError(error)),
-      })
-      .catch(async (innerError) => {
-        if (!isUnknownGuestPostColumnError(innerError) && !isUnknownGuestAuthorIncludeError(innerError)) {
-          throw innerError;
-        }
+    try {
+      return await prisma.post
+        .findFirst({
+          where: { id, ...visibilityFilter },
+          include: buildPostDetailInclude(viewerId),
+        })
+        .catch(async (error) => {
+          if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
+            throw error;
+          }
 
-        if (isUnknownGuestAuthorIncludeError(innerError)) {
+          if (isUnknownGuestAuthorIncludeError(error)) {
+            return prisma.post.findFirst({
+              where: { id, ...visibilityFilter },
+              include: buildPostDetailInclude(viewerId, false),
+            });
+          }
+
+          const post = await prisma.post.findFirst({
+            where: { id, ...visibilityFilter },
+            select: buildLegacyPostDetailSelect(viewerId),
+          });
+          return withEmptyGuestPostMetaOne(post);
+        });
+    } catch (error) {
+      if (
+        !isUnknownReactionsIncludeError(error) &&
+        !isUnknownGuestPostColumnError(error) &&
+        !isUnknownGuestAuthorIncludeError(error)
+      ) {
+        throw error;
+      }
+
+      const post = await prisma.post
+        .findFirst({
+          where: { id, ...visibilityFilter },
+          include: buildPostDetailIncludeWithoutReactions(!isUnknownGuestAuthorIncludeError(error)),
+        })
+        .catch(async (innerError) => {
+          if (!isUnknownGuestPostColumnError(innerError) && !isUnknownGuestAuthorIncludeError(innerError)) {
+            throw innerError;
+          }
+
+          if (isUnknownGuestAuthorIncludeError(innerError)) {
+            return prisma.post.findFirst({
+              where: { id, ...visibilityFilter },
+              include: buildPostDetailIncludeWithoutReactions(false),
+            });
+          }
+
           return prisma.post.findFirst({
             where: { id, ...visibilityFilter },
-            include: buildPostDetailIncludeWithoutReactions(false),
+            select: buildLegacyPostDetailSelectWithoutReactions(),
           });
-        }
-
-        return prisma.post.findFirst({
-          where: { id, ...visibilityFilter },
-          select: buildLegacyPostDetailSelectWithoutReactions(),
         });
-      });
-    return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
+      return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
+    }
+  };
+
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("post-detail", { id });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 30,
+      fetcher: runGetPost,
+    });
   }
+
+  return runGetPost();
 }
 
 export async function getPostMetadataById(id?: string, viewerId?: string) {
   if (!id) {
     return null;
   }
+  const shouldCache = !viewerId;
+  const runMetadata = async () => {
+    const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+    const visibilityFilter =
+      hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
 
-  const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
-  const visibilityFilter =
-    hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
-
-  return prisma.post.findFirst({
-    where: { id, ...visibilityFilter },
-    select: {
-      id: true,
-      type: true,
-      scope: true,
-      status: true,
-      title: true,
-      content: true,
-      createdAt: true,
-      updatedAt: true,
-      images: {
-        select: { url: true },
-        orderBy: { order: "asc" },
-        take: 1,
+    return prisma.post.findFirst({
+      where: { id, ...visibilityFilter },
+      select: {
+        id: true,
+        type: true,
+        scope: true,
+        status: true,
+        title: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+        images: {
+          select: { url: true },
+          orderBy: { order: "asc" },
+          take: 1,
+        },
       },
-    },
-  });
+    });
+  };
+
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("post-detail", { id, mode: "meta" });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 30,
+      fetcher: runMetadata,
+    });
+  }
+
+  return runMetadata();
 }
 
 export async function listPosts({

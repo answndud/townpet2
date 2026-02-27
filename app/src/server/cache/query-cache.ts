@@ -253,3 +253,11 @@ export async function bumpSuggestCacheVersion() {
 export async function bumpPopularCacheVersion() {
   return bumpCacheVersion("popular");
 }
+
+export async function bumpPostDetailCacheVersion() {
+  return bumpCacheVersion("post-detail");
+}
+
+export async function bumpPostCommentsCacheVersion() {
+  return bumpCacheVersion("post-comments");
+}
