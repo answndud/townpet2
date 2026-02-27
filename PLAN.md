@@ -134,6 +134,11 @@
 |---|---|---|---|---|---|
 | feed 상단 prefetch | Codex | P1 | `done` | 게스트 피드 상위 3개 상세 프리페치 | `app/src/components/posts/feed-infinite-list.tsx` |
 
+### Cycle 88: 상세 페이지 API 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| client detail loader | Codex | P1 | `done` | 상세 페이지를 API 기반 클라이언트 로딩으로 전환 | `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

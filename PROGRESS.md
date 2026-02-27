@@ -17,6 +17,18 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 상세 페이지 API 전환
+- 완료 내용
+- 상세 페이지 본문을 API/클라이언트 로딩으로 전환해 SSR 병목 제거.
+- 변경 파일(핵심)
+- `app/src/app/api/posts/[id]/detail/route.ts`
+- `app/src/components/posts/post-detail-client.tsx`
+- `app/src/app/posts/[id]/page.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 게스트 상세 프리페치
 - 완료 내용
 - 게스트 피드 상위 3개 상세 페이지를 프리페치해 최초 클릭 지연 완화.
