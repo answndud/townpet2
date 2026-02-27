@@ -89,6 +89,11 @@
 |---|---|---|---|---|---|
 | 관계 조회 오류 기본값 | Codex | P1 | `done` | 관계 조회 실패 시 기본 상태로 렌더 | `app/src/app/posts/[id]/page.tsx` |
 
+### Cycle 79: 상세/댓글 날짜 파싱 오류 수정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| createdAt 문자열 대응 | Codex | P1 | `done` | 날짜 문자열도 안전하게 파싱 | `app/src/app/posts/[id]/page.tsx`, `app/src/components/posts/post-comment-thread.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

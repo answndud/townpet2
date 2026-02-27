@@ -80,6 +80,15 @@ export async function generateMetadata({
     };
   }
 
+  const createdAt = ensureDate(post.createdAt);
+  const updatedAt = ensureDate(post.updatedAt) ?? createdAt;
+  if (!createdAt || !updatedAt) {
+    return {
+      title: post.title,
+      robots: { index: false, follow: false },
+    };
+  }
+
   const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch(() => []);
   const guestReadable = canGuestReadPost({
     scope: post.scope,
@@ -108,8 +117,8 @@ export async function generateMetadata({
       url,
       title: post.title,
       description,
-      publishedTime: post.createdAt.toISOString(),
-      modifiedTime: post.updatedAt.toISOString(),
+      publishedTime: createdAt.toISOString(),
+      modifiedTime: updatedAt.toISOString(),
       images: imageUrl ? [{ url: imageUrl }] : undefined,
     },
     twitter: {
@@ -205,6 +214,19 @@ function isRecoverableDatabaseError(error: unknown) {
     error instanceof Prisma.PrismaClientUnknownRequestError ||
     error instanceof Prisma.PrismaClientRustPanicError
   );
+}
+
+function ensureDate(value: unknown) {
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) {
+      return new Date(parsed);
+    }
+  }
+  return null;
 }
 
 const normalizeComments = (commentsRaw: Awaited<ReturnType<typeof listComments>>) =>
@@ -355,6 +377,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const canInteract = Boolean(user);
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
   const isAuthor = user?.id === post.authorId;
+  const createdAt = ensureDate(post.createdAt) ?? new Date();
+  const updatedAt = ensureDate(post.updatedAt) ?? createdAt;
   const guestPostMeta = post as {
     guestDisplayName?: string | null;
     guestAuthor?: { displayName?: string | null } | null;
@@ -420,8 +444,8 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     "@type": "SocialMediaPosting",
     headline: post.title,
     articleBody: buildExcerpt(post.content, 320),
-    datePublished: post.createdAt.toISOString(),
-    dateModified: post.updatedAt.toISOString(),
+    datePublished: createdAt.toISOString(),
+    dateModified: updatedAt.toISOString(),
     mainEntityOfPage: postUrl,
     author: {
       "@type": "Person",
@@ -499,7 +523,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                       </Link>
                     )}
                   </p>
-                  <p className="text-[12px] text-[#5a759c]">{formatRelativeDate(post.createdAt)}</p>
+                  <p className="text-[12px] text-[#5a759c]">{formatRelativeDate(createdAt)}</p>
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-[#5f7da8] md:justify-end">
                   <span>조회 {safeViewCount.toLocaleString()}</span>
@@ -510,7 +534,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 <details className="mt-1 text-[11px] text-[#6b84ab] md:text-right">
                   <summary className="cursor-pointer list-none font-semibold text-[#5878a2]">상세 정보</summary>
                   <p className="mt-1 leading-5">
-                    {post.createdAt.toLocaleDateString("ko-KR")} · {post.scope === "LOCAL" ? "동네" : "온동네"} ·{" "}
+                    {createdAt.toLocaleDateString("ko-KR")} · {post.scope === "LOCAL" ? "동네" : "온동네"} ·{" "}
                     {post.neighborhood ? `${post.neighborhood.city} ${post.neighborhood.name}` : "전체"}
                   </p>
                 </details>

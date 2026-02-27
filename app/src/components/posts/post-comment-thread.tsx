@@ -49,6 +49,14 @@ const ROOTS_PER_PAGE = 30;
 
 const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
 
+function formatCommentDate(value: Date | string) {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return parsed.toLocaleDateString("ko-KR");
+}
+
 function getGuestFingerprint() {
   if (typeof window === "undefined") {
     return "server";
@@ -418,7 +426,7 @@ export function PostCommentThread({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <p className="truncate text-sm font-semibold text-[#2f4f7d]">{displayName}</p>
                     <p suppressHydrationWarning className="text-[11px] text-[#7a8eae]">
-                      {comment.createdAt.toLocaleDateString("ko-KR")}
+                      {formatCommentDate(comment.createdAt)}
                     </p>
                   </div>
                 ) : (
@@ -430,7 +438,7 @@ export function PostCommentThread({
                       {displayName}
                     </Link>
                     <p suppressHydrationWarning className="text-[11px] text-[#7a8eae]">
-                      {comment.createdAt.toLocaleDateString("ko-KR")}
+                      {formatCommentDate(comment.createdAt)}
                     </p>
                   </div>
                 )}
