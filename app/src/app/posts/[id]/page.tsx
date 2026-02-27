@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { PostType } from "@prisma/client";
+import { PostType, Prisma } from "@prisma/client";
 import { cache, Suspense } from "react";
 import { unstable_cache } from "next/cache";
 
@@ -182,6 +182,10 @@ const renderBooleanValue = (
   falseLabel: string,
 ) => (value === null || value === undefined ? emptyValue : value ? trueLabel : falseLabel);
 
+function isDatabaseUnavailableError(error: unknown) {
+  return error instanceof Prisma.PrismaClientInitializationError;
+}
+
 const normalizeComments = (commentsRaw: Awaited<ReturnType<typeof listComments>>) =>
   commentsRaw.map((comment) => ({
     ...comment,
@@ -221,7 +225,16 @@ async function PostCommentSection({
   canInteractWithPostOwner: boolean;
   loginHref: string;
 }) {
-  const commentsRaw = await listComments(postId, userId);
+  let commentsRaw: Awaited<ReturnType<typeof listComments>> = [];
+  try {
+    commentsRaw = await listComments(postId, userId);
+  } catch {
+    return (
+      <div className="mt-6 rounded-sm border border-[#f0d3d3] bg-[#fff7f7] p-4 text-sm text-[#8b4b4b]">
+        댓글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+      </div>
+    );
+  }
   const comments = normalizeComments(commentsRaw);
 
   return (
@@ -244,11 +257,23 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = (await params) ?? {};
   const session = await auth();
   const userId = session?.user?.id;
-  const user = userId ? await getUserWithNeighborhoods(userId) : null;
+  const user = userId
+    ? await getUserWithNeighborhoods(userId).catch((error) => {
+        if (isDatabaseUnavailableError(error)) {
+          return null;
+        }
+        throw error;
+      })
+    : null;
 
   const [post, loginRequiredTypes] = await Promise.all([
     getCachedPostById(resolvedParams.id, user?.id),
-    getGuestReadLoginRequiredPostTypes(),
+    getGuestReadLoginRequiredPostTypes().catch((error) => {
+      if (isDatabaseUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }),
   ]);
 
   if (!post) {
