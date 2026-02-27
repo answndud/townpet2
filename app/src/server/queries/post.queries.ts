@@ -930,7 +930,7 @@ export async function getPostById(id?: string, viewerId?: string) {
       return await prisma.post
         .findFirst({
           where: { id, ...visibilityFilter },
-          include: buildPostDetailInclude(viewerId),
+          include: buildPostDetailInclude(viewerId, supportsPostGuestAuthorField(), Boolean(viewerId)),
         })
         .catch(async (error) => {
           if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
@@ -940,7 +940,7 @@ export async function getPostById(id?: string, viewerId?: string) {
           if (isUnknownGuestAuthorIncludeError(error)) {
             return prisma.post.findFirst({
               where: { id, ...visibilityFilter },
-              include: buildPostDetailInclude(viewerId, false),
+              include: buildPostDetailInclude(viewerId, false, Boolean(viewerId)),
             });
           }
 
@@ -2078,6 +2078,17 @@ export async function listPostSearchSuggestions({
       if (resolvedSearchIn === "ALL") {
         addSuggestion(row.author.nickname);
         addSuggestion(row.author.name);
+      }
+    }
+
+    if (suggestions.length >= limit) {
+      break;
+    }
+  }
+
+  return suggestions.slice(0, limit);
+}
+w.author.name);
       }
     }
 

@@ -10,7 +10,11 @@ function isUnknownGuestAuthorIncludeError(error: unknown) {
   return error instanceof Error && error.message.includes("Unknown field `guestAuthor`");
 }
 
-const buildCommentSelect = (viewerId?: string, includeGuestAuthor = true) => ({
+const buildCommentSelect = (
+  viewerId?: string,
+  includeGuestAuthor = true,
+  includeReactions = Boolean(viewerId),
+) => ({
   id: true,
   postId: true,
   parentId: true,
@@ -35,12 +39,16 @@ const buildCommentSelect = (viewerId?: string, includeGuestAuthor = true) => ({
         },
       }
     : {}),
-  reactions: {
-    where: {
-      userId: viewerId ?? NO_VIEWER_ID,
-    },
-    select: { type: true },
-  },
+  ...(includeReactions
+    ? {
+        reactions: {
+          where: {
+            userId: viewerId ?? NO_VIEWER_ID,
+          },
+          select: { type: true },
+        },
+      }
+    : {}),
 });
 
 export async function listComments(postId: string, viewerId?: string) {
@@ -58,7 +66,7 @@ export async function listComments(postId: string, viewerId?: string) {
     prisma.comment
       .findMany({
         ...baseArgs,
-        select: buildCommentSelect(viewerId),
+        select: buildCommentSelect(viewerId, true, Boolean(viewerId)),
       })
       .catch(async (error) => {
         if (!isUnknownGuestAuthorIncludeError(error)) {
@@ -67,7 +75,7 @@ export async function listComments(postId: string, viewerId?: string) {
 
         return prisma.comment.findMany({
           ...baseArgs,
-          select: buildCommentSelect(viewerId, false),
+          select: buildCommentSelect(viewerId, false, Boolean(viewerId)),
         });
       });
 

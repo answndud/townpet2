@@ -94,6 +94,11 @@
 |---|---|---|---|---|---|
 | createdAt 문자열 대응 | Codex | P1 | `done` | 날짜 문자열도 안전하게 파싱 | `app/src/app/posts/[id]/page.tsx`, `app/src/components/posts/post-comment-thread.tsx` |
 
+### Cycle 80: guest 상세/댓글 쿼리 경량화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| reactions 조인 제외 | Codex | P1 | `done` | guest 상세/댓글에서 reactions 조회 제거 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/comment.queries.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
