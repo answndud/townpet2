@@ -64,7 +64,15 @@ export async function generateMetadata({
   params,
 }: PostDetailPageProps): Promise<Metadata> {
   const resolvedParams = (await params) ?? {};
-  const post = await getGuestPostMetadata(resolvedParams.id);
+  let post: Awaited<ReturnType<typeof getPostMetadataById>> | null = null;
+  try {
+    post = await getGuestPostMetadata(resolvedParams.id);
+  } catch {
+    return {
+      title: "게시글을 불러올 수 없습니다",
+      robots: { index: false, follow: false },
+    };
+  }
   if (!post) {
     return {
       title: "게시글을 찾을 수 없습니다",
@@ -72,7 +80,7 @@ export async function generateMetadata({
     };
   }
 
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
+  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch(() => []);
   const guestReadable = canGuestReadPost({
     scope: post.scope,
     type: post.type,
@@ -186,6 +194,19 @@ function isDatabaseUnavailableError(error: unknown) {
   return error instanceof Prisma.PrismaClientInitializationError;
 }
 
+function isRecoverableDatabaseError(error: unknown) {
+  if (isDatabaseUnavailableError(error)) {
+    return true;
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return ["P1001", "P1002", "P1003", "P1011"].includes(error.code);
+  }
+  return (
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError
+  );
+}
+
 const normalizeComments = (commentsRaw: Awaited<ReturnType<typeof listComments>>) =>
   commentsRaw.map((comment) => ({
     ...comment,
@@ -259,7 +280,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const userId = session?.user?.id;
   const user = userId
     ? await getUserWithNeighborhoods(userId).catch((error) => {
-        if (isDatabaseUnavailableError(error)) {
+        if (isRecoverableDatabaseError(error)) {
           return null;
         }
         throw error;
@@ -269,14 +290,14 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
   let postLoadFailed = false;
   const [postResult, loginRequiredTypes] = await Promise.all([
     getCachedPostById(resolvedParams.id, user?.id).catch((error) => {
-      if (isDatabaseUnavailableError(error)) {
+      if (isRecoverableDatabaseError(error)) {
         postLoadFailed = true;
         return null;
       }
       throw error;
     }),
     getGuestReadLoginRequiredPostTypes().catch((error) => {
-      if (isDatabaseUnavailableError(error)) {
+      if (isRecoverableDatabaseError(error)) {
         return [];
       }
       throw error;
@@ -355,7 +376,11 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     : post.author.nickname ?? post.author.name ?? "익명";
   const relationState =
     canInteract && !isAuthor
-      ? await getUserRelationState(user?.id, post.authorId)
+      ? await getUserRelationState(user?.id, post.authorId).catch(() => ({
+          isBlockedByMe: false,
+          hasBlockedMe: false,
+          isMutedByMe: false,
+        }))
       : {
           isBlockedByMe: false,
           hasBlockedMe: false,

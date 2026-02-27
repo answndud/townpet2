@@ -17,6 +17,16 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 상세 관계 조회 오류 fallback
+- 완료 내용
+- 사용자 관계 조회 실패 시 기본 상태로 fallback.
+- 변경 파일(핵심)
+- `app/src/app/posts/[id]/page.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 상세 페이지 guest 캐시 헤더/오류 방지
 - 완료 내용
 - 게스트 /posts/[id]와 /api/posts에 CDN 캐시 헤더 부여.
