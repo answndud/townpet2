@@ -129,6 +129,11 @@
 |---|---|---|---|---|---|
 | next.config headers | Codex | P1 | `done` | guest 상세 캐시 헤더 강제 | `app/next.config.ts` |
 
+### Cycle 87: 게스트 상세 프리페치 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| feed 상단 prefetch | Codex | P1 | `done` | 게스트 피드 상위 3개 상세 프리페치 | `app/src/components/posts/feed-infinite-list.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

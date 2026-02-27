@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { PostType } from "@prisma/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -188,6 +189,7 @@ export function FeedInfiniteList({
   const scrollStorageKey = useMemo(() => `feed:scroll:${queryKey}`, [queryKey]);
   const [relativeNow, setRelativeNow] = useState<number | null>(null);
   const [showAdSlot, setShowAdSlot] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setItems(initialItems);
@@ -476,6 +478,16 @@ export function FeedInfiniteList({
     observer.observe(target);
     return () => observer.disconnect();
   }, [isLoading, loadMore, mode, nextCursor]);
+
+  useEffect(() => {
+    if (!preferGuestDetail) {
+      return;
+    }
+    const targets = items.slice(0, 3);
+    for (const post of targets) {
+      router.prefetch(`/posts/${post.id}/guest`);
+    }
+  }, [items, preferGuestDetail, router]);
 
   return (
     <>
