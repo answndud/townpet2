@@ -104,6 +104,11 @@
 |---|---|---|---|---|---|
 | 댓글 SSR 제거 | Codex | P1 | `done` | 댓글을 API로 가져와 상세 SSR 경량화 | `app/src/app/posts/[id]/page.tsx`, `app/src/app/api/posts/[id]/comments/route.ts` |
 
+### Cycle 82: guest 상세 정적 분리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest /posts rewrite | Codex | P1 | `done` | 비로그인 상세 페이지를 정적 guest 페이지로 rewrite | `app/middleware.ts`, `app/src/app/posts/[id]/guest/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

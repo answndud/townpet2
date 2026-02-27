@@ -204,6 +204,12 @@ export function middleware(request: NextRequest) {
           "public, s-maxage=30, stale-while-revalidate=300",
         );
         appendVary(responseHeaders, "Cookie");
+        const rewrittenUrl = request.nextUrl.clone();
+        rewrittenUrl.pathname = `/posts/${segments[1]}/guest`;
+        return NextResponse.rewrite(rewrittenUrl, {
+          request: { headers: requestHeaders },
+          headers: responseHeaders,
+        });
       }
     }
 
