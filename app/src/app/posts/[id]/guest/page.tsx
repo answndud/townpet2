@@ -374,7 +374,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
                       {post.images.map((image, index) => {
                         const fileName = extractAttachmentName(image.url, index);
                         return (
-                          <li key={image.id} className="text-sm">
+                          <li key={`${image.url}-${index}`} className="text-sm">
                             <Link
                               href={image.url}
                               target="_blank"

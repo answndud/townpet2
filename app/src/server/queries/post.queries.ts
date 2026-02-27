@@ -176,7 +176,7 @@ const buildPostDetailInclude = (
       },
     },
     images: {
-      select: { id: true, url: true, order: true },
+      select: { url: true, order: true },
       orderBy: { order: "asc" },
     },
   }) as const;
@@ -223,7 +223,7 @@ const buildPostDetailIncludeWithoutReactions = (
       },
     },
     images: {
-      select: { id: true, url: true, order: true },
+      select: { url: true, order: true },
       orderBy: { order: "asc" },
     },
   }) as const;
@@ -306,7 +306,7 @@ const buildPostDetailBaseInclude = (
         }
       : {}),
     images: {
-      select: { id: true, url: true, order: true },
+      select: { url: true, order: true },
       orderBy: { order: "asc" },
     },
   }) as const;
@@ -323,7 +323,7 @@ const buildPostDetailBaseIncludeWithoutReactions = (
       select: { id: true, name: true, city: true, district: true },
     },
     images: {
-      select: { id: true, url: true, order: true },
+      select: { url: true, order: true },
       orderBy: { order: "asc" },
     },
   }) as const;
@@ -442,7 +442,7 @@ const LEGACY_POST_RELATION_SELECT = {
     },
   },
   images: {
-    select: { id: true, url: true, order: true },
+    select: { url: true, order: true },
     orderBy: { order: "asc" },
   },
 } as const;

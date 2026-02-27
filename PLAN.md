@@ -199,6 +199,11 @@
 |---|---|---|---|---|---|
 | 상세 extras 타입 보강 | Codex | P1 | `done` | 상세 조회 결과 타입에 hospital/place/walk 필드가 포함되도록 타입 보강 | `app/src/server/queries/post.queries.ts` |
 
+### Cycle 101: 상세 이미지 payload 축소 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 이미지 id 제거 | Codex | P1 | `done` | 상세 응답 이미지에서 id를 제거해 payload를 축소 | `app/src/server/queries/post.queries.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/guest/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

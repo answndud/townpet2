@@ -57,7 +57,7 @@ type PostDetailItem = {
   guestIpDisplay?: string | null;
   guestIpLabel?: string | null;
   neighborhood?: { id: string; name: string; city: string; district: string } | null;
-  images: Array<{ id: string; url: string; order: number }>;
+  images: Array<{ url: string; order: number }>;
   reactions?: Array<{ type: "LIKE" | "DISLIKE" }>;
   hospitalReview?: {
     hospitalName?: string | null;
@@ -449,7 +449,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                       {post.images.map((image, index) => {
                         const fileName = extractAttachmentName(image.url, index);
                         return (
-                          <li key={image.id} className="text-sm">
+                          <li key={`${image.url}-${index}`} className="text-sm">
                             <Link
                               href={image.url}
                               target="_blank"
