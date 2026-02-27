@@ -28,7 +28,7 @@ type PostDetailResponse = {
   data?: {
     post: PostDetailItem;
     viewerId: string | null;
-    relationState: RelationState;
+    relationState?: RelationState;
   };
   error?: {
     code: string;
@@ -186,6 +186,11 @@ function buildExcerpt(text: string, maxLength = 160) {
 export function PostDetailClient({ postId }: { postId: string }) {
   const [data, setData] = useState<PostDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [relationState, setRelationState] = useState<RelationState>({
+    isBlockedByMe: false,
+    hasBlockedMe: false,
+    isMutedByMe: false,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +258,53 @@ export function PostDetailClient({ postId }: { postId: string }) {
     };
   }, [postId]);
 
+  const payloadPost = data?.data?.post;
+  const payloadViewerId = data?.data?.viewerId ?? null;
+
+  useEffect(() => {
+    if (!payloadViewerId || !payloadPost?.authorId) {
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const response = await fetch(`/api/users/${payloadPost.authorId}/relation`, {
+          method: "GET",
+          credentials: "same-origin",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as {
+          ok: boolean;
+          data?: { relationState: RelationState };
+        };
+        if (!payload.ok || cancelled) {
+          return;
+        }
+        setRelationState(payload.data?.relationState ?? {
+          isBlockedByMe: false,
+          hasBlockedMe: false,
+          isMutedByMe: false,
+        });
+      } catch {
+        if (!cancelled) {
+          setRelationState({
+            isBlockedByMe: false,
+            hasBlockedMe: false,
+            isMutedByMe: false,
+          });
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [payloadViewerId, payloadPost?.authorId]);
+
   if (error) {
     return (
       <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">
@@ -296,10 +348,13 @@ export function PostDetailClient({ postId }: { postId: string }) {
     );
   }
 
-  const { post, viewerId, relationState } = data.data;
+  const { post, viewerId } = data.data;
+  const resolvedRelationState = data.data.relationState ?? relationState;
   const canInteract = Boolean(viewerId);
   const isAuthor = viewerId === post.authorId;
-  const canInteractWithPostOwner = !(relationState.hasBlockedMe || relationState.isBlockedByMe);
+  const canInteractWithPostOwner = !(
+    resolvedRelationState.hasBlockedMe || resolvedRelationState.isBlockedByMe
+  );
   const meta = typeMeta[post.type];
   const createdAt = ensureDate(post.createdAt);
   const updatedAt = ensureDate(post.updatedAt);

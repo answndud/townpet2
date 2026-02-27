@@ -8,7 +8,6 @@ import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
-import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import { jsonError, jsonOk } from "@/server/response";
 
 type RouteParams = {
@@ -52,18 +51,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const relationState = user
-      ? await getUserRelationState(user.id, post.authorId).catch(() => ({
-          isBlockedByMe: false,
-          hasBlockedMe: false,
-          isMutedByMe: false,
-        }))
-      : {
-          isBlockedByMe: false,
-          hasBlockedMe: false,
-          isMutedByMe: false,
-        };
-
     const renderedContentHtml = renderLiteMarkdown(post.content);
     const renderedContentText = renderedContentHtml
       .replace(/<[^>]+>/g, " ")
@@ -78,7 +65,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           renderedContentText,
         },
         viewerId: user?.id ?? null,
-        relationState,
       },
       {
         headers: {
