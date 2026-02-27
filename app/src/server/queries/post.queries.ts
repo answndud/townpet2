@@ -177,7 +177,6 @@ const buildPostDetailInclude = (
     },
     images: {
       select: { url: true, order: true },
-      orderBy: { order: "asc" },
     },
   }) as const;
 
@@ -224,7 +223,6 @@ const buildPostDetailIncludeWithoutReactions = (
     },
     images: {
       select: { url: true, order: true },
-      orderBy: { order: "asc" },
     },
   }) as const;
 
@@ -307,7 +305,6 @@ const buildPostDetailBaseInclude = (
       : {}),
     images: {
       select: { url: true, order: true },
-      orderBy: { order: "asc" },
     },
   }) as const;
 
@@ -324,7 +321,6 @@ const buildPostDetailBaseIncludeWithoutReactions = (
     },
     images: {
       select: { url: true, order: true },
-      orderBy: { order: "asc" },
     },
   }) as const;
 
@@ -443,7 +439,6 @@ const LEGACY_POST_RELATION_SELECT = {
   },
   images: {
     select: { url: true, order: true },
-    orderBy: { order: "asc" },
   },
 } as const;
 

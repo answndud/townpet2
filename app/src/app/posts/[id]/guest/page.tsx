@@ -259,6 +259,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
     .trim();
   const shouldUsePlainFallback =
     renderedContentText.length === 0 || renderedContentText.includes("미리보기 내용이 없습니다");
+  const orderedImages = [...post.images].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SocialMediaPosting",
@@ -271,7 +272,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
       "@type": "Person",
       name: post.author.nickname ?? post.author.name ?? "익명",
     },
-    image: post.images.map((image) => toAbsoluteUrl(image.url)),
+    image: orderedImages.map((image) => toAbsoluteUrl(image.url)),
     interactionStatistic: [
       {
         "@type": "InteractionCounter",
@@ -367,11 +368,11 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
                   />
                 )}
 
-                {post.images.length > 0 ? (
+                {orderedImages.length > 0 ? (
                   <div className="mt-5 border border-[#dbe6f6] bg-[#f8fbff] px-3 py-2.5">
                     <p className="text-[11px] font-semibold tracking-[0.08em] text-[#4f6f9f]">첨부파일</p>
                     <ul className="mt-2 space-y-1">
-                      {post.images.map((image, index) => {
+                      {orderedImages.map((image, index) => {
                         const fileName = extractAttachmentName(image.url, index);
                         return (
                           <li key={`${image.url}-${index}`} className="text-sm">

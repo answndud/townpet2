@@ -204,6 +204,11 @@
 |---|---|---|---|---|---|
 | 이미지 id 제거 | Codex | P1 | `done` | 상세 응답 이미지에서 id를 제거해 payload를 축소 | `app/src/server/queries/post.queries.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/guest/page.tsx` |
 
+### Cycle 102: 상세 이미지 정렬 클라이언트 이관 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| image orderBy 제거 | Codex | P1 | `done` | 상세 조회에서 image orderBy를 제거하고 클라이언트에서 정렬 | `app/src/server/queries/post.queries.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/guest/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
