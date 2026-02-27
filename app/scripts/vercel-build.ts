@@ -9,6 +9,8 @@ type CommandResult = {
 
 const PRISMA_DEPLOY_MAX_ATTEMPTS = 4;
 const PRISMA_DEPLOY_RETRY_DELAY_MS = 4_000;
+const NEIGHBORHOOD_SYNC_MAX_ATTEMPTS = 3;
+const NEIGHBORHOOD_SYNC_RETRY_DELAY_MS = 3_000;
 
 function runCommand(command: string, args: string[]) {
   return new Promise<CommandResult>((resolve, reject) => {
@@ -59,6 +61,18 @@ function isTransientPrismaDeployError(output: string) {
     output.includes("Error: P1002") ||
     output.includes("Can't reach database server") ||
     output.includes("Timed out") ||
+    output.includes("ECONNRESET") ||
+    output.includes("Connection terminated")
+  );
+}
+
+function isTransientNeighborhoodSyncError(output: string) {
+  return (
+    output.includes("Error: P1001") ||
+    output.includes("Error: P1002") ||
+    output.includes("Can't reach database server") ||
+    output.includes("Timed out") ||
+    output.includes("ETIMEDOUT") ||
     output.includes("ECONNRESET") ||
     output.includes("Connection terminated")
   );
@@ -129,6 +143,30 @@ async function runPrismaDeploy() {
   throw new Error("[build:vercel] prisma migrate deploy exhausted retry attempts.");
 }
 
+async function runNeighborhoodSync() {
+  for (let attempt = 1; attempt <= NEIGHBORHOOD_SYNC_MAX_ATTEMPTS; attempt += 1) {
+    const syncNeighborhoodResult = await runCommand("pnpm", ["db:sync:neighborhoods"]);
+    if (syncNeighborhoodResult.code === 0) {
+      return;
+    }
+
+    if (
+      isTransientNeighborhoodSyncError(syncNeighborhoodResult.output) &&
+      attempt < NEIGHBORHOOD_SYNC_MAX_ATTEMPTS
+    ) {
+      console.log(
+        `[build:vercel] neighborhood sync transient failure (attempt ${attempt}/${NEIGHBORHOOD_SYNC_MAX_ATTEMPTS}). Retrying...`,
+      );
+      await sleep(NEIGHBORHOOD_SYNC_RETRY_DELAY_MS * attempt);
+      continue;
+    }
+
+    throw new Error("[build:vercel] neighborhood sync failed.");
+  }
+
+  throw new Error("[build:vercel] neighborhood sync exhausted retry attempts.");
+}
+
 async function repairCommunityBoardSchema() {
   const repairResult = await runCommand("pnpm", [
     "prisma",
@@ -149,10 +187,7 @@ async function main() {
   await runPrismaDeploy();
   await repairCommunityBoardSchema();
 
-  const syncNeighborhoodResult = await runCommand("pnpm", ["db:sync:neighborhoods"]);
-  if (syncNeighborhoodResult.code !== 0) {
-    throw new Error("[build:vercel] neighborhood sync failed.");
-  }
+  await runNeighborhoodSync();
 
   const generateResult = await runCommand("pnpm", ["prisma", "generate"]);
   if (generateResult.code !== 0) {
