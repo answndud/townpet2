@@ -125,6 +125,7 @@ const buildPostListIncludeWithoutReactions = (
 const buildPostDetailInclude = (
   viewerId?: string,
   includeGuestAuthor = supportsPostGuestAuthorField(),
+  includeReactions = Boolean(viewerId),
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true, image: true } },
@@ -134,12 +135,16 @@ const buildPostDetailInclude = (
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
-    reactions: {
-      where: {
-        userId: viewerId ?? NO_VIEWER_ID,
-      },
-      select: { type: true },
-    },
+    ...(includeReactions
+      ? {
+          reactions: {
+            where: {
+              userId: viewerId ?? NO_VIEWER_ID,
+            },
+            select: { type: true },
+          },
+        }
+      : {}),
     hospitalReview: {
       select: {
         hospitalName: true,
