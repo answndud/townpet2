@@ -139,6 +139,11 @@
 |---|---|---|---|---|---|
 | client detail loader | Codex | P1 | `done` | 상세 페이지를 API 기반 클라이언트 로딩으로 전환 | `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/components/posts/post-detail-client.tsx` |
 
+### Cycle 89: neighborhood sync 안정화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| seed skip + retry | Codex | P1 | `done` | 시드 존재 시 스킵, chunk 재시도 | `app/scripts/sync-neighborhoods.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
