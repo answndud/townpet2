@@ -184,6 +184,11 @@
 |---|---|---|---|---|---|
 | 상단 글 상세 prefetch | Codex | P1 | `done` | 로그인 사용자에게 상단 2개 상세 페이지를 사전 prefetch해 클릭 지연을 완화 | `app/src/components/posts/feed-infinite-list.tsx` |
 
+### Cycle 98: API 캐시 헤더 강제화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| Next headers 추가 | Codex | P1 | `done` | `/api/posts`와 `/api/posts/:id/detail`에 Cache-Control 헤더를 강제 설정 | `app/next.config.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
