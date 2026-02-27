@@ -191,6 +191,10 @@ export function PostDetailClient({ postId }: { postId: string }) {
     hasBlockedMe: false,
     isMutedByMe: false,
   });
+  const [renderedContent, setRenderedContent] = useState<{
+    html: string;
+    text: string;
+  } | null>(null);
   const [stats, setStats] = useState<{
     viewCount: number;
     likeCount: number;
@@ -266,6 +270,45 @@ export function PostDetailClient({ postId }: { postId: string }) {
 
   const payloadPost = data?.data?.post;
   const payloadViewerId = data?.data?.viewerId ?? null;
+
+  useEffect(() => {
+    if (!postId) {
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const response = await fetch(`/api/posts/${postId}/content`, {
+          method: "GET",
+          credentials: "same-origin",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as {
+          ok: boolean;
+          data?: { renderedContentHtml: string; renderedContentText: string };
+        };
+        if (!payload.ok || cancelled) {
+          return;
+        }
+        setRenderedContent({
+          html: payload.data?.renderedContentHtml ?? "",
+          text: payload.data?.renderedContentText ?? "",
+        });
+      } catch {
+        if (!cancelled) {
+          setRenderedContent(null);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [postId]);
 
   useEffect(() => {
     if (!postId) {
@@ -414,12 +457,16 @@ export function PostDetailClient({ postId }: { postId: string }) {
   const resolvedLikeCount = stats?.likeCount ?? (Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0);
   const resolvedDislikeCount = stats?.dislikeCount ?? (Number.isFinite(post.dislikeCount) ? Number(post.dislikeCount) : 0);
   const resolvedCommentCount = stats?.commentCount ?? (Number.isFinite(post.commentCount) ? Number(post.commentCount) : 0);
-  const renderedContentHtml = post.renderedContentHtml?.trim()
-    ? post.renderedContentHtml
-    : renderLiteMarkdown(post.content);
-  const renderedContentText = post.renderedContentText?.trim()
-    ? post.renderedContentText
-    : renderedContentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const renderedContentHtml = renderedContent?.html?.trim()
+    ? renderedContent.html
+    : post.renderedContentHtml?.trim()
+      ? post.renderedContentHtml
+      : renderLiteMarkdown(post.content);
+  const renderedContentText = renderedContent?.text?.trim()
+    ? renderedContent.text
+    : post.renderedContentText?.trim()
+      ? post.renderedContentText
+      : renderedContentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const shouldUsePlainFallback =
     renderedContentText.length === 0 || renderedContentText.includes("미리보기 내용이 없습니다");
   const orderedImages = [...post.images].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));

@@ -1215,6 +1215,40 @@ export async function getPostStatsById(id?: string, viewerId?: string) {
   return runStats();
 }
 
+export async function getPostContentById(id?: string, viewerId?: string) {
+  if (!id) {
+    return null;
+  }
+  const shouldCache = !viewerId;
+  const runContent = async () => {
+    const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+    const visibilityFilter =
+      hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
+
+    return prisma.post.findFirst({
+      where: { id, ...visibilityFilter },
+      select: {
+        id: true,
+        type: true,
+        scope: true,
+        status: true,
+        content: true,
+      },
+    });
+  };
+
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("post-detail", { id, mode: "content" });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 60,
+      fetcher: runContent,
+    });
+  }
+
+  return runContent();
+}
+
 export async function listPosts({
   cursor,
   limit: _limit,

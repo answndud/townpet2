@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 
+import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { canGuestReadPost } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
-import { getPostById } from "@/server/queries/post.queries";
+import { getPostContentById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { jsonError, jsonOk } from "@/server/response";
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
     const user = await getCurrentUser();
-    const post = await getPostById(postId, user?.id);
+    const post = await getPostContentById(postId, user?.id);
     if (!post) {
       return jsonError(404, {
         code: "NOT_FOUND",
@@ -50,23 +51,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const { likeCount, dislikeCount, commentCount, viewCount, ...restPost } = post;
+    const renderedContentHtml = renderLiteMarkdown(post.content);
+    const renderedContentText = renderedContentHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
     return jsonOk(
       {
-        post: {
-          ...restPost,
-        },
-        viewerId: user?.id ?? null,
+        renderedContentHtml,
+        renderedContentText,
       },
       {
         headers: {
-          "cache-control": user ? "no-store" : buildCacheControlHeader(30, 300),
+          "cache-control": user ? "no-store" : buildCacheControlHeader(60, 600),
         },
       },
     );
   } catch (error) {
-    await monitorUnhandledError(error, { route: "GET /api/posts/[id]/detail", request });
+    await monitorUnhandledError(error, { route: "GET /api/posts/[id]/content", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",
