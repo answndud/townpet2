@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PostType } from "@prisma/client";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import { unstable_cache } from "next/cache";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
@@ -182,6 +182,64 @@ const renderBooleanValue = (
   falseLabel: string,
 ) => (value === null || value === undefined ? emptyValue : value ? trueLabel : falseLabel);
 
+const normalizeComments = (commentsRaw: Awaited<ReturnType<typeof listComments>>) =>
+  commentsRaw.map((comment) => ({
+    ...comment,
+    guestDisplayName:
+      (comment as { guestDisplayName?: string | null }).guestDisplayName?.trim() ||
+      (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
+        ?.displayName ||
+      null,
+    guestIpDisplay:
+      (comment as { guestIpDisplay?: string | null }).guestIpDisplay ??
+      (comment as { guestAuthor?: { ipDisplay?: string | null } | null }).guestAuthor?.ipDisplay ??
+      null,
+    guestIpLabel:
+      (comment as { guestIpLabel?: string | null }).guestIpLabel ??
+      (comment as { guestAuthor?: { ipLabel?: string | null } | null }).guestAuthor?.ipLabel ??
+      null,
+    isGuestAuthor:
+      Boolean((comment as { guestDisplayName?: string | null }).guestDisplayName) ||
+      Boolean(
+        (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
+          ?.displayName,
+      ) ||
+      Boolean((comment as { guestAuthorId?: string | null }).guestAuthorId) ||
+      comment.author.email.endsWith("@guest.townpet.local"),
+  }));
+
+async function PostCommentSection({
+  postId,
+  userId,
+  canInteract,
+  canInteractWithPostOwner,
+  loginHref,
+}: {
+  postId: string;
+  userId?: string;
+  canInteract: boolean;
+  canInteractWithPostOwner: boolean;
+  loginHref: string;
+}) {
+  const commentsRaw = await listComments(postId, userId);
+  const comments = normalizeComments(commentsRaw);
+
+  return (
+    <PostCommentThread
+      postId={postId}
+      comments={comments}
+      currentUserId={userId}
+      canInteract={canInteract && canInteractWithPostOwner}
+      loginHref={loginHref}
+      interactionDisabledMessage={
+        canInteract && !canInteractWithPostOwner
+          ? "차단 관계에서는 댓글 작성/답글/신고를 사용할 수 없습니다."
+          : undefined
+      }
+    />
+  );
+}
+
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = (await params) ?? {};
   const session = await auth();
@@ -214,32 +272,6 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
       />
     );
   }
-
-  const commentsRaw = resolvedParams.id ? await listComments(resolvedParams.id, user?.id) : [];
-  const comments = commentsRaw.map((comment) => ({
-    ...comment,
-    guestDisplayName:
-      (comment as { guestDisplayName?: string | null }).guestDisplayName?.trim() ||
-      (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
-        ?.displayName ||
-      null,
-    guestIpDisplay:
-      (comment as { guestIpDisplay?: string | null }).guestIpDisplay ??
-      (comment as { guestAuthor?: { ipDisplay?: string | null } | null }).guestAuthor?.ipDisplay ??
-      null,
-    guestIpLabel:
-      (comment as { guestIpLabel?: string | null }).guestIpLabel ??
-      (comment as { guestAuthor?: { ipLabel?: string | null } | null }).guestAuthor?.ipLabel ??
-      null,
-    isGuestAuthor:
-      Boolean((comment as { guestDisplayName?: string | null }).guestDisplayName) ||
-      Boolean(
-        (comment as { guestAuthor?: { displayName?: string | null } | null }).guestAuthor
-          ?.displayName,
-      ) ||
-      Boolean((comment as { guestAuthorId?: string | null }).guestAuthorId) ||
-      comment.author.email.endsWith("@guest.townpet.local"),
-  }));
 
   const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
   if (user && !primaryNeighborhood && post.scope !== "GLOBAL") {
@@ -631,18 +663,21 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           </section>
         ) : null}
 
-        <PostCommentThread
-          postId={post.id}
-          comments={comments}
-          currentUserId={user?.id}
-          canInteract={canInteract && canInteractWithPostOwner}
-          loginHref={loginHref}
-          interactionDisabledMessage={
-            canInteract && !canInteractWithPostOwner
-              ? "차단 관계에서는 댓글 작성/답글/신고를 사용할 수 없습니다."
-              : undefined
+        <Suspense
+          fallback={
+            <div className="mt-6 rounded-sm border border-[#dbe6f6] bg-white p-4 text-sm text-[#6a84ac]">
+              댓글을 불러오는 중...
+            </div>
           }
-        />
+        >
+          <PostCommentSection
+            postId={post.id}
+            userId={user?.id}
+            canInteract={canInteract}
+            canInteractWithPostOwner={canInteractWithPostOwner}
+            loginHref={loginHref}
+          />
+        </Suspense>
       </main>
     </div>
   );

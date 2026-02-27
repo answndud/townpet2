@@ -69,6 +69,11 @@
 |---|---|---|---|---|---|
 | post/detail/comments guest 캐시 | Codex | P1 | `done` | 게시글 상세/메타/댓글 캐시 적용 + 무효화 버전 갱신 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/comment.queries.ts`, `app/src/server/cache/query-cache.ts` |
 
+### Cycle 75: 게시글 상세 스트리밍 분리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 섹션 Suspense 분리 | Codex | P1 | `done` | 상세 페이지 댓글 로딩을 스트리밍으로 분리 | `app/src/app/posts/[id]/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
