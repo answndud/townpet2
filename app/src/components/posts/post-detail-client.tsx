@@ -243,6 +243,24 @@ export function PostDetailClient({ postId }: { postId: string }) {
           <div className="rounded-sm border border-[#f0d3d3] bg-white p-6 text-center">
             <h2 className="text-lg font-semibold text-[#153a6a]">게시글을 불러오지 못했습니다.</h2>
             <p className="mt-2 text-sm text-[#5a7398]">{error}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setData(null);
+                }}
+                className="border border-[#3567b5] bg-[#3567b5] px-4 py-2 font-semibold text-white transition hover:bg-[#2f5da4]"
+              >
+                다시 시도
+              </button>
+              <a
+                href={`/posts/${postId}/guest`}
+                className="border border-[#bfd0ec] bg-white px-4 py-2 text-[#315484] transition hover:bg-[#f3f7ff]"
+              >
+                게스트 페이지 보기
+              </a>
+            </div>
           </div>
         </main>
       </div>
