@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const comments = await listComments(postId, user?.id);
     return jsonOk(comments, {
       headers: {
-        "cache-control": user ? "no-store" : buildCacheControlHeader(30, 300),
+        "cache-control": user ? "no-store" : buildCacheControlHeader(60, 300),
       },
     });
   } catch (error) {

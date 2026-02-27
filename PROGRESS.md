@@ -17,6 +17,20 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: guest 상세 캐시 헤더 강화
+- 완료 내용
+- guest 상세 페이지에서 CDN 캐시 헤더 강제 적용.
+- guest 댓글 API 캐시 TTL 상향(30s -> 60s).
+- guest 상세 링크 prefetch 활성화.
+- 변경 파일(핵심)
+- `app/middleware.ts`
+- `app/src/app/api/posts/[id]/comments/route.ts`
+- `app/src/components/posts/feed-infinite-list.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 게스트 상세 경로 전환
 - 완료 내용
 - 게스트는 feed/search에서 `/posts/[id]/guest`로 이동하도록 변경.

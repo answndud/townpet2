@@ -197,19 +197,21 @@ export function middleware(request: NextRequest) {
 
     if (request.nextUrl.pathname.startsWith("/posts/")) {
       const segments = request.nextUrl.pathname.split("/").filter(Boolean);
-      const isDetailPage = segments.length === 2 && segments[0] === "posts";
+      const isDetailPage = segments.length >= 2 && segments[0] === "posts";
       if (isDetailPage) {
         responseHeaders.set(
           "cache-control",
           "public, s-maxage=30, stale-while-revalidate=300",
         );
         appendVary(responseHeaders, "Cookie");
-        const rewrittenUrl = request.nextUrl.clone();
-        rewrittenUrl.pathname = `/posts/${segments[1]}/guest`;
-        return NextResponse.rewrite(rewrittenUrl, {
-          request: { headers: requestHeaders },
-          headers: responseHeaders,
-        });
+        if (segments.length === 2) {
+          const rewrittenUrl = request.nextUrl.clone();
+          rewrittenUrl.pathname = `/posts/${segments[1]}/guest`;
+          return NextResponse.rewrite(rewrittenUrl, {
+            request: { headers: requestHeaders },
+            headers: responseHeaders,
+          });
+        }
       }
     }
 

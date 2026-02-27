@@ -114,6 +114,11 @@
 |---|---|---|---|---|---|
 | feed/search 링크 업데이트 | Codex | P1 | `done` | 게스트는 /posts/[id]/guest로 이동 | `app/src/components/posts/feed-infinite-list.tsx`, `app/src/app/search/page.tsx` |
 
+### Cycle 84: guest 상세 캐시 헤더 강화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 캐시 TTL/헤더 보정 | Codex | P1 | `done` | guest 상세 CDN 캐시 헤더 적용 + 댓글 TTL 상향 | `app/middleware.ts`, `app/src/app/api/posts/[id]/comments/route.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
