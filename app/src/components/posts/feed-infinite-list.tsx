@@ -480,12 +480,17 @@ export function FeedInfiniteList({
   }, [isLoading, loadMore, mode, nextCursor]);
 
   useEffect(() => {
-    if (!preferGuestDetail) {
+    if (preferGuestDetail) {
+      const targets = items.slice(0, 3);
+      for (const post of targets) {
+        router.prefetch(`/posts/${post.id}/guest`);
+      }
       return;
     }
-    const targets = items.slice(0, 3);
+
+    const targets = items.slice(0, 2);
     for (const post of targets) {
-      router.prefetch(`/posts/${post.id}/guest`);
+      router.prefetch(`/posts/${post.id}`);
     }
   }, [items, preferGuestDetail, router]);
 

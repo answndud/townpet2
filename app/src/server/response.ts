@@ -6,7 +6,14 @@ type ErrorPayload = {
 };
 
 export function jsonOk<T>(data: T, init?: ResponseInit) {
-  return NextResponse.json({ ok: true, data }, init);
+  const response = NextResponse.json({ ok: true, data }, init);
+  if (init?.headers) {
+    const headers = new Headers(init.headers);
+    headers.forEach((value, key) => {
+      response.headers.set(key, value);
+    });
+  }
+  return response;
 }
 
 export function jsonError(status: number, payload: ErrorPayload) {

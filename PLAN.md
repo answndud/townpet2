@@ -174,6 +174,16 @@
 |---|---|---|---|---|---|
 | 상세 API 응답 최적화 | Codex | P1 | `done` | 상세 API에서 마크다운 HTML/텍스트를 선계산하고 guest 응답에 캐시 헤더를 적용 | `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/components/posts/post-detail-client.tsx` |
 
+### Cycle 96: API Cache-Control 헤더 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| jsonOk 헤더 적용 보강 | Codex | P1 | `done` | jsonOk 응답에서 캐시 헤더가 누락되지 않도록 명시 적용 | `app/src/server/response.ts` |
+
+### Cycle 97: 상세 진입 프리페치(로그인) (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 상단 글 상세 prefetch | Codex | P1 | `done` | 로그인 사용자에게 상단 2개 상세 페이지를 사전 prefetch해 클릭 지연을 완화 | `app/src/components/posts/feed-infinite-list.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
