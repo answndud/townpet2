@@ -181,7 +181,10 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  const isGuest = !request.cookies.get("townpet.session-token");
+  const isGuest =
+    !request.cookies.get("townpet.session-token") &&
+    !request.cookies.get("next-auth.session-token") &&
+    !request.cookies.get("__Secure-next-auth.session-token");
   if (isGuest && request.method === "GET") {
     if (request.nextUrl.pathname === "/feed") {
       const scope = request.nextUrl.searchParams.get("scope");
