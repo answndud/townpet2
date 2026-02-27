@@ -2088,14 +2088,3 @@ export async function listPostSearchSuggestions({
 
   return suggestions.slice(0, limit);
 }
-w.author.name);
-      }
-    }
-
-    if (suggestions.length >= limit) {
-      break;
-    }
-  }
-
-  return suggestions.slice(0, limit);
-}
