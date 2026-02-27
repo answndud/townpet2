@@ -125,7 +125,7 @@ const buildPostListIncludeWithoutReactions = (
 const buildPostDetailInclude = (
   viewerId?: string,
   includeGuestAuthor = supportsPostGuestAuthorField(),
-  includeReactions = Boolean(viewerId),
+  _includeReactions = Boolean(viewerId),
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true } },
@@ -135,16 +135,6 @@ const buildPostDetailInclude = (
     neighborhood: {
       select: { id: true, name: true, city: true },
     },
-    ...(includeReactions
-      ? {
-          reactions: {
-            where: {
-              userId: viewerId ?? NO_VIEWER_ID,
-            },
-            select: { type: true },
-          },
-        }
-      : {}),
     hospitalReview: {
       select: {
         hospitalName: true,
@@ -283,7 +273,7 @@ type PostDetailExtras = {
 const buildPostDetailBaseInclude = (
   viewerId?: string,
   includeGuestAuthor = supportsPostGuestAuthorField(),
-  includeReactions = Boolean(viewerId),
+  _includeReactions = Boolean(viewerId),
 ) =>
   ({
     author: { select: { id: true, name: true, nickname: true } },
@@ -293,16 +283,6 @@ const buildPostDetailBaseInclude = (
     neighborhood: {
       select: { id: true, name: true, city: true },
     },
-    ...(includeReactions
-      ? {
-          reactions: {
-            where: {
-              userId: viewerId ?? NO_VIEWER_ID,
-            },
-            select: { type: true },
-          },
-        }
-      : {}),
     images: {
       select: { url: true, order: true },
     },
@@ -484,12 +464,6 @@ const buildLegacyPostDetailSelect = (viewerId?: string) =>
         rating: true,
         treatmentType: true,
       },
-    },
-    reactions: {
-      where: {
-        userId: viewerId ?? NO_VIEWER_ID,
-      },
-      select: { type: true },
     },
   }) as const;
 
@@ -1085,7 +1059,7 @@ export async function getPostById(id?: string, viewerId?: string) {
             select: buildLegacyPostDetailSelectWithoutReactions(),
           });
         });
-      return attachPostDetailExtras(withEmptyReactionsOne(withEmptyGuestPostMetaOne(post)));
+      return attachPostDetailExtras(withEmptyGuestPostMetaOne(post));
     }
 
     try {
@@ -1144,7 +1118,7 @@ export async function getPostById(id?: string, viewerId?: string) {
             select: buildLegacyPostDetailSelectWithoutReactions(),
           });
         });
-      return attachPostDetailExtras(withEmptyReactionsOne(withEmptyGuestPostMetaOne(post)));
+      return attachPostDetailExtras(withEmptyGuestPostMetaOne(post));
     }
   };
 

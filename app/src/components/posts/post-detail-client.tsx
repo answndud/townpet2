@@ -58,7 +58,6 @@ type PostDetailItem = {
   guestIpLabel?: string | null;
   neighborhood?: { id: string; name: string; city: string; district?: string } | null;
   images: Array<{ url: string; order: number }>;
-  reactions?: Array<{ type: "LIKE" | "DISLIKE" }>;
   hospitalReview?: {
     hospitalName?: string | null;
     totalCost?: number | null;
@@ -474,7 +473,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                     postId={post.id}
                     likeCount={safeLikeCount}
                     dislikeCount={safeDislikeCount}
-                    currentReaction={post.reactions?.[0]?.type ?? null}
+                    currentReaction={canInteract ? undefined : null}
                     canReact={canInteract && canInteractWithPostOwner}
                     loginHref={loginHref}
                   />

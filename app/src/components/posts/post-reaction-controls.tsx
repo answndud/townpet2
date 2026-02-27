@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { togglePostReactionAction } from "@/server/actions/post";
 
@@ -16,7 +16,7 @@ type PostReactionControlsProps = {
   postId: string;
   likeCount?: number | null;
   dislikeCount?: number | null;
-  currentReaction: ReactionType | null;
+  currentReaction?: ReactionType | null;
   compact?: boolean;
   canReact?: boolean;
   loginHref?: string;
@@ -77,7 +77,9 @@ export function PostReactionControls({
   const initialLikeCount = Number.isFinite(likeCount) ? Number(likeCount) : 0;
   const initialDislikeCount = Number.isFinite(dislikeCount) ? Number(dislikeCount) : 0;
 
-  const [reaction, setReaction] = useState<ReactionType | null>(currentReaction);
+  const [reaction, setReaction] = useState<ReactionType | null>(currentReaction ?? null);
+  const [reactionLoaded, setReactionLoaded] = useState(currentReaction !== undefined);
+  const userInteractedRef = useRef(false);
   const [likes, setLikes] = useState(initialLikeCount);
   const [dislikes, setDislikes] = useState(initialDislikeCount);
   const [loginIntent, setLoginIntent] = useState<ReactionType | null>(null);
@@ -98,6 +100,51 @@ export function PostReactionControls({
     };
   }, [loginIntent]);
 
+  useEffect(() => {
+    if (currentReaction === undefined) {
+      return;
+    }
+    setReaction(currentReaction ?? null);
+    setReactionLoaded(true);
+  }, [currentReaction]);
+
+  useEffect(() => {
+    if (!canReact || reactionLoaded) {
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const response = await fetch(`/api/posts/${postId}/reaction`, {
+          method: "GET",
+          credentials: "same-origin",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as {
+          ok: boolean;
+          data?: { reaction: ReactionType | null };
+        };
+        if (!payload.ok || cancelled || userInteractedRef.current) {
+          return;
+        }
+        setReaction(payload.data?.reaction ?? null);
+        setReactionLoaded(true);
+      } catch {
+        if (!cancelled) {
+          setReactionLoaded(true);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [canReact, postId, reactionLoaded]);
+
   const buttonClass = compact
     ? "inline-flex h-9 min-w-[90px] items-center justify-center border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[100px] sm:px-2.5"
     : "inline-flex h-8 min-w-[82px] items-center justify-center border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:min-w-[98px] sm:px-2.5";
@@ -107,6 +154,8 @@ export function PostReactionControls({
       setLoginIntent(target);
       return;
     }
+
+    userInteractedRef.current = true;
 
     const previous = { reaction, likes, dislikes };
     const optimistic = getNextState(reaction, target, likes, dislikes);
