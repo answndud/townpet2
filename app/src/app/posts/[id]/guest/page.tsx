@@ -399,7 +399,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
                     postId={post.id}
                     likeCount={safeLikeCount}
                     dislikeCount={safeDislikeCount}
-                    currentReaction={post.reactions?.[0]?.type ?? null}
+                    currentReaction={null}
                     canReact={false}
                     loginHref={loginHref}
                   />

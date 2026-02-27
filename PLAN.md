@@ -229,6 +229,11 @@
 |---|---|---|---|---|---|
 | reactions API 분리 | Codex | P1 | `done` | 상세 조회에서 reactions를 제거하고 별도 API로 로드 | `app/src/server/queries/post.queries.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/components/posts/post-reaction-controls.tsx`, `app/src/app/api/posts/[id]/reaction/route.ts` |
 
+### Cycle 107: 게스트 상세 reactions 타입 보정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게스트 currentReaction 정리 | Codex | P1 | `done` | 게스트 상세에서 reactions 참조 제거 | `app/src/app/posts/[id]/guest/page.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

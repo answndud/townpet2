@@ -17,6 +17,16 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 게스트 상세 reactions 타입 보정
+- 완료 내용
+- 게스트 상세에서 reactions 참조 제거로 빌드 오류 해소.
+- 변경 파일(핵심)
+- `app/src/app/posts/[id]/guest/page.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 상세 reactions 분리
 - 완료 내용
 - 상세 조회에서 reactions를 제거하고 별도 API로 현재 반응을 로드.
