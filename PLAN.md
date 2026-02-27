@@ -219,6 +219,11 @@
 |---|---|---|---|---|---|
 | 댓글 지연 로딩 | Codex | P1 | `done` | 댓글 섹션이 뷰포트에 들어오면 API를 호출 | `app/src/components/posts/post-comment-section-client.tsx` |
 
+### Cycle 105: 상세 neighborhood payload 축소 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| district 제거 | Codex | P1 | `done` | 상세 조회에서 neighborhood.district를 제거해 payload를 축소 | `app/src/server/queries/post.queries.ts`, `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

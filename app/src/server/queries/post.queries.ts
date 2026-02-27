@@ -133,7 +133,7 @@ const buildPostDetailInclude = (
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
     neighborhood: {
-      select: { id: true, name: true, city: true, district: true },
+      select: { id: true, name: true, city: true },
     },
     ...(includeReactions
       ? {
@@ -189,7 +189,7 @@ const buildPostDetailIncludeWithoutReactions = (
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
     neighborhood: {
-      select: { id: true, name: true, city: true, district: true },
+      select: { id: true, name: true, city: true },
     },
     hospitalReview: {
       select: {
@@ -291,7 +291,7 @@ const buildPostDetailBaseInclude = (
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
     neighborhood: {
-      select: { id: true, name: true, city: true, district: true },
+      select: { id: true, name: true, city: true },
     },
     ...(includeReactions
       ? {
@@ -317,7 +317,7 @@ const buildPostDetailBaseIncludeWithoutReactions = (
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
     neighborhood: {
-      select: { id: true, name: true, city: true, district: true },
+      select: { id: true, name: true, city: true },
     },
     images: {
       select: { url: true, order: true },
@@ -406,7 +406,7 @@ const LEGACY_POST_BASE_SELECT = {
 const LEGACY_POST_RELATION_SELECT = {
   author: { select: { id: true, name: true, nickname: true } },
   neighborhood: {
-    select: { id: true, name: true, city: true, district: true },
+    select: { id: true, name: true, city: true },
   },
   hospitalReview: {
     select: {
