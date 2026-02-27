@@ -124,6 +124,11 @@
 |---|---|---|---|---|---|
 | fetchCache 적용 | Codex | P1 | `done` | guest 상세 fetchCache force-cache 적용 | `app/src/app/posts/[id]/guest/page.tsx` |
 
+### Cycle 86: guest 상세 헤더 강제 설정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| next.config headers | Codex | P1 | `done` | guest 상세 캐시 헤더 강제 | `app/next.config.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
