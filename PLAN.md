@@ -239,6 +239,11 @@
 |---|---|---|---|---|---|
 | stats API 분리 | Codex | P1 | `done` | 상세 API에서 카운트 필드를 제거하고 별도 stats API로 로드 | `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/app/api/posts/[id]/stats/route.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/server/queries/post.queries.ts` |
 
+### Cycle 109: stats 캐시 TTL 상향 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| stats 캐시 헤더/TTL | Codex | P1 | `done` | stats API에 cache-control 강화 및 query cache TTL 60s 적용 | `app/src/app/api/posts/[id]/stats/route.ts`, `app/src/server/queries/post.queries.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

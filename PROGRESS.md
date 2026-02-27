@@ -17,6 +17,17 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: stats 캐시 TTL 상향
+- 완료 내용
+- stats API에 cache-control을 적용하고 query cache TTL을 60초로 상향.
+- 변경 파일(핵심)
+- `app/src/app/api/posts/[id]/stats/route.ts`
+- `app/src/server/queries/post.queries.ts`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 상세 stats 분리
 - 완료 내용
 - 상세 응답에서 카운트 필드를 제거하고 별도 stats API로 로드.

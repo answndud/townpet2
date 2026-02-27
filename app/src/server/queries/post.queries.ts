@@ -1207,7 +1207,7 @@ export async function getPostStatsById(id?: string, viewerId?: string) {
     const cacheKey = await createQueryCacheKey("post-detail", { id, mode: "stats" });
     return withQueryCache({
       key: cacheKey,
-      ttlSeconds: 30,
+      ttlSeconds: 60,
       fetcher: runStats,
     });
   }

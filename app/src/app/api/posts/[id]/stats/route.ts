@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { canGuestReadPost } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
+import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostStatsById } from "@/server/queries/post.queries";
@@ -49,12 +50,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    return jsonOk({
-      likeCount: post.likeCount ?? 0,
-      dislikeCount: post.dislikeCount ?? 0,
-      commentCount: post.commentCount ?? 0,
-      viewCount: post.viewCount ?? 0,
-    });
+    return jsonOk(
+      {
+        likeCount: post.likeCount ?? 0,
+        dislikeCount: post.dislikeCount ?? 0,
+        commentCount: post.commentCount ?? 0,
+        viewCount: post.viewCount ?? 0,
+      },
+      {
+        headers: {
+          "cache-control": user ? "no-store" : buildCacheControlHeader(60, 600),
+        },
+      },
+    );
   } catch (error) {
     await monitorUnhandledError(error, { route: "GET /api/posts/[id]/stats", request });
     return jsonError(500, {
