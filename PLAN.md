@@ -144,6 +144,11 @@
 |---|---|---|---|---|---|
 | seed skip + retry | Codex | P1 | `done` | 시드 존재 시 스킵, chunk 재시도 | `app/scripts/sync-neighborhoods.ts` |
 
+### Cycle 90: 상세 API 로딩 안정화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 재시도/응답 검증 | Codex | P1 | `done` | 상세 API 로딩 재시도 및 비JSON 처리 | `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

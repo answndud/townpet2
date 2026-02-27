@@ -17,6 +17,17 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 상세 API 로딩 안정화
+- 완료 내용
+- 상세 API 로딩 실패 시 재시도/비JSON 응답 처리.
+- 403 보안 챌린지 메시지 개선.
+- 변경 파일(핵심)
+- `app/src/components/posts/post-detail-client.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: neighborhood sync 안정화
 - 완료 내용
 - 시드가 이미 존재하면 스킵.

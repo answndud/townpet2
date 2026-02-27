@@ -189,21 +189,44 @@ export function PostDetailClient({ postId }: { postId: string }) {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      try {
-        const response = await fetch(`/api/posts/${postId}/detail`, {
-          method: "GET",
-          credentials: "same-origin",
-        });
-        const payload = (await response.json()) as PostDetailResponse;
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error?.message ?? "게시글 로딩 실패");
-        }
-        if (!cancelled) {
-          setData(payload);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "게시글을 불러올 수 없습니다.");
+      if (!postId) {
+        setError("게시글을 찾을 수 없습니다.");
+        return;
+      }
+
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          const response = await fetch(`/api/posts/${postId}/detail`, {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+
+          if (response.status === 403) {
+            throw new Error("보안 확인이 필요합니다. 새로고침 후 다시 시도해 주세요.");
+          }
+
+          const contentType = response.headers.get("content-type") ?? "";
+          if (!contentType.includes("application/json")) {
+            throw new Error("서버 응답을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+          }
+
+          const payload = (await response.json()) as PostDetailResponse;
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.error?.message ?? "게시글 로딩 실패");
+          }
+          if (!cancelled) {
+            setData(payload);
+          }
+          return;
+        } catch (err) {
+          if (attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 350 * attempt));
+            continue;
+          }
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : "게시글을 불러올 수 없습니다.");
+          }
         }
       }
     };
