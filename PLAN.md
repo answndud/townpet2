@@ -99,6 +99,11 @@
 |---|---|---|---|---|---|
 | reactions 조인 제외 | Codex | P1 | `done` | guest 상세/댓글에서 reactions 조회 제거 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/comment.queries.ts` |
 
+### Cycle 81: 상세 댓글 클라이언트 로딩 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 SSR 제거 | Codex | P1 | `done` | 댓글을 API로 가져와 상세 SSR 경량화 | `app/src/app/posts/[id]/page.tsx`, `app/src/app/api/posts/[id]/comments/route.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

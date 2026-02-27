@@ -16,7 +16,7 @@ import {
 type CommentItem = {
   id: string;
   content: string;
-  createdAt: Date;
+  createdAt: Date | string;
   parentId: string | null;
   status: PostStatus;
   likeCount: number;

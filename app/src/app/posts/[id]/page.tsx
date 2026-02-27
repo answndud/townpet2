@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PostType, Prisma } from "@prisma/client";
-import { cache, Suspense } from "react";
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
+import { PostCommentSectionClient } from "@/components/posts/post-comment-section-client";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
 import { GuestPostDetailActions } from "@/components/posts/guest-post-detail-actions";
 import { PostReactionControls } from "@/components/posts/post-reaction-controls";
@@ -255,46 +256,7 @@ const normalizeComments = (commentsRaw: Awaited<ReturnType<typeof listComments>>
       comment.author.email.endsWith("@guest.townpet.local"),
   }));
 
-async function PostCommentSection({
-  postId,
-  userId,
-  canInteract,
-  canInteractWithPostOwner,
-  loginHref,
-}: {
-  postId: string;
-  userId?: string;
-  canInteract: boolean;
-  canInteractWithPostOwner: boolean;
-  loginHref: string;
-}) {
-  let commentsRaw: Awaited<ReturnType<typeof listComments>> = [];
-  try {
-    commentsRaw = await listComments(postId, userId);
-  } catch {
-    return (
-      <div className="mt-6 rounded-sm border border-[#f0d3d3] bg-[#fff7f7] p-4 text-sm text-[#8b4b4b]">
-        댓글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
-      </div>
-    );
-  }
-  const comments = normalizeComments(commentsRaw);
-
-  return (
-    <PostCommentThread
-      postId={postId}
-      comments={comments}
-      currentUserId={userId}
-      canInteract={canInteract && canInteractWithPostOwner}
-      loginHref={loginHref}
-      interactionDisabledMessage={
-        canInteract && !canInteractWithPostOwner
-          ? "차단 관계에서는 댓글 작성/답글/신고를 사용할 수 없습니다."
-          : undefined
-      }
-    />
-  );
-}
+// Comments are fetched on the client to avoid blocking detail render.
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = (await params) ?? {};
@@ -758,21 +720,13 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
           </section>
         ) : null}
 
-        <Suspense
-          fallback={
-            <div className="mt-6 rounded-sm border border-[#dbe6f6] bg-white p-4 text-sm text-[#6a84ac]">
-              댓글을 불러오는 중...
-            </div>
-          }
-        >
-          <PostCommentSection
-            postId={post.id}
-            userId={user?.id}
-            canInteract={canInteract}
-            canInteractWithPostOwner={canInteractWithPostOwner}
-            loginHref={loginHref}
-          />
-        </Suspense>
+        <PostCommentSectionClient
+          postId={post.id}
+          currentUserId={user?.id}
+          canInteract={canInteract}
+          canInteractWithPostOwner={canInteractWithPostOwner}
+          loginHref={loginHref}
+        />
       </main>
     </div>
   );
