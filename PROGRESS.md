@@ -17,6 +17,16 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 상세 payload 관계 축소
+- 완료 내용
+- 상세 조회에서 hospital/place/walk 관계를 타입별로 선택 로드하도록 변경해 불필요한 조인 비용을 제거.
+- 변경 파일(핵심)
+- `app/src/server/queries/post.queries.ts`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: API 캐시 헤더 강제화
 - 완료 내용
 - Next config headers로 `/api/posts` 및 `/api/posts/:id/detail` 캐시 헤더 강제 적용.

@@ -228,6 +228,145 @@ const buildPostDetailIncludeWithoutReactions = (
     },
   }) as const;
 
+const HOSPITAL_REVIEW_SELECT = {
+  hospitalName: true,
+  totalCost: true,
+  waitTime: true,
+  rating: true,
+  treatmentType: true,
+} as const;
+
+const PLACE_REVIEW_SELECT = {
+  placeName: true,
+  placeType: true,
+  address: true,
+  isPetAllowed: true,
+  rating: true,
+} as const;
+
+const WALK_ROUTE_SELECT = {
+  routeName: true,
+  distance: true,
+  duration: true,
+  difficulty: true,
+  hasStreetLights: true,
+  hasRestroom: true,
+  hasParkingLot: true,
+  safetyTags: true,
+} as const;
+
+const buildPostDetailBaseInclude = (
+  viewerId?: string,
+  includeGuestAuthor = supportsPostGuestAuthorField(),
+  includeReactions = Boolean(viewerId),
+) =>
+  ({
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    ...(includeGuestAuthor
+      ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
+      : {}),
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
+    },
+    ...(includeReactions
+      ? {
+          reactions: {
+            where: {
+              userId: viewerId ?? NO_VIEWER_ID,
+            },
+            select: { type: true },
+          },
+        }
+      : {}),
+    images: {
+      select: { id: true, url: true, order: true },
+      orderBy: { order: "asc" },
+    },
+  }) as const;
+
+const buildPostDetailBaseIncludeWithoutReactions = (
+  includeGuestAuthor = supportsPostGuestAuthorField(),
+) =>
+  ({
+    author: { select: { id: true, name: true, nickname: true, image: true } },
+    ...(includeGuestAuthor
+      ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
+      : {}),
+    neighborhood: {
+      select: { id: true, name: true, city: true, district: true },
+    },
+    images: {
+      select: { id: true, url: true, order: true },
+      orderBy: { order: "asc" },
+    },
+  }) as const;
+
+async function attachPostDetailExtras<T extends { id: string; type: PostType }>(
+  post: T | null,
+) {
+  if (!post) {
+    return null;
+  }
+
+  const needsHospital = post.type === PostType.HOSPITAL_REVIEW;
+  const needsPlace = post.type === PostType.PLACE_REVIEW;
+  const needsWalk = post.type === PostType.WALK_ROUTE;
+  const tasks: Array<Promise<void>> = [];
+  const target = post as T & {
+    hospitalReview?: unknown;
+    placeReview?: unknown;
+    walkRoute?: unknown;
+  };
+
+  if (needsHospital) {
+    if (target.hospitalReview === undefined) {
+      tasks.push(
+        prisma.hospitalReview
+          .findUnique({ where: { postId: post.id }, select: HOSPITAL_REVIEW_SELECT })
+          .then((review) => {
+            target.hospitalReview = review;
+          }),
+      );
+    }
+  } else if (target.hospitalReview === undefined) {
+    target.hospitalReview = null;
+  }
+
+  if (needsPlace) {
+    if (target.placeReview === undefined) {
+      tasks.push(
+        prisma.placeReview
+          .findUnique({ where: { postId: post.id }, select: PLACE_REVIEW_SELECT })
+          .then((review) => {
+            target.placeReview = review;
+          }),
+      );
+    }
+  } else if (target.placeReview === undefined) {
+    target.placeReview = null;
+  }
+
+  if (needsWalk) {
+    if (target.walkRoute === undefined) {
+      tasks.push(
+        prisma.walkRoute
+          .findUnique({ where: { postId: post.id }, select: WALK_ROUTE_SELECT })
+          .then((route) => {
+            target.walkRoute = route;
+          }),
+      );
+    }
+  } else if (target.walkRoute === undefined) {
+    target.walkRoute = null;
+  }
+
+  if (tasks.length > 0) {
+    await Promise.all(tasks);
+  }
+
+  return post;
+}
+
 const LEGACY_POST_BASE_SELECT = {
   id: true,
   authorId: true,
@@ -909,7 +1048,7 @@ export async function getPostById(id?: string, viewerId?: string) {
       const post = await prisma.post
         .findFirst({
           where: { id, ...visibilityFilter },
-          include: buildPostDetailIncludeWithoutReactions(),
+          include: buildPostDetailBaseIncludeWithoutReactions(),
         })
         .catch(async (error) => {
           if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
@@ -919,7 +1058,7 @@ export async function getPostById(id?: string, viewerId?: string) {
           if (isUnknownGuestAuthorIncludeError(error)) {
             return prisma.post.findFirst({
               where: { id, ...visibilityFilter },
-              include: buildPostDetailIncludeWithoutReactions(false),
+              include: buildPostDetailBaseIncludeWithoutReactions(false),
             });
           }
 
@@ -928,14 +1067,14 @@ export async function getPostById(id?: string, viewerId?: string) {
             select: buildLegacyPostDetailSelectWithoutReactions(),
           });
         });
-      return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
+      return attachPostDetailExtras(withEmptyReactionsOne(withEmptyGuestPostMetaOne(post)));
     }
 
     try {
-      return await prisma.post
+      const post = await prisma.post
         .findFirst({
           where: { id, ...visibilityFilter },
-          include: buildPostDetailInclude(viewerId, supportsPostGuestAuthorField(), Boolean(viewerId)),
+          include: buildPostDetailBaseInclude(viewerId, supportsPostGuestAuthorField(), Boolean(viewerId)),
         })
         .catch(async (error) => {
           if (!isUnknownGuestPostColumnError(error) && !isUnknownGuestAuthorIncludeError(error)) {
@@ -945,7 +1084,7 @@ export async function getPostById(id?: string, viewerId?: string) {
           if (isUnknownGuestAuthorIncludeError(error)) {
             return prisma.post.findFirst({
               where: { id, ...visibilityFilter },
-              include: buildPostDetailInclude(viewerId, false, Boolean(viewerId)),
+              include: buildPostDetailBaseInclude(viewerId, false, Boolean(viewerId)),
             });
           }
 
@@ -955,6 +1094,7 @@ export async function getPostById(id?: string, viewerId?: string) {
           });
           return withEmptyGuestPostMetaOne(post);
         });
+      return attachPostDetailExtras(post);
     } catch (error) {
       if (
         !isUnknownReactionsIncludeError(error) &&
@@ -967,7 +1107,7 @@ export async function getPostById(id?: string, viewerId?: string) {
       const post = await prisma.post
         .findFirst({
           where: { id, ...visibilityFilter },
-          include: buildPostDetailIncludeWithoutReactions(!isUnknownGuestAuthorIncludeError(error)),
+          include: buildPostDetailBaseIncludeWithoutReactions(!isUnknownGuestAuthorIncludeError(error)),
         })
         .catch(async (innerError) => {
           if (!isUnknownGuestPostColumnError(innerError) && !isUnknownGuestAuthorIncludeError(innerError)) {
@@ -977,7 +1117,7 @@ export async function getPostById(id?: string, viewerId?: string) {
           if (isUnknownGuestAuthorIncludeError(innerError)) {
             return prisma.post.findFirst({
               where: { id, ...visibilityFilter },
-              include: buildPostDetailIncludeWithoutReactions(false),
+              include: buildPostDetailBaseIncludeWithoutReactions(false),
             });
           }
 
@@ -986,7 +1126,7 @@ export async function getPostById(id?: string, viewerId?: string) {
             select: buildLegacyPostDetailSelectWithoutReactions(),
           });
         });
-      return withEmptyReactionsOne(withEmptyGuestPostMetaOne(post));
+      return attachPostDetailExtras(withEmptyReactionsOne(withEmptyGuestPostMetaOne(post)));
     }
   };
 

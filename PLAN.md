@@ -189,6 +189,11 @@
 |---|---|---|---|---|---|
 | Next headers 추가 | Codex | P1 | `done` | `/api/posts`와 `/api/posts/:id/detail`에 Cache-Control 헤더를 강제 설정 | `app/next.config.ts` |
 
+### Cycle 99: 상세 payload 관계 축소 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 타입별 상세 관계 조회 | Codex | P1 | `done` | 상세 조회에서 hospital/place/walk 관계를 타입에 따라 선택적으로 로드 | `app/src/server/queries/post.queries.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
