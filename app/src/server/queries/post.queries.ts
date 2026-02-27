@@ -128,7 +128,7 @@ const buildPostDetailInclude = (
   includeReactions = Boolean(viewerId),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, name: true, nickname: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -184,7 +184,7 @@ const buildPostDetailIncludeWithoutReactions = (
   includeGuestAuthor = supportsPostGuestAuthorField(),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, name: true, nickname: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -286,7 +286,7 @@ const buildPostDetailBaseInclude = (
   includeReactions = Boolean(viewerId),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, name: true, nickname: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -312,7 +312,7 @@ const buildPostDetailBaseIncludeWithoutReactions = (
   includeGuestAuthor = supportsPostGuestAuthorField(),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, name: true, nickname: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -404,7 +404,7 @@ const LEGACY_POST_BASE_SELECT = {
 } as const;
 
 const LEGACY_POST_RELATION_SELECT = {
-  author: { select: { id: true, name: true, nickname: true, image: true } },
+  author: { select: { id: true, name: true, nickname: true } },
   neighborhood: {
     select: { id: true, name: true, city: true, district: true },
   },

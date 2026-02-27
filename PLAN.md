@@ -209,6 +209,11 @@
 |---|---|---|---|---|---|
 | image orderBy 제거 | Codex | P1 | `done` | 상세 조회에서 image orderBy를 제거하고 클라이언트에서 정렬 | `app/src/server/queries/post.queries.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/guest/page.tsx` |
 
+### Cycle 103: 상세 author 이미지 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 상세 author 필드 축소 | Codex | P1 | `done` | 상세 조회에서 author.image를 제거해 payload를 축소 | `app/src/server/queries/post.queries.ts` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
