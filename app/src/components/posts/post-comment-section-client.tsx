@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 
@@ -47,8 +47,45 @@ export function PostCommentSectionClient({
 }: PostCommentSectionClientProps) {
   const [comments, setComments] = useState<CommentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (shouldLoad) {
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoad(true);
+      return;
+    }
+
+    const target = containerRef.current;
+    if (!target) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoad(true);
+        }
+      },
+      {
+        rootMargin: "240px 0px",
+      },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  useEffect(() => {
+    if (!shouldLoad) {
+      return;
+    }
     let cancelled = false;
 
     const run = async () => {
@@ -75,7 +112,27 @@ export function PostCommentSectionClient({
     return () => {
       cancelled = true;
     };
-  }, [postId]);
+  }, [postId, shouldLoad]);
+
+  if (!shouldLoad) {
+    return (
+      <div
+        ref={containerRef}
+        className="mt-6 rounded-sm border border-[#dbe6f6] bg-white p-4 text-sm text-[#6a84ac]"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span>댓글은 화면에 보일 때 불러옵니다.</span>
+          <button
+            type="button"
+            onClick={() => setShouldLoad(true)}
+            className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          >
+            댓글 불러오기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
