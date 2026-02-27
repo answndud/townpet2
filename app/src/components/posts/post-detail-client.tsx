@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PostType } from "@prisma/client";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
@@ -334,46 +334,32 @@ export function PostDetailClient({ postId }: { postId: string }) {
   const displayAuthorName = resolvedGuestAuthorName
     ? resolvedGuestAuthorName
     : post.author.nickname ?? post.author.name ?? "익명";
-  const structuredData = useMemo(
-    () => ({
-      "@context": "https://schema.org",
-      "@type": "SocialMediaPosting",
-      headline: post.title,
-      articleBody: buildExcerpt(post.content, 320),
-      datePublished: createdAt.toISOString(),
-      dateModified: updatedAt.toISOString(),
-      mainEntityOfPage: postUrl,
-      author: {
-        "@type": "Person",
-        name: post.author.nickname ?? post.author.name ?? "익명",
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SocialMediaPosting",
+    headline: post.title,
+    articleBody: buildExcerpt(post.content, 320),
+    datePublished: createdAt.toISOString(),
+    dateModified: updatedAt.toISOString(),
+    mainEntityOfPage: postUrl,
+    author: {
+      "@type": "Person",
+      name: post.author.nickname ?? post.author.name ?? "익명",
+    },
+    image: post.images.map((image) => toAbsoluteUrl(image.url)),
+    interactionStatistic: [
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/LikeAction",
+        userInteractionCount: safeLikeCount,
       },
-      image: post.images.map((image) => toAbsoluteUrl(image.url)),
-      interactionStatistic: [
-        {
-          "@type": "InteractionCounter",
-          interactionType: "https://schema.org/LikeAction",
-          userInteractionCount: safeLikeCount,
-        },
-        {
-          "@type": "InteractionCounter",
-          interactionType: "https://schema.org/CommentAction",
-          userInteractionCount: safeCommentCount,
-        },
-      ],
-    }),
-    [
-      post.title,
-      post.content,
-      postUrl,
-      createdAt,
-      updatedAt,
-      post.author.nickname,
-      post.author.name,
-      post.images,
-      safeLikeCount,
-      safeCommentCount,
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/CommentAction",
+        userInteractionCount: safeCommentCount,
+      },
     ],
-  );
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">

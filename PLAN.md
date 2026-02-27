@@ -164,6 +164,11 @@
 |---|---|---|---|---|---|
 | 401/403/404 redirect | Codex | P1 | `done` | 상세 API 실패 시 guest 상세로 이동 | `app/src/components/posts/post-detail-client.tsx` |
 
+### Cycle 94: 상세 클라이언트 훅 오류 수정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| useMemo 제거 | Codex | P1 | `done` | 조건부 hook 제거 | `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
