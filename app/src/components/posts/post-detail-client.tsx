@@ -46,10 +46,10 @@ type PostDetailItem = {
   content: string;
   createdAt: string | Date;
   updatedAt: string | Date;
-  viewCount: number;
-  likeCount: number;
-  dislikeCount: number;
-  commentCount: number;
+  viewCount?: number | null;
+  likeCount?: number | null;
+  dislikeCount?: number | null;
+  commentCount?: number | null;
   author: { id: string; name: string | null; nickname: string | null; image?: string | null };
   guestAuthor?: { displayName?: string | null; ipDisplay?: string | null; ipLabel?: string | null } | null;
   guestAuthorId?: string | null;
@@ -191,6 +191,12 @@ export function PostDetailClient({ postId }: { postId: string }) {
     hasBlockedMe: false,
     isMutedByMe: false,
   });
+  const [stats, setStats] = useState<{
+    viewCount: number;
+    likeCount: number;
+    dislikeCount: number;
+    commentCount: number;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,6 +266,52 @@ export function PostDetailClient({ postId }: { postId: string }) {
 
   const payloadPost = data?.data?.post;
   const payloadViewerId = data?.data?.viewerId ?? null;
+
+  useEffect(() => {
+    if (!postId) {
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const response = await fetch(`/api/posts/${postId}/stats`, {
+          method: "GET",
+          credentials: "same-origin",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as {
+          ok: boolean;
+          data?: {
+            viewCount: number;
+            likeCount: number;
+            dislikeCount: number;
+            commentCount: number;
+          };
+        };
+        if (!payload.ok || cancelled) {
+          return;
+        }
+        setStats({
+          viewCount: payload.data?.viewCount ?? 0,
+          likeCount: payload.data?.likeCount ?? 0,
+          dislikeCount: payload.data?.dislikeCount ?? 0,
+          commentCount: payload.data?.commentCount ?? 0,
+        });
+      } catch {
+        if (!cancelled) {
+          setStats(null);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [postId]);
 
   useEffect(() => {
     if (!payloadViewerId || !payloadPost?.authorId) {
@@ -358,10 +410,10 @@ export function PostDetailClient({ postId }: { postId: string }) {
   const meta = typeMeta[post.type];
   const createdAt = ensureDate(post.createdAt);
   const updatedAt = ensureDate(post.updatedAt);
-  const safeViewCount = Number.isFinite(post.viewCount) ? Number(post.viewCount) : 0;
-  const safeLikeCount = Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0;
-  const safeDislikeCount = Number.isFinite(post.dislikeCount) ? Number(post.dislikeCount) : 0;
-  const safeCommentCount = Number.isFinite(post.commentCount) ? Number(post.commentCount) : 0;
+  const resolvedViewCount = stats?.viewCount ?? (Number.isFinite(post.viewCount) ? Number(post.viewCount) : 0);
+  const resolvedLikeCount = stats?.likeCount ?? (Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0);
+  const resolvedDislikeCount = stats?.dislikeCount ?? (Number.isFinite(post.dislikeCount) ? Number(post.dislikeCount) : 0);
+  const resolvedCommentCount = stats?.commentCount ?? (Number.isFinite(post.commentCount) ? Number(post.commentCount) : 0);
   const renderedContentHtml = post.renderedContentHtml?.trim()
     ? post.renderedContentHtml
     : renderLiteMarkdown(post.content);
@@ -409,12 +461,12 @@ export function PostDetailClient({ postId }: { postId: string }) {
       {
         "@type": "InteractionCounter",
         interactionType: "https://schema.org/LikeAction",
-        userInteractionCount: safeLikeCount,
+        userInteractionCount: resolvedLikeCount,
       },
       {
         "@type": "InteractionCounter",
         interactionType: "https://schema.org/CommentAction",
-        userInteractionCount: safeCommentCount,
+        userInteractionCount: resolvedCommentCount,
       },
     ],
   };
@@ -466,10 +518,10 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   <p className="text-[12px] text-[#5a759c]">{formatRelativeDate(createdAt)}</p>
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-[#5f7da8] md:justify-end">
-                  <span>조회 {safeViewCount.toLocaleString()}</span>
-                  <span>좋아요 {safeLikeCount.toLocaleString()}</span>
-                  <span>싫어요 {safeDislikeCount.toLocaleString()}</span>
-                  <span>댓글 {safeCommentCount.toLocaleString()}</span>
+                  <span>조회 {resolvedViewCount.toLocaleString()}</span>
+                  <span>좋아요 {resolvedLikeCount.toLocaleString()}</span>
+                  <span>싫어요 {resolvedDislikeCount.toLocaleString()}</span>
+                  <span>댓글 {resolvedCommentCount.toLocaleString()}</span>
                 </p>
                 <details className="mt-1 text-[11px] text-[#6b84ab] md:text-right">
                   <summary className="cursor-pointer list-none font-semibold text-[#5878a2]">상세 정보</summary>
@@ -526,8 +578,8 @@ export function PostDetailClient({ postId }: { postId: string }) {
                 <div className="flex items-center justify-between gap-2">
                   <PostReactionControls
                     postId={post.id}
-                    likeCount={safeLikeCount}
-                    dislikeCount={safeDislikeCount}
+                    likeCount={resolvedLikeCount}
+                    dislikeCount={resolvedDislikeCount}
                     currentReaction={canInteract ? undefined : null}
                     canReact={canInteract && canInteractWithPostOwner}
                     loginHref={loginHref}

@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
 
-import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { canGuestReadPost } from "@/lib/post-access";
 import { getCurrentUser } from "@/server/auth";
-import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
-import { getPostById } from "@/server/queries/post.queries";
+import { getPostStatsById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { jsonError, jsonOk } from "@/server/response";
 
@@ -18,7 +16,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
     const user = await getCurrentUser();
-    const post = await getPostById(postId, user?.id);
+    const post = await getPostStatsById(postId, user?.id);
     if (!post) {
       return jsonError(404, {
         code: "NOT_FOUND",
@@ -51,31 +49,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const renderedContentHtml = renderLiteMarkdown(post.content);
-    const renderedContentText = renderedContentHtml
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const { likeCount, dislikeCount, commentCount, viewCount, ...restPost } = post;
-
-    return jsonOk(
-      {
-        post: {
-          ...restPost,
-          renderedContentHtml,
-          renderedContentText,
-        },
-        viewerId: user?.id ?? null,
-      },
-      {
-        headers: {
-          "cache-control": user ? "no-store" : buildCacheControlHeader(30, 300),
-        },
-      },
-    );
+    return jsonOk({
+      likeCount: post.likeCount ?? 0,
+      dislikeCount: post.dislikeCount ?? 0,
+      commentCount: post.commentCount ?? 0,
+      viewCount: post.viewCount ?? 0,
+    });
   } catch (error) {
-    await monitorUnhandledError(error, { route: "GET /api/posts/[id]/detail", request });
+    await monitorUnhandledError(error, { route: "GET /api/posts/[id]/stats", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",
       message: "서버 오류가 발생했습니다.",

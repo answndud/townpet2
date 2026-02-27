@@ -1176,6 +1176,45 @@ export async function getPostMetadataById(id?: string, viewerId?: string) {
   return runMetadata();
 }
 
+export async function getPostStatsById(id?: string, viewerId?: string) {
+  if (!id) {
+    return null;
+  }
+  const shouldCache = !viewerId;
+  const runStats = async () => {
+    const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+    const visibilityFilter =
+      hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
+
+    return prisma.post.findFirst({
+      where: { id, ...visibilityFilter },
+      select: {
+        id: true,
+        authorId: true,
+        type: true,
+        scope: true,
+        status: true,
+        neighborhoodId: true,
+        likeCount: true,
+        dislikeCount: true,
+        commentCount: true,
+        viewCount: true,
+      },
+    });
+  };
+
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("post-detail", { id, mode: "stats" });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 30,
+      fetcher: runStats,
+    });
+  }
+
+  return runStats();
+}
+
 export async function listPosts({
   cursor,
   limit: _limit,
