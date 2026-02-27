@@ -17,6 +17,16 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-02-27: 상세 API 실패 시 guest fallback
+- 완료 내용
+- 상세 API가 401/403/404이면 guest 상세로 자동 이동.
+- 변경 파일(핵심)
+- `app/src/components/posts/post-detail-client.tsx`
+- 검증 결과
+- 코드 변경으로 lint/test/typecheck 실행 없음.
+- 이슈/블로커
+- 없음.
+
 ### 2026-02-27: 게스트 판별 쿠키 보강
 - 완료 내용
 - 미들웨어에서 NextAuth 쿠키명까지 게스트 판별에 포함.

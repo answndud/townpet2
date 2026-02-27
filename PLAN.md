@@ -159,6 +159,11 @@
 |---|---|---|---|---|---|
 | next-auth 쿠키 포함 | Codex | P1 | `done` | 미들웨어 게스트 판별에 NextAuth 쿠키 포함 | `app/middleware.ts` |
 
+### Cycle 93: 상세 API 실패 guest fallback (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 401/403/404 redirect | Codex | P1 | `done` | 상세 API 실패 시 guest 상세로 이동 | `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 67: 보안 하드닝 트랙 운영
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

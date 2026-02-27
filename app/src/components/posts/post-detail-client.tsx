@@ -203,7 +203,19 @@ export function PostDetailClient({ postId }: { postId: string }) {
           });
 
           if (response.status === 403) {
+            if (typeof window !== "undefined") {
+              window.location.href = `/posts/${postId}/guest`;
+              return;
+            }
             throw new Error("보안 확인이 필요합니다. 새로고침 후 다시 시도해 주세요.");
+          }
+
+          if (response.status === 401) {
+            if (typeof window !== "undefined") {
+              window.location.href = `/posts/${postId}/guest`;
+              return;
+            }
+            throw new Error("로그인이 필요한 게시글입니다.");
           }
 
           const contentType = response.headers.get("content-type") ?? "";
@@ -213,6 +225,10 @@ export function PostDetailClient({ postId }: { postId: string }) {
 
           const payload = (await response.json()) as PostDetailResponse;
           if (!response.ok || !payload.ok) {
+            if (response.status === 404 && typeof window !== "undefined") {
+              window.location.href = `/posts/${postId}/guest`;
+              return;
+            }
             throw new Error(payload.error?.message ?? "게시글 로딩 실패");
           }
           if (!cancelled) {
