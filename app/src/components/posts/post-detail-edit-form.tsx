@@ -453,7 +453,7 @@ export function PostDetailEditForm({
             disabled={!isAuthenticated}
           >
             <option value={PostScope.LOCAL}>동네</option>
-            <option value={PostScope.GLOBAL}>온동네</option>
+            <option value={PostScope.GLOBAL}>전체</option>
           </select>
         </label>
 

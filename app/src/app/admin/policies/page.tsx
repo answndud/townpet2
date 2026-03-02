@@ -132,7 +132,7 @@ export default async function AdminPoliciesPage() {
               이미지 최대 {guestPostPolicy.maxImageCount}장
             </span>
             <span className="rounded-md border border-[#cbdcf5] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
-              범위 {guestPostPolicy.enforceGlobalScope ? "온동네만" : "동네/온동네"}
+              범위 {guestPostPolicy.enforceGlobalScope ? "전체만" : "동네/전체"}
             </span>
             <span className="rounded-md border border-[#cbdcf5] bg-[#f6f9ff] px-2.5 py-1 text-[#315484]">
               링크 {guestPostPolicy.allowLinks ? "허용" : "차단"}

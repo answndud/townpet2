@@ -1,5 +1,6 @@
 import {
   PostReactionType,
+  ReviewCategory,
   PostScope,
   PostStatus,
   PostType,
@@ -138,6 +139,8 @@ const PLACE_REVIEW_SELECT = {
   isPetAllowed: true,
   rating: true,
 } as const;
+
+const REVIEW_BOARD_TYPES = [PostType.PLACE_REVIEW, PostType.PRODUCT_REVIEW] as const;
 
 const WALK_ROUTE_SELECT = {
   routeName: true,
@@ -536,6 +539,8 @@ function buildPostSearchWhere(
 
 function buildPostListWhere({
   type,
+  reviewBoard,
+  reviewCategory,
   scope,
   petTypeId,
   q,
@@ -547,6 +552,8 @@ function buildPostListWhere({
   authorBreedCode,
 }: {
   type?: PostType;
+  reviewBoard?: boolean;
+  reviewCategory?: ReviewCategory;
   scope: PostScope;
   petTypeId?: string;
   q?: string;
@@ -584,9 +591,12 @@ function buildPostListWhere({
                   in: typeFilter,
                 },
         }
+      : reviewBoard
+        ? { type: { in: [...REVIEW_BOARD_TYPES] } }
       : expandedExcludeTypes.length > 0
         ? { type: { notIn: expandedExcludeTypes } }
         : {}),
+    ...(reviewCategory ? { reviewCategory } : {}),
     scope,
     ...(petTypeId ? { petTypeId } : {}),
     ...(scope === PostScope.LOCAL && neighborhoodId
@@ -614,6 +624,8 @@ function buildBestPostWhere({
   days,
   minLikes,
   type,
+  reviewBoard,
+  reviewCategory,
   scope,
   petTypeId,
   q,
@@ -625,6 +637,8 @@ function buildBestPostWhere({
   days: number;
   minLikes: number;
   type?: PostType;
+  reviewBoard?: boolean;
+  reviewCategory?: ReviewCategory;
   scope: PostScope;
   petTypeId?: string;
   q?: string;
@@ -638,6 +652,8 @@ function buildBestPostWhere({
   return {
     ...buildPostListWhere({
       type,
+      reviewBoard,
+      reviewCategory,
       scope,
       petTypeId,
       q,
@@ -656,6 +672,8 @@ type PostListOptions = {
   limit: number;
   page?: number;
   type?: PostType;
+  reviewBoard?: boolean;
+  reviewCategory?: ReviewCategory;
   scope: PostScope;
   petTypeId?: string;
   q?: string;
@@ -674,6 +692,8 @@ type BestPostListOptions = {
   page?: number;
   days: number;
   type?: PostType;
+  reviewBoard?: boolean;
+  reviewCategory?: ReviewCategory;
   scope: PostScope;
   petTypeId?: string;
   q?: string;
@@ -686,6 +706,8 @@ type BestPostListOptions = {
 
 type PostCountOptions = {
   type?: PostType;
+  reviewBoard?: boolean;
+  reviewCategory?: ReviewCategory;
   scope: PostScope;
   petTypeId?: string;
   q?: string;
@@ -699,6 +721,8 @@ type PostCountOptions = {
 type BestPostCountOptions = {
   days: number;
   type?: PostType;
+  reviewBoard?: boolean;
+  reviewCategory?: ReviewCategory;
   scope: PostScope;
   petTypeId?: string;
   q?: string;

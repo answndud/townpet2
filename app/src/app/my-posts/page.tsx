@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PostScope, PostType } from "@prisma/client";
+import { PostType } from "@prisma/client";
 
-import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostSignalIcons } from "@/components/posts/post-signal-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
@@ -65,50 +64,44 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
   }
 
   const resolvedParams = (await searchParams) ?? {};
+  const hasLegacyScope =
+    typeof resolvedParams.scope === "string" && resolvedParams.scope.trim().length > 0;
+  if (hasLegacyScope) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(resolvedParams)) {
+      if (key === "scope") {
+        continue;
+      }
+      if (typeof value === "string" && value.length > 0) {
+        params.set(key, value);
+      }
+    }
+    const serialized = params.toString();
+    redirect(serialized ? `/my-posts?${serialized}` : "/my-posts");
+  }
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
   const type = listInput?.type;
-  const scope = listInput?.scope;
-  const effectiveScope = scope ?? PostScope.GLOBAL;
-
-  const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
-  if (!primaryNeighborhood && effectiveScope === PostScope.LOCAL) {
-    return (
-      <NeighborhoodGateNotice
-        title="내 작성글을 보려면 동네 설정이 필요합니다."
-        description="대표 동네를 설정하면 작성 내역을 확인할 수 있습니다."
-        primaryLink="/profile"
-        primaryLabel="프로필에서 동네 설정"
-        secondaryLink="/my-posts?scope=GLOBAL"
-        secondaryLabel="온동네 글 보기"
-      />
-    );
-  }
 
   const query = listInput?.q?.trim() ?? "";
   const posts = await listUserPosts({
     authorId: user.id,
-    scope,
     type,
     q: query || undefined,
   });
 
   const makeHref = ({
     nextType,
-    nextScope,
     nextQuery,
   }: {
     nextType?: PostType | null;
-    nextScope?: PostScope | null;
     nextQuery?: string | null;
   }) => {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
-    const resolvedScope = nextScope === undefined ? scope : nextScope;
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
 
     if (resolvedType) params.set("type", resolvedType);
-    if (resolvedScope) params.set("scope", resolvedScope);
     if (resolvedQuery) params.set("q", resolvedQuery);
 
     const serialized = params.toString();
@@ -124,16 +117,14 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
             내가 올린 게시글
           </h1>
           <p className="mt-2 text-sm text-[#4f678d]">
-            카테고리와 범위를 조합해 내 글을 빠르게 확인할 수 있습니다.
+            카테고리별로 내 글을 빠르게 확인할 수 있습니다.
           </p>
         </header>
 
         <section className="tp-card p-4 sm:p-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="space-y-3">
+          <div className="space-y-3">
               <form action="/my-posts" className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {type ? <input type="hidden" name="type" value={type} /> : null}
-                {scope ? <input type="hidden" name="scope" value={scope} /> : null}
                 <input
                   name="q"
                   defaultValue={query}
@@ -206,38 +197,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <aside className="tp-soft-card p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                범위
-              </div>
-              <div className="mt-2 grid gap-2">
-                <Link
-                  href={makeHref({ nextScope: PostScope.LOCAL })}
-                  className={`rounded-lg border px-3 py-2 text-center text-xs font-semibold transition ${
-                    scope === PostScope.LOCAL
-                      ? "border-[#3567b5] bg-[#3567b5] text-white"
-                      : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-                  }`}
-                >
-                  동네 글
-                </Link>
-                <Link
-                  href={makeHref({ nextScope: PostScope.GLOBAL })}
-                  className={`rounded-lg border px-3 py-2 text-center text-xs font-semibold transition ${
-                    scope === PostScope.GLOBAL
-                      ? "border-[#3567b5] bg-[#3567b5] text-white"
-                      : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-                  }`}
-                >
-                  온동네 글
-                </Link>
-              </div>
-              <p className="mt-3 border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">
-                총 {posts.length}건
-              </p>
-            </aside>
+            <p className="border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">총 {posts.length}건</p>
           </div>
         </section>
 
@@ -269,9 +229,6 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
                       <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
                         <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
                           {typeLabels[post.type]}
-                        </span>
-                        <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                          {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
                         </span>
                         <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
                           {post.neighborhood

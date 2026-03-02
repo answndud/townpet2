@@ -1,4 +1,4 @@
-import { PostScope, PostType } from "@prisma/client";
+import { PostScope, PostType, ReviewCategory } from "@prisma/client";
 import { z } from "zod";
 
 import { isCommonBoardPostType } from "@/lib/community-board";
@@ -67,12 +67,40 @@ export const postCreateSchema = z.object({
   scope: z.nativeEnum(PostScope).default(PostScope.LOCAL),
   neighborhoodId: z.string().cuid().optional(),
   petTypeId: z.string().cuid().optional(),
+  reviewCategory: z.nativeEnum(ReviewCategory).optional(),
   animalTags: z.array(z.string().trim().min(1).max(24)).max(5).optional().default([]),
   imageUrls: z.array(imageUrlSchema).max(10).optional().default([]),
   guestDisplayName: z.string().trim().min(2).max(24).optional(),
   guestPassword: z.string().min(4).max(32).optional(),
 })
   .superRefine((value, ctx) => {
+    const isReviewType =
+      value.type === PostType.PLACE_REVIEW || value.type === PostType.PRODUCT_REVIEW;
+
+    if (isReviewType && !value.reviewCategory) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reviewCategory"],
+        message: "리뷰 게시글은 세부 카테고리 선택이 필요합니다.",
+      });
+    }
+
+    if (value.type === PostType.PLACE_REVIEW && value.reviewCategory && value.reviewCategory !== ReviewCategory.PLACE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reviewCategory"],
+        message: "장소 리뷰는 장소 카테고리만 선택할 수 있습니다.",
+      });
+    }
+
+    if (value.type === PostType.PRODUCT_REVIEW && value.reviewCategory === ReviewCategory.PLACE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reviewCategory"],
+        message: "용품 리뷰는 장소 카테고리를 선택할 수 없습니다.",
+      });
+    }
+
     if (isCommonBoardPostType(value.type)) {
       if (value.petTypeId) {
         ctx.addIssue({
@@ -140,6 +168,7 @@ export const postListSchema = z.object({
   type: z.nativeEnum(PostType).optional(),
   scope: z.nativeEnum(PostScope).optional(),
   petType: z.string().cuid().optional(),
+  review: z.nativeEnum(ReviewCategory).optional(),
   q: z.string().min(1).max(100).optional(),
   searchIn: z.enum(["ALL", "TITLE", "CONTENT", "AUTHOR"]).optional(),
   sort: z.enum(["LATEST", "LIKE", "COMMENT"]).optional(),
@@ -182,8 +211,9 @@ export const postUpdateSchema = z
 type PostListSchemaInput = z.infer<typeof postListSchema>;
 
 export type PostCreateInput = z.infer<typeof postCreateSchema>;
-export type PostListInput = Omit<PostListSchemaInput, "petType"> & {
+export type PostListInput = Omit<PostListSchemaInput, "petType" | "review"> & {
   petTypeId?: string;
+  reviewCategory?: ReviewCategory;
 };
 export type HospitalReviewInput = z.infer<typeof hospitalReviewSchema>;
 export type PlaceReviewInput = z.infer<typeof placeReviewSchema>;
@@ -192,9 +222,10 @@ export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
 
 // Normalize parsed list input to product-facing naming.
 export function toPostListInput(value: PostListSchemaInput): PostListInput {
-  const { petType, ...rest } = value;
+  const { petType, review, ...rest } = value;
   return {
     ...rest,
     petTypeId: petType,
+    reviewCategory: review,
   };
 }

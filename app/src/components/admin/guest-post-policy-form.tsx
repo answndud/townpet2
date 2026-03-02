@@ -116,7 +116,7 @@ export function GuestPostPolicyForm({ initialPolicy }: GuestPostPolicyFormProps)
             onChange={(event) => setEnforceGlobalScope(event.target.checked)}
             disabled={isPending}
           />
-          <span className="font-semibold">온동네(Global)만 허용</span>
+          <span className="font-semibold">전체(Global)만 허용</span>
         </label>
         <label className="flex items-center gap-2 border border-[#c6d6ee] bg-white px-3 py-2 text-xs text-[#355988]">
           <input

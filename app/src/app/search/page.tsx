@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
+import { redirect } from "next/navigation";
 import { PostScope, PostType } from "@prisma/client";
 
 import { HighlightText } from "@/components/content/highlight-text";
-import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { FeedSearchForm } from "@/components/posts/feed-search-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
@@ -81,35 +81,31 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 
   const resolvedParams = (await searchParams) ?? {};
+  const hasLegacyScope =
+    typeof resolvedParams.scope === "string" && resolvedParams.scope.trim().length > 0;
+  if (hasLegacyScope) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(resolvedParams)) {
+      if (key === "scope") {
+        continue;
+      }
+      if (typeof value === "string" && value.length > 0) {
+        params.set(key, value);
+      }
+    }
+    const serialized = params.toString();
+    redirect(serialized ? `/search?${serialized}` : "/search");
+  }
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
   const type = listInput?.type;
-  const scope = listInput?.scope;
-  const selectedScope = scope ?? PostScope.GLOBAL;
-  const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
+  const effectiveScope = PostScope.GLOBAL;
   const query = listInput?.q?.trim() ?? "";
   const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);
   const isGuestTypeBlocked =
     !isAuthenticated && isLoginRequiredPostType(type, loginRequiredTypes);
 
-  const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
-  if (isAuthenticated && !primaryNeighborhood && effectiveScope !== PostScope.GLOBAL) {
-    return (
-      <NeighborhoodGateNotice
-        title="동네 설정이 필요합니다."
-        description="로컬 검색을 사용하려면 대표 동네를 설정해 주세요."
-        primaryLink="/profile"
-        primaryLabel="프로필에서 동네 설정"
-        secondaryLink="/search?scope=GLOBAL"
-        secondaryLabel="온동네 검색 보기"
-      />
-    );
-  }
-
-  const neighborhoodId =
-    effectiveScope === PostScope.LOCAL
-      ? primaryNeighborhood?.neighborhood.id
-      : undefined;
+  const neighborhoodId = undefined;
 
   const resultItems =
     query.length > 0 && !isGuestTypeBlocked
@@ -143,7 +139,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               searchIn={selectedSearchIn}
               personalized="0"
               type={type}
-              scope={selectedScope}
               mode="ALL"
               days={7}
               sort="LATEST"
@@ -214,9 +209,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       >
                         <span>{meta.icon}</span>
                         {meta.label}
-                      </span>
-                      <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
-                        {post.scope === PostScope.LOCAL ? "동네" : "온동네"}
                       </span>
                       <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
                         {post.neighborhood

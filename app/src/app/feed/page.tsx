@@ -40,13 +40,13 @@ type FeedPeriod = (typeof FEED_PERIOD_OPTIONS)[number];
 
 export const metadata: Metadata = {
   title: "피드",
-  description: "동네와 온동네 게시글을 최신순/인기순으로 확인하세요.",
+  description: "커뮤니티 게시글을 최신순/인기순으로 확인하세요.",
   alternates: {
     canonical: "/feed",
   },
   openGraph: {
     title: "TownPet 피드",
-    description: "동네와 온동네 게시글을 최신순/인기순으로 확인하세요.",
+    description: "커뮤니티 게시글을 최신순/인기순으로 확인하세요.",
     url: "/feed",
   },
 };
@@ -179,18 +179,23 @@ export default async function Home({ searchParams }: HomePageProps) {
   const hasLegacyCommunityId = legacyCommunityId.length > 0;
   const hasPetType =
     typeof resolvedParams.petType === "string" && resolvedParams.petType.trim().length > 0;
-  if (hasLegacyCommunityId && !hasPetType) {
+  const hasLegacyScope =
+    typeof resolvedParams.scope === "string" && resolvedParams.scope.trim().length > 0;
+  if ((hasLegacyCommunityId && !hasPetType) || hasLegacyScope) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(resolvedParams)) {
-      if (key === "communityId") {
+      if (key === "communityId" || key === "scope") {
         continue;
       }
       if (typeof value === "string" && value.length > 0) {
         params.set(key, value);
       }
     }
-    params.set("petType", legacyCommunityId);
-    redirect(`/feed?${params.toString()}`);
+    if (hasLegacyCommunityId && !hasPetType) {
+      params.set("petType", legacyCommunityId);
+    }
+    const serialized = params.toString();
+    redirect(serialized ? `/feed?${serialized}` : "/feed");
   }
   await maybeDebugDelay(resolvedParams.debugDelayMs);
   const parsedParams = postListSchema.safeParse({
@@ -199,12 +204,11 @@ export default async function Home({ searchParams }: HomePageProps) {
   });
   const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
   const type = listInput?.type;
-  const scope = listInput?.scope;
   const requestedPetTypeId = listInput?.petTypeId;
   const isCommonBoardType = type ? isCommonBoardPostType(type) : false;
   const isLocalRequiredType = isLocalRequiredPostType(type);
   const petTypeId = isCommonBoardType ? undefined : requestedPetTypeId;
-  const selectedScope = isLocalRequiredType ? PostScope.LOCAL : scope ?? PostScope.GLOBAL;
+  const selectedScope = isLocalRequiredType ? PostScope.LOCAL : PostScope.GLOBAL;
   const effectiveScope = isAuthenticated
     ? selectedScope
     : isLocalRequiredType
@@ -220,7 +224,6 @@ export default async function Home({ searchParams }: HomePageProps) {
   const isUltraDense = density === "ULTRA";
   const usePersonalizedFeed =
     isAuthenticated && mode === "ALL" && selectedPersonalized === "1";
-  const isGuestLocalBlocked = !isAuthenticated && selectedScope === PostScope.LOCAL;
   const isGuestTypeBlocked =
     !isAuthenticated && isLoginRequiredPostType(type, loginRequiredTypes);
 
@@ -243,8 +246,8 @@ export default async function Home({ searchParams }: HomePageProps) {
         description="동네를 설정해야 로컬 피드를 확인할 수 있습니다."
         primaryLink="/profile"
         primaryLabel="프로필에서 동네 설정"
-        secondaryLink="/feed?scope=GLOBAL"
-        secondaryLabel="온동네 피드 보기"
+        secondaryLink="/feed"
+        secondaryLabel="피드 보기"
       />
     );
   }
@@ -437,7 +440,6 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   const makeHref = ({
     nextType,
-    nextScope,
     nextPetTypeId,
     nextQuery,
     nextPage,
@@ -450,7 +452,6 @@ export default async function Home({ searchParams }: HomePageProps) {
     nextDensity,
   }: {
     nextType?: PostType | null;
-    nextScope?: PostScope | null;
     nextPetTypeId?: string | null;
     nextQuery?: string | null;
     nextPage?: number | null;
@@ -464,10 +465,6 @@ export default async function Home({ searchParams }: HomePageProps) {
   }) => {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
-    const resolvedScopeBase = nextScope === undefined ? selectedScope : nextScope;
-    const resolvedScope = isLocalRequiredPostType(resolvedType)
-      ? PostScope.LOCAL
-      : resolvedScopeBase;
     const resolvedPetTypeId =
       nextPetTypeId === undefined ? petTypeId : nextPetTypeId;
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
@@ -484,7 +481,6 @@ export default async function Home({ searchParams }: HomePageProps) {
       nextPage === undefined ? (resolvedMode === "BEST" ? resolvedPage : 1) : nextPage;
 
     if (resolvedType) params.set("type", resolvedType);
-    if (resolvedScope) params.set("scope", resolvedScope);
     if (resolvedPetTypeId) {
       const canUseCommunityFilter = !resolvedType || !isCommonBoardPostType(resolvedType);
       if (canUseCommunityFilter) {
@@ -555,17 +551,6 @@ export default async function Home({ searchParams }: HomePageProps) {
           목록 바로가기
         </a>
 
-        {isGuestLocalBlocked ? (
-          <div className="border border-[#d9c38b] bg-[#fff8e5] px-3 py-2.5 text-sm text-[#6c5319]">
-            동네(Local) 피드는 로그인 후 이용할 수 있습니다.{" "}
-            <Link
-              href={loginHref("/feed?scope=LOCAL")}
-              className="font-semibold text-[#2f5da4] hover:text-[#244b86]"
-            >
-              로그인하기
-            </Link>
-          </div>
-        ) : null}
         {isGuestTypeBlocked && type ? (
           <div className="border border-[#d9c38b] bg-[#fff8e5] px-3 py-2.5 text-sm text-[#6c5319]">
             선택한 카테고리({postTypeMeta[type].label})는 로그인 후 열람할 수 있습니다.{" "}
@@ -675,7 +660,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                   ? "해당 카테고리는 로그인 후 확인할 수 있습니다."
                   : mode === "BEST"
                   ? "선택한 카테고리/범위에서 좋아요가 1개 이상인 글이 아직 없습니다."
-                  : "글을 작성하거나 온동네 범위로 전환해서 다른 지역 글을 확인해 주세요."
+                  : "글을 작성하거나 다른 카테고리를 확인해 주세요."
               }
               actionHref={
                 isGuestTypeBlocked
@@ -690,7 +675,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                   : mode === "BEST"
                     ? "전체글 보기"
                     : "첫 글 작성하기"
-              }
+               }
             />
           ) : (
             <FeedInfiniteList

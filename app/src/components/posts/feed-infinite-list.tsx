@@ -546,9 +546,6 @@ export function FeedInfiniteList({
                     >
                       {meta.label}
                     </span>
-                    <span className="rounded-md border border-[#d2ddf0] bg-[#f6f9ff] px-2.5 py-0.5 text-[#2f548f]">
-                      {post.scope === "LOCAL" ? "동네" : "온동네"}
-                    </span>
                     {post.status === "HIDDEN" ? (
                       <span className="rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
                         숨김

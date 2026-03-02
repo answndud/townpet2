@@ -304,9 +304,6 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
               <span className={`border px-2.5 py-0.5 font-semibold ${meta.chipClass}`}>
                 {meta.label}
               </span>
-              <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2.5 py-0.5 text-[#315484]">
-                {post.scope === "LOCAL" ? "동네" : "온동네"}
-              </span>
               {post.neighborhood ? (
                 <span className="border border-[#dbe5f3] bg-white px-2.5 py-0.5 text-[#5d789f]">
                   {post.neighborhood.city} {post.neighborhood.name}
@@ -347,7 +344,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
                 <details className="mt-1 text-[11px] text-[#6b84ab] md:text-right">
                   <summary className="cursor-pointer list-none font-semibold text-[#5878a2]">상세 정보</summary>
                   <p className="mt-1 leading-5">
-                    {createdAt.toLocaleDateString("ko-KR")} · {post.scope === "LOCAL" ? "동네" : "온동네"} ·{" "}
+                    {createdAt.toLocaleDateString("ko-KR")} ·{" "}
                     {post.neighborhood ? `${post.neighborhood.city} ${post.neighborhood.name}` : "전체"}
                   </p>
                 </details>

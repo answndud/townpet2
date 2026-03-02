@@ -99,7 +99,7 @@ const postTypeOptions = [
 
 const scopeOptions = [
   { value: PostScope.LOCAL, label: "동네" },
-  { value: PostScope.GLOBAL, label: "온동네" },
+  { value: PostScope.GLOBAL, label: "전체" },
 ];
 
 const DRAFT_STORAGE_KEY = "townpet:post-create-draft:v1";
@@ -1665,8 +1665,8 @@ export function PostCreateForm({
           {isAuthenticated
             ? canUseLocalScope
               ? "동네 글은 동네 범위를 선택하고 대표 동네를 지정해야 등록됩니다."
-              : "지금은 온동네 글만 작성할 수 있습니다. 프로필에서 동네를 설정하면 동네 글도 작성할 수 있어요."
-            : "비회원 글은 온동네로만 등록되며 외부 링크/연락처/고위험 카테고리는 제한됩니다."}
+              : "지금은 전체 글만 작성할 수 있습니다. 프로필에서 동네를 설정하면 동네 글도 작성할 수 있어요."
+            : "비회원 글은 전체로만 등록되며 외부 링크/연락처/고위험 카테고리는 제한됩니다."}
         </p>
         <div className="flex items-center gap-2">
           {isAuthenticated && !canUseLocalScope ? (

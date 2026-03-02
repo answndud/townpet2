@@ -41,7 +41,7 @@ test.describe("global first neighborhood flow", () => {
     await page.getByTestId("login-submit").click();
 
     await expect(page).toHaveURL(/\/posts\/new/);
-    await expect(page.getByText("지금은 온동네 글만 작성할 수 있습니다.")).toBeVisible();
+    await expect(page.getByText("지금은 전체 글만 작성할 수 있습니다.")).toBeVisible();
 
     const scopeSelect = page.locator("label:has-text('범위') select");
     await expect(scopeSelect).toBeVisible();

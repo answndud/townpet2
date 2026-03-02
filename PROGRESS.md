@@ -531,7 +531,7 @@
 
 ### 2026-02-26: guest /feed CDN 캐시 배포 후 재측정
 - 완료 내용
-- `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 30회 재측정.
+- `/feed`, `/api/posts`, `/search?q=산책코스` curl 30회 재측정.
 - feed TTFB p50 472.1ms, p95 584.7ms.
 - api_posts TTFB p50 238.6ms, p95 289.3ms.
 - search TTFB p50 459.9ms, p95 594.0ms.
@@ -556,7 +556,7 @@
 
 ### 2026-02-26: read rate-limit/guest SSR 캐시 배포 후 재측정
 - 완료 내용
-- `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 30회 재측정.
+- `/feed`, `/api/posts`, `/search?q=산책코스` curl 30회 재측정.
 - feed TTFB p50 451.1ms, p95 707.6ms.
 - api_posts TTFB p50 237.9ms, p95 360.7ms.
 - search TTFB p50 447.4ms, p95 581.6ms.
@@ -588,7 +588,7 @@
 
 ### 2026-02-26: 꼬리 지연 완화 배포 후 재측정
 - 완료 내용
-- `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 30회 재측정.
+- `/feed`, `/api/posts`, `/search?q=산책코스` curl 30회 재측정.
 - feed TTFB p50 525.5ms, p95 749.0ms.
 - api_posts TTFB p50 284.8ms, p95 363.5ms.
 - search TTFB p50 496.5ms, p95 619.2ms.
@@ -621,7 +621,7 @@
 
 ### 2026-02-26: 배포 통과 후 성능 재측정
 - 완료 내용
-- GitHub Actions/Vercel 배포 통과 후 `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 15회 재측정.
+- GitHub Actions/Vercel 배포 통과 후 `/feed`, `/api/posts`, `/search?q=산책코스` curl 15회 재측정.
 - feed TTFB p50 549.0ms, api_posts TTFB p50 284.6ms, search TTFB p50 511.4ms 기록.
 - 결과 상세는 `docs/ops/cache-performance-rollout.md`에 업데이트.
 - 변경 파일(핵심)
@@ -633,7 +633,7 @@
 
 ### 2026-02-26: 캐시 배포 후 성능 재측정
 - 완료 내용
-- Vercel 배포 후 `/feed`, `/api/posts?scope=GLOBAL`, `/search?q=산책코스` curl 15회 재측정.
+- Vercel 배포 후 `/feed`, `/api/posts`, `/search?q=산책코스` curl 15회 재측정.
 - feed TTFB p50 523.3ms, api_posts TTFB p50 535.4ms, search TTFB p50 484.3ms 기록.
 - 결과 상세는 `docs/ops/cache-performance-rollout.md`에 업데이트.
 - 변경 파일(핵심)
@@ -2239,7 +2239,7 @@
 - 완료 내용
 - 피드 무한 스크롤 성능 실측용 Playwright 시나리오를 추가하고, 실행 결과를 문서 리포트로 자동 기록하도록 구성.
 - 테스트 안정화를 위해 피드 리스트/아이템/센티넬에 `data-testid`를 부여.
-- 성능 측정 시나리오에서 140개 샘플 게시글을 시드한 뒤 `/feed?scope=GLOBAL&mode=ALL&limit=20&sort=LATEST` 기준으로 연속 스크롤, 프레임 샘플, jank 비율, heap 사용량을 수집.
+- 성능 측정 시나리오에서 140개 샘플 게시글을 시드한 뒤 `/feed?mode=ALL&limit=20&sort=LATEST` 기준으로 연속 스크롤, 프레임 샘플, jank 비율, heap 사용량을 수집.
 - 성능 리포트 생성: `docs/plan/feed-scroll-performance-report.md`.
 - 변경 파일(핵심)
 - `app/src/components/posts/feed-infinite-list.tsx`
@@ -3280,13 +3280,13 @@
 - 상세 메타 쿼리 select 범위: 상세 본문급 include -> `title/content/type/scope/status/createdAt/updatedAt + 대표 이미지 1개`로 축소(필드 수 기준 대략 **70%+ 축소**).
 
 ### 2026-02-24: 배포 환경 성능 샘플링(현행 prod 기준)
-- 측정 대상: `https://townpet2.vercel.app/feed`, `https://townpet2.vercel.app/posts/cmm06j9mb00029pejux1xguzj`, `GET /api/posts?scope=GLOBAL`
+- 측정 대상: `https://townpet2.vercel.app/feed`, `https://townpet2.vercel.app/posts/cmm06j9mb00029pejux1xguzj`, `GET /api/posts`
 - 방법 1(curl): `time_starttransfer`(TTFB)/`time_total` 5회 반복 측정
 - 방법 2(Playwright headless): feed -> post -> browser back 라운드트립 7회 반복
 - 결과 요약
 - feed 페이지 TTFB 약 `0.84~0.99s` (초회 포함), total 약 `0.88~1.08s`
 - post 상세 TTFB 약 `0.57~0.89s`, total 약 `0.61~1.01s`
-- `/api/posts?scope=GLOBAL` TTFB 약 `0.58~0.69s` (초회 cold-ish 1회 `2.13s`)
+- `/api/posts` TTFB 약 `0.58~0.69s` (초회 cold-ish 1회 `2.13s`)
 - Playwright 라운드트립 평균: feed 로드 `553ms`, 상세 로드 `565ms`, back `518ms`
 - 해석
 - 현재 측정은 "지금 운영 배포본" 기준 baseline이며, 로컬 코드 변경분은 아직 배포 반영 전이라 수치 차이가 즉시 반영되지는 않음.

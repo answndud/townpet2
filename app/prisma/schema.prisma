@@ -197,6 +197,7 @@ model Post {
   petTypeId       String?           @map("communityId")
   commonBoardType CommonBoardType?
   animalTags      String[]         @default([])
+  reviewCategory  ReviewCategory?
   type            PostType
   scope           PostScope        @default(LOCAL)
   status          PostStatus       @default(ACTIVE)
@@ -232,6 +233,15 @@ model Post {
   @@index([boardScope, createdAt(sort: Desc)])
   @@index([petTypeId, createdAt(sort: Desc)], map: "Post_communityId_createdAt_idx")
   @@index([commonBoardType, createdAt(sort: Desc)])
+}
+
+enum ReviewCategory {
+  SUPPLIES
+  FEED
+  SNACK
+  TOY
+  PLACE
+  ETC
 }
 
 model GuestAuthor {

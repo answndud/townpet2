@@ -413,7 +413,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
 
     if (!isGuestScopeAllowed(postData.scope, guestPostPolicy.enforceGlobalScope)) {
       throw new ServiceError(
-        "비회원은 온동네(글로벌) 글만 작성할 수 있습니다.",
+        "비회원은 전체(글로벌) 글만 작성할 수 있습니다.",
         "GUEST_SCOPE_RESTRICTED",
         403,
       );
@@ -980,7 +980,7 @@ export async function updateGuestPost({
 
   const guestPostPolicy = await getGuestPostPolicy();
   if (parsed.data.scope && parsed.data.scope !== PostScope.GLOBAL) {
-    throw new ServiceError("비회원 게시글은 온동네 범위만 허용됩니다.", "GUEST_SCOPE_RESTRICTED", 403);
+    throw new ServiceError("비회원 게시글은 전체 범위만 허용됩니다.", "GUEST_SCOPE_RESTRICTED", 403);
   }
 
   const normalizedImageUrls = normalizeImageUrls(parsed.data.imageUrls);
