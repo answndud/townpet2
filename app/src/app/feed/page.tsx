@@ -18,7 +18,7 @@ import { isCommonBoardPostType } from "@/lib/community-board";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
-import { postListSchema } from "@/lib/validations/post";
+import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listCommunities } from "@/server/queries/community.queries";
 import {
@@ -62,7 +62,7 @@ type HomePageProps = {
   searchParams?: Promise<{
     type?: PostType;
     scope?: "LOCAL" | "GLOBAL";
-    communityId?: string;
+    petType?: string;
     q?: string;
     mode?: string;
     days?: string;
@@ -213,12 +213,12 @@ export default async function Home({ searchParams }: HomePageProps) {
     ...resolvedParams,
     limit: FEED_PAGE_SIZE,
   });
-  const type = parsedParams.success ? parsedParams.data.type : undefined;
-  const scope = parsedParams.success ? parsedParams.data.scope : undefined;
-  const requestedCommunityId =
-    parsedParams.success ? parsedParams.data.communityId : undefined;
+  const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
+  const type = listInput?.type;
+  const scope = listInput?.scope;
+  const requestedPetTypeId = listInput?.petTypeId;
   const isCommonBoardType = type ? isCommonBoardPostType(type) : false;
-  const communityId = isCommonBoardType ? undefined : requestedCommunityId;
+  const petTypeId = isCommonBoardType ? undefined : requestedPetTypeId;
   const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const mode = toFeedMode(resolvedParams.mode);
@@ -248,7 +248,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }
 
   const limit = FEED_PAGE_SIZE;
-  const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
+  const query = listInput?.q?.trim() ?? "";
   const requestedPage = Number.parseInt(resolvedParams.page ?? "1", 10);
   const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
@@ -263,7 +263,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           days: bestDays,
           type,
           scope: effectiveScope,
-          communityId,
+          communityId: petTypeId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
@@ -287,7 +287,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           limit,
           type,
           scope: effectiveScope,
-          communityId,
+          communityId: petTypeId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           days: periodDays ?? undefined,
@@ -312,7 +312,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           days: bestDays,
           type,
           scope: effectiveScope,
-          communityId,
+          communityId: petTypeId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
@@ -337,7 +337,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     mode,
     effectiveScope,
     type ?? "ALL",
-    communityId ?? "ALL_COMMUNITIES",
+    petTypeId ?? "ALL_COMMUNITIES",
     selectedSort,
     selectedSearchIn,
     selectedPersonalized,
@@ -438,7 +438,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const makeHref = ({
     nextType,
     nextScope,
-    nextCommunityId,
+    nextPetTypeId,
     nextQuery,
     nextPage,
     nextMode,
@@ -451,7 +451,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }: {
     nextType?: PostType | null;
     nextScope?: PostScope | null;
-    nextCommunityId?: string | null;
+    nextPetTypeId?: string | null;
     nextQuery?: string | null;
     nextPage?: number | null;
     nextMode?: FeedMode | null;
@@ -465,8 +465,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
     const resolvedScope = nextScope === undefined ? selectedScope : nextScope;
-    const resolvedCommunityId =
-      nextCommunityId === undefined ? communityId : nextCommunityId;
+    const resolvedPetTypeId =
+      nextPetTypeId === undefined ? petTypeId : nextPetTypeId;
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
     const resolvedMode = nextMode === undefined ? mode : nextMode;
     const resolvedDays = nextDays === undefined ? bestDays : nextDays;
@@ -482,10 +482,10 @@ export default async function Home({ searchParams }: HomePageProps) {
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedScope) params.set("scope", resolvedScope);
-    if (resolvedCommunityId) {
+    if (resolvedPetTypeId) {
       const canUseCommunityFilter = !resolvedType || !isCommonBoardPostType(resolvedType);
       if (canUseCommunityFilter) {
-        params.set("communityId", resolvedCommunityId);
+        params.set("petType", resolvedPetTypeId);
       }
     }
     if (resolvedQuery) params.set("q", resolvedQuery);
@@ -533,7 +533,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[10px] uppercase tracking-[0.24em] text-[#5578ad]">
-                타운펫 커뮤니티
+                타운펫 관심 동물
               </p>
               <h1
                 className={
@@ -599,7 +599,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 personalized={selectedPersonalized}
                 type={type}
                 scope={selectedScope}
-                communityId={communityId}
+                petTypeId={petTypeId}
                 mode={mode}
                 days={bestDays}
                 period={periodDays}
@@ -610,32 +610,41 @@ export default async function Home({ searchParams }: HomePageProps) {
                 showKeywordChips
               />
 
-              <details className="rounded-xl border border-[#dbe6f6] bg-[#f8fbff] p-2 sm:p-2.5">
-                <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
-                  글 보기 방식
+              <details className="group rounded-xl border border-[#d6e4f7] bg-[#f8fbff] p-2 sm:p-2.5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-[#2f548f] transition hover:bg-white">
+                  <span>글 보기 방식</span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#d4e2f6] bg-[#f8fbff] text-[#5f7ea8]">
+                    <svg
+                      viewBox="0 0 20 20"
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform duration-200 group-open:rotate-180"
+                    >
+                      <path d="M5 7.5L10 12.5L15 7.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
                 </summary>
                 <div className="mt-2 space-y-2">
-                  <div className="border border-[#dbe6f6] bg-white p-2">
+                  <div className="tp-soft-card p-2.5">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                       모드
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
                         href={makeHref({ nextMode: "ALL", nextPage: 1 })}
-                        className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                           mode === "ALL"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
-                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                            : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                         }`}
                       >
                         전체글
                       </Link>
                       <Link
                         href={makeHref({ nextMode: "BEST", nextPage: 1 })}
-                        className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                           mode === "BEST"
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
-                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                            : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                         }`}
                       >
                         베스트글
@@ -648,13 +657,13 @@ export default async function Home({ searchParams }: HomePageProps) {
                             <Link
                               key={`mobile-best-${day}`}
                               href={makeHref({ nextDays: day, nextPage: 1 })}
-                              className={`border px-2 py-1.5 text-center text-xs font-semibold transition ${
-                                bestDays === day
-                                  ? "border-[#3567b5] bg-[#3567b5] text-white"
-                                  : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                              }`}
-                            >
-                              최근 {day}일
+                               className={`rounded-full border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                                 bestDays === day
+                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                   : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
+                               }`}
+                             >
+                               최근 {day}일
                             </Link>
                           ))}
                         </div>
@@ -665,38 +674,38 @@ export default async function Home({ searchParams }: HomePageProps) {
                               <Link
                                 key={`mobile-sort-${option.value}`}
                                 href={makeHref({ nextSort: option.value, nextPage: 1 })}
-                                className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
-                                  selectedSort === option.value
-                                    ? "border-[#3567b5] bg-[#3567b5] text-white"
-                                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                                }`}
-                              >
-                                {option.label}
+                                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                   selectedSort === option.value
+                                     ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                     : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
+                                 }`}
+                               >
+                                 {option.label}
                               </Link>
                             ))}
                           </div>
                           <div className="hidden flex-wrap gap-1.5 sm:flex">
                             <Link
                               href={makeHref({ nextPeriod: null, nextPage: 1 })}
-                              className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
-                                !periodDays
-                                  ? "border-[#3567b5] bg-[#3567b5] text-white"
-                                  : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                              }`}
-                            >
-                              전체 기간
+                               className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                 !periodDays
+                                   ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                   : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
+                               }`}
+                             >
+                               전체 기간
                             </Link>
                             {FEED_PERIOD_OPTIONS.map((day) => (
                               <Link
                                 key={`mobile-period-${day}`}
                                 href={makeHref({ nextPeriod: day, nextPage: 1 })}
-                                className={`border px-2.5 py-0.5 text-xs font-semibold transition ${
-                                  periodDays === day
-                                    ? "border-[#3567b5] bg-[#3567b5] text-white"
-                                    : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
-                                }`}
-                              >
-                                최근 {day}일
+                                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                   periodDays === day
+                                     ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                     : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
+                                 }`}
+                               >
+                                 최근 {day}일
                               </Link>
                             ))}
                           </div>
@@ -708,12 +717,21 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
               </details>
 
-              <details className="rounded-xl border border-[#dbe6f6] bg-[#f8fbff] p-2 sm:p-2.5">
-                <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
-                  게시판 선택
+              <details className="group rounded-xl border border-[#d6e4f7] bg-[#f8fbff] p-2 sm:p-2.5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-[#2f548f] transition hover:bg-white">
+                  <span>게시판 선택</span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#d4e2f6] bg-[#f8fbff] text-[#5f7ea8]">
+                    <svg
+                      viewBox="0 0 20 20"
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform duration-200 group-open:rotate-180"
+                    >
+                      <path d="M5 7.5L10 12.5L15 7.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
                 </summary>
                 <div className="mt-2 space-y-2">
-                  <div className="border border-[#dbe6f6] bg-white p-2">
+                  <div className="tp-soft-card p-2.5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">범위</p>
                     <div className="mt-1.5 grid gap-1.5">
                       <Link
@@ -722,35 +740,35 @@ export default async function Home({ searchParams }: HomePageProps) {
                             ? makeHref({ nextScope: PostScope.LOCAL, nextPage: 1 })
                             : loginHref("/feed?scope=LOCAL")
                         }
-                        className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                        className={`rounded-full border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
                           selectedScope === PostScope.LOCAL
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
-                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                            : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                         }`}
                       >
                         동네
                       </Link>
                       <Link
                         href={makeHref({ nextScope: PostScope.GLOBAL, nextPage: 1 })}
-                        className={`border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
+                        className={`rounded-full border px-2.5 py-1.5 text-center text-xs font-semibold transition ${
                           selectedScope === PostScope.GLOBAL
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
-                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                            : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                         }`}
                       >
                         온동네
                       </Link>
                     </div>
                   </div>
-                  <div className="border border-[#dbe6f6] bg-white p-2">
+                  <div className="tp-soft-card p-2.5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">주요 게시판</p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
                         href={makeHref({ nextType: null, nextPage: 1 })}
-                        className={`border px-2.5 py-0.5 text-xs font-medium transition ${
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
                           !type
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
-                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                            : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                         }`}
                       >
                         전체
@@ -764,10 +782,10 @@ export default async function Home({ searchParams }: HomePageProps) {
                           <Link
                             key={`mobile-primary-${value}`}
                             href={isRestricted ? loginHref(targetHref) : targetHref}
-                            className={`border px-2.5 py-0.5 text-xs font-medium transition ${
+                            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
                               type === value
                                 ? "border-[#3567b5] bg-[#3567b5] text-white"
-                                : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                             }`}
                           >
                             {postTypeMeta[value].label}
@@ -777,15 +795,18 @@ export default async function Home({ searchParams }: HomePageProps) {
                       })}
                     </div>
                   </div>
-                  <div className="border border-[#dbe6f6] bg-white p-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">커뮤니티</p>
+                  <div className="tp-soft-card p-2.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">관심 동물</p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Link
-                        href={makeHref({ nextCommunityId: null, nextPage: 1 })}
-                        className={`border px-2.5 py-0.5 text-xs font-medium transition ${
-                          !communityId
-                            ? "border-[#3567b5] bg-[#3567b5] text-white"
-                            : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                        href={makeHref({ nextPetTypeId: null, nextPage: 1 })}
+                        aria-disabled={isCommonBoardType}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                          isCommonBoardType
+                            ? "pointer-events-none cursor-not-allowed border-[#d7e2f3] bg-[#eef3fb] text-[#8aa0be]"
+                            : !petTypeId
+                              ? "border-[#3567b5] bg-[#3567b5] text-white"
+                              : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                         }`}
                       >
                         전체
@@ -793,11 +814,14 @@ export default async function Home({ searchParams }: HomePageProps) {
                       {communities.items.map((community) => (
                         <Link
                           key={`mobile-community-${community.id}`}
-                          href={makeHref({ nextCommunityId: community.id, nextPage: 1 })}
-                          className={`border px-2.5 py-0.5 text-xs font-medium transition ${
-                            communityId === community.id
-                              ? "border-[#3567b5] bg-[#3567b5] text-white"
-                              : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
+                          href={makeHref({ nextPetTypeId: community.id, nextPage: 1 })}
+                          aria-disabled={isCommonBoardType}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                            isCommonBoardType
+                              ? "pointer-events-none cursor-not-allowed border-[#d7e2f3] bg-[#eef3fb] text-[#8aa0be]"
+                              : petTypeId === community.id
+                                ? "border-[#3567b5] bg-[#3567b5] text-white"
+                                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                           }`}
                         >
                           {community.labelKo}
@@ -806,7 +830,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                     </div>
                     {isCommonBoardType ? (
                       <p className="mt-1.5 text-[11px] text-[#5d789f]">
-                        공용 보드는 커뮤니티 필터 없이 전체 노출됩니다.
+                        공용 보드는 관심 동물 필터 없이 전체 노출됩니다.
                       </p>
                     ) : null}
                   </div>
@@ -995,13 +1019,13 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
                 <div className="mt-2 border-t border-[#dbe6f6] pt-2">
                   <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
-                    커뮤니티
+                    관심 동물
                   </p>
                   <div className={isUltraDense ? "flex flex-wrap items-center gap-1" : "flex flex-wrap items-center gap-1.5"}>
                     <Link
-                      href={makeHref({ nextCommunityId: null, nextPage: 1 })}
+                      href={makeHref({ nextPetTypeId: null, nextPage: 1 })}
                       className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
-                        !communityId
+                        !petTypeId
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
                           : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
                       }`}
@@ -1011,9 +1035,9 @@ export default async function Home({ searchParams }: HomePageProps) {
                     {communities.items.map((community) => (
                       <Link
                         key={`desktop-community-${community.id}`}
-                        href={makeHref({ nextCommunityId: community.id, nextPage: 1 })}
+                        href={makeHref({ nextPetTypeId: community.id, nextPage: 1 })}
                         className={`border ${isUltraDense ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs"} font-medium transition ${
-                          communityId === community.id
+                          petTypeId === community.id
                             ? "border-[#3567b5] bg-[#3567b5] text-white"
                             : "border-[#b9cbeb] bg-white text-[#2f548f] hover:bg-[#f3f7ff]"
                         }`}
@@ -1024,7 +1048,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                   </div>
                   {isCommonBoardType ? (
                     <p className="mt-1.5 text-[11px] text-[#5d789f]">
-                      공용 보드는 커뮤니티 필터 없이 전체 노출됩니다.
+                      공용 보드는 관심 동물 필터 없이 전체 노출됩니다.
                     </p>
                   ) : null}
                 </div>
@@ -1119,7 +1143,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 query={{
                   type,
                   scope: effectiveScope,
-                  communityId,
+                  petTypeId,
                   q: query || undefined,
                   searchIn: selectedSearchIn,
                 sort: selectedSort,
