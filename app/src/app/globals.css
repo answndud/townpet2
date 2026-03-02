@@ -92,6 +92,12 @@ body {
   color: #1e3f74;
 }
 
+.tp-input-soft:focus-visible {
+  outline: none;
+  border-color: #4e89d8;
+  box-shadow: 0 0 0 2px rgba(78, 137, 216, 0.22);
+}
+
 .tp-btn-soft {
   border: 1px solid #cbdcf5;
   border-radius: 8px;
@@ -104,6 +110,12 @@ body {
   background: #f5f9ff;
 }
 
+.tp-btn-soft:focus-visible {
+  outline: none;
+  border-color: #4e89d8;
+  box-shadow: 0 0 0 2px rgba(78, 137, 216, 0.22);
+}
+
 .tp-btn-primary {
   border: 1px solid #3567b5;
   border-radius: 8px;
@@ -114,4 +126,9 @@ body {
 
 .tp-btn-primary:hover {
   background: #2f5da4;
+}
+
+.tp-btn-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(78, 137, 216, 0.28);
 }

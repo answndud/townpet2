@@ -417,7 +417,7 @@ export function NotificationCenter({
                         읽음 처리
                       </button>
                     ) : (
-                      <span className="rounded-full border border-[#d7e3f5] bg-[#f4f8ff] px-2.5 py-1 text-xs text-[#5f79a0]">
+                      <span className="rounded-md border border-[#d7e3f5] bg-[#f4f8ff] px-2.5 py-1 text-xs text-[#5f79a0]">
                         읽음
                       </span>
                     )}

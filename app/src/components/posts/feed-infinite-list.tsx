@@ -518,7 +518,7 @@ export function FeedInfiniteList({
               {showAdSlot && adConfig && index === 4 ? (
                 <article className="border-y border-[#d8e6fb] bg-[linear-gradient(180deg,#eff5ff_0%,#f8fbff_100%)] px-4 py-3 sm:px-5">
                   <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center rounded-full border border-[#9abbe9] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#2f5da4]">
+                      <span className="inline-flex items-center rounded-md border border-[#9abbe9] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#2f5da4]">
                       광고
                     </span>
                     <span className="text-[11px] text-[#55749e]">맞춤 추천</span>
@@ -542,15 +542,15 @@ export function FeedInfiniteList({
                 <div className="min-w-0">
                   <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[11px]">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-semibold ${meta.chipClass}`}
+                      className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 font-semibold ${meta.chipClass}`}
                     >
                       {meta.label}
                     </span>
-                    <span className="rounded-full border border-[#d2ddf0] bg-[#f6f9ff] px-2.5 py-0.5 text-[#2f548f]">
+                    <span className="rounded-md border border-[#d2ddf0] bg-[#f6f9ff] px-2.5 py-0.5 text-[#2f548f]">
                       {post.scope === "LOCAL" ? "동네" : "온동네"}
                     </span>
                     {post.status === "HIDDEN" ? (
-                      <span className="rounded-full border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
+                      <span className="rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
                         숨김
                       </span>
                     ) : null}
@@ -599,7 +599,7 @@ export function FeedInfiniteList({
                       ? getStableDateLabel(post.createdAt)
                       : formatRelativeDate(post.createdAt, relativeNow)}
                   </p>
-                   <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-full border border-[#d8e4f6] bg-[#f8fbff] px-2.5 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
+                   <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-md border border-[#d8e4f6] bg-[#f8fbff] px-2.5 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
                      조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
                    </p>
                  </div>

@@ -339,7 +339,7 @@ export function OnboardingForm({
                   return (
                     <span
                       key={id}
-                      className="inline-flex items-center gap-2 rounded-full border border-[#cbdcf5] bg-white px-3 py-1 text-xs text-[#1f3f71]"
+                      className="inline-flex items-center gap-2 rounded-md border border-[#cbdcf5] bg-white px-3 py-1 text-xs text-[#1f3f71]"
                     >
                       {neighborhood.city} {neighborhood.district}
                       <button

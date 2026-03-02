@@ -446,7 +446,7 @@ export function PostCommentThread({
 
               {canOpenMenu ? (
                 <details className="relative">
-                  <summary className="list-none rounded-full px-2 py-0.5 text-lg leading-none text-[#6a81a6] hover:bg-[#f1f5fb]">
+                  <summary className="list-none rounded-md px-2 py-0.5 text-lg leading-none text-[#6a81a6] hover:bg-[#f1f5fb]">
                     ···
                   </summary>
                   <div className="absolute right-0 z-20 mt-1.5 min-w-24 rounded-md border border-[#d6e1f3] bg-white p-1 shadow-[0_8px_18px_rgba(16,40,74,0.08)]">

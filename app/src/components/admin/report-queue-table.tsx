@@ -102,13 +102,13 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
 
   return (
     <section className="tp-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dde7f5] bg-[#f6f9ff] px-4 py-3 text-xs sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dde7f5] bg-[#f6f9ff] px-4 py-2.5 text-[11px] sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg border border-[#cbdcf5] bg-white px-3 py-1 text-[#315b9a]">
             선택 {selectedIds.length}건
           </span>
           <input
-            className="tp-input-soft bg-white px-3 py-1 text-xs"
+            className="tp-input-soft h-8 bg-white px-3 text-xs"
             placeholder="일괄 처리 메모(선택)"
             value={bulkResolution}
             onChange={(event) => setBulkResolution(event.target.value)}
@@ -119,7 +119,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("RESOLVE")}
-            className="tp-btn-primary px-3 py-1 disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
+            className="tp-btn-primary h-8 px-3 disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
             disabled={isPending || selectedIds.length === 0}
           >
             일괄 승인
@@ -127,7 +127,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("DISMISS")}
-            className="rounded-lg border border-rose-300 bg-white px-3 py-1 text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg border border-rose-300 bg-white h-8 px-3 text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedIds.length === 0}
           >
             일괄 기각
@@ -135,7 +135,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("HIDE_POST")}
-            className="tp-btn-soft px-3 py-1 disabled:cursor-not-allowed disabled:opacity-60"
+            className="tp-btn-soft h-8 px-3 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedIds.length === 0}
           >
             게시글 숨김
@@ -143,7 +143,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
           <button
             type="button"
             onClick={() => runBulkAction("UNHIDE_POST")}
-            className="tp-btn-soft px-3 py-1 disabled:cursor-not-allowed disabled:opacity-60"
+            className="tp-btn-soft h-8 px-3 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedIds.length === 0}
           >
             숨김 해제
@@ -158,10 +158,10 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px] text-left text-sm">
-            <thead className="bg-[#f6f9ff] text-xs uppercase tracking-[0.2em] text-[#5b78a1]">
+          <table className="w-full min-w-[1080px] text-left text-[13px]">
+            <thead className="bg-[#f6f9ff] text-[11px] uppercase tracking-[0.14em] text-[#5b78a1]">
               <tr>
-                <th className="px-4 py-3">
+                <th className="px-3 py-2.5">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -169,23 +169,23 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
                     aria-label="전체 선택"
                   />
                 </th>
-                <th className="px-4 py-3">대상</th>
-                <th className="px-4 py-3">타입</th>
-                <th className="px-4 py-3">상태</th>
-                <th className="px-4 py-3">사유</th>
-                <th className="px-4 py-3">설명</th>
-                <th className="px-4 py-3">신고자</th>
-                <th className="px-4 py-3">처리</th>
-                <th className="px-4 py-3">처리 메모</th>
-                <th className="px-4 py-3">처리자</th>
-                <th className="px-4 py-3">처리 시간</th>
+                <th className="px-3 py-2.5">대상</th>
+                <th className="px-3 py-2.5">타입</th>
+                <th className="px-3 py-2.5">상태</th>
+                <th className="px-3 py-2.5">사유</th>
+                <th className="px-3 py-2.5">설명</th>
+                <th className="px-3 py-2.5">신고자</th>
+                <th className="px-3 py-2.5">처리</th>
+                <th className="px-3 py-2.5">처리 메모</th>
+                <th className="px-3 py-2.5">처리자</th>
+                <th className="px-3 py-2.5">처리 시간</th>
               </tr>
             </thead>
             <tbody>
               {reports.map((report) => (
                 <Fragment key={report.id}>
                   <tr className="border-t border-[#e1e9f5] text-[#1f3f71]">
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(report.id)}
@@ -193,7 +193,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
                         aria-label={`신고 ${report.id} 선택`}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <div className="flex flex-col gap-1">
                         {report.targetHref ? (
                           <Link
@@ -213,10 +213,10 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
                         </Link>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">
                       {targetLabels[report.targetType]}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <span
                         className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
                           report.status === ReportStatus.PENDING
@@ -229,28 +229,28 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
                         {statusLabels[report.status]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">{report.reason}</td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">{report.reason}</td>
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">
                       {report.description ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">
                       {report.reporterLabel}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <ReportActions reportId={report.id} status={report.status} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">
                       {report.resolution ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">
                       {report.resolvedByLabel ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td className="px-3 py-2.5 text-xs text-[#4f678d]">
                       {report.resolvedAtLabel ?? "-"}
                     </td>
                   </tr>
                   <tr className="border-t border-[#e1e9f5] bg-[#f8fbff]">
-                    <td colSpan={11} className="px-4 py-3 text-xs text-[#4f678d]">
+                    <td colSpan={11} className="px-3 py-2.5 text-xs text-[#4f678d]">
                       <div className="flex flex-col gap-2">
                         <span className="text-[10px] uppercase tracking-[0.3em] text-[#5b78a1]">
                           처리 이력

@@ -359,7 +359,7 @@ export function FeedSearchForm({
                     logSearchTerm(term);
                     setIsKeywordPanelOpen(false);
                   }}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#d8e4f7] bg-[#f8fbff] px-2.5 py-1 text-xs text-[#315b9a] transition hover:bg-white"
+                  className="inline-flex items-center gap-2 rounded-md border border-[#d8e4f7] bg-[#f8fbff] px-2.5 py-1 text-xs text-[#315b9a] transition hover:bg-white"
                 >
                   <span className="inline-flex min-w-4 justify-center text-[11px] font-semibold text-[#1d64c4]">
                     {index + 1}
@@ -378,7 +378,7 @@ export function FeedSearchForm({
           {recentTerms.map((term) => (
               <span
                 key={`recent-${term}`}
-                className="inline-flex items-center rounded-full border border-[#c9daf4] bg-white"
+                className="inline-flex items-center rounded-md border border-[#c9daf4] bg-white"
               >
               <Link
                 href={buildTermHref(term)}
