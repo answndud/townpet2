@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #edf3fb;
-  --foreground: #10284a;
-  --muted: #5b7398;
+  --background: #f8fafd;
+  --foreground: #1e3f74;
+  --muted: #5f7ea8;
   --surface: #ffffff;
-  --border: #c7d7ef;
+  --border: #dbe6f5;
 }
 
 @theme inline {
@@ -23,11 +23,11 @@ body {
 
 .app-shell-bg {
   background:
-    linear-gradient(to right, rgba(50, 88, 146, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(50, 88, 146, 0.04) 1px, transparent 1px),
+    linear-gradient(to right, rgba(50, 88, 146, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(50, 88, 146, 0.03) 1px, transparent 1px),
     radial-gradient(circle at 0% 0%, #ffffff 0%, transparent 35%),
-    radial-gradient(circle at 100% 0%, #dfeaff 0%, transparent 30%),
-    linear-gradient(180deg, #f3f8ff 0%, #ecf3fd 100%);
+    radial-gradient(circle at 100% 0%, #edf4ff 0%, transparent 34%),
+    linear-gradient(180deg, #fafdff 0%, #f3f8ff 52%, #edf5ff 100%);
   background-size: 28px 28px, 28px 28px, auto, auto, auto;
 }
 
@@ -59,4 +59,28 @@ body {
 
 .animate-fade-up {
   animation: fadeUp 0.45s ease-out both;
+}
+
+.tp-page-bg {
+  background: linear-gradient(180deg, #f8fbff 0%, #f3f8ff 58%, #edf5ff 100%);
+}
+
+.tp-hero {
+  border: 1px solid #d9e5f7;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fafdff 0%, #f2f7ff 100%);
+  box-shadow: 0 10px 24px rgba(30, 63, 116, 0.06);
+}
+
+.tp-card {
+  border: 1px solid #d9e5f7;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(30, 63, 116, 0.05);
+}
+
+.tp-soft-card {
+  border: 1px solid #dbe6f6;
+  border-radius: 14px;
+  background: #f8fbff;
 }

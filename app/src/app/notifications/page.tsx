@@ -23,7 +23,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen pb-16">
+      <div className="tp-page-bg min-h-screen pb-16">
         <main className="mx-auto flex w-full max-w-[860px] flex-col gap-4 px-4 py-8 sm:px-6">
           <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">알림</p>
           <h1 className="text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
@@ -35,7 +35,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
           <div>
             <Link
               href="/login?next=%2Fnotifications"
-              className="inline-flex border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+              className="inline-flex rounded-full border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
             >
               로그인하기
             </Link>
@@ -70,7 +70,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
   }));
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[980px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
         <NotificationCenter
           initialItems={initialItems}

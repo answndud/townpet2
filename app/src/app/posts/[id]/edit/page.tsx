@@ -50,11 +50,11 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="tp-page-bg min-h-screen">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
         <Link
           href={`/posts/${post.id}`}
-          className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]"
+          className="inline-flex w-fit items-center rounded-full border border-[#cbdcf5] bg-white px-3.5 py-2 text-xs font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff]"
         >
           게시글로 돌아가기
         </Link>

@@ -45,13 +45,6 @@ const FEED_SORT_OPTIONS: ReadonlyArray<{ value: FeedSort; label: string }> = [
 type BestDay = (typeof BEST_DAY_OPTIONS)[number];
 type FeedPeriod = (typeof FEED_PERIOD_OPTIONS)[number];
 
-const SEARCH_IN_LABEL: Record<FeedSearchIn, string> = {
-  ALL: "전체",
-  TITLE: "제목",
-  CONTENT: "내용",
-  AUTHOR: "작성자",
-};
-
 export const metadata: Metadata = {
   title: "피드",
   description: "동네와 온동네 게시글을 최신순/인기순으로 확인하세요.",
@@ -226,7 +219,6 @@ export default async function Home({ searchParams }: HomePageProps) {
     parsedParams.success ? parsedParams.data.communityId : undefined;
   const isCommonBoardType = type ? isCommonBoardPostType(type) : false;
   const communityId = isCommonBoardType ? undefined : requestedCommunityId;
-  const selectedCommunity = communities.items.find((item) => item.id === communityId) ?? null;
   const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
   const mode = toFeedMode(resolvedParams.mode);
@@ -339,12 +331,6 @@ export default async function Home({ searchParams }: HomePageProps) {
   const localCount = items.filter((post) => post.scope === PostScope.LOCAL).length;
   const secondaryCategoryTypes = SECONDARY_POST_TYPES;
   const feedTitle = type ? `${postTypeMeta[type].label} 게시판` : "전체 게시판";
-  const scopeLabel = effectiveScope === PostScope.LOCAL ? "동네" : "온동네";
-  const modeLabel = mode === "BEST" ? "베스트글" : "전체글";
-  const sortLabel =
-    mode === "BEST"
-      ? `최근 ${bestDays}일`
-      : `${FEED_SORT_OPTIONS.find((option) => option.value === selectedSort)?.label ?? "최신순"}${periodDays ? ` · 최근 ${periodDays}일` : ""}`;
   const loginHref = (nextPath: string) =>
     `/login?next=${encodeURIComponent(nextPath)}`;
   const feedQueryKey = [
@@ -532,7 +518,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f3f8ff_55%,#eef5ff_100%)] pb-16">
       <main
         className={`mx-auto flex w-full max-w-[1320px] flex-col px-4 sm:px-6 lg:px-10 ${
           isUltraDense ? "gap-1.5 py-2 sm:gap-2" : "gap-2 py-3 sm:gap-3"
@@ -540,64 +526,35 @@ export default async function Home({ searchParams }: HomePageProps) {
       >
         <div className={isUltraDense ? "space-y-2" : "space-y-3"}>
           <header
-            className={`animate-float-in border border-[#c8d7ef] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] ${
-              isUltraDense ? "px-2.5 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5"
+            className={`animate-float-in rounded-2xl border border-[#d9e5f7] bg-[linear-gradient(180deg,#fafdff_0%,#f2f7ff_100%)] shadow-[0_10px_24px_rgba(30,63,116,0.06)] ${
+              isUltraDense ? "px-2.5 py-2 sm:px-3 sm:py-2.5" : "px-3 py-3 sm:px-5 sm:py-4"
             }`}
           >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.24em] text-[#3f5f90]">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-[#5578ad]">
                 타운펫 커뮤니티
               </p>
               <h1
                 className={
                   isUltraDense
-                    ? "mt-0.5 text-base font-bold tracking-tight text-[#10284a] sm:text-lg"
-                    : "mt-0.5 text-[24px] font-bold tracking-tight text-[#10284a] sm:text-xl"
-                }
-              >
-                {feedTitle}
-              </h1>
-              <p className="mt-1 hidden text-xs text-[#49648c] sm:block">
-                총 {items.length}건을 기준으로 현재 선택된 필터를 바로 확인할 수 있습니다.
-              </p>
-            </div>
-            <div className="hidden items-center gap-1.5 text-xs text-[#4f678d] sm:flex">
-              <div className="border border-[#d4e1f3] bg-white px-2.5 py-1">
-                {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
-              </div>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1 text-xs sm:flex-wrap sm:overflow-visible sm:whitespace-normal sm:pb-0">
-            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
-              {scopeLabel}
-            </span>
-            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
-              {modeLabel}
-            </span>
-            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 font-semibold text-[#2f548f]">
-              {sortLabel}
-            </span>
-            <span className="rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885]">
-              검색: {SEARCH_IN_LABEL[selectedSearchIn]}
-            </span>
-            {type ? (
-              <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
-                카테고리: {postTypeMeta[type].label}
-              </span>
-            ) : null}
-            {selectedCommunity ? (
-              <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
-                커뮤니티: {selectedCommunity.labelKo}
-              </span>
-            ) : null}
-            {query ? (
-              <span className="hidden rounded-sm border border-[#bfd0ec] bg-white px-2 py-1 text-[#355885] sm:inline-flex">
-                검색어: &quot;{query}&quot;
-              </span>
-            ) : null}
-          </div>
-        </header>
+                     ? "mt-0.5 text-base font-bold tracking-tight text-[#1e3f74] sm:text-lg"
+                     : "mt-0.5 text-[24px] font-bold tracking-tight text-[#1e3f74] sm:text-[28px]"
+                 }
+               >
+                 {feedTitle}
+               </h1>
+               <p className="mt-1 hidden text-xs text-[#6784ac] sm:block">
+                 우리 동네 반려 이웃들의 이야기를 살펴보세요.
+               </p>
+             </div>
+             <div className="hidden items-center gap-1.5 text-xs text-[#4f678d] sm:flex">
+               <div className="rounded-full border border-[#d7e3f6] bg-white px-3 py-1">
+                 {mode === "BEST" ? "베스트글" : "전체글"} {items.length}건
+               </div>
+             </div>
+           </div>
+          </header>
 
         <a
           href="#feed-list"
@@ -607,8 +564,8 @@ export default async function Home({ searchParams }: HomePageProps) {
         </a>
 
         <section
-          className={`animate-fade-up border border-[#c8d7ef] bg-white ${
-            isUltraDense ? "p-1.5 sm:p-2" : "p-2.5 sm:p-3"
+          className={`animate-fade-up rounded-2xl border border-[#d9e5f7] bg-white/95 shadow-[0_12px_28px_rgba(30,63,116,0.06)] ${
+            isUltraDense ? "p-1.5 sm:p-2" : "p-2.5 sm:p-3.5"
           }`}
         >
           {isGuestLocalBlocked ? (
@@ -633,13 +590,7 @@ export default async function Home({ searchParams }: HomePageProps) {
               </Link>
             </div>
           ) : null}
-          <div
-            className={`grid ${
-              isUltraDense
-                ? "gap-1.5 lg:grid-cols-[minmax(0,1fr)_184px]"
-                : "gap-2.5 lg:grid-cols-[minmax(0,1fr)_220px]"
-            }`}
-          >
+          <div className={`grid ${isUltraDense ? "gap-1.5" : "gap-2.5"}`}>
             <div className={isUltraDense ? "space-y-1.5" : "space-y-2"}>
               <FeedSearchForm
                 actionPath="/feed"
@@ -659,7 +610,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 showKeywordChips
               />
 
-              <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:hidden sm:p-2">
+              <details className="rounded-xl border border-[#dbe6f6] bg-[#f8fbff] p-2 sm:p-2.5">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
                   글 보기 방식
                 </summary>
@@ -757,7 +708,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
               </details>
 
-              <details className="rounded-sm border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:hidden sm:p-2">
+              <details className="rounded-xl border border-[#dbe6f6] bg-[#f8fbff] p-2 sm:p-2.5">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-[#2f548f]">
                   게시판 선택
                 </summary>
@@ -862,13 +813,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
               </details>
 
-              <div
-                className={
-                  isUltraDense
-                    ? "hidden border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:block"
-                    : "hidden border border-[#dbe6f6] bg-[#f8fbff] p-2 lg:block"
-                }
-              >
+              <div className="hidden">
                 <div
                   className={
                     isUltraDense
@@ -985,13 +930,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 </div>
               </div>
 
-              <div
-                className={
-                  isUltraDense
-                    ? "hidden border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:block"
-                    : "hidden border border-[#dbe6f6] bg-[#f8fbff] p-2.5 lg:block"
-                }
-              >
+              <div className="hidden">
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                   주요 게시판
                 </div>
@@ -1092,13 +1031,7 @@ export default async function Home({ searchParams }: HomePageProps) {
               </div>
             </div>
 
-            <aside
-              className={
-                isUltraDense
-                  ? "hidden border border-[#dbe6f6] bg-[#f8fbff] p-1.5 lg:block"
-                  : "hidden border border-[#dbe6f6] bg-[#f8fbff] p-2.5 lg:block"
-              }
-            >
+            <aside className="hidden">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                 범위
               </div>
@@ -1141,8 +1074,8 @@ export default async function Home({ searchParams }: HomePageProps) {
           </div>
         </section>
 
-        <section id="feed-list" className="animate-fade-up border border-[#c8d7ef] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#dbe6f6] bg-[#f8fbff] px-4 py-2 text-xs text-[#3d5f8f] sm:px-5">
+        <section id="feed-list" className="animate-fade-up overflow-hidden rounded-2xl border border-[#d9e5f7] bg-white shadow-[0_12px_28px_rgba(30,63,116,0.05)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e2ebf8] bg-[#f8fbff] px-4 py-2.5 text-xs text-[#4c6f9e] sm:px-5">
             <span className="font-semibold">게시글 목록</span>
             <span className="hidden sm:inline">읽은 글은 연한 색상으로 표시됩니다.</span>
             {!isAuthenticated ? (
@@ -1247,16 +1180,16 @@ export default async function Home({ searchParams }: HomePageProps) {
           ) : null}
         </section>
 
-        <div className="flex justify-end gap-1.5">
-          <ScrollToTopButton
-            className="inline-flex h-8 items-center justify-center border border-[#b9cbeb] bg-white px-3 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
-          />
-          <Link
-            href="/posts/new"
-            className="inline-flex h-8 items-center justify-center border border-[#3567b5] bg-[#3567b5] px-3 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
-          >
-            글쓰기
-          </Link>
+         <div className="flex justify-end gap-2">
+           <ScrollToTopButton
+             className="inline-flex h-9 items-center justify-center rounded-full border border-[#c8daf4] bg-white px-3.5 text-xs font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff]"
+           />
+           <Link
+             href="/posts/new"
+             className="inline-flex h-9 items-center justify-center rounded-full border border-[#2f5da4] bg-[#2f5da4] px-4 text-xs font-semibold text-white transition hover:bg-[#274f8c]"
+           >
+             글쓰기
+           </Link>
         </div>
 
         </div>

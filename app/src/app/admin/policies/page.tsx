@@ -48,9 +48,9 @@ export default async function AdminPoliciesPage() {
   ]);
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">운영 관리</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
             열람/콘텐츠 정책
@@ -60,7 +60,7 @@ export default async function AdminPoliciesPage() {
           </p>
         </header>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">현재 로그인 필수 카테고리</h2>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {loginRequiredTypes.length > 0 ? (
@@ -78,7 +78,7 @@ export default async function AdminPoliciesPage() {
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">정책 편집</h2>
           <p className="mt-2 text-xs text-[#5a7398]">
             체크된 카테고리는 비회원이 열람할 수 없으며 로그인 후 접근 가능합니다.
@@ -90,7 +90,7 @@ export default async function AdminPoliciesPage() {
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">금칙어 정책</h2>
           <p className="mt-2 text-xs text-[#5a7398]">
             금칙어가 포함된 게시글/댓글은 저장이 차단됩니다.
@@ -119,7 +119,7 @@ export default async function AdminPoliciesPage() {
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">비회원 작성 정책</h2>
           <p className="mt-2 text-xs text-[#5a7398]">
             비회원 즉시 공개 글의 작성 범위/카테고리/링크/연락처/이미지 제한을 조정합니다.
@@ -152,7 +152,7 @@ export default async function AdminPoliciesPage() {
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">신규 계정 안전 정책</h2>
           <p className="mt-2 text-xs text-[#5a7398]">
             신규 유저의 고위험 카테고리 작성 제한과 연락처 포함 콘텐츠 차단 시간을

@@ -99,9 +99,9 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
         : "border-rose-300 bg-rose-50 text-rose-700";
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">운영 관리</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
             신고 상세
@@ -111,7 +111,7 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
           </p>
         </header>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-2">
               <span className="text-xs uppercase tracking-[0.24em] text-[#5b78a1]">상태</span>
@@ -160,7 +160,7 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">대상 정보</h2>
           <div className="mt-4 text-sm text-[#355988]">
             {report.post ? (
@@ -209,7 +209,7 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">처리 작업</h2>
           <div className="mt-4">
             <ReportActions
@@ -220,7 +220,7 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">처리 이력</h2>
           <form className="mt-4 flex flex-wrap items-center gap-2 text-xs" action="">
             <input

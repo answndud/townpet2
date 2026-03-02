@@ -77,7 +77,7 @@ export default async function RootLayout({
     <html lang="ko">
       <body
         suppressHydrationWarning
-        className={`${spaceGrotesk.variable} ${plexMono.variable} app-shell-bg min-h-screen bg-[#edf3fb] text-[#10284a] antialiased`}
+        className={`${spaceGrotesk.variable} ${plexMono.variable} app-shell-bg min-h-screen text-[#10284a] antialiased`}
       >
         <header className="sticky top-0 z-40 border-b border-[#c7d7ef] bg-[#eef4ffdd] backdrop-blur-sm">
           <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-10 lg:py-5 xl:flex-row xl:items-center xl:justify-between">

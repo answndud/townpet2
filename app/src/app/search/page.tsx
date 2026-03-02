@@ -123,9 +123,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       : [];
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">검색</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-4xl">
             게시글 검색
@@ -163,21 +163,21 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         ) : null}
 
         {query.length === 0 ? (
-          <section className="border border-[#c8d7ef] bg-white">
+          <section className="tp-card overflow-hidden">
             <EmptyState
               title="검색어를 입력해 주세요"
               description="최소 2글자 이상 입력하면 자동완성과 최근/인기 검색어를 활용할 수 있습니다."
             />
           </section>
         ) : resultItems.length === 0 ? (
-          <section className="border border-[#c8d7ef] bg-white">
+          <section className="tp-card overflow-hidden">
             <EmptyState
               title="검색 결과가 없습니다"
               description="검색 범위를 바꾸거나 인기 검색어를 선택해 다시 시도해 보세요."
             />
           </section>
         ) : (
-          <section className="border border-[#c8d7ef] bg-white">
+          <section className="tp-card overflow-hidden">
             <div className="border-b border-[#dbe6f6] px-4 py-3 text-sm text-[#4f678d] sm:px-5">
               검색어 <span className="font-semibold text-[#1f3f71]">&quot;{query}&quot;</span> ·{" "}
               {resultItems.length}건

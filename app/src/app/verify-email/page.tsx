@@ -11,7 +11,7 @@ export default function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) 
   const initialEmail = searchParams?.email ?? null;
 
   return (
-    <div className="min-h-screen">
+    <div className="tp-page-bg min-h-screen">
       <main className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-8 sm:px-6">
         <header className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">
@@ -23,7 +23,7 @@ export default function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) 
           </p>
         </header>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <VerifyEmailForm initialToken={initialToken} initialEmail={initialEmail} />
         </section>
 

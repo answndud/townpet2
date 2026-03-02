@@ -13,7 +13,7 @@ export default function PostDetailError({ error, reset }: PostDetailErrorProps) 
   }, [error]);
 
   return (
-    <div className="border border-[#c8d7ef] bg-white p-6 text-center">
+    <div className="tp-card p-6 text-center">
       <h2 className="text-lg font-semibold text-[#153a6a]">
         게시글을 불러오지 못했습니다.
       </h2>
@@ -21,7 +21,7 @@ export default function PostDetailError({ error, reset }: PostDetailErrorProps) 
       <button
         type="button"
         onClick={reset}
-        className="mt-4 border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+        className="mt-4 rounded-full border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
       >
         다시 시도
       </button>

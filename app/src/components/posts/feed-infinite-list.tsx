@@ -496,7 +496,7 @@ export function FeedInfiniteList({
 
   return (
     <>
-      <div className="divide-y divide-[#e1e9f5]" data-testid="feed-post-list">
+      <div className="divide-y divide-[#e7eef9]" data-testid="feed-post-list">
         {items.map((post, index) => {
           const meta = postTypeMeta[post.type];
           const signals = getPostSignals({
@@ -504,13 +504,21 @@ export function FeedInfiniteList({
             content: post.content,
             imageCount: post.images.length,
           });
+          const locationLabel = post.neighborhood
+            ? `${post.neighborhood.city} ${post.neighborhood.name}`
+            : null;
+          const communityLabel = post.community
+            ? post.community.categoryLabelKo === post.community.labelKo
+              ? post.community.labelKo
+              : `${post.community.categoryLabelKo} · ${post.community.labelKo}`
+            : null;
 
           return (
             <div key={post.id}>
               {showAdSlot && adConfig && index === 4 ? (
-                <article className="border-y border-[#d8e6fb] bg-[linear-gradient(180deg,#eef4ff_0%,#f7fbff_100%)] px-4 py-3 sm:px-5">
+                <article className="border-y border-[#d8e6fb] bg-[linear-gradient(180deg,#eff5ff_0%,#f8fbff_100%)] px-4 py-3 sm:px-5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center border border-[#7aa5e6] bg-white px-2 py-0.5 text-[11px] font-semibold text-[#2f5da4]">
+                      <span className="inline-flex items-center rounded-full border border-[#9abbe9] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#2f5da4]">
                       광고
                     </span>
                     <span className="text-[11px] text-[#55749e]">맞춤 추천</span>
@@ -519,7 +527,7 @@ export function FeedInfiniteList({
                   <p className="mt-1 text-xs leading-5 text-[#446792]">{adConfig.description}</p>
                   <Link
                     href={adConfig.ctaHref}
-                    className="mt-2 inline-flex items-center border border-[#3567b5] bg-[#3567b5] px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
+                    className="mt-2 inline-flex items-center rounded-full border border-[#3567b5] bg-[#3567b5] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#2f5da4]"
                   >
                     {adConfig.ctaLabel}
                   </Link>
@@ -527,34 +535,22 @@ export function FeedInfiniteList({
               ) : null}
               <article
                 data-testid="feed-post-item"
-                className={`grid gap-2 px-4 py-2.5 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_230px] md:items-center ${
+                className={`grid gap-2.5 px-4 py-3 transition hover:bg-[#f8fbff] sm:px-5 md:grid-cols-[minmax(0,1fr)_230px] md:items-center ${
                   post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
                 }`}
               >
                 <div className="min-w-0">
                   <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[11px]">
                     <span
-                      className={`inline-flex items-center gap-1 border px-2 py-0.5 font-semibold ${meta.chipClass}`}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-semibold ${meta.chipClass}`}
                     >
                       {meta.label}
                     </span>
-                    <span className="border border-[#d2ddf0] bg-[#f6f9ff] px-2 py-0.5 text-[#2f548f]">
+                    <span className="rounded-full border border-[#d2ddf0] bg-[#f6f9ff] px-2.5 py-0.5 text-[#2f548f]">
                       {post.scope === "LOCAL" ? "동네" : "온동네"}
                     </span>
-                    {post.neighborhood ? (
-                      <span className="border border-[#dbe5f3] bg-white px-2 py-0.5 text-[#5d789f]">
-                        {`${post.neighborhood.city} ${post.neighborhood.name}`}
-                      </span>
-                    ) : null}
-                    {post.community ? (
-                      <span className="border border-[#c9d8ef] bg-[#eef4ff] px-2 py-0.5 font-medium text-[#274a82]">
-                        {post.community.categoryLabelKo === post.community.labelKo
-                          ? post.community.labelKo
-                          : `${post.community.categoryLabelKo} · ${post.community.labelKo}`}
-                      </span>
-                    ) : null}
                     {post.status === "HIDDEN" ? (
-                      <span className="border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
+                      <span className="rounded-full border border-rose-300 bg-rose-50 px-2 py-0.5 text-rose-700">
                         숨김
                       </span>
                     ) : null}
@@ -568,7 +564,7 @@ export function FeedInfiniteList({
                     className={`flex min-w-0 items-center gap-1 text-base font-semibold leading-snug transition ${
                       readPostIds.has(post.id)
                         ? "text-[#8c9db8] hover:text-[#7589a8]"
-                        : "text-[#10284a] hover:text-[#2f5da4]"
+                        : "text-[#1e3f74] hover:text-[#2f5da4]"
                     } visited:text-[#8c9db8]`}
                     onClick={() => markPostAsRead(post.id)}
                   >
@@ -578,13 +574,18 @@ export function FeedInfiniteList({
                       <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
                     ) : null}
                   </Link>
+                  {locationLabel || communityLabel ? (
+                    <p className="mt-1 truncate text-[11px] text-[#6a82a6]">
+                      {[locationLabel, communityLabel].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
 
-                <div className="text-xs text-[#4f678d] md:text-right">
-                  <p className="font-semibold text-[#1f3f71]">
-                    {post.guestDisplayName ? (
-                      <span>
-                        {post.guestDisplayName}
+                 <div className="text-xs text-[#4f678d] md:text-right">
+                   <p className="font-semibold text-[#1f3f71]">
+                     {post.guestDisplayName ? (
+                       <span>
+                         {post.guestDisplayName}
                         {post.guestIpDisplay ? ` (${post.guestIpLabel ?? "아이피"} ${post.guestIpDisplay})` : ""}
                       </span>
                     ) : (
@@ -598,10 +599,10 @@ export function FeedInfiniteList({
                       ? getStableDateLabel(post.createdAt)
                       : formatRelativeDate(post.createdAt, relativeNow)}
                   </p>
-                  <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
-                    조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
-                  </p>
-                </div>
+                   <p className="mt-1 inline-flex w-fit max-w-full items-center rounded-full border border-[#d8e4f6] bg-[#f8fbff] px-2.5 py-0.5 text-[11px] text-[#5a759c] md:ml-auto">
+                     조회 {formatCount(post.viewCount)} · 반응 {formatCount(post.likeCount + post.dislikeCount)}
+                   </p>
+                 </div>
               </article>
             </div>
           );
@@ -623,8 +624,8 @@ export function FeedInfiniteList({
                 void loadMore();
               }}
               disabled={isLoading}
-              className="inline-flex h-10 items-center justify-center border border-[#b9cbeb] bg-white px-4 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff] disabled:cursor-not-allowed disabled:opacity-70"
-            >
+                className="inline-flex h-10 items-center justify-center rounded-full border border-[#c9daf4] bg-white px-4 text-sm font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff] disabled:cursor-not-allowed disabled:opacity-70"
+              >
               {isLoading ? "불러오는 중..." : "게시글 더 보기"}
             </button>
           ) : (

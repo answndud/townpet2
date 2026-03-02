@@ -113,9 +113,9 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
   };
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">내 작성글</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
             내가 올린 게시글
@@ -125,7 +125,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
           </p>
         </header>
 
-        <section className="border border-[#c8d7ef] bg-white p-4 sm:p-5">
+        <section className="tp-card p-4 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
             <div className="space-y-3">
               <form action="/my-posts" className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -135,25 +135,25 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
                   name="q"
                   defaultValue={query}
                   placeholder="제목, 내용 검색"
-                  className="h-10 w-full border border-[#b9cbeb] bg-white px-3 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
+                  className="h-10 w-full rounded-full border border-[#cbdcf5] bg-white px-4 text-sm text-[#1e3f74] outline-none transition focus:border-[#4e89d8]"
                 />
                 <button
                   type="submit"
-                  className="h-10 min-w-[76px] border border-[#3567b5] bg-[#3567b5] px-3 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+                  className="h-10 min-w-[76px] rounded-full border border-[#3567b5] bg-[#3567b5] px-3 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
                 >
                   검색
                 </button>
                 {query ? (
                   <Link
                     href={makeHref({ nextQuery: null })}
-                    className="inline-flex h-10 min-w-[76px] items-center justify-center border border-[#b9cbeb] bg-white px-3 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
+                    className="inline-flex h-10 min-w-[76px] items-center justify-center rounded-full border border-[#cbdcf5] bg-white px-3 text-sm font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff]"
                   >
                     초기화
                   </Link>
                 ) : null}
               </form>
 
-              <div className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+              <div className="tp-soft-card p-3">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                   주요 게시판
                 </div>
@@ -205,7 +205,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
               </div>
             </div>
 
-            <aside className="border border-[#dbe6f6] bg-[#f8fbff] p-3">
+            <aside className="tp-soft-card p-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#4b6b9b]">
                 범위
               </div>
@@ -238,7 +238,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white">
+        <section className="tp-card overflow-hidden">
           {posts.length === 0 ? (
             <EmptyState
               title="작성한 게시글이 없습니다"

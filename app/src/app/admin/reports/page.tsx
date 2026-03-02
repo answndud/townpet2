@@ -175,9 +175,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     : "-";
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">운영 관리</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
             신고 큐
@@ -191,7 +191,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <ReportUpdateBanner message="신고 처리 결과가 반영되었습니다." />
         ) : null}
 
-        <section className="grid gap-3 border border-[#c8d7ef] bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="tp-card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="border border-[#d8e4f6] bg-[#f8fbff] p-3">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">전체 신고</p>
             <p className="mt-2 text-2xl font-bold text-[#10284a]">{stats.totalCount}</p>
@@ -260,7 +260,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </div>
         </section>
 
-        <section className="flex flex-col gap-3 border border-[#c8d7ef] bg-white p-4 text-xs text-[#4f678d]">
+        <section className="tp-card flex flex-col gap-3 p-4 text-xs text-[#4f678d]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] uppercase tracking-[0.24em] text-[#5b78a1]">
               상태 필터
@@ -299,7 +299,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-4">
+        <section className="tp-card p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[#153a6a]">최근 제재 이력</h2>
             <span className="text-[11px] text-[#5a7398]">

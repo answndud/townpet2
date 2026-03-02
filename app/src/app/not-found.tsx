@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-[#edf3fb] px-4 py-16">
-      <main className="mx-auto w-full max-w-[720px] border border-[#c8d7ef] bg-white p-6 text-center">
+    <div className="tp-page-bg min-h-screen px-4 py-16">
+      <main className="tp-card mx-auto w-full max-w-[720px] p-6 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-[#5b78a1]">404</p>
         <h1 className="mt-2 text-2xl font-bold text-[#10284a]">
           페이지를 찾을 수 없습니다.
@@ -13,7 +13,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/feed"
-          className="mt-5 inline-flex border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
+          className="mt-5 inline-flex rounded-full border border-[#3567b5] bg-[#3567b5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2f5da4]"
         >
           피드로 이동
         </Link>

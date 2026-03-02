@@ -22,16 +22,16 @@ export default async function NewPostPage() {
   const communities = await listCommunities({ limit: 50 });
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)]">
+    <div className="tp-page-bg min-h-screen">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-4 py-5 sm:gap-5 sm:px-6 sm:py-6 lg:px-10">
         <Link
           href="/feed"
-          className="inline-flex w-fit items-center rounded-sm border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]"
+          className="inline-flex w-fit items-center rounded-full border border-[#cbdcf5] bg-white px-3.5 py-2 text-xs font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff]"
         >
           목록으로
         </Link>
 
-        <section className="rounded-md border border-[#c8d7ef] bg-white p-4 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-6">
+        <section className="tp-card p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-1.5 border-b border-[#dde7f5] pb-3 sm:mb-5 sm:gap-2 sm:pb-4">
             <h1 className="text-[26px] font-semibold text-[#10284a] sm:text-2xl">새 글 작성</h1>
             <p className="text-xs text-[#4f678d] sm:text-sm">

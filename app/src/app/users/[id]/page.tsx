@@ -164,13 +164,13 @@ export default async function PublicUserProfilePage({
   };
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
       />
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">공개 프로필</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
             {profile.nickname ?? profile.name ?? "익명 사용자"}
@@ -189,21 +189,21 @@ export default async function PublicUserProfilePage({
         </header>
 
         <section className="grid gap-3 md:grid-cols-3">
-          <div className="border border-[#c8d7ef] bg-white p-4">
+          <div className="tp-card p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">게시글</p>
             <p className="mt-2 text-3xl font-bold text-[#10284a]">{profile.postCount}</p>
           </div>
-          <div className="border border-[#c8d7ef] bg-white p-4">
+          <div className="tp-card p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">댓글</p>
             <p className="mt-2 text-3xl font-bold text-[#10284a]">{profile.commentCount}</p>
           </div>
-          <div className="border border-[#c8d7ef] bg-white p-4">
+          <div className="tp-card p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">반응</p>
             <p className="mt-2 text-3xl font-bold text-[#10284a]">{profile.reactionCount}</p>
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+        <section className="tp-card p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[#153a6a]">반려동물 프로필</h2>
           {pets.length === 0 ? (
             <p className="mt-3 text-sm text-[#5a7398]">등록된 반려동물 프로필이 없습니다.</p>
@@ -244,7 +244,7 @@ export default async function PublicUserProfilePage({
           )}
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-4">
+        <section className="tp-card p-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Link
               href={buildTabHref(profile.id, "posts")}

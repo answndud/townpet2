@@ -292,18 +292,18 @@ export function FeedSearchForm({
           <input type="hidden" name="personalized" value="1" />
         ) : null}
 
-        <select
-          name="searchIn"
+          <select
+            name="searchIn"
           value={searchInValue}
           onChange={(event) => {
             setSearchInValue(event.target.value as FeedSearchIn);
           }}
           className={
-            density === "ULTRA"
-              ? "h-8 border border-[#b9cbeb] bg-white px-2 text-xs font-medium text-[#2f548f] outline-none transition focus:border-[#4a78be] focus-visible:ring-2 focus-visible:ring-[#2f66ba]/35"
-              : "h-9 border border-[#b9cbeb] bg-white px-2.5 text-sm text-[#2f548f] outline-none transition focus:border-[#4a78be]"
-          }
-        >
+              density === "ULTRA"
+                ? "h-8 rounded-full border border-[#cbdcf5] bg-[#f8fbff] px-2.5 text-xs font-medium text-[#315b9a] outline-none transition focus:border-[#4e89d8] focus-visible:ring-2 focus-visible:ring-[#4e89d8]/25"
+                : "h-10 rounded-full border border-[#cbdcf5] bg-[#f8fbff] px-3 text-sm text-[#315b9a] outline-none transition focus:border-[#4e89d8] focus-visible:ring-2 focus-visible:ring-[#4e89d8]/25"
+            }
+          >
           {SEARCH_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -322,8 +322,8 @@ export function FeedSearchForm({
             list={datalistId}
             className={
               density === "ULTRA"
-                ? "h-8 w-full border border-[#b9cbeb] bg-white px-2 text-xs text-[#122748] outline-none transition focus:border-[#4a78be] focus-visible:ring-2 focus-visible:ring-[#2f66ba]/35"
-                : "h-9 w-full border border-[#b9cbeb] bg-white px-2.5 text-sm text-[#122748] outline-none transition focus:border-[#4a78be]"
+                ? "h-8 w-full rounded-full border border-[#cbdcf5] bg-white px-3 text-xs text-[#1e3f74] outline-none transition focus:border-[#4e89d8] focus-visible:ring-2 focus-visible:ring-[#4e89d8]/25"
+                : "h-10 w-full rounded-full border border-[#cbdcf5] bg-white px-4 text-sm text-[#1e3f74] outline-none transition focus:border-[#4e89d8] focus-visible:ring-2 focus-visible:ring-[#4e89d8]/25"
             }
           />
           <datalist id={datalistId}>
@@ -337,17 +337,17 @@ export function FeedSearchForm({
               href={resetHref}
               className={
                 density === "ULTRA"
-                  ? "inline-flex h-8 min-w-[56px] items-center justify-center border border-[#b9cbeb] bg-white px-2 text-xs font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/35"
-                  : "inline-flex h-9 min-w-[68px] items-center justify-center border border-[#b9cbeb] bg-white px-2.5 text-sm font-semibold text-[#2f548f] transition hover:bg-[#f3f7ff]"
-              }
-            >
-              초기화
+                  ? "inline-flex h-8 min-w-[56px] items-center justify-center rounded-full border border-[#cbdcf5] bg-white px-2.5 text-xs font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4e89d8]/25"
+                  : "inline-flex h-10 min-w-[72px] items-center justify-center rounded-full border border-[#cbdcf5] bg-white px-3 text-sm font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4e89d8]/25"
+               }
+             >
+               초기화
             </Link>
           ) : null}
         </form>
 
         {showKeywordChips && isKeywordPanelOpen && popularTerms.length > 0 ? (
-          <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 hidden border border-[#bfd0ec] bg-white p-2 shadow-[0_10px_24px_rgba(16,40,74,0.12)] sm:block">
+          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 hidden rounded-xl border border-[#d4e2f7] bg-white p-2.5 shadow-[0_14px_28px_rgba(30,63,116,0.12)] sm:block">
             <p className="px-1 pb-1 text-[11px] font-semibold text-[#5b7398]">인기 검색어 TOP 10</p>
             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
               {popularTerms.slice(0, 10).map((term, index) => (
@@ -359,7 +359,7 @@ export function FeedSearchForm({
                     logSearchTerm(term);
                     setIsKeywordPanelOpen(false);
                   }}
-                  className="inline-flex items-center gap-2 border border-[#e0e9f7] bg-[#f8fbff] px-2 py-1 text-xs text-[#2f548f] transition hover:bg-white"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#d8e4f7] bg-[#f8fbff] px-2.5 py-1 text-xs text-[#315b9a] transition hover:bg-white"
                 >
                   <span className="inline-flex min-w-4 justify-center text-[11px] font-semibold text-[#1d64c4]">
                     {index + 1}
@@ -376,28 +376,24 @@ export function FeedSearchForm({
         <div className={density === "ULTRA" ? "hidden flex-wrap items-center gap-1 text-[11px] sm:flex" : "hidden flex-wrap items-center gap-1.5 text-xs sm:flex"}>
           <span className="text-[#5b7398]">최근 검색어</span>
           {recentTerms.map((term) => (
-            <span
-              key={`recent-${term}`}
-              className={
-                density === "ULTRA"
-                  ? "inline-flex items-center border border-[#c4d4ed] bg-white"
-                  : "inline-flex items-center border border-[#c4d4ed] bg-white"
-              }
-            >
+              <span
+                key={`recent-${term}`}
+                className="inline-flex items-center rounded-full border border-[#c9daf4] bg-white"
+              >
               <Link
                 href={buildTermHref(term)}
                 onClick={() => {
                   persistRecentSearchTerm(term);
                   logSearchTerm(term);
                 }}
-                className={density === "ULTRA" ? "px-1.5 py-0.5 text-[#315484] transition hover:bg-[#f3f7ff]" : "px-2 py-0.5 text-[#315484] transition hover:bg-[#f3f7ff]"}
+                className={density === "ULTRA" ? "px-2 py-0.5 text-[#315b9a] transition hover:bg-[#f5f9ff]" : "px-2.5 py-0.5 text-[#315b9a] transition hover:bg-[#f5f9ff]"}
               >
                 {term}
               </Link>
               <button
                 type="button"
                 onClick={() => removeRecentSearchTerm(term)}
-                className={density === "ULTRA" ? "border-l border-[#d7e2f3] px-1 text-[10px] text-[#6e83a5] transition hover:bg-[#eef4ff] hover:text-[#2f548f]" : "border-l border-[#d7e2f3] px-1.5 text-[11px] text-[#6e83a5] transition hover:bg-[#eef4ff] hover:text-[#2f548f]"}
+                className={density === "ULTRA" ? "border-l border-[#d7e2f3] px-1.5 text-[10px] text-[#6e83a5] transition hover:bg-[#eef4ff] hover:text-[#315b9a]" : "border-l border-[#d7e2f3] px-2 text-[11px] text-[#6e83a5] transition hover:bg-[#eef4ff] hover:text-[#315b9a]"}
                 aria-label={`최근 검색어 ${term} 삭제`}
               >
                 x

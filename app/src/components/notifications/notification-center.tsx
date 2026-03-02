@@ -310,7 +310,7 @@ export function NotificationCenter({
 
   return (
     <>
-      <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+      <header className="tp-hero p-5 sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">알림 센터</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-4xl">
           내 알림
@@ -323,10 +323,10 @@ export function NotificationCenter({
               type="button"
               disabled={isFilterPending}
               onClick={() => handleApplyFilter(tab.kind, unreadOnly)}
-              className={`border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                 kind === tab.kind
                   ? "border-[#3567b5] bg-[#3567b5] text-white"
-                  : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+                  : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
               }`}
             >
               {tab.label}
@@ -336,10 +336,10 @@ export function NotificationCenter({
             type="button"
             disabled={isFilterPending}
             onClick={() => handleApplyFilter(kind, !unreadOnly)}
-            className={`border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
               unreadOnly
                 ? "border-[#3567b5] bg-[#3567b5] text-white"
-                : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
+                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
             }`}
           >
             읽지 않음만
@@ -348,7 +348,7 @@ export function NotificationCenter({
             type="button"
             onClick={handleMarkAll}
             disabled={isMarkAllPending || isFilterPending || unreadCount === 0}
-            className="border border-[#3567b5] bg-[#3567b5] px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#2f5da4]"
+            className="rounded-full border border-[#3567b5] bg-[#3567b5] px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#2f5da4]"
           >
             모두 읽음 처리
           </button>
@@ -356,7 +356,7 @@ export function NotificationCenter({
         </div>
       </header>
 
-      <section className="border border-[#c8d7ef] bg-white">
+      <section className="tp-card overflow-hidden">
         {items.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-[#5f79a0]">
             도착한 알림이 없습니다.
@@ -388,8 +388,8 @@ export function NotificationCenter({
                       type="button"
                       onClick={() => void handleMove(notification)}
                       disabled={isPending}
-                      className="border border-[#bfd0ec] bg-white px-2.5 py-1 text-xs font-semibold text-[#315484] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f3f7ff]"
-                    >
+                       className="rounded-full border border-[#cbdcf5] bg-white px-2.5 py-1 text-xs font-semibold text-[#315b9a] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f5f9ff]"
+                     >
                       이동
                     </button>
                     {!notification.isRead ? (
@@ -398,12 +398,12 @@ export function NotificationCenter({
                         type="button"
                         onClick={() => void handleMarkRead(notification.id)}
                         disabled={isPending}
-                        className="border border-[#3567b5] bg-[#3567b5] px-2.5 py-1 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#2f5da4]"
+                        className="rounded-full border border-[#3567b5] bg-[#3567b5] px-2.5 py-1 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#2f5da4]"
                       >
                         읽음 처리
                       </button>
                     ) : (
-                      <span className="border border-[#d7e3f5] bg-[#f4f8ff] px-2.5 py-1 text-xs text-[#5f79a0]">
+                      <span className="rounded-full border border-[#d7e3f5] bg-[#f4f8ff] px-2.5 py-1 text-xs text-[#5f79a0]">
                         읽음
                       </span>
                     )}
@@ -422,7 +422,7 @@ export function NotificationCenter({
             type="button"
             onClick={() => void loadMore()}
             disabled={isLoadingMore}
-            className="border border-[#bfd0ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#315484] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f3f7ff]"
+            className="rounded-full border border-[#cbdcf5] bg-white px-3 py-1.5 text-xs font-semibold text-[#315b9a] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f5f9ff]"
           >
             {isLoadingMore ? "알림 불러오는 중..." : "알림 더 보기"}
           </button>

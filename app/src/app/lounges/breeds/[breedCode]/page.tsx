@@ -171,7 +171,7 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
 
   return (
     <main className="mx-auto w-full max-w-[1160px] px-4 py-5 sm:px-6">
-      <section className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] p-4 sm:p-5">
+      <section className="tp-hero p-4 sm:p-5">
         <p className="text-[11px] uppercase tracking-[0.22em] text-[#4b6b9b]">Breed Lounge</p>
         <h1 className="mt-1 text-2xl font-bold text-[#10284a]">{breedCode} 라운지</h1>
         <p className="mt-2 text-sm text-[#49648c]">
@@ -193,7 +193,7 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
         </div>
       </section>
 
-      <section className="mt-3 border border-[#c8d7ef] bg-white p-3 sm:p-4">
+      <section className="tp-card mt-3 p-3 sm:p-4">
         <form className="flex flex-wrap gap-2" method="GET">
           <input
             name="q"
@@ -299,7 +299,7 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
         </div>
       </section>
 
-      <section className="mt-3 border border-[#c8d7ef] bg-white">
+      <section className="tp-card mt-3 overflow-hidden">
         {initialItems.length === 0 ? (
           <EmptyState
             title="라운지 게시글이 없습니다"

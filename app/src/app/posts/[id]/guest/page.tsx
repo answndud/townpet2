@@ -288,7 +288,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f3f7ff_0%,#eef4ff_100%)] pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <PostViewTracker postId={post.id} />
       <script
         type="application/ld+json"
@@ -297,9 +297,9 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
         }}
       />
       <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-4 px-4 py-5 sm:gap-5 sm:px-6 sm:py-6 lg:px-8">
-        <BackToFeedButton className="inline-flex w-fit items-center rounded-sm border border-[#bfd0ec] bg-white px-3.5 py-2 text-xs font-semibold text-[#315484] transition hover:bg-[#f3f7ff]" />
+        <BackToFeedButton className="inline-flex w-fit items-center rounded-full border border-[#cbdcf5] bg-white px-3.5 py-2 text-xs font-semibold text-[#315b9a] transition hover:bg-[#f5f9ff]" />
         <div>
-          <section className="rounded-md border border-[#c8d7ef] bg-white p-4 shadow-[0_10px_24px_rgba(16,40,74,0.06)] sm:p-7">
+          <section className="tp-card p-4 sm:p-7">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className={`border px-2.5 py-0.5 font-semibold ${meta.chipClass}`}>
                 {meta.label}
@@ -354,7 +354,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
               </div>
             </div>
 
-            <section className="mt-3 rounded-sm border border-[#dbe6f6] bg-[#fcfdff] px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
+            <section className="mt-3 rounded-xl border border-[#dbe6f6] bg-[#fcfdff] px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
               <h2 className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-[#4f6f9f]">
                 내용
               </h2>
@@ -393,7 +393,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
             </section>
 
             <div className="mt-3 space-y-2 border-b border-[#e0e9f5] pb-3 sm:mt-4 sm:space-y-3 sm:pb-4">
-              <div className="rounded-sm border border-[#d8e4f6] bg-[#f8fbff] px-2.5 py-2.5 sm:px-3 sm:py-3">
+              <div className="rounded-xl border border-[#d8e4f6] bg-[#f8fbff] px-2.5 py-2.5 sm:px-3 sm:py-3">
                 <div className="flex items-center justify-between gap-2">
                   <PostReactionControls
                     postId={post.id}
@@ -409,7 +409,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
               <GuestPostDetailActions postId={post.id} />
             </div>
 
-            <details className="mt-4 border border-[#c8d7ef] bg-white p-4">
+            <details className="mt-4 rounded-xl border border-[#d9e5f7] bg-white p-4">
               <summary className="cursor-pointer text-sm font-semibold text-[#1f3f71]">게시글 신고</summary>
               <div className="mt-3">
                 <PostReportForm postId={post.id} />
@@ -419,7 +419,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
         </div>
 
         {post.hospitalReview ? (
-          <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <section className="tp-card p-5 sm:p-6">
             <h2 className="text-lg font-semibold text-[#163462]">병원후기 상세</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
               <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
@@ -451,7 +451,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
         ) : null}
 
         {post.placeReview ? (
-          <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <section className="tp-card p-5 sm:p-6">
             <h2 className="text-lg font-semibold text-[#163462]">장소후기 상세</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
               <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
@@ -479,7 +479,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
         ) : null}
 
         {post.walkRoute ? (
-          <section className="border border-[#c8d7ef] bg-white p-5 sm:p-6">
+          <section className="tp-card p-5 sm:p-6">
             <h2 className="text-lg font-semibold text-[#163462]">산책코스 상세</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
               <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">

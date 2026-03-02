@@ -77,9 +77,9 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
   const formatDateTime = (date: Date) => date.toLocaleString("ko-KR");
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="tp-page-bg min-h-screen pb-16">
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10">
-        <header className="border border-[#c8d7ef] bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4ff_100%)] p-5 sm:p-6">
+        <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">운영 관리</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
             인증 감사 로그
@@ -89,7 +89,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
           </p>
         </header>
 
-        <section className="flex flex-col gap-3 border border-[#c8d7ef] bg-white p-4 text-xs text-[#4f678d]">
+        <section className="tp-card flex flex-col gap-3 p-4 text-xs text-[#4f678d]">
           <form className="flex flex-wrap items-center gap-2" action="">
             <input
               name="q"
@@ -136,7 +136,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
           </div>
         </section>
 
-        <section className="border border-[#c8d7ef] bg-white p-4 sm:p-5">
+        <section className="tp-card p-4 sm:p-5">
           {audits.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-xs text-[#355988]">
