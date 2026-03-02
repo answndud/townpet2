@@ -193,7 +193,7 @@ model Post {
   guestAuthorId   String?
   neighborhoodId  String?
   boardScope      BoardScope       @default(COMMUNITY)
-  communityId     String?
+  petTypeId       String?           @map("communityId")
   commonBoardType CommonBoardType?
   animalTags      String[]         @default([])
   type            PostType
@@ -208,7 +208,7 @@ model Post {
   author          User             @relation(fields: [authorId], references: [id])
   guestAuthor     GuestAuthor?     @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
   neighborhood    Neighborhood?    @relation(fields: [neighborhoodId], references: [id])
-  community       Community?       @relation(fields: [communityId], references: [id])
+  petType         Community?        @relation(fields: [petTypeId], references: [id])
   comments        Comment[]
   images          PostImage[]
   reports         Report[]
@@ -229,7 +229,7 @@ model Post {
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
   @@index([boardScope, createdAt(sort: Desc)])
-  @@index([communityId, createdAt(sort: Desc)])
+  @@index([petTypeId, createdAt(sort: Desc)], map: "Post_communityId_createdAt_idx")
   @@index([commonBoardType, createdAt(sort: Desc)])
 }
 

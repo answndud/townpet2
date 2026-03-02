@@ -18,7 +18,7 @@ type FeedSearchFormProps = {
   personalized: FeedPersonalized;
   type?: PostType;
   scope?: FeedScope;
-  communityId?: string;
+  petTypeId?: string;
   mode: FeedMode;
   days: number;
   period?: number | null;
@@ -78,7 +78,7 @@ export function FeedSearchForm({
   personalized,
   type,
   scope,
-  communityId,
+  petTypeId,
   mode,
   days,
   period,
@@ -178,8 +178,8 @@ export function FeedSearchForm({
     if (searchInValue !== "ALL") {
       params.set("searchIn", searchInValue);
     }
-    if (communityId) {
-      params.set("communityId", communityId);
+    if (petTypeId) {
+      params.set("petType", petTypeId);
     }
     if (mode === "ALL" && personalized === "1") {
       params.set("personalized", "1");
@@ -283,7 +283,7 @@ export function FeedSearchForm({
         >
         {type ? <input type="hidden" name="type" value={type} /> : null}
         {scope ? <input type="hidden" name="scope" value={scope} /> : null}
-        {communityId ? <input type="hidden" name="communityId" value={communityId} /> : null}
+        {petTypeId ? <input type="hidden" name="petType" value={petTypeId} /> : null}
         {mode === "BEST" ? <input type="hidden" name="mode" value="BEST" /> : null}
         {mode === "BEST" ? <input type="hidden" name="days" value={String(days)} /> : null}
         {mode === "ALL" && sort !== "LATEST" ? <input type="hidden" name="sort" value={sort} /> : null}

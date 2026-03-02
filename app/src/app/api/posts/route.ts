@@ -3,7 +3,7 @@ import { PostScope } from "@prisma/client";
 
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
-import { postListSchema } from "@/lib/validations/post";
+import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
 import { getCurrentUser } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       limit: FEED_PAGE_SIZE,
       type: searchParams.get("type") ?? undefined,
       scope: searchParams.get("scope") ?? undefined,
-      communityId: searchParams.get("communityId") ?? undefined,
+      petType: searchParams.get("petType") ?? undefined,
       q: searchParams.get("q") ?? undefined,
       searchIn: searchParams.get("searchIn") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,
@@ -52,14 +52,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (!currentUser && isLoginRequiredPostType(parsed.data.type, loginRequiredTypes)) {
+    const listInput = toPostListInput(parsed.data);
+    const { petTypeId, ...listSchemaInput } = listInput;
+
+    if (!currentUser && isLoginRequiredPostType(listInput.type, loginRequiredTypes)) {
       return jsonError(401, {
         code: "AUTH_REQUIRED",
         message: "선택한 카테고리는 로그인 후 이용할 수 있습니다.",
       });
     }
 
-    const scope = parsed.data.scope ?? PostScope.GLOBAL;
+    const scope = listInput.scope ?? PostScope.GLOBAL;
     let neighborhoodId: string | undefined;
 
     if (scope === PostScope.LOCAL) {
@@ -86,19 +89,20 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await listPosts({
-      ...parsed.data,
+      ...listSchemaInput,
       limit: FEED_PAGE_SIZE,
       scope,
+      petTypeId,
       excludeTypes: currentUser ? undefined : loginRequiredTypes,
       neighborhoodId,
       viewerId: currentUser?.id,
-      personalized: parsed.data.personalized && Boolean(currentUser?.id),
+      personalized: listInput.personalized && Boolean(currentUser?.id),
     });
     const canCache =
       !currentUser &&
       scope === PostScope.GLOBAL &&
-      !parsed.data.cursor &&
-      !parsed.data.personalized;
+      !listInput.cursor &&
+      !listInput.personalized;
     return jsonOk(data, {
       headers: {
         "cache-control": canCache ? buildCacheControlHeader(30, 300) : "no-store",

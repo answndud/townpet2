@@ -53,7 +53,7 @@ type PostCreateFormState = {
   type: PostType;
   scope: PostScope;
   neighborhoodId: string;
-  communityId: string;
+  petTypeId: string;
   animalTagsInput: string;
   hospitalReview: {
     hospitalName: string;
@@ -119,7 +119,7 @@ function isDraftFormState(value: unknown): value is PostCreateFormState {
     typeof candidate.type === "string" &&
     typeof candidate.scope === "string" &&
     typeof candidate.neighborhoodId === "string" &&
-    (typeof candidate.communityId === "string" || candidate.communityId === undefined) &&
+    (typeof candidate.petTypeId === "string" || candidate.petTypeId === undefined) &&
     (typeof candidate.animalTagsInput === "string" || candidate.animalTagsInput === undefined) &&
     Array.isArray(candidate.imageUrls) &&
     (typeof candidate.guestDisplayName === "string" || candidate.guestDisplayName === undefined) &&
@@ -166,7 +166,7 @@ export function PostCreateForm({
     type: PostType.FREE_BOARD,
     scope: PostScope.GLOBAL,
     neighborhoodId: defaultNeighborhoodId,
-    communityId: communities[0]?.id ?? "",
+    petTypeId: communities[0]?.id ?? "",
     animalTagsInput: "",
     hospitalReview: {
       hospitalName: "",
@@ -218,7 +218,7 @@ export function PostCreateForm({
         setFormState((prev) => ({
           ...prev,
           ...draftForm,
-          communityId: draftForm.communityId ?? prev.communityId,
+          petTypeId: draftForm.petTypeId ?? prev.petTypeId,
           animalTagsInput: draftForm.animalTagsInput ?? "",
           guestDisplayName: draftForm.guestDisplayName ?? "",
           guestPassword: "",
@@ -458,7 +458,7 @@ export function PostCreateForm({
   }, [canUseLocalScope, formState.scope, isAuthenticated]);
 
   useEffect(() => {
-    if (formState.communityId) {
+    if (formState.petTypeId) {
       return;
     }
 
@@ -468,9 +468,9 @@ export function PostCreateForm({
 
     setFormState((prev) => ({
       ...prev,
-      communityId: communityOptions[0].value,
+      petTypeId: communityOptions[0].value,
     }));
-  }, [communityOptions, formState.communityId]);
+  }, [communityOptions, formState.petTypeId]);
 
   const showNeighborhood = formState.scope === PostScope.LOCAL;
   const isCommonBoardType = isCommonBoardPostType(formState.type);
@@ -647,7 +647,7 @@ export function PostCreateForm({
       .filter((tag) => tag.length > 0)
       .slice(0, 5);
 
-    if (showCommunitySelector && !formState.communityId) {
+    if (showCommunitySelector && !formState.petTypeId) {
       setError("커뮤니티를 선택해 주세요.");
       return;
     }
@@ -671,7 +671,7 @@ export function PostCreateForm({
         scope: isAuthenticated ? formState.scope : PostScope.GLOBAL,
         imageUrls: serializedImageUrls,
         neighborhoodId: showNeighborhood ? formState.neighborhoodId : undefined,
-        communityId: showCommunitySelector ? formState.communityId : undefined,
+        petTypeId: showCommunitySelector ? formState.petTypeId : undefined,
         animalTags: showAnimalTagsInput ? normalizedAnimalTags : undefined,
         guestDisplayName: isAuthenticated ? undefined : formState.guestDisplayName,
         guestPassword: isAuthenticated ? undefined : formState.guestPassword,
@@ -747,7 +747,7 @@ export function PostCreateForm({
         title: "",
         content: "",
         type: PostType.FREE_BOARD,
-        communityId: communities[0]?.id ?? "",
+        petTypeId: communities[0]?.id ?? "",
         animalTagsInput: "",
         hospitalReview: {
           ...prev.hospitalReview,
@@ -881,11 +881,11 @@ export function PostCreateForm({
               커뮤니티
               <select
                 className="border border-[#bfd0ec] bg-[#fbfdff] px-3 py-2 text-sm text-[#1f3f71]"
-                value={formState.communityId}
+                value={formState.petTypeId}
                 onChange={(event) =>
                   setFormState((prev) => ({
                     ...prev,
-                    communityId: event.target.value,
+                    petTypeId: event.target.value,
                   }))
                 }
                 required

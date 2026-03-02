@@ -60,7 +60,7 @@ test.describe("notification comment flow", () => {
         content: `Playwright notification setup ${runId}`,
         type: PostType.FREE_BOARD,
         scope: PostScope.GLOBAL,
-        communityId: defaultCommunity.id,
+        petTypeId: defaultCommunity.id,
         imageUrls: [],
       },
     });

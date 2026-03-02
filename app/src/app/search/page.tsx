@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
-import { postListSchema } from "@/lib/validations/post";
+import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listRankedSearchPosts } from "@/server/queries/post.queries";
 import { getPopularSearchTerms } from "@/server/queries/search.queries";
@@ -82,11 +82,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const resolvedParams = (await searchParams) ?? {};
   const parsedParams = postListSchema.safeParse(resolvedParams);
-  const type = parsedParams.success ? parsedParams.data.type : undefined;
-  const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+  const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
+  const type = listInput?.type;
+  const scope = listInput?.scope;
   const selectedScope = scope ?? PostScope.GLOBAL;
   const effectiveScope = isAuthenticated ? selectedScope : PostScope.GLOBAL;
-  const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
+  const query = listInput?.q?.trim() ?? "";
   const selectedSearchIn = toFeedSearchIn(resolvedParams.searchIn);
   const isGuestTypeBlocked =
     !isAuthenticated && isLoginRequiredPostType(type, loginRequiredTypes);

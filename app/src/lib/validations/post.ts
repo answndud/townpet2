@@ -66,7 +66,7 @@ export const postCreateSchema = z.object({
   type: z.nativeEnum(PostType),
   scope: z.nativeEnum(PostScope).default(PostScope.LOCAL),
   neighborhoodId: z.string().cuid().optional(),
-  communityId: z.string().cuid().optional(),
+  petTypeId: z.string().cuid().optional(),
   animalTags: z.array(z.string().trim().min(1).max(24)).max(5).optional().default([]),
   imageUrls: z.array(imageUrlSchema).max(10).optional().default([]),
   guestDisplayName: z.string().trim().min(2).max(24).optional(),
@@ -74,11 +74,11 @@ export const postCreateSchema = z.object({
 })
   .superRefine((value, ctx) => {
     if (isCommonBoardPostType(value.type)) {
-      if (value.communityId) {
+      if (value.petTypeId) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["communityId"],
-          message: "공용 보드 글은 커뮤니티를 지정할 수 없습니다.",
+          path: ["petTypeId"],
+          message: "공용 보드 글은 반려동물 타입을 지정할 수 없습니다.",
         });
       }
 
@@ -93,11 +93,11 @@ export const postCreateSchema = z.object({
       return;
     }
 
-    if (!value.communityId) {
+    if (!value.petTypeId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["communityId"],
-        message: "커뮤니티 글은 커뮤니티 선택이 필요합니다.",
+        path: ["petTypeId"],
+        message: "커뮤니티 글은 반려동물 타입 선택이 필요합니다.",
       });
     }
   });
@@ -139,7 +139,7 @@ export const postListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   type: z.nativeEnum(PostType).optional(),
   scope: z.nativeEnum(PostScope).optional(),
-  communityId: z.string().cuid().optional(),
+  petType: z.string().cuid().optional(),
   q: z.string().min(1).max(100).optional(),
   searchIn: z.enum(["ALL", "TITLE", "CONTENT", "AUTHOR"]).optional(),
   sort: z.enum(["LATEST", "LIKE", "COMMENT"]).optional(),
@@ -179,9 +179,22 @@ export const postUpdateSchema = z
     message: "업데이트할 항목이 필요합니다.",
   });
 
+type PostListSchemaInput = z.infer<typeof postListSchema>;
+
 export type PostCreateInput = z.infer<typeof postCreateSchema>;
-export type PostListInput = z.infer<typeof postListSchema>;
+export type PostListInput = Omit<PostListSchemaInput, "petType"> & {
+  petTypeId?: string;
+};
 export type HospitalReviewInput = z.infer<typeof hospitalReviewSchema>;
 export type PlaceReviewInput = z.infer<typeof placeReviewSchema>;
 export type WalkRouteInput = z.infer<typeof walkRouteSchema>;
 export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
+
+// Normalize parsed list input to product-facing naming.
+export function toPostListInput(value: PostListSchemaInput): PostListInput {
+  const { petType, ...rest } = value;
+  return {
+    ...rest,
+    petTypeId: petType,
+  };
+}

@@ -6,6 +6,7 @@ import {
   placeReviewSchema,
   postCreateSchema,
   postListSchema,
+  toPostListInput,
   walkRouteSchema,
 } from "@/lib/validations/post";
 
@@ -17,7 +18,7 @@ describe("post validations", () => {
       type: PostType.FREE_BOARD,
       scope: PostScope.LOCAL,
       neighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7k",
-      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      petTypeId: "ckc7k5qsj0000u0t8qv6d1d7k",
     });
 
     expect(result.success).toBe(true);
@@ -53,25 +54,50 @@ describe("post validations", () => {
     expect(result.data?.difficulty).toBeUndefined();
   });
 
-  it("accepts list filters", () => {
+  it("accepts petType in list filters", () => {
     const result = postListSchema.safeParse({
       type: PostType.PET_SHOWCASE,
       scope: PostScope.GLOBAL,
-      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      petType: "ckc7k5qsj0000u0t8qv6d1d7k",
     });
 
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid communityId in list filters", () => {
+  it("keeps petType value on parsed list filters", () => {
     const result = postListSchema.safeParse({
-      communityId: "not-cuid",
+      petType: "ckc7k5qsj0000u0t8qv6d1d7k",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.petType).toBe("ckc7k5qsj0000u0t8qv6d1d7k");
+  });
+
+  it("rejects invalid petType in list filters", () => {
+    const result = postListSchema.safeParse({
+      petType: "not-cuid",
     });
 
     expect(result.success).toBe(false);
   });
 
-  it("rejects community posts without communityId", () => {
+  it("maps parsed list filters to petTypeId shape", () => {
+    const result = postListSchema.safeParse({
+      petType: "ckc7k5qsj0000u0t8qv6d1d7k",
+      scope: PostScope.GLOBAL,
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+
+    const mapped = toPostListInput(result.data);
+    expect(mapped.petTypeId).toBe("ckc7k5qsj0000u0t8qv6d1d7k");
+    expect((mapped as { petType?: string }).petType).toBeUndefined();
+  });
+
+  it("rejects community posts without petTypeId", () => {
     const result = postCreateSchema.safeParse({
       title: "테스트",
       content: "내용",
@@ -82,13 +108,13 @@ describe("post validations", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects common-board posts with communityId", () => {
+  it("rejects common-board posts with petTypeId", () => {
     const result = postCreateSchema.safeParse({
       title: "병원후기",
       content: "내용",
       type: PostType.HOSPITAL_REVIEW,
       scope: PostScope.GLOBAL,
-      communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      petTypeId: "ckc7k5qsj0000u0t8qv6d1d7k",
       animalTags: ["강아지"],
     });
 

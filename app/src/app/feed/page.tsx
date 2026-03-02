@@ -263,7 +263,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           days: bestDays,
           type,
           scope: effectiveScope,
-          communityId: petTypeId,
+          petTypeId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
@@ -287,7 +287,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           limit,
           type,
           scope: effectiveScope,
-          communityId: petTypeId,
+          petTypeId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           days: periodDays ?? undefined,
@@ -312,7 +312,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           days: bestDays,
           type,
           scope: effectiveScope,
-          communityId: petTypeId,
+          petTypeId,
           q: query || undefined,
           searchIn: selectedSearchIn,
           excludeTypes: isAuthenticated ? undefined : blockedTypesForGuest,
@@ -412,18 +412,18 @@ export default async function Home({ searchParams }: HomePageProps) {
           district: post.neighborhood.district,
         }
       : null,
-    community:
+    petType:
       (post as {
-        community?: {
+        petType?: {
           id: string;
           labelKo: string;
           category: { labelKo: string };
         } | null;
-      }).community
+      }).petType
       ? {
-          id: (post as { community: { id: string } }).community.id,
-          labelKo: (post as { community: { labelKo: string } }).community.labelKo,
-          categoryLabelKo: (post as { community: { category: { labelKo: string } } }).community
+          id: (post as { petType: { id: string } }).petType.id,
+          labelKo: (post as { petType: { labelKo: string } }).petType.labelKo,
+          categoryLabelKo: (post as { petType: { category: { labelKo: string } } }).petType
             .category.labelKo,
         }
       : null,

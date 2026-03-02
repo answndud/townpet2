@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { getPostSignals } from "@/lib/post-presenter";
 import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
-import { postListSchema } from "@/lib/validations/post";
+import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPosts } from "@/server/queries/post.queries";
 
@@ -66,8 +66,9 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
 
   const resolvedParams = (await searchParams) ?? {};
   const parsedParams = postListSchema.safeParse(resolvedParams);
-  const type = parsedParams.success ? parsedParams.data.type : undefined;
-  const scope = parsedParams.success ? parsedParams.data.scope : undefined;
+  const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
+  const type = listInput?.type;
+  const scope = listInput?.scope;
   const effectiveScope = scope ?? PostScope.GLOBAL;
 
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
@@ -82,7 +83,7 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
     );
   }
 
-  const query = parsedParams.success ? parsedParams.data.q?.trim() ?? "" : "";
+  const query = listInput?.q?.trim() ?? "";
   const posts = await listUserPosts({
     authorId: user.id,
     scope,

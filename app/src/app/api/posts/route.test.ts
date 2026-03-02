@@ -80,9 +80,9 @@ describe("GET /api/posts contract", () => {
     });
   });
 
-  it("passes communityId filter to list query", async () => {
+  it("passes petType filter to list query", async () => {
     const request = new Request(
-      "http://localhost/api/posts?scope=GLOBAL&communityId=ckc7k5qsj0000u0t8qv6d1d7k",
+      "http://localhost/api/posts?scope=GLOBAL&petType=ckc7k5qsj0000u0t8qv6d1d7k",
     ) as NextRequest;
 
     const response = await GET(request);
@@ -90,7 +90,7 @@ describe("GET /api/posts contract", () => {
     expect(response.status).toBe(200);
     expect(mockListPosts).toHaveBeenCalledWith(
       expect.objectContaining({
-        communityId: "ckc7k5qsj0000u0t8qv6d1d7k",
+        petTypeId: "ckc7k5qsj0000u0t8qv6d1d7k",
       }),
     );
   });

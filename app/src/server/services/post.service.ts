@@ -306,7 +306,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
 
   const {
     imageUrls,
-    communityId,
+    petTypeId,
     animalTags,
     guestDisplayName,
     guestPassword,
@@ -484,21 +484,21 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
   }
 
   if (mappedBoard.boardScope === "COMMUNITY") {
-    if (!communityId) {
-      throw new ServiceError("커뮤니티를 선택해 주세요.", "POST_COMMUNITY_REQUIRED", 400);
+    if (!petTypeId) {
+      throw new ServiceError("반려동물 타입을 선택해 주세요.", "POST_COMMUNITY_REQUIRED", 400);
     }
 
-    const community = await prisma.community.findUnique({
-      where: { id: communityId },
+    const petType = await prisma.community.findUnique({
+      where: { id: petTypeId },
       select: { id: true, isActive: true },
     });
 
-    if (!community || !community.isActive) {
-      throw new ServiceError("유효한 커뮤니티를 찾을 수 없습니다.", "POST_COMMUNITY_INVALID", 400);
+    if (!petType || !petType.isActive) {
+      throw new ServiceError("유효한 반려동물 타입을 찾을 수 없습니다.", "POST_COMMUNITY_INVALID", 400);
     }
   } else {
-    if (communityId) {
-      throw new ServiceError("공용 보드 글은 커뮤니티를 지정할 수 없습니다.", "POST_COMMUNITY_FORBIDDEN", 400);
+    if (petTypeId) {
+      throw new ServiceError("공용 보드 글은 반려동물 타입을 지정할 수 없습니다.", "POST_COMMUNITY_FORBIDDEN", 400);
     }
 
     if (normalizedAnimalTags.length === 0) {
@@ -509,7 +509,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
   const commonCreateData = {
     ...postData,
     boardScope: mappedBoard.boardScope,
-    communityId: mappedBoard.boardScope === "COMMUNITY" ? communityId : null,
+    petTypeId: mappedBoard.boardScope === "COMMUNITY" ? petTypeId : null,
     commonBoardType: mappedBoard.commonBoardType,
     animalTags: mappedBoard.boardScope === "COMMON" ? normalizedAnimalTags : [],
     authorId: resolvedAuthorId,

@@ -66,7 +66,7 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 };
 
 describe("createPost new-user restriction", () => {
-  const communityId = "ckc7k5qsj0000u0t8qv6d1d7k";
+  const petTypeId = "ckc7k5qsj0000u0t8qv6d1d7k";
 
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
@@ -75,7 +75,7 @@ describe("createPost new-user restriction", () => {
     mockPrisma.siteSetting.findUnique.mockReset();
     mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
     mockPrisma.community.findUnique.mockReset();
-    mockPrisma.community.findUnique.mockResolvedValue({ id: communityId, isActive: true });
+    mockPrisma.community.findUnique.mockResolvedValue({ id: petTypeId, isActive: true });
     mockPrisma.guestBan.findFirst.mockReset();
     mockPrisma.guestBan.findFirst.mockResolvedValue(null);
     mockPrisma.guestBan.create.mockReset();
@@ -139,7 +139,7 @@ describe("createPost new-user restriction", () => {
           content: "작성 가능",
           type: PostType.FREE_POST,
           scope: PostScope.GLOBAL,
-          communityId,
+          petTypeId,
           imageUrls: [],
         },
       }),
@@ -164,7 +164,7 @@ describe("createPost new-user restriction", () => {
           content: "문의는 010-1234-5678",
           type: PostType.FREE_POST,
           scope: PostScope.GLOBAL,
-          communityId,
+          petTypeId,
           imageUrls: [],
         },
       }),
@@ -209,7 +209,7 @@ describe("createPost new-user restriction", () => {
           content: "텍스트만 작성",
           type: PostType.FREE_BOARD,
           scope: PostScope.GLOBAL,
-          communityId,
+          petTypeId,
           guestDisplayName: "익명작성자",
           guestPassword: "1234",
           imageUrls: [],
@@ -234,7 +234,7 @@ describe("createPost new-user restriction", () => {
           content: "모임 글",
           type: PostType.MEETUP,
           scope: PostScope.GLOBAL,
-          communityId,
+          petTypeId,
           guestDisplayName: "익명작성자",
           guestPassword: "1234",
           imageUrls: [],
@@ -275,7 +275,7 @@ describe("createPost new-user restriction", () => {
         data: expect.objectContaining({
           boardScope: "COMMON",
           commonBoardType: "HOSPITAL",
-          communityId: null,
+          petTypeId: null,
           animalTags: ["강아지", "고양이"],
         }),
       }),

@@ -47,7 +47,7 @@ export type FeedPostItem = {
     city: string;
     district: string;
   } | null;
-  community?: {
+  petType?: {
     id: string;
     labelKo: string;
     categoryLabelKo: string;
@@ -63,7 +63,7 @@ export type FeedPostItem = {
 type FeedQueryParams = {
   type?: PostType;
   scope: FeedScope;
-  communityId?: string;
+  petTypeId?: string;
   q?: string;
   searchIn?: FeedSearchIn;
   sort?: FeedSort;
@@ -389,8 +389,8 @@ export function FeedInfiniteList({
       if (query.type) {
         params.set("type", query.type);
       }
-      if (query.communityId) {
-        params.set("communityId", query.communityId);
+      if (query.petTypeId) {
+        params.set("petType", query.petTypeId);
       }
       if (query.q) {
         params.set("q", query.q);
@@ -444,7 +444,7 @@ export function FeedInfiniteList({
     mode,
     nextCursor,
     query.q,
-    query.communityId,
+    query.petTypeId,
     query.scope,
     query.searchIn,
     query.sort,
@@ -507,10 +507,10 @@ export function FeedInfiniteList({
           const locationLabel = post.neighborhood
             ? `${post.neighborhood.city} ${post.neighborhood.name}`
             : null;
-          const communityLabel = post.community
-            ? post.community.categoryLabelKo === post.community.labelKo
-              ? post.community.labelKo
-              : `${post.community.categoryLabelKo} · ${post.community.labelKo}`
+          const petTypeLabel = post.petType
+            ? post.petType.categoryLabelKo === post.petType.labelKo
+              ? post.petType.labelKo
+              : `${post.petType.categoryLabelKo} · ${post.petType.labelKo}`
             : null;
 
           return (
@@ -574,9 +574,9 @@ export function FeedInfiniteList({
                       <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
                     ) : null}
                   </Link>
-                  {locationLabel || communityLabel ? (
+                  {locationLabel || petTypeLabel ? (
                     <p className="mt-1 truncate text-[11px] text-[#6a82a6]">
-                      {[locationLabel, communityLabel].filter(Boolean).join(" · ")}
+                      {[locationLabel, petTypeLabel].filter(Boolean).join(" · ")}
                     </p>
                   ) : null}
                 </div>
