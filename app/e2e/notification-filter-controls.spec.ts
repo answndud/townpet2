@@ -11,6 +11,7 @@ const actorEmail = process.env.E2E_ACTOR_EMAIL ?? "mod.trust@townpet.dev";
 
 let createdNotificationIds: string[] = [];
 let runId = "";
+let unreadSystemId = "";
 
 test.describe("notification filter controls", () => {
   test.beforeEach(async () => {
@@ -88,6 +89,7 @@ test.describe("notification filter controls", () => {
       select: { id: true },
     });
     createdNotificationIds.push(unreadSystem.id);
+    unreadSystemId = unreadSystem.id;
   });
 
   test.afterEach(async () => {
@@ -137,5 +139,15 @@ test.describe("notification filter controls", () => {
     await expect(page.getByText(`[${runId}] 댓글 알림`)).toBeVisible();
     await expect(page.getByText(`[${runId}] 시스템 알림`)).toBeVisible();
     await expect(page.getByText(`[${runId}] 반응 알림(읽음)`)).toHaveCount(0);
+  });
+
+  test("dismisses notification with X button", async ({ page }) => {
+    await page.goto("/notifications");
+    const targetTitle = page.getByText(`[${runId}] 시스템 알림`);
+
+    await expect(targetTitle).toBeVisible();
+    await page.getByTestId(`notification-dismiss-${unreadSystemId}`).click();
+    await expect(targetTitle).toHaveCount(0);
+    await expect(page.getByTestId(`notification-item-${unreadSystemId}`)).toHaveCount(0);
   });
 });

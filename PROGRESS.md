@@ -17,6 +17,32 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-02: 알림 읽음/닫기 즉시 숨김 + 3일 보존/정리
+- 완료 내용
+- 알림 모델에 `archivedAt`을 추가하고, 목록/카운트 쿼리에서 `archivedAt = null`만 조회하도록 변경.
+- `읽음 처리`는 `isRead/readAt` 저장과 동시에 `archivedAt`을 기록해 hover 알림창과 `/notifications` 목록에서 즉시 사라지게 반영.
+- `/notifications`와 hover 알림창에 `X` 버튼을 추가하고, `archiveNotificationAction`으로 미읽음 상태에서도 즉시 숨김 처리.
+- 3일 경과 영구삭제를 위한 `db:cleanup:notifications` 스크립트(`NOTIFICATION_RETENTION_DAYS`, 기본 3일) 추가.
+- GitHub Actions 일간 스케줄(`notification-cleanup`)을 추가해 운영에서 자동 정리 가능하도록 구성.
+- 변경 파일(핵심)
+- `app/prisma/schema.prisma`
+- `app/src/server/queries/notification.queries.ts`
+- `app/src/server/actions/notification.ts`
+- `app/src/components/notifications/notification-bell.tsx`
+- `app/src/components/notifications/notification-center.tsx`
+- `app/scripts/cleanup-notifications.ts`
+- `app/package.json`
+- `.github/workflows/notification-cleanup.yml`
+- `app/e2e/notification-comment-flow.spec.ts`
+- `app/e2e/notification-filter-controls.spec.ts`
+- 검증 결과
+- `pnpm -C app prisma generate` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test:unit` 통과 (44 files, 194 tests).
+- `pnpm -C app lint` 실행 (기존 미사용 변수 경고 10건, 이번 변경에서 신규 error 없음).
+- 이슈/블로커
+- 워크플로우는 `DATABASE_URL` 시크릿이 없으면 자동 skip되므로, 운영 저장소 시크릿 확인이 필요.
+
 ### 2026-02-27: 상세 content lazy 분리
 - 완료 내용
 - 상세 응답에서 rendered content를 제거하고 별도 content API로 로드.

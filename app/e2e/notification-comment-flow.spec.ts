@@ -119,7 +119,7 @@ test.describe("notification comment flow", () => {
     });
   });
 
-  test("marks notification as read when moving to post", async ({ page }) => {
+  test("hides notification after reading and moving to post", async ({ page }) => {
     await page.goto("/notifications");
     await expect(page).toHaveURL(/\/notifications/);
 
@@ -133,10 +133,8 @@ test.describe("notification comment flow", () => {
     await expect(page).toHaveURL(new RegExp(`/posts/${seeded.postId}`));
 
     await page.goto("/notifications");
-    const sameItem = page.getByTestId(`notification-item-${seeded.notificationId}`);
     await expect(
-      page.getByTestId(`notification-read-${seeded.notificationId}`),
+      page.getByTestId(`notification-item-${seeded.notificationId}`),
     ).toHaveCount(0);
-    await expect(sameItem).toContainText(/읽음(?!\s*처리)/);
   });
 });

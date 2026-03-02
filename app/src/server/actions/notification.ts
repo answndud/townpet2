@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
+  archiveNotification,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/server/queries/notification.queries";
@@ -70,6 +71,41 @@ export async function markAllNotificationsReadAction(): Promise<NotificationActi
     await monitorUnhandledError(error, {
       route: "action:markAllNotificationsReadAction",
       userId,
+    });
+
+    return {
+      ok: false,
+      code: "INTERNAL_SERVER_ERROR",
+      message: "서버 오류가 발생했습니다.",
+    };
+  }
+}
+
+export async function archiveNotificationAction(
+  notificationId: string,
+): Promise<NotificationActionResult> {
+  let userId: string | undefined;
+
+  try {
+    const user = await requireCurrentUser();
+    userId = user.id;
+
+    const changed = await archiveNotification(user.id, notificationId);
+    if (changed) {
+      revalidatePath("/notifications");
+      revalidatePath("/", "layout");
+    }
+
+    return { ok: true, updated: changed ? 1 : 0 };
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return { ok: false, code: error.code, message: error.message };
+    }
+
+    await monitorUnhandledError(error, {
+      route: "action:archiveNotificationAction",
+      userId,
+      extra: { notificationId },
     });
 
     return {

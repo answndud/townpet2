@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
+  archiveNotificationAction,
   markAllNotificationsReadAction,
   markNotificationReadAction,
 } from "@/server/actions/notification";
@@ -188,10 +189,29 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
         return;
       }
 
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
-      );
+      setItems((prev) => prev.filter((item) => item.id !== id));
       setLocalUnreadCount((prev) => Math.max(0, prev - 1));
+    });
+  };
+
+  const archiveOne = (id: string) => {
+    const target = items.find((item) => item.id === id);
+    if (!target) {
+      return;
+    }
+
+    setActionMessage(null);
+    startActionTransition(async () => {
+      const result = await archiveNotificationAction(id);
+      if (!result.ok) {
+        setActionMessage(result.message);
+        return;
+      }
+
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      if (!target.isRead) {
+        setLocalUnreadCount((prev) => Math.max(0, prev - 1));
+      }
     });
   };
 
@@ -209,7 +229,7 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
         return;
       }
 
-      setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      setItems([]);
       setLocalUnreadCount(0);
     });
   };
@@ -220,14 +240,14 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
         type="button"
         onClick={handleOpenToggle}
         className="inline-flex h-9 items-center gap-2 rounded-sm border border-[#bfd0ec] bg-white px-3.5 text-[13px] leading-none text-[#2f548f] transition hover:border-[#9fb7de] hover:bg-[#f5f9ff]"
-        aria-label={normalizedCount > 0 ? `알림 ${normalizedCount}개 미확인` : "알림함"}
+        aria-label={localUnreadCount > 0 ? `알림 ${localUnreadCount}개 미확인` : "알림함"}
         aria-expanded={isOpen}
         aria-controls="notification-popover"
       >
         <span>알림</span>
         <span
           className={`inline-flex min-w-5 items-center justify-center rounded-sm border px-1 text-[10px] font-semibold leading-4 ${
-            normalizedCount > 0
+            localUnreadCount > 0
               ? "border-[#3567b5] bg-[#3567b5] text-white"
               : "border-[#bfd0ec] bg-[#f5f8ff] text-[#4f678d]"
           }`}
@@ -316,19 +336,34 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
                           : "mb-1 border-[#cfe0f8] bg-[#f5f9ff] hover:bg-[#edf5ff]"
                       }`}
                     >
-                      <Link href={buildNotificationHref(item)} onClick={() => setIsOpen(false)}>
-                        <p className="text-[11px] text-[#607ca5]">
-                          {actorName} · {formatRelativeLabel(item.createdAt)}
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold text-[#183765]">{item.title}</p>
-                        {item.body ? (
-                          <p className="mt-0.5 overflow-hidden text-xs text-[#48658f] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-                            {item.body}
+                      <div className="flex items-start justify-between gap-2">
+                        <Link
+                          href={buildNotificationHref(item)}
+                          onClick={() => setIsOpen(false)}
+                          className="min-w-0 flex-1"
+                        >
+                          <p className="text-[11px] text-[#607ca5]">
+                            {actorName} · {formatRelativeLabel(item.createdAt)}
                           </p>
-                        ) : null}
-                      </Link>
+                          <p className="mt-0.5 text-sm font-semibold text-[#183765]">{item.title}</p>
+                          {item.body ? (
+                            <p className="mt-0.5 overflow-hidden text-xs text-[#48658f] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                              {item.body}
+                            </p>
+                          ) : null}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => archiveOne(item.id)}
+                          disabled={isActionPending}
+                          aria-label="알림 닫기"
+                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-[#bfd0ec] bg-white text-[11px] font-semibold text-[#5f79a0] transition hover:bg-[#f3f7ff] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          X
+                        </button>
+                      </div>
                       {!item.isRead ? (
-                        <div className="mt-2 flex justify-end">
+                        <div className="mt-2 flex justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => markOneAsRead(item.id)}

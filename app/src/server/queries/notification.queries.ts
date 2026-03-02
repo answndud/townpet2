@@ -114,6 +114,7 @@ export async function listNotificationsByUser({
     items = await delegate.findMany({
       where: {
         userId,
+        archivedAt: null,
         ...(unreadOnly ? { isRead: false } : {}),
         ...(typeFilter ? { type: { in: typeFilter } } : {}),
       },
@@ -163,6 +164,7 @@ export async function countUnreadNotifications(userId: string) {
     return await delegate.count({
       where: {
         userId,
+        archivedAt: null,
         isRead: false,
       },
     });
@@ -187,11 +189,13 @@ export async function markNotificationRead(userId: string, notificationId: strin
       where: {
         id: notificationId,
         userId,
+        archivedAt: null,
         isRead: false,
       },
       data: {
         isRead: true,
         readAt: new Date(),
+        archivedAt: new Date(),
       },
     });
   } catch (error) {
@@ -216,11 +220,13 @@ export async function markAllNotificationsRead(userId: string) {
     result = await delegate.updateMany({
       where: {
         userId,
+        archivedAt: null,
         isRead: false,
       },
       data: {
         isRead: true,
         readAt: new Date(),
+        archivedAt: new Date(),
       },
     });
   } catch (error) {
@@ -232,6 +238,35 @@ export async function markAllNotificationsRead(userId: string) {
   }
 
   return result.count;
+}
+
+export async function archiveNotification(userId: string, notificationId: string) {
+  const delegate = getNotificationDelegate();
+  if (!delegate) {
+    return false;
+  }
+
+  let result: { count: number };
+  try {
+    result = await delegate.updateMany({
+      where: {
+        id: notificationId,
+        userId,
+        archivedAt: null,
+      },
+      data: {
+        archivedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    if (!isNotificationTableMissingError(error)) {
+      throw error;
+    }
+    warnMissingNotificationTable(error);
+    return false;
+  }
+
+  return result.count > 0;
 }
 
 export async function createNotification(params: CreateNotificationParams) {

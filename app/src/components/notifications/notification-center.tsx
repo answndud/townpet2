@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { NotificationFilterKind } from "@/lib/notification-filter";
 import { buildNotificationListHref } from "@/lib/notification-filter";
 import {
+  archiveNotificationAction,
   markAllNotificationsReadAction,
   markNotificationReadAction,
 } from "@/server/actions/notification";
@@ -98,12 +99,6 @@ export function NotificationCenter({
       ...prev,
       [id]: value,
     }));
-  };
-
-  const markReadOptimistically = (id: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
-    );
   };
 
   const requestNotifications = useCallback(
@@ -239,16 +234,12 @@ export function NotificationCenter({
       return;
     }
 
-    markReadOptimistically(id);
     setPending(id, true);
 
     const result = await markNotificationReadAction(id);
     if (!result.ok) {
       setMessage(result.message);
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, isRead: false } : item)),
-      );
-    } else if (unreadOnly) {
+    } else {
       setItems((prev) => prev.filter((item) => item.id !== id));
     }
 
@@ -261,17 +252,11 @@ export function NotificationCenter({
     const href = buildNotificationHref(item);
 
     if (!item.isRead) {
-      markReadOptimistically(item.id);
       setPending(item.id, true);
       const result = await markNotificationReadAction(item.id);
       if (!result.ok) {
-        setItems((prev) =>
-          prev.map((candidate) =>
-            candidate.id === item.id ? { ...candidate, isRead: false } : candidate,
-          ),
-        );
         setMessage(result.message);
-      } else if (unreadOnly) {
+      } else {
         setItems((prev) => prev.filter((candidate) => candidate.id !== item.id));
       }
       setPending(item.id, false);
@@ -294,7 +279,7 @@ export function NotificationCenter({
       setItems([]);
       setCursor(null);
     } else {
-      setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      setItems((prev) => prev.filter((item) => item.isRead));
     }
 
     startMarkAllTransition(async () => {
@@ -306,6 +291,26 @@ export function NotificationCenter({
       }
       router.refresh();
     });
+  };
+
+  const handleArchive = async (id: string) => {
+    setMessage(null);
+    const target = items.find((item) => item.id === id);
+    if (!target) {
+      return;
+    }
+
+    setPending(id, true);
+    const result = await archiveNotificationAction(id);
+
+    if (!result.ok) {
+      setMessage(result.message);
+    } else {
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    }
+
+    setPending(id, false);
+    router.refresh();
   };
 
   return (
@@ -391,6 +396,15 @@ export function NotificationCenter({
                        className="rounded-full border border-[#cbdcf5] bg-white px-2.5 py-1 text-xs font-semibold text-[#315b9a] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f5f9ff]"
                      >
                       이동
+                    </button>
+                    <button
+                      data-testid={`notification-dismiss-${notification.id}`}
+                      type="button"
+                      onClick={() => void handleArchive(notification.id)}
+                      disabled={isPending}
+                      className="rounded-full border border-[#cbdcf5] bg-white px-2.5 py-1 text-xs font-semibold text-[#315b9a] transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#f5f9ff]"
+                    >
+                      X
                     </button>
                     {!notification.isRead ? (
                       <button
