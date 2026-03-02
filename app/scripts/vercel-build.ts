@@ -183,9 +183,26 @@ async function repairCommunityBoardSchema() {
   }
 }
 
+async function repairNotificationArchiveSchema() {
+  const repairResult = await runCommand("pnpm", [
+    "prisma",
+    "db",
+    "execute",
+    "--schema",
+    "prisma/schema.prisma",
+    "--file",
+    "scripts/sql/notification-archive-repair.sql",
+  ]);
+
+  if (repairResult.code !== 0) {
+    throw new Error("[build:vercel] notification archive schema repair failed.");
+  }
+}
+
 async function main() {
   await runPrismaDeploy();
   await repairCommunityBoardSchema();
+  await repairNotificationArchiveSchema();
 
   await runNeighborhoodSync();
 

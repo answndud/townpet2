@@ -644,7 +644,7 @@
 ### Cycle 70: 알림 숨김/보존 정책(3일) 적용 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| 알림 읽음/닫기 즉시 숨김 + 3일 보존 스키마 적용 | Codex | P1 | `done` | 알림 읽음/닫기 시 목록과 배지에서 즉시 사라지고 DB에는 `archivedAt`으로 3일 보존 가능 상태로 저장됨 | `app/prisma/schema.prisma`, `app/src/server/queries/notification.queries.ts`, `app/src/server/actions/notification.ts` |
+| 알림 읽음/닫기 즉시 숨김 + 3일 보존 스키마 적용 | Codex | P1 | `done` | 알림 읽음/닫기 시 목록과 배지에서 즉시 사라지고 DB에는 `archivedAt`으로 3일 보존 가능 상태로 저장되며, Prisma migration/repair 경로가 배포 파이프라인에 반영됨 | `app/prisma/schema.prisma`, `app/prisma/migrations/20260302030000_add_notification_archived_at/migration.sql`, `app/scripts/sql/notification-archive-repair.sql`, `app/scripts/vercel-build.ts`, `app/src/server/queries/notification.queries.ts`, `app/src/server/actions/notification.ts` |
 | hover 알림창 + `/notifications` X 버튼 및 제거 UX 반영 | Codex | P1 | `done` | hover 알림창과 알림 페이지에서 `읽음 처리`/`X` 동작 후 항목이 즉시 제거되고 실패 시 오류 메시지가 노출됨 | `app/src/components/notifications/notification-bell.tsx`, `app/src/components/notifications/notification-center.tsx` |
 | 3일 경과 영구삭제 스크립트 및 회귀 시나리오 보강 | Codex | P2 | `done` | `db:cleanup:notifications` 스크립트와 일간 cleanup 워크플로우가 추가되고 알림 읽음/삭제 후 목록 제거 e2e 시나리오가 반영됨 | `app/scripts/cleanup-notifications.ts`, `app/package.json`, `.github/workflows/notification-cleanup.yml`, `app/e2e/notification-comment-flow.spec.ts`, `app/e2e/notification-filter-controls.spec.ts` |
 

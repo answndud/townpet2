@@ -34,6 +34,11 @@ jobs:
       - name: Generate Prisma client
         run: pnpm prisma generate
 
+      - name: Repair notification archive schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm prisma db execute --schema prisma/schema.prisma --file scripts/sql/notification-archive-repair.sql
+
       - name: Cleanup archived notifications
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

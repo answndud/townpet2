@@ -77,6 +77,15 @@ function isNotificationTableMissingError(error: unknown) {
   );
 }
 
+function isNotificationArchiveColumnMissingError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2022") {
+    return false;
+  }
+
+  const column = typeof error.meta?.column === "string" ? error.meta.column : "";
+  return column.includes("Notification.archivedAt");
+}
+
 function warnMissingNotificationTable(error: unknown) {
   if (notificationTableMissingWarned) {
     return;
@@ -138,11 +147,38 @@ export async function listNotificationsByUser({
       },
     });
   } catch (error) {
-    if (!isNotificationTableMissingError(error)) {
+    if (isNotificationArchiveColumnMissingError(error)) {
+      items = await delegate.findMany({
+        where: {
+          userId,
+          ...(unreadOnly ? { isRead: false } : {}),
+          ...(typeFilter ? { type: { in: typeFilter } } : {}),
+        },
+        take: safeLimit + 1,
+        ...(cursor
+          ? {
+              cursor: { id: cursor },
+              skip: 1,
+            }
+          : {}),
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        include: {
+          actor: {
+            select: {
+              id: true,
+              nickname: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+    } else if (!isNotificationTableMissingError(error)) {
       throw error;
+    } else {
+      warnMissingNotificationTable(error);
+      return { items: [], nextCursor: null };
     }
-    warnMissingNotificationTable(error);
-    return { items: [], nextCursor: null };
   }
 
   let nextCursor: string | null = null;
@@ -169,6 +205,14 @@ export async function countUnreadNotifications(userId: string) {
       },
     });
   } catch (error) {
+    if (isNotificationArchiveColumnMissingError(error)) {
+      return await delegate.count({
+        where: {
+          userId,
+          isRead: false,
+        },
+      });
+    }
     if (!isNotificationTableMissingError(error)) {
       throw error;
     }
@@ -199,11 +243,24 @@ export async function markNotificationRead(userId: string, notificationId: strin
       },
     });
   } catch (error) {
-    if (!isNotificationTableMissingError(error)) {
+    if (isNotificationArchiveColumnMissingError(error)) {
+      result = await delegate.updateMany({
+        where: {
+          id: notificationId,
+          userId,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    } else if (!isNotificationTableMissingError(error)) {
       throw error;
+    } else {
+      warnMissingNotificationTable(error);
+      return false;
     }
-    warnMissingNotificationTable(error);
-    return false;
   }
 
   return result.count > 0;
@@ -230,11 +287,23 @@ export async function markAllNotificationsRead(userId: string) {
       },
     });
   } catch (error) {
-    if (!isNotificationTableMissingError(error)) {
+    if (isNotificationArchiveColumnMissingError(error)) {
+      result = await delegate.updateMany({
+        where: {
+          userId,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    } else if (!isNotificationTableMissingError(error)) {
       throw error;
+    } else {
+      warnMissingNotificationTable(error);
+      return 0;
     }
-    warnMissingNotificationTable(error);
-    return 0;
   }
 
   return result.count;
@@ -259,11 +328,24 @@ export async function archiveNotification(userId: string, notificationId: string
       },
     });
   } catch (error) {
-    if (!isNotificationTableMissingError(error)) {
+    if (isNotificationArchiveColumnMissingError(error)) {
+      result = await delegate.updateMany({
+        where: {
+          id: notificationId,
+          userId,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    } else if (!isNotificationTableMissingError(error)) {
       throw error;
+    } else {
+      warnMissingNotificationTable(error);
+      return false;
     }
-    warnMissingNotificationTable(error);
-    return false;
   }
 
   return result.count > 0;

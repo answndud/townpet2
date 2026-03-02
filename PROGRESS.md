@@ -24,13 +24,20 @@
 - `/notifications`와 hover 알림창에 `X` 버튼을 추가하고, `archiveNotificationAction`으로 미읽음 상태에서도 즉시 숨김 처리.
 - 3일 경과 영구삭제를 위한 `db:cleanup:notifications` 스크립트(`NOTIFICATION_RETENTION_DAYS`, 기본 3일) 추가.
 - GitHub Actions 일간 스케줄(`notification-cleanup`)을 추가해 운영에서 자동 정리 가능하도록 구성.
+- cleanup 워크플로우 파싱/Prisma client 누락 이슈를 수정하고, 실행 전 `prisma generate` 단계를 추가.
+- 운영 DB가 아직 `archivedAt` 컬럼 미반영이어도 실패하지 않도록 cleanup 스크립트(`P2021/P2022`) 안전 skip + 워크플로우 사전 repair SQL 적용.
+- Vercel build 경로에 notification archive repair SQL 실행을 추가해 `migrate deploy` baseline 환경에서도 `archivedAt` 컬럼/인덱스 정합을 보장.
+- Prisma migration 파일(`20260302030000_add_notification_archived_at`)을 추가해 스키마 변경 이력을 명시.
 - 변경 파일(핵심)
 - `app/prisma/schema.prisma`
+- `app/prisma/migrations/20260302030000_add_notification_archived_at/migration.sql`
 - `app/src/server/queries/notification.queries.ts`
 - `app/src/server/actions/notification.ts`
 - `app/src/components/notifications/notification-bell.tsx`
 - `app/src/components/notifications/notification-center.tsx`
 - `app/scripts/cleanup-notifications.ts`
+- `app/scripts/sql/notification-archive-repair.sql`
+- `app/scripts/vercel-build.ts`
 - `app/package.json`
 - `.github/workflows/notification-cleanup.yml`
 - `app/e2e/notification-comment-flow.spec.ts`
@@ -40,6 +47,7 @@
 - `pnpm -C app typecheck` 통과.
 - `pnpm -C app test:unit` 통과 (44 files, 194 tests).
 - `pnpm -C app lint` 실행 (기존 미사용 변수 경고 10건, 이번 변경에서 신규 error 없음).
+- `notification-cleanup` workflow 수동 실행 최종 성공 (`run_id=22559375828`).
 - 이슈/블로커
 - 워크플로우 실행 전 GitHub 저장소 `DATABASE_URL` 시크릿이 필요.
 
