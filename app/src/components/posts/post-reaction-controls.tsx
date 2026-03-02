@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { togglePostReactionAction } from "@/server/actions/post";
 
@@ -79,7 +79,7 @@ export function PostReactionControls({
 
   const [reaction, setReaction] = useState<ReactionType | null>(currentReaction ?? null);
   const [reactionLoaded, setReactionLoaded] = useState(currentReaction !== undefined);
-  const userInteractedRef = useRef(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const [likes, setLikes] = useState(initialLikeCount);
   const [dislikes, setDislikes] = useState(initialDislikeCount);
   const [loginIntent, setLoginIntent] = useState<ReactionType | null>(null);
@@ -100,13 +100,7 @@ export function PostReactionControls({
     };
   }, [loginIntent]);
 
-  useEffect(() => {
-    if (currentReaction === undefined) {
-      return;
-    }
-    setReaction(currentReaction ?? null);
-    setReactionLoaded(true);
-  }, [currentReaction]);
+  const effectiveReaction = hasInteracted ? reaction : (currentReaction ?? reaction);
 
   useEffect(() => {
     if (!canReact || reactionLoaded) {
@@ -127,7 +121,7 @@ export function PostReactionControls({
           ok: boolean;
           data?: { reaction: ReactionType | null };
         };
-        if (!payload.ok || cancelled || userInteractedRef.current) {
+        if (!payload.ok || cancelled || hasInteracted) {
           return;
         }
         setReaction(payload.data?.reaction ?? null);
@@ -143,7 +137,7 @@ export function PostReactionControls({
     return () => {
       cancelled = true;
     };
-  }, [canReact, postId, reactionLoaded]);
+  }, [canReact, hasInteracted, postId, reactionLoaded]);
 
   const buttonClass = compact
     ? "inline-flex h-9 min-w-[90px] items-center justify-center border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[100px] sm:px-2.5"
@@ -155,10 +149,10 @@ export function PostReactionControls({
       return;
     }
 
-    userInteractedRef.current = true;
+    setHasInteracted(true);
 
-    const previous = { reaction, likes, dislikes };
-    const optimistic = getNextState(reaction, target, likes, dislikes);
+    const previous = { reaction: effectiveReaction, likes, dislikes };
+    const optimistic = getNextState(effectiveReaction, target, likes, dislikes);
 
     setError(null);
     setLoginIntent(null);
@@ -190,7 +184,7 @@ export function PostReactionControls({
           onClick={() => handleToggle(REACTION_TYPE.LIKE)}
           disabled={isPending}
           className={`${buttonClass} ${
-            reaction === REACTION_TYPE.LIKE
+            effectiveReaction === REACTION_TYPE.LIKE
               ? "border-[#3567b5] bg-[#3567b5] text-white"
               : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
           }`}
@@ -216,7 +210,7 @@ export function PostReactionControls({
           onClick={() => handleToggle(REACTION_TYPE.DISLIKE)}
           disabled={isPending}
           className={`${buttonClass} ${
-            reaction === REACTION_TYPE.DISLIKE
+            effectiveReaction === REACTION_TYPE.DISLIKE
               ? "border-[#5e7396] bg-[#5e7396] text-white"
               : "border-[#bfd0ec] bg-white text-[#315484] hover:bg-[#f3f7ff]"
           }`}
