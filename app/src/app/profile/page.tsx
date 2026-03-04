@@ -24,6 +24,7 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
+  const isNicknameMissing = !user.nickname?.trim();
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
 
   const [allPosts, blockedUsers, mutedUsers, pets] = await Promise.all([
@@ -62,6 +63,20 @@ export default async function ProfilePage() {
             <p className="text-xs text-[#5a7398]">프로필 사진은 내 프로필 섹션에서 수정할 수 있습니다.</p>
           </div>
         </header>
+
+        {isNicknameMissing ? (
+          <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+            <h2 className="text-base font-semibold">닉네임 설정이 필요합니다.</h2>
+            <p className="mt-1">
+              현재 계정은 닉네임이 없어 다른 페이지로 이동할 수 없습니다. 아래
+              <span className="font-semibold"> 프로필 정보 수정</span>에서 닉네임을 저장하면
+              피드/커뮤니티 이동이 즉시 가능합니다.
+            </p>
+            <p className="mt-2 text-xs">
+              닉네임은 중복 사용할 수 없으며, 설정/변경 후 30일 동안 다시 변경할 수 없습니다.
+            </p>
+          </section>
+        ) : null}
 
         <section className="grid gap-3 md:grid-cols-1">
           <div className="tp-card p-4">

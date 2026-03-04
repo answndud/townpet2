@@ -420,6 +420,11 @@
 | 프로필 저장 시 세션 닉네임 즉시 동기화 | Codex | P1 | `done` | 닉네임 저장 직후 `unstable_update`로 세션이 갱신되어 재로그인 없이 가드 해제가 가능함 | `app/src/lib/auth.ts`, `app/src/server/actions/user.ts`, `app/src/server/actions/user.test.ts` |
 | 닉네임 중복/30일 변경 제한 UX 경고 보강 | Codex | P1 | `done` | 온보딩/프로필 폼에 “중복 불가 + 30일 변경 제한” 경고가 노출되고, 서비스 테스트로 중복/쿨다운 실패 경로가 검증됨 | `app/src/components/onboarding/onboarding-form.tsx`, `app/src/components/profile/profile-info-form.tsx`, `app/src/server/services/user.service.test.ts` |
 
+### Cycle 139: 닉네임 미설정 가드 안내 문구 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/profile` 상단에 닉네임 미설정 차단 사유/해제 방법 안내 노출 | Codex | P1 | `done` | 닉네임 미설정 사용자가 `/profile`로 강제 이동되었을 때 "왜 이동되었는지"와 "닉네임 저장 시 즉시 해제"가 명확히 표시됨 | `app/src/app/profile/page.tsx` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
