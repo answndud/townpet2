@@ -17,6 +17,20 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: oauth-real-e2e 하이브리드 검증(리다이렉트 + 온보딩/피드) 적용
+- 완료 내용
+- `oauth-real-e2e` 워크플로우에 `Social onboarding to feed smoke (app flow)` 단계를 추가.
+- 단일 런에서 `Real OAuth redirect smoke`(실공급자 리다이렉트) 후 `social-dev` 기반 온보딩->피드 진입 회귀를 연속 검증하도록 확장.
+- 검증 결과
+- 스펙 인식 확인: `pnpm -C app test:e2e:social-onboarding --list` 통과(2 tests).
+- 워크플로우 실행: `https://github.com/answndud/townpet2/actions/runs/22658861470` `success`.
+- 단계별 확인: `Real OAuth redirect smoke` `success`, `Social onboarding to feed smoke (app flow)` `success`.
+- 변경 파일(핵심)
+- `.github/workflows/oauth-real-e2e.yml`
+- `PLAN.md`
+- 이슈/블로커
+- 카카오/네이버 "실계정 로그인 완료 후 온보딩" 자체는 공급자 테스트 계정/콘솔 정책 의존으로 여전히 환경 블로커 분류를 유지.
+
 ### 2026-03-04: OAuth 실계정 리다이렉트 스모크 재확인 PASS
 - 실행 내용
 - `oauth-real-e2e` 워크플로우를 재실행해 카카오/네이버 OAuth 리다이렉트 경로를 점검.
