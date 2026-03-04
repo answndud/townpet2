@@ -233,11 +233,21 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
       return true;
     },
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.nickname =
           "nickname" in user && user.nickname ? String(user.nickname) : null;
+      }
+
+      if (trigger === "update" && session?.user) {
+        if (typeof session.user.id === "string" && session.user.id.length > 0) {
+          token.id = session.user.id;
+        }
+        token.nickname =
+          typeof session.user.nickname === "string" && session.user.nickname
+            ? String(session.user.nickname)
+            : null;
       }
       return token;
     },

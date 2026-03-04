@@ -17,6 +17,21 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: Cycle 140 완료 (프로필 저장 후 세션 닉네임 동기화 정합 보정)
+- 완료 내용
+- 프로필 저장 후 `unstable_update`가 호출되어도 JWT의 `nickname` 클레임이 즉시 갱신되지 않던 경로를 수정.
+- NextAuth `jwt` callback에 `trigger === "update"` 분기를 추가해 `session.user.nickname` 값을 `token.nickname`으로 반영하도록 보강.
+- 기대 효과
+- 닉네임 저장 직후 `/feed` 등 다른 페이지로 이동 시 미들웨어의 닉네임 미설정 가드가 즉시 해제됨(재로그인 불필요).
+- 검증 결과
+- `pnpm -C app lint src/lib/auth.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/lib/auth.ts`
+- `PLAN.md`
+
 ### 2026-03-04: Cycle 139 완료 (닉네임 미설정 가드 안내 문구 보강)
 - 완료 내용
 - 닉네임 미설정 사용자가 `/profile`로 강제 이동될 때, 상단 경고 카드에서 차단 사유와 해제 방법을 명시하도록 보강.

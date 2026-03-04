@@ -425,6 +425,11 @@
 |---|---|---|---|---|---|
 | `/profile` 상단에 닉네임 미설정 차단 사유/해제 방법 안내 노출 | Codex | P1 | `done` | 닉네임 미설정 사용자가 `/profile`로 강제 이동되었을 때 "왜 이동되었는지"와 "닉네임 저장 시 즉시 해제"가 명확히 표시됨 | `app/src/app/profile/page.tsx` |
 
+### Cycle 140: 프로필 저장 후 세션 닉네임 동기화 정합 보정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `unstable_update` 이후 JWT 닉네임 반영 로직 보강 | Codex | P0 | `done` | `updateProfileAction`에서 `unstable_update` 호출 후 JWT callback(`trigger=update`)이 `token.nickname`을 갱신해 미들웨어 가드가 즉시 해제됨 | `app/src/lib/auth.ts`, `app/src/server/actions/user.ts`, `app/middleware.ts` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
