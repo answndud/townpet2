@@ -17,6 +17,23 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: Cycle 133 완료 (Guest 상세 접근제어 + posts rewrite 정합성 보강)
+- 완료 내용
+- guest rewrite 경로를 게시글 ID 상세 경로로 제한해 `/posts/new` 경로가 잘못 `/guest`로 리라이트되지 않도록 보강.
+- guest 상세 페이지 렌더에 `assertPostReadable`를 연결해 `POST_NOT_FOUND`(비활성 상태 포함)와 `AUTH_REQUIRED`를 공통 정책으로 처리.
+- middleware 테스트에 경계 케이스(`/posts/new`, `/posts/:id/edit`, `/posts/:id/guest`)를 추가.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint middleware.ts src/middleware.test.ts 'src/app/posts/[id]/guest/page.tsx'` 통과.
+- `pnpm -C app test:unit -- src/middleware.test.ts src/server/services/post-read-access.service.test.ts` 통과.
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/middleware.ts`
+- `app/src/middleware.test.ts`
+- `app/src/app/posts/[id]/guest/page.tsx`
+- `PLAN.md`
+
 ### 2026-03-04: Cycle 132 완료 (plan-coordinator 연계 운영 루틴 고정)
 - 완료 내용
 - agent-only 운영 가이드에 `agent:prompt -> @plan-coordinator -> 실행 -> 검증 -> 동기화` 순서를 추가해 실행 루틴을 고정.

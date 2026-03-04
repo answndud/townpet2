@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 const CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const CORS_HEADERS = "Content-Type, Authorization, X-Requested-With, X-Request-Id";
 const CSP_REPORT_ENDPOINT = "/api/security/csp-report";
+const POST_ID_PATTERN = /^c[a-z0-9]{24}$/;
 
 function buildCspScriptSrc(nonce: string, isStrict: boolean) {
   const strictSources = [`'self'`, `'nonce-${nonce}'`, "https:"];
@@ -91,6 +92,20 @@ export function resolveCspHeaders(env: {
     csp: PROD_CSP_RELAXED(env.nonce),
     cspReportOnly: PROD_CSP_STRICT(env.nonce),
   };
+}
+
+export function isGuestPostDetailPath(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] !== "posts") {
+    return false;
+  }
+
+  const postId = segments[1] ?? "";
+  if (!POST_ID_PATTERN.test(postId)) {
+    return false;
+  }
+
+  return segments.length === 2 || (segments.length === 3 && segments[2] === "guest");
 }
 
 function getAllowedCorsOrigins() {
@@ -203,8 +218,7 @@ export function middleware(request: NextRequest) {
 
     if (request.nextUrl.pathname.startsWith("/posts/")) {
       const segments = request.nextUrl.pathname.split("/").filter(Boolean);
-      const isDetailPage = segments.length >= 2 && segments[0] === "posts";
-      if (isDetailPage) {
+      if (isGuestPostDetailPath(request.nextUrl.pathname)) {
         responseHeaders.set(
           "cache-control",
           "public, s-maxage=30, stale-while-revalidate=300",

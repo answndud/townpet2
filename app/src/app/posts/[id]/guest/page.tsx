@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PostType, Prisma } from "@prisma/client";
+import { PostType } from "@prisma/client";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
@@ -18,6 +18,8 @@ import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById, getPostMetadataById } from "@/server/queries/post.queries";
+import { assertPostReadable } from "@/server/services/post-read-access.service";
+import { ServiceError } from "@/server/services/service-error";
 
 export const dynamic = "force-dynamic";
 
@@ -57,10 +59,6 @@ function ensureDate(value: unknown) {
     }
   }
   return null;
-}
-
-function isDatabaseUnavailableError(error: unknown) {
-  return error instanceof Prisma.PrismaClientInitializationError;
 }
 
 export async function generateMetadata({
@@ -200,28 +198,26 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
     notFound();
   }
 
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch((error) => {
-    if (isDatabaseUnavailableError(error)) {
-      return [];
+  try {
+    await assertPostReadable(post);
+  } catch (error) {
+    if (!(error instanceof ServiceError)) {
+      throw error;
+    }
+    if (error.code === "AUTH_REQUIRED") {
+      return (
+        <NeighborhoodGateNotice
+          title="로그인이 필요한 게시글입니다."
+          description="이 게시글은 로그인 사용자에게만 공개됩니다."
+          primaryLink={`/login?next=${encodeURIComponent(`/posts/${post.id}`)}`}
+          primaryLabel="로그인하기"
+        />
+      );
+    }
+    if (error.code === "POST_NOT_FOUND") {
+      notFound();
     }
     throw error;
-  });
-
-  if (
-    !canGuestReadPost({
-      scope: post.scope,
-      type: post.type,
-      loginRequiredTypes,
-    })
-  ) {
-    return (
-      <NeighborhoodGateNotice
-        title="로그인이 필요한 게시글입니다."
-        description="이 게시글은 로그인 사용자에게만 공개됩니다."
-        primaryLink={`/login?next=${encodeURIComponent(`/posts/${post.id}`)}`}
-        primaryLabel="로그인하기"
-      />
-    );
   }
 
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;

@@ -380,6 +380,13 @@
 | agent-only 운영 가이드에 자동 생성 루틴 반영 | Codex | P1 | `done` | `agent:prompt -> @plan-coordinator -> 실행 -> 검증 -> 동기화` 순서가 명시됨 | `docs/ops/에이전트 운영 가이드 (한국어).md` |
 | 프롬프트 템플릿 문서에 plan-coordinator 연계 절차 추가 | Codex | P1 | `done` | 템플릿 문서만으로 생성/계획반영/실행/검증/기록 순서를 재현 가능 | `docs/ops/agent-prompt-template.md` |
 
+### Cycle 133: Guest 상세 접근제어 + posts rewrite 정합성 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest `/posts/*` rewrite 대상을 게시글 ID 상세 경로로 제한 | Codex | P0 | `done` | `/posts/new` 같은 작성 경로는 rewrite되지 않고, 게시글 상세 ID 경로만 guest rewrite/cache 헤더가 적용됨 | `app/middleware.ts`, `app/src/middleware.test.ts` |
+| guest 상세 페이지에 공통 읽기 정책 가드 적용 | Codex | P0 | `done` | guest 상세 렌더에서 `assertPostReadable`를 사용해 `HIDDEN/DELETED` 및 로그인 필요 게시글 노출을 차단 | `app/src/app/posts/[id]/guest/page.tsx`, `app/src/server/services/post-read-access.service.ts` |
+| rewrite 경계 회귀 테스트 추가 | Codex | P1 | `done` | `middleware.test`에 `/posts/new`, `/posts/:id/edit`, `/posts/:id/guest` 경계 케이스가 포함되어 실패 경로 회귀를 방지 | `app/src/middleware.test.ts` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveCspHeaders } from "../middleware";
+import { isGuestPostDetailPath, resolveCspHeaders } from "../middleware";
 
 describe("resolveCspHeaders", () => {
   it("uses report-only strict CSP in production by default", () => {
@@ -29,5 +29,29 @@ describe("resolveCspHeaders", () => {
     expect(result.csp).toContain("'unsafe-eval'");
     expect(result.csp).toContain("'nonce-nonce-c'");
     expect(result.cspReportOnly).toBeNull();
+  });
+});
+
+describe("isGuestPostDetailPath", () => {
+  const postId = "c1234567890abcdefghijklmn";
+
+  it("returns true for post detail id path", () => {
+    expect(isGuestPostDetailPath(`/posts/${postId}`)).toBe(true);
+  });
+
+  it("returns true for guest detail path", () => {
+    expect(isGuestPostDetailPath(`/posts/${postId}/guest`)).toBe(true);
+  });
+
+  it("returns false for new post path", () => {
+    expect(isGuestPostDetailPath("/posts/new")).toBe(false);
+  });
+
+  it("returns false for edit path", () => {
+    expect(isGuestPostDetailPath(`/posts/${postId}/edit`)).toBe(false);
+  });
+
+  it("returns false for non-id path", () => {
+    expect(isGuestPostDetailPath("/posts/not-an-id")).toBe(false);
   });
 });
