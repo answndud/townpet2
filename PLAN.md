@@ -378,6 +378,7 @@
 | 카카오 로그인 진입 스모크 E2E(버튼/진입요청) | Codex | P2 | `done` | 카카오 버튼 노출 및 `/api/auth/signin/kakao` 요청 시작 자동 검증 | Playwright 환경 |
 | 네이버 로그인 진입 스모크 E2E(버튼/진입요청) | Codex | P2 | `done` | 네이버 버튼 노출 및 `/api/auth/signin/naver` 요청 시작 자동 검증 | Playwright 환경 |
 | 실OAuth 리다이렉트 스모크 E2E + 수동 워크플로우 | Codex | P2 | `done` | 실환경 시크릿이 있을 때 카카오/네이버 OAuth 호스트로 리다이렉트되는지 자동 검증 가능 | GitHub Actions `workflow_dispatch` + OAuth 시크릿 |
+| `oauth-real-e2e` 하이브리드 검증(리다이렉트 + 온보딩/피드) | Codex | P2 | `done` | 단일 워크플로우에서 실OAuth 리다이렉트 스모크 후 `social-dev` 기반 온보딩->피드 진입 회귀까지 연속 검증 | `.github/workflows/oauth-real-e2e.yml`, `app/e2e/social-onboarding-flow.spec.ts` |
 | OAuth 키 갱신/운영 절차 문서화 | Codex | P3 | `done` | 운영 문서만 보고 키 로테이션 가능 | GUIDE 업데이트 |
 | 개발용 소셜 전체 플로우 E2E(`social-dev`) | Codex | P2 | `done` | 소셜 버튼 -> 온보딩 -> 피드 진입 자동 검증 | `ENABLE_SOCIAL_DEV_LOGIN=1` |
 | 카카오 로그인 -> 온보딩 -> 피드 진입 E2E | Codex | P2 | `blocked` | 핵심 전환 시나리오 자동화 통과 | 카카오 테스트 앱 설정/테스트 계정 |

@@ -83,3 +83,14 @@ jobs:
 
       - name: Real OAuth redirect smoke
         run: pnpm test:e2e:social-real-oauth
+
+      - name: Social onboarding to feed smoke (app flow)
+        env:
+          # Keep real OAuth redirect smoke above, then force app-flow regression
+          # with social-dev provider in the same workflow run.
+          KAKAO_CLIENT_ID: ""
+          KAKAO_CLIENT_SECRET: ""
+          NAVER_CLIENT_ID: ""
+          NAVER_CLIENT_SECRET: ""
+          ENABLE_SOCIAL_DEV_LOGIN: "1"
+        run: pnpm test:e2e:social-onboarding
