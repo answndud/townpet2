@@ -17,6 +17,15 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: Sentry 미연동 운영 결정 반영
+- 결정 내용
+- 현재 GitHub Actions/Vercel에 Sentry 설정을 추가하지 않고 운영을 진행하기로 확정.
+- 운영 기준
+- 배포 검증은 `oauth-real-e2e` + `ops-smoke-checks(verify_sentry=false)` + `/api/health` PASS를 기준으로 유지.
+- `ops-smoke-checks(verify_sentry=true)` 및 `ops:check:sentry`는 Sentry 도입 시점까지 deferred.
+- 이슈/블로커
+- `PLAN.md`의 Sentry 실수신 검증 항목은 선택 운영 blocked로 유지.
+
 ### 2026-03-04: blocked 해소 워크플로우 재실행(실OAuth/배포 health/Sentry)
 - 실행 내용
 - `oauth-real-e2e` 워크플로우 재실행: `https://github.com/answndud/townpet2/actions/runs/22655645744`
