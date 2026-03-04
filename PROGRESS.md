@@ -17,6 +17,19 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: ops-smoke-checks 주간 자동 실행 설정 + 동작 확인
+- 완료 내용
+- `ops-smoke-checks` 워크플로우에 주간 스케줄(`매주 월요일 UTC 00:15`)을 추가.
+- 자동 실행 경로는 health-only로 동작하도록 `verify_sentry` 조건을 `workflow_dispatch` 입력일 때만 활성화되게 조정.
+- 대상 URL은 `OPS_BASE_URL` repository variable 우선, 미설정 시 `https://townpet2.vercel.app` fallback 사용으로 고정.
+- 검증 결과
+- 수동 검증 실행: `https://github.com/answndud/townpet2/actions/runs/22659011560` `success`.
+- `Check deployment health endpoint` 단계 `success`.
+- `Validate Sentry secrets`/`Check Sentry ingestion` 단계는 `verify_sentry=false` 경로로 `skipped` 확인.
+- 변경 파일(핵심)
+- `.github/workflows/ops-smoke-checks.yml`
+- `PLAN.md`
+
 ### 2026-03-04: oauth-real-e2e 하이브리드 검증(리다이렉트 + 온보딩/피드) 적용
 - 완료 내용
 - `oauth-real-e2e` 워크플로우에 `Social onboarding to feed smoke (app flow)` 단계를 추가.
