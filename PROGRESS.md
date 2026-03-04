@@ -17,6 +17,20 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: Vercel 배포 실패 대응(`build:vercel` neighborhood sync non-fatal)
+- 완료 내용
+- Vercel 빌드에서 `db:sync:neighborhoods` 단계 실패 시 배포 전체가 중단되던 경로를 완화.
+- 기본 동작은 동네 동기화 실패 시 경고 로그를 남기고 `prisma generate`/`next build`를 계속 진행하도록 변경.
+- 운영에서 동네 동기화 강제 실패가 필요할 경우 `NEIGHBORHOOD_SYNC_STRICT=1` 환경변수로 기존 fail-fast 동작을 유지하도록 분기 추가.
+- 검증 결과
+- `pnpm -C app lint` 통과.
+- `pnpm -C app typecheck` 통과.
+- 변경 파일(핵심)
+- `app/scripts/vercel-build.ts`
+- `PLAN.md`
+- 이슈/블로커
+- 동네 동기화 실패 원인의 근본 원인 로그는 Vercel 빌드 로그 원문 추가 확인 필요(현재는 배포 중단 방지 우선 대응).
+
 ### 2026-03-04: Sentry 미연동 운영 결정 반영
 - 결정 내용
 - 현재 GitHub Actions/Vercel에 Sentry 설정을 추가하지 않고 운영을 진행하기로 확정.

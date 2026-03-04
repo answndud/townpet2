@@ -344,6 +344,11 @@
 | SEC-007 인증 응답 enumeration 완화 + 회귀테스트 | Codex | P1 | `done` | 계정 존재 유추 가능한 메시지/코드를 완화하고 계약 테스트로 고정 | `app/src/server/services/auth.service.ts`, `app/src/app/api/auth/*` |
 | SEC-006 비회원 식별 해시 HMAC(pepper) 전환 | Codex | P1 | `done` | guest identity hash가 pepper 기반 HMAC으로 전환되고 legacy hash와 호환 경로가 유지됨 | `app/src/server/services/guest-safety.service.ts`, 시크릿 설정 |
 
+### Cycle 127: Vercel 배포 안정화(동네 동기화 실패 허용) (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `build:vercel` 동네 동기화 실패를 기본 non-fatal로 완화 | Codex | P1 | `done` | `db:sync:neighborhoods` 실패 시 기본은 경고 후 빌드 계속 진행하고, `NEIGHBORHOOD_SYNC_STRICT=1`일 때만 기존처럼 배포 실패 | `app/scripts/vercel-build.ts` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

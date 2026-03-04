@@ -11,6 +11,7 @@ const PRISMA_DEPLOY_MAX_ATTEMPTS = 4;
 const PRISMA_DEPLOY_RETRY_DELAY_MS = 4_000;
 const NEIGHBORHOOD_SYNC_MAX_ATTEMPTS = 3;
 const NEIGHBORHOOD_SYNC_RETRY_DELAY_MS = 3_000;
+const NEIGHBORHOOD_SYNC_STRICT = process.env.NEIGHBORHOOD_SYNC_STRICT === "1";
 
 function runCommand(command: string, args: string[]) {
   return new Promise<CommandResult>((resolve, reject) => {
@@ -144,8 +145,12 @@ async function runPrismaDeploy() {
 }
 
 async function runNeighborhoodSync() {
+  let lastOutput = "";
+
   for (let attempt = 1; attempt <= NEIGHBORHOOD_SYNC_MAX_ATTEMPTS; attempt += 1) {
     const syncNeighborhoodResult = await runCommand("pnpm", ["db:sync:neighborhoods"]);
+    lastOutput = syncNeighborhoodResult.output;
+
     if (syncNeighborhoodResult.code === 0) {
       return;
     }
@@ -161,10 +166,26 @@ async function runNeighborhoodSync() {
       continue;
     }
 
-    throw new Error("[build:vercel] neighborhood sync failed.");
+    if (NEIGHBORHOOD_SYNC_STRICT) {
+      throw new Error("[build:vercel] neighborhood sync failed.");
+    }
+
+    console.warn(
+      "[build:vercel] neighborhood sync failed. Continuing build because NEIGHBORHOOD_SYNC_STRICT is not enabled.",
+    );
+    return;
   }
 
-  throw new Error("[build:vercel] neighborhood sync exhausted retry attempts.");
+  if (NEIGHBORHOOD_SYNC_STRICT) {
+    throw new Error("[build:vercel] neighborhood sync exhausted retry attempts.");
+  }
+
+  console.warn(
+    `[build:vercel] neighborhood sync exhausted retry attempts. Continuing build because NEIGHBORHOOD_SYNC_STRICT is not enabled.`,
+  );
+  if (lastOutput.trim().length > 0) {
+    console.warn(lastOutput);
+  }
 }
 
 async function repairCommunityBoardSchema() {
