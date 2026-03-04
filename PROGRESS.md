@@ -17,6 +17,24 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-04: Sentry 실수신 검증 재확인 PASS
+- 실행 내용
+- `ops-smoke-checks`를 동일 조건(`verify_sentry=true`)으로 재실행.
+- 런: `https://github.com/answndud/townpet2/actions/runs/22658628800`
+- 검증 결과
+- 워크플로우 `success` 확인.
+- `Validate Sentry secrets` 및 `Check Sentry ingestion` 단계 모두 `success`.
+
+### 2026-03-04: Sentry 실수신 검증 최종 PASS
+- 실행 내용
+- `SENTRY_AUTH_TOKEN` 교체 후 `ops-smoke-checks`를 `verify_sentry=true`로 재실행.
+- 런: `https://github.com/answndud/townpet2/actions/runs/22657771711`
+- 검증 결과
+- 워크플로우 `success` 확인.
+- `Check Sentry ingestion` 단계에서 이벤트 전송/조회 검증 통과.
+- 후속 조치
+- `PLAN.md`의 `Sentry 실수신 검증` 항목을 `blocked`에서 `done`으로 갱신.
+
 ### 2026-03-04: Sentry 실수신 검증 재시도(토큰 유효성 이슈 확인)
 - 실행 내용
 - `ops-smoke-checks`(`verify_sentry=true`) 실행: `https://github.com/answndud/townpet2/actions/runs/22657129988`

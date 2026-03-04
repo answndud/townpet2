@@ -750,4 +750,4 @@
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| Sentry 실수신 검증(의도적 에러, 선택) | Codex | P3 | `blocked` | 실제 Sentry 프로젝트에서 이벤트 수신 확인(선택 운영, 미연동 시 deferred 유지) | `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`(유효 토큰/만료·권한 확인), `SENTRY_ORG_SLUG`, `SENTRY_PROJECT_SLUG` 저장소 시크릿 설정 |
+| Sentry 실수신 검증(의도적 에러, 선택) | Codex | P3 | `done` | 실제 Sentry 프로젝트에서 이벤트 수신 확인(선택 운영, 미연동 시 deferred 유지) | `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`(유효 토큰/만료·권한 확인), `SENTRY_ORG_SLUG`, `SENTRY_PROJECT_SLUG` 저장소 시크릿 설정 |
