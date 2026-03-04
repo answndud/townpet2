@@ -354,6 +354,12 @@
 |---|---|---|---|---|---|
 | `prisma generate` 실행 순서 조정(`db:sync:neighborhoods` 이전) | Codex | P0 | `done` | Vercel 의존성 캐시 환경에서도 `sync-neighborhoods.ts` 실행 전에 Prisma Client가 생성되어 `Prisma has detected that this project was built on Vercel` 초기화 오류가 재발하지 않음 | `app/scripts/vercel-build.ts` |
 
+### Cycle 129: 운영 루틴 자동화 + 실OAuth 수동 점검 고정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `ops-smoke-checks` 주간 자동 실행(health only) | Codex | P1 | `done` | `ops-smoke-checks`가 스케줄로 주 1회 자동 실행되고(`verify_sentry=false`), 대상 URL은 `OPS_BASE_URL` 변수 또는 기본 URL fallback으로 점검됨 | `.github/workflows/ops-smoke-checks.yml`, GitHub Actions Variables |
+| 실계정 로그인 완료 수동 점검 체크리스트 고정 | Codex | P1 | `done` | 카카오/네이버 각각 `/onboarding -> /feed` 완료 수동 검증 절차와 증적 기록 규칙이 운영 문서에 명시됨 | `docs/ops/차단 해소 체크리스트.md`, `docs/GUIDE.md` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
