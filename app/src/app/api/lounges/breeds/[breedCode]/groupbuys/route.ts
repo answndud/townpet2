@@ -5,7 +5,7 @@ import {
   breedCodeParamSchema,
   breedLoungeGroupBuyCreateSchema,
 } from "@/lib/validations/lounge";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -62,11 +62,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
     }
 
-    const user = await getCurrentUser();
-    if (user) {
-      await enforceRateLimit({ key: `lounge-groupbuy:${user.id}`, limit: 5, windowMs: 60_000 });
+    const userId = await getCurrentUserId();
+    if (userId) {
+      await enforceRateLimit({ key: `lounge-groupbuy:${userId}`, limit: 5, windowMs: 60_000 });
       const post = await createPost({
-        authorId: user.id,
+        authorId: userId,
         input: {
           title: parsed.data.title,
           content: buildGroupBuyTemplateContent({

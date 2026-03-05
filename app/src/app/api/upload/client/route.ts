@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 import { GUEST_MAX_IMAGE_BYTES } from "@/lib/guest-post-policy";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
@@ -20,13 +20,13 @@ export async function POST(request: NextRequest) {
       request,
       body,
       onBeforeGenerateToken: async () => {
-        const user = await getCurrentUser();
+        const userId = await getCurrentUserId();
         const clientIp = getClientIp(request);
         const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
 
-        if (user) {
+        if (userId) {
           await enforceRateLimit({
-            key: `upload:user:${user.id}:ip:${clientIp}`,
+            key: `upload:user:${userId}:ip:${clientIp}`,
             limit: 20,
             windowMs: 60_000,
           });

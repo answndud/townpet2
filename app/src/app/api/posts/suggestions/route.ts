@@ -3,7 +3,7 @@ import { PostScope, PostType } from "@prisma/client";
 import { z } from "zod";
 
 import { isLoginRequiredPostType } from "@/lib/post-access";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
@@ -40,9 +40,10 @@ export async function GET(request: NextRequest) {
     }
 
     const clientIp = getClientIp(request);
-    const currentUser = await getCurrentUser();
-    const rateKey = currentUser
-      ? `feed-suggest:user:${currentUser.id}`
+    const currentUserId = await getCurrentUserId();
+    const viewerId = currentUserId ?? undefined;
+    const rateKey = currentUserId
+      ? `feed-suggest:user:${currentUserId}`
       : `feed-suggest:ip:${clientIp}`;
     await enforceRateLimit({
       key: rateKey,
@@ -51,8 +52,8 @@ export async function GET(request: NextRequest) {
       cacheMs: 1_000,
     });
 
-    const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
-    if (!currentUser && isLoginRequiredPostType(parsed.data.type, loginRequiredTypes)) {
+    const loginRequiredTypes = currentUserId ? [] : await getGuestReadLoginRequiredPostTypes();
+    if (!currentUserId && isLoginRequiredPostType(parsed.data.type, loginRequiredTypes)) {
       return jsonOk({ items: [] as string[] });
     }
 
@@ -60,11 +61,11 @@ export async function GET(request: NextRequest) {
     let neighborhoodId: string | undefined;
 
     if (scope === PostScope.LOCAL) {
-      if (!currentUser) {
+      if (!currentUserId) {
         return jsonOk({ items: [] as string[] });
       }
 
-      const userWithNeighborhoods = await getUserWithNeighborhoods(currentUser.id);
+      const userWithNeighborhoods = await getUserWithNeighborhoods(currentUserId);
       const primaryNeighborhood = userWithNeighborhoods?.neighborhoods.find(
         (item) => item.isPrimary,
       );
@@ -82,11 +83,11 @@ export async function GET(request: NextRequest) {
       type: parsed.data.type,
       scope,
       searchIn: parsed.data.searchIn,
-      excludeTypes: currentUser ? undefined : loginRequiredTypes,
+      excludeTypes: currentUserId ? undefined : loginRequiredTypes,
       neighborhoodId,
-      viewerId: currentUser?.id,
+      viewerId,
     });
-    const canCache = !currentUser && scope === PostScope.GLOBAL;
+    const canCache = !currentUserId && scope === PostScope.GLOBAL;
     return jsonOk(
       { items },
       {

@@ -5,7 +5,7 @@ import {
   notificationFilterKindValues,
   parseUnreadOnly,
 } from "@/lib/notification-filter";
-import { requireCurrentUser } from "@/server/auth";
+import { requireAuthenticatedUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
 import { getClientIp } from "@/server/request-context";
@@ -23,13 +23,14 @@ export async function GET(request: NextRequest) {
   let userId: string | undefined;
 
   try {
-    const user = await requireCurrentUser();
-    userId = user.id;
+    const authenticatedUserId = await requireAuthenticatedUserId();
+    userId = authenticatedUserId;
     const clientIp = getClientIp(request);
     await enforceRateLimit({
-      key: `notifications:${user.id}:${clientIp}`,
+      key: `notifications:${authenticatedUserId}:${clientIp}`,
       limit: 60,
       windowMs: 60_000,
+      cacheMs: 1_000,
     });
 
     const { searchParams } = new URL(request.url);
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     const unreadOnly = parseUnreadOnly(searchParams.get("unreadOnly"));
 
     const { items, nextCursor } = await listNotificationsByUser({
-      userId: user.id,
+      userId: authenticatedUserId,
       limit: parsed.data.limit,
       cursor: parsed.data.cursor,
       kind: parsed.data.kind,

@@ -2,10 +2,10 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/api/posts/[id]/comments/route";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
-import { getPostStatsById } from "@/server/queries/post.queries";
+import { getPostReadAccessById } from "@/server/queries/post.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { listComments } from "@/server/queries/comment.queries";
@@ -16,10 +16,10 @@ import {
   getOrCreateGuestSystemUserId,
 } from "@/server/services/guest-author.service";
 import { ServiceError } from "@/server/services/service-error";
-vi.mock("@/server/auth", () => ({ getCurrentUser: vi.fn() }));
+vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({ getGuestPostPolicy: vi.fn() }));
-vi.mock("@/server/queries/post.queries", () => ({ getPostStatsById: vi.fn() }));
+vi.mock("@/server/queries/post.queries", () => ({ getPostReadAccessById: vi.fn() }));
 vi.mock("@/server/queries/comment.queries", () => ({ listComments: vi.fn() }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
@@ -47,10 +47,10 @@ vi.mock("@/lib/guest-ip-display", () => ({
   }),
 }));
 
-const mockGetCurrentUser = vi.mocked(getCurrentUser);
+const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
-const mockGetPostStatsById = vi.mocked(getPostStatsById);
+const mockGetPostReadAccessById = vi.mocked(getPostReadAccessById);
 const mockGetClientIp = vi.mocked(getClientIp);
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
 const mockListComments = vi.mocked(listComments);
@@ -61,10 +61,10 @@ const mockGetOrCreateGuestSystemUserId = vi.mocked(getOrCreateGuestSystemUserId)
 
 describe("POST /api/posts/[id]/comments contract", () => {
   beforeEach(() => {
-    mockGetCurrentUser.mockReset();
+    mockGetCurrentUserId.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetGuestPostPolicy.mockReset();
-    mockGetPostStatsById.mockReset();
+    mockGetPostReadAccessById.mockReset();
     mockGetClientIp.mockReset();
     mockEnforceRateLimit.mockReset();
     mockListComments.mockReset();
@@ -73,12 +73,12 @@ describe("POST /api/posts/[id]/comments contract", () => {
     mockCreateGuestAuthor.mockReset();
     mockGetOrCreateGuestSystemUserId.mockReset();
 
-    mockGetCurrentUser.mockResolvedValue(null);
+    mockGetCurrentUserId.mockResolvedValue(null);
     mockGetGuestPostPolicy.mockResolvedValue({
       postRateLimit10m: 5,
       postRateLimit1h: 10,
     } as never);
-    mockGetPostStatsById.mockResolvedValue({
+    mockGetPostReadAccessById.mockResolvedValue({
       id: "post-1",
       type: "FREE_POST",
       scope: "GLOBAL",
@@ -91,7 +91,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
   });
 
   it("returns POST_NOT_FOUND for comments GET when post is missing", async () => {
-    mockGetPostStatsById.mockResolvedValue(null);
+    mockGetPostReadAccessById.mockResolvedValue(null);
     const request = new Request("http://localhost/api/posts/post-1/comments") as NextRequest;
 
     const response = await GET(request, { params: Promise.resolve({ id: "post-1" }) });

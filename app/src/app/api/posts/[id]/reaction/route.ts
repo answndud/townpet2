@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { jsonError, jsonOk } from "@/server/response";
 
@@ -11,8 +11,8 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       return jsonError(401, {
         code: "AUTH_REQUIRED",
         message: "로그인이 필요합니다.",
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       where: {
         postId_userId: {
           postId,
-          userId: user.id,
+          userId,
         },
       },
       select: { type: true },

@@ -78,6 +78,9 @@ jobs:
       - name: Quality check (lint/typecheck/unit)
         run: pnpm quality:check
 
+      - name: Notification contract suite
+        run: pnpm test:unit:notifications
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 

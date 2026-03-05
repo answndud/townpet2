@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 
-import { getCurrentUser } from "@/server/auth";
+import { renderLiteMarkdown } from "@/lib/markdown-lite";
+import { getCurrentUserId } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostById } from "@/server/queries/post.queries";
+import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import { jsonError, jsonOk } from "@/server/response";
 import { assertPostReadable } from "@/server/services/post-read-access.service";
 import { ServiceError } from "@/server/services/service-error";
-
-const HIDDEN_POST_STATS_KEYS = new Set(["likeCount", "dislikeCount", "commentCount", "viewCount"]);
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -17,8 +17,9 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
-    const user = await getCurrentUser();
-    const post = await getPostById(postId, user?.id);
+    const userId = await getCurrentUserId();
+    const viewerId = userId ?? undefined;
+    const post = await getPostById(postId, viewerId);
     if (!post) {
       return jsonError(404, {
         code: "NOT_FOUND",
@@ -26,22 +27,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    await assertPostReadable(post, user?.id);
+    await assertPostReadable(post, viewerId);
 
-    const restPost = Object.fromEntries(
-      Object.entries(post).filter(([key]) => !HIDDEN_POST_STATS_KEYS.has(key)),
-    );
+    const renderedContentHtml = renderLiteMarkdown(post.content);
+    const renderedContentText = renderedContentHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const relationState =
+      userId && userId !== post.authorId
+        ? await getUserRelationState(userId, post.authorId)
+        : {
+            isBlockedByMe: false,
+            hasBlockedMe: false,
+            isMutedByMe: false,
+          };
 
     return jsonOk(
       {
         post: {
-          ...restPost,
+          ...post,
+          renderedContentHtml,
+          renderedContentText,
         },
-        viewerId: user?.id ?? null,
+        viewerId: userId,
+        relationState,
       },
       {
         headers: {
-          "cache-control": user ? "no-store" : buildCacheControlHeader(30, 300),
+          "cache-control": userId ? "no-store" : buildCacheControlHeader(30, 300),
         },
       },
     );

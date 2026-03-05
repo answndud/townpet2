@@ -122,6 +122,21 @@ export function isNicknameRequiredProfilePath(pathname: string) {
   return false;
 }
 
+export function isPrefetchRequest(headers: Headers) {
+  const purpose = headers.get("purpose");
+  if (purpose && purpose.toLowerCase() === "prefetch") {
+    return true;
+  }
+
+  const nextRouterPrefetch = headers.get("next-router-prefetch");
+  if (nextRouterPrefetch === "1") {
+    return true;
+  }
+
+  const middlewarePrefetch = headers.get("x-middleware-prefetch");
+  return middlewarePrefetch === "1";
+}
+
 function getAllowedCorsOrigins() {
   const fromCsv = (process.env.CORS_ORIGIN ?? "")
     .split(",")
@@ -237,6 +252,7 @@ export async function middleware(request: NextRequest) {
   const shouldResolveSessionToken =
     request.method === "GET" &&
     hasSessionCookie &&
+    !isPrefetchRequest(request.headers) &&
     !isNicknameRequiredProfilePath(request.nextUrl.pathname);
   const sessionToken = shouldResolveSessionToken
     ? await resolveSessionToken(request)
@@ -316,5 +332,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|_next/data|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|xml|woff|woff2)$).*)",
+  ],
 };

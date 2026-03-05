@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { GUEST_MAX_IMAGE_BYTES } from "@/lib/guest-post-policy";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
@@ -12,13 +12,13 @@ import { saveUploadedImage } from "@/server/upload";
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
+    const userId = await getCurrentUserId();
     const clientIp = getClientIp(request);
     const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
 
-    if (user) {
+    if (userId) {
       await enforceRateLimit({
-        key: `upload:user:${user.id}:ip:${clientIp}`,
+        key: `upload:user:${userId}:ip:${clientIp}`,
         limit: 20,
         windowMs: 60_000,
       });
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const uploaded = await saveUploadedImage(file, {
-      maxSizeBytes: user ? undefined : GUEST_MAX_IMAGE_BYTES,
+      maxSizeBytes: userId ? undefined : GUEST_MAX_IMAGE_BYTES,
     });
     return jsonOk(uploaded, { status: 201 });
   } catch (error) {

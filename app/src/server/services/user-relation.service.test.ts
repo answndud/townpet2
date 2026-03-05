@@ -7,7 +7,10 @@ import {
   unblockUser,
   unmuteUser,
 } from "@/server/services/user-relation.service";
-import { getUserRelationState } from "@/server/queries/user-relation.queries";
+import {
+  getUserRelationState,
+  invalidateHiddenAuthorIdsCache,
+} from "@/server/queries/user-relation.queries";
 import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/lib/prisma", () => ({
@@ -28,6 +31,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/server/queries/user-relation.queries", () => ({
   getUserRelationState: vi.fn(),
+  invalidateHiddenAuthorIdsCache: vi.fn(),
 }));
 
 const mockPrisma = vi.mocked(prisma) as unknown as {
@@ -45,6 +49,7 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 };
 
 const mockGetUserRelationState = vi.mocked(getUserRelationState);
+const mockInvalidateHiddenAuthorIdsCache = vi.mocked(invalidateHiddenAuthorIdsCache);
 
 describe("user relation service", () => {
   beforeEach(() => {
@@ -54,6 +59,7 @@ describe("user relation service", () => {
     mockPrisma.userMute.upsert.mockReset();
     mockPrisma.userMute.deleteMany.mockReset();
     mockGetUserRelationState.mockReset();
+    mockInvalidateHiddenAuthorIdsCache.mockReset();
 
     mockPrisma.user.findUnique.mockResolvedValue({ id: "clt000000000000000000001" });
     mockGetUserRelationState.mockResolvedValue({

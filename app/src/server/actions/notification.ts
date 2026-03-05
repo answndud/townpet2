@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireCurrentUser } from "@/server/auth";
+import { requireAuthenticatedUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   archiveNotification,
@@ -21,10 +21,9 @@ export async function markNotificationReadAction(
   let userId: string | undefined;
 
   try {
-    const user = await requireCurrentUser();
-    userId = user.id;
+    userId = await requireAuthenticatedUserId();
 
-    const changed = await markNotificationRead(user.id, notificationId);
+    const changed = await markNotificationRead(userId, notificationId);
     if (changed) {
       revalidatePath("/notifications");
       revalidatePath("/", "layout");
@@ -53,10 +52,9 @@ export async function markAllNotificationsReadAction(): Promise<NotificationActi
   let userId: string | undefined;
 
   try {
-    const user = await requireCurrentUser();
-    userId = user.id;
+    userId = await requireAuthenticatedUserId();
 
-    const updated = await markAllNotificationsRead(user.id);
+    const updated = await markAllNotificationsRead(userId);
     if (updated > 0) {
       revalidatePath("/notifications");
       revalidatePath("/", "layout");
@@ -87,10 +85,9 @@ export async function archiveNotificationAction(
   let userId: string | undefined;
 
   try {
-    const user = await requireCurrentUser();
-    userId = user.id;
+    userId = await requireAuthenticatedUserId();
 
-    const changed = await archiveNotification(user.id, notificationId);
+    const changed = await archiveNotification(userId, notificationId);
     if (changed) {
       revalidatePath("/notifications");
       revalidatePath("/", "layout");

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getClientIp } from "@/server/request-context";
 import { jsonError, jsonOk } from "@/server/response";
@@ -13,10 +13,10 @@ type RouteParams = {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
-    const user = await getCurrentUser();
+    const userId = await getCurrentUserId();
     await registerPostView({
       postId,
-      userId: user?.id,
+      userId: userId ?? undefined,
       clientIp: getClientIp(request),
       userAgent: request.headers.get("user-agent") ?? undefined,
     });

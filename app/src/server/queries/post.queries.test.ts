@@ -16,6 +16,7 @@ import {
   listBestPosts,
   listPostSearchSuggestions,
   listPosts,
+  listUserPostsPage,
 } from "@/server/queries/post.queries";
 import { prisma } from "@/lib/prisma";
 
@@ -388,5 +389,40 @@ describe("post queries", () => {
     });
 
     expect(items).toEqual(["강남 산책 코스 추천", "주말 산책 후기", "산책러버"]);
+  });
+
+  it("paginates my-posts query with limit + 1 strategy", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      { id: "u1", images: [] },
+      { id: "u2", images: [] },
+      { id: "u3", images: [] },
+    ]);
+
+    const result = await listUserPostsPage({
+      authorId: "user-1",
+      scope: PostScope.GLOBAL,
+      limit: 2,
+      page: 1,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.take).toBe(3);
+    expect(args.skip).toBe(0);
+    expect(result.items).toHaveLength(2);
+    expect(result.hasNext).toBe(true);
+  });
+
+  it("normalizes invalid my-posts page number to first page", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listUserPostsPage({
+      authorId: "user-1",
+      limit: 20,
+      page: 0,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.skip).toBe(0);
+    expect(args.take).toBe(21);
   });
 });

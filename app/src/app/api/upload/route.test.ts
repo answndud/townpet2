@@ -1,0 +1,96 @@
+import type { NextRequest } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { POST } from "@/app/api/upload/route";
+import { getCurrentUserId } from "@/server/auth";
+import { monitorUnhandledError } from "@/server/error-monitor";
+import { getGuestPostPolicy } from "@/server/queries/policy.queries";
+import { getClientIp } from "@/server/request-context";
+import { enforceRateLimit } from "@/server/rate-limit";
+import { saveUploadedImage } from "@/server/upload";
+
+vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
+vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
+vi.mock("@/server/queries/policy.queries", () => ({ getGuestPostPolicy: vi.fn() }));
+vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
+vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
+vi.mock("@/server/upload", () => ({ saveUploadedImage: vi.fn() }));
+
+const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
+const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
+const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
+const mockGetClientIp = vi.mocked(getClientIp);
+const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
+const mockSaveUploadedImage = vi.mocked(saveUploadedImage);
+
+describe("POST /api/upload contract", () => {
+  beforeEach(() => {
+    mockGetCurrentUserId.mockReset();
+    mockMonitorUnhandledError.mockReset();
+    mockGetGuestPostPolicy.mockReset();
+    mockGetClientIp.mockReset();
+    mockEnforceRateLimit.mockReset();
+    mockSaveUploadedImage.mockReset();
+
+    mockGetCurrentUserId.mockResolvedValue(null);
+    mockGetGuestPostPolicy.mockResolvedValue({
+      uploadRateLimit10m: 10,
+    } as never);
+    mockGetClientIp.mockReturnValue("127.0.0.1");
+    mockEnforceRateLimit.mockResolvedValue();
+    mockSaveUploadedImage.mockResolvedValue({ url: "https://cdn.test/image.png" } as never);
+  });
+
+  it("returns INVALID_FILE when file is missing", async () => {
+    const request = new Request("http://localhost/api/upload", {
+      method: "POST",
+      body: new FormData(),
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_FILE" },
+    });
+  });
+
+  it("uses user rate key when authenticated", async () => {
+    mockGetCurrentUserId.mockResolvedValue("user-1");
+    const form = new FormData();
+    form.set("file", new File(["abc"], "test.png", { type: "image/png" }));
+    const request = new Request("http://localhost/api/upload", {
+      method: "POST",
+      body: form,
+    }) as NextRequest;
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(201);
+    expect(mockEnforceRateLimit).toHaveBeenCalledWith({
+      key: "upload:user:user-1:ip:127.0.0.1",
+      limit: 20,
+      windowMs: 60_000,
+    });
+  });
+
+  it("returns 500 and monitors unexpected errors", async () => {
+    mockEnforceRateLimit.mockRejectedValue(new Error("rate fail"));
+    const request = new Request("http://localhost/api/upload", {
+      method: "POST",
+      body: new FormData(),
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR" },
+    });
+    expect(mockMonitorUnhandledError).toHaveBeenCalledOnce();
+  });
+});

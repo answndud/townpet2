@@ -45,6 +45,7 @@ export async function GET(
       key: `boards:${boardParsed.data}:ip:${clientIp}`,
       limit: 60,
       windowMs: 60_000,
+      cacheMs: 1_000,
     });
 
     const { searchParams } = new URL(request.url);

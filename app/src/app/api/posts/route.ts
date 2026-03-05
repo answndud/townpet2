@@ -6,7 +6,7 @@ import { isLoginRequiredPostType } from "@/lib/post-access";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { listPosts } from "@/server/queries/post.queries";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
@@ -23,9 +23,10 @@ import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 export async function GET(request: NextRequest) {
   try {
     const clientIp = getClientIp(request);
-    const currentUser = await getCurrentUser();
-    const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
-    const rateKey = currentUser ? `feed:user:${currentUser.id}` : `feed:ip:${clientIp}`;
+    const currentUserId = await getCurrentUserId();
+    const viewerId = currentUserId ?? undefined;
+    const loginRequiredTypes = currentUserId ? [] : await getGuestReadLoginRequiredPostTypes();
+    const rateKey = currentUserId ? `feed:user:${currentUserId}` : `feed:ip:${clientIp}`;
     await enforceRateLimit({
       key: rateKey,
       limit: 30,
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
     const listInput = toPostListInput(parsed.data);
     const { petTypeId, ...listSchemaInput } = listInput;
 
-    if (!currentUser && isLoginRequiredPostType(listInput.type, loginRequiredTypes)) {
+    if (!currentUserId && isLoginRequiredPostType(listInput.type, loginRequiredTypes)) {
       return jsonError(401, {
         code: "AUTH_REQUIRED",
         message: "선택한 카테고리는 로그인 후 이용할 수 있습니다.",
@@ -80,15 +81,15 @@ export async function GET(request: NextRequest) {
     const scope = listInput.scope ?? PostScope.GLOBAL;
     let neighborhoodId: string | undefined;
 
-    if (scope === PostScope.LOCAL) {
-      if (!currentUser) {
+      if (scope === PostScope.LOCAL) {
+      if (!currentUserId) {
         return jsonError(401, {
           code: "AUTH_REQUIRED",
           message: "로컬 피드는 로그인 후 이용할 수 있습니다.",
         });
       }
 
-      const userWithNeighborhoods = await getUserWithNeighborhoods(currentUser.id);
+      const userWithNeighborhoods = await getUserWithNeighborhoods(currentUserId);
       const primaryNeighborhood = userWithNeighborhoods?.neighborhoods.find(
         (item) => item.isPrimary,
       );
@@ -109,13 +110,13 @@ export async function GET(request: NextRequest) {
       scope,
       petTypeId,
       petTypeIds,
-      excludeTypes: currentUser ? undefined : loginRequiredTypes,
+      excludeTypes: currentUserId ? undefined : loginRequiredTypes,
       neighborhoodId,
-      viewerId: currentUser?.id,
-      personalized: listInput.personalized && Boolean(currentUser?.id),
+      viewerId,
+      personalized: listInput.personalized && Boolean(currentUserId),
     });
     const canCache =
-      !currentUser &&
+      !currentUserId &&
       scope === PostScope.GLOBAL &&
       !listInput.cursor &&
       !listInput.personalized;
@@ -145,11 +146,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const forceGuestMode =
       process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
-    const user = forceGuestMode ? null : await getCurrentUser();
+    const userId = forceGuestMode ? null : await getCurrentUserId();
 
-    if (user) {
-      await enforceRateLimit({ key: `posts:${user.id}`, limit: 5, windowMs: 60_000 });
-      const post = await createPost({ authorId: user.id, input: body });
+    if (userId) {
+      await enforceRateLimit({ key: `posts:${userId}`, limit: 5, windowMs: 60_000 });
+      const post = await createPost({ authorId: userId, input: body });
       return jsonOk(post, { status: 201 });
     }
 

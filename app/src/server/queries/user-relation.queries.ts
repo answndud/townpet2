@@ -43,6 +43,18 @@ type UserMuteDelegate = {
 let blockDelegateWarned = false;
 let muteDelegateWarned = false;
 let missingTableWarned = false;
+const hiddenAuthorIdsCache = new Map<
+  string,
+  {
+    ids: string[];
+    expiresAt: number;
+  }
+>();
+const HIDDEN_AUTHOR_IDS_CACHE_TTL_MS = 5_000;
+
+export function invalidateHiddenAuthorIdsCache(viewerId: string) {
+  hiddenAuthorIdsCache.delete(viewerId);
+}
 
 function getBlockDelegate() {
   const delegate = (prisma as unknown as { userBlock?: UserBlockDelegate }).userBlock;
@@ -90,6 +102,12 @@ export async function listHiddenAuthorIdsForViewer(viewerId?: string) {
     return [];
   }
 
+  const cached = hiddenAuthorIdsCache.get(viewerId);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.ids;
+  }
+
   const blockDelegate = getBlockDelegate();
   const muteDelegate = getMuteDelegate();
   const hiddenIds = new Set<string>();
@@ -127,7 +145,12 @@ export async function listHiddenAuthorIdsForViewer(viewerId?: string) {
   }
 
   hiddenIds.delete(viewerId);
-  return Array.from(hiddenIds);
+  const resolved = Array.from(hiddenIds);
+  hiddenAuthorIdsCache.set(viewerId, {
+    ids: resolved,
+    expiresAt: Date.now() + HIDDEN_AUTHOR_IDS_CACHE_TTL_MS,
+  });
+  return resolved;
 }
 
 export async function getUserRelationState(viewerId?: string, targetUserId?: string) {

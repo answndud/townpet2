@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 
 import type { NotificationFilterKind } from "@/lib/notification-filter";
+import { emitNotificationUnreadSync } from "@/lib/notification-unread-sync";
 import { buildNotificationListHref } from "@/lib/notification-filter";
 import {
   archiveNotificationAction,
@@ -241,10 +242,10 @@ export function NotificationCenter({
       setMessage(result.message);
     } else {
       setItems((prev) => prev.filter((item) => item.id !== id));
+      emitNotificationUnreadSync({ delta: -1 });
     }
 
     setPending(id, false);
-    router.refresh();
   };
 
   const handleMove = async (item: NotificationCenterItem) => {
@@ -258,12 +259,12 @@ export function NotificationCenter({
         setMessage(result.message);
       } else {
         setItems((prev) => prev.filter((candidate) => candidate.id !== item.id));
+        emitNotificationUnreadSync({ delta: -1 });
       }
       setPending(item.id, false);
     }
 
     router.push(href);
-    router.refresh();
   };
 
   const handleMarkAll = () => {
@@ -288,8 +289,9 @@ export function NotificationCenter({
         setMessage(result.message);
         setItems(previousItems);
         setCursor(previousCursor);
+        return;
       }
-      router.refresh();
+      emitNotificationUnreadSync({ resetTo: 0 });
     });
   };
 
@@ -307,10 +309,12 @@ export function NotificationCenter({
       setMessage(result.message);
     } else {
       setItems((prev) => prev.filter((item) => item.id !== id));
+      if (!target.isRead) {
+        emitNotificationUnreadSync({ delta: -1 });
+      }
     }
 
     setPending(id, false);
-    router.refresh();
   };
 
   return (

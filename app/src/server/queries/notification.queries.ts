@@ -6,6 +6,12 @@ import {
 
 import type { NotificationFilterKind } from "@/lib/notification-filter";
 import { prisma } from "@/lib/prisma";
+import {
+  bumpNotificationListCacheVersion,
+  bumpNotificationUnreadCacheVersion,
+  createQueryCacheKey,
+  withQueryCache,
+} from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
 
 type ListNotificationsByUserOptions = {
@@ -96,6 +102,11 @@ function warnMissingNotificationTable(error: unknown) {
   });
 }
 
+function bumpNotificationCaches(userId: string) {
+  void bumpNotificationUnreadCacheVersion(userId).catch(() => undefined);
+  void bumpNotificationListCacheVersion(userId).catch(() => undefined);
+}
+
 export async function listNotificationsByUser({
   userId,
   limit = 20,
@@ -118,39 +129,13 @@ export async function listNotificationsByUser({
           ? [NotificationType.SYSTEM]
           : null;
 
-  let items: NotificationListItem[];
-  try {
-    items = await delegate.findMany({
-      where: {
-        userId,
-        archivedAt: null,
-        ...(unreadOnly ? { isRead: false } : {}),
-        ...(typeFilter ? { type: { in: typeFilter } } : {}),
-      },
-      take: safeLimit + 1,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1,
-          }
-        : {}),
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      include: {
-        actor: {
-          select: {
-            id: true,
-            nickname: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
-    });
-  } catch (error) {
-    if (isNotificationArchiveColumnMissingError(error)) {
+  const fetchNotificationItems = async (): Promise<ListNotificationsByUserResult> => {
+    let items: NotificationListItem[];
+    try {
       items = await delegate.findMany({
         where: {
           userId,
+          archivedAt: null,
           ...(unreadOnly ? { isRead: false } : {}),
           ...(typeFilter ? { type: { in: typeFilter } } : {}),
         },
@@ -173,21 +158,63 @@ export async function listNotificationsByUser({
           },
         },
       });
-    } else if (!isNotificationTableMissingError(error)) {
-      throw error;
-    } else {
-      warnMissingNotificationTable(error);
-      return { items: [], nextCursor: null };
+    } catch (error) {
+      if (isNotificationArchiveColumnMissingError(error)) {
+        items = await delegate.findMany({
+          where: {
+            userId,
+            ...(unreadOnly ? { isRead: false } : {}),
+            ...(typeFilter ? { type: { in: typeFilter } } : {}),
+          },
+          take: safeLimit + 1,
+          ...(cursor
+            ? {
+                cursor: { id: cursor },
+                skip: 1,
+              }
+            : {}),
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          include: {
+            actor: {
+              select: {
+                id: true,
+                nickname: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        });
+      } else if (!isNotificationTableMissingError(error)) {
+        throw error;
+      } else {
+        warnMissingNotificationTable(error);
+        return { items: [], nextCursor: null };
+      }
     }
+
+    let nextCursor: string | null = null;
+    if (items.length > safeLimit) {
+      const next = items.pop();
+      nextCursor = next?.id ?? null;
+    }
+
+    return { items, nextCursor };
+  };
+
+  if (cursor) {
+    return fetchNotificationItems();
   }
 
-  let nextCursor: string | null = null;
-  if (items.length > safeLimit) {
-    const next = items.pop();
-    nextCursor = next?.id ?? null;
-  }
-
-  return { items, nextCursor };
+  return withQueryCache({
+    key: await createQueryCacheKey(`notification-list:${userId}`, {
+      limit: safeLimit,
+      kind,
+      unreadOnly: unreadOnly ? "1" : "0",
+    }),
+    ttlSeconds: 5,
+    fetcher: fetchNotificationItems,
+  });
 }
 
 export async function countUnreadNotifications(userId: string) {
@@ -196,29 +223,39 @@ export async function countUnreadNotifications(userId: string) {
     return 0;
   }
 
-  try {
-    return await delegate.count({
-      where: {
-        userId,
-        archivedAt: null,
-        isRead: false,
-      },
-    });
-  } catch (error) {
-    if (isNotificationArchiveColumnMissingError(error)) {
+  const fetchUnreadCount = async () => {
+    try {
       return await delegate.count({
         where: {
           userId,
+          archivedAt: null,
           isRead: false,
         },
       });
+    } catch (error) {
+      if (isNotificationArchiveColumnMissingError(error)) {
+        return await delegate.count({
+          where: {
+            userId,
+            isRead: false,
+          },
+        });
+      }
+      if (!isNotificationTableMissingError(error)) {
+        throw error;
+      }
+      warnMissingNotificationTable(error);
+      return 0;
     }
-    if (!isNotificationTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingNotificationTable(error);
-    return 0;
-  }
+  };
+
+  return withQueryCache({
+    key: await createQueryCacheKey(`notification-unread:${userId}`, {
+      type: "count",
+    }),
+    ttlSeconds: 5,
+    fetcher: fetchUnreadCount,
+  });
 }
 
 export async function markNotificationRead(userId: string, notificationId: string) {
@@ -263,7 +300,12 @@ export async function markNotificationRead(userId: string, notificationId: strin
     }
   }
 
-  return result.count > 0;
+  const changed = result.count > 0;
+  if (changed) {
+    bumpNotificationCaches(userId);
+  }
+
+  return changed;
 }
 
 export async function markAllNotificationsRead(userId: string) {
@@ -304,6 +346,10 @@ export async function markAllNotificationsRead(userId: string) {
       warnMissingNotificationTable(error);
       return 0;
     }
+  }
+
+  if (result.count > 0) {
+    bumpNotificationCaches(userId);
   }
 
   return result.count;
@@ -348,7 +394,12 @@ export async function archiveNotification(userId: string, notificationId: string
     }
   }
 
-  return result.count > 0;
+  const changed = result.count > 0;
+  if (changed) {
+    bumpNotificationCaches(userId);
+  }
+
+  return changed;
 }
 
 export async function createNotification(params: CreateNotificationParams) {
@@ -358,7 +409,7 @@ export async function createNotification(params: CreateNotificationParams) {
   }
 
   try {
-    return await delegate.create({
+    const created = await delegate.create({
       data: {
         userId: params.userId,
         actorId: params.actorId ?? null,
@@ -372,6 +423,9 @@ export async function createNotification(params: CreateNotificationParams) {
         metadata: params.metadata,
       },
     });
+
+    bumpNotificationCaches(params.userId);
+    return created;
   } catch (error) {
     if (!isNotificationTableMissingError(error)) {
       throw error;

@@ -17,7 +17,12 @@ const communityListQuerySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const clientIp = getClientIp(request);
-    await enforceRateLimit({ key: `communities:ip:${clientIp}`, limit: 60, windowMs: 60_000 });
+    await enforceRateLimit({
+      key: `communities:ip:${clientIp}`,
+      limit: 60,
+      windowMs: 60_000,
+      cacheMs: 1_000,
+    });
 
     const { searchParams } = new URL(request.url);
     const parsed = communityListQuerySchema.safeParse({

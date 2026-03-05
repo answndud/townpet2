@@ -5,7 +5,7 @@ import {
   parseNotificationFilterKind,
   parseUnreadOnly,
 } from "@/lib/notification-filter";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
 
 type NotificationsPageProps = {
@@ -13,15 +13,16 @@ type NotificationsPageProps = {
 };
 
 export default async function NotificationsPage({ searchParams }: NotificationsPageProps) {
-  const currentUser = await getCurrentUser();
-  const resolvedSearchParams = (await (searchParams ?? Promise.resolve({}))) as {
-    kind?: string;
-    unreadOnly?: string;
-  };
+  const resolvedSearchParamsPromise =
+    searchParams ?? Promise.resolve({} as { kind?: string; unreadOnly?: string });
+  const [currentUserId, resolvedSearchParams] = await Promise.all([
+    getCurrentUserId(),
+    resolvedSearchParamsPromise,
+  ]);
   const kind = parseNotificationFilterKind(resolvedSearchParams.kind);
   const unreadOnly = parseUnreadOnly(resolvedSearchParams.unreadOnly);
 
-  if (!currentUser) {
+  if (!currentUserId) {
     return (
       <div className="tp-page-bg min-h-screen pb-16">
         <main className="mx-auto flex w-full max-w-[860px] flex-col gap-4 px-4 py-8 sm:px-6">
@@ -46,7 +47,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
   }
 
   const { items, nextCursor } = await listNotificationsByUser({
-    userId: currentUser.id,
+    userId: currentUserId,
     limit: 20,
     kind,
     unreadOnly,

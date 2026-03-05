@@ -9,15 +9,18 @@ import { getPostSignals } from "@/lib/post-presenter";
 import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
-import { listUserPosts } from "@/server/queries/post.queries";
+import { listUserPostsPage } from "@/server/queries/post.queries";
 
 type MyPostsPageProps = {
   searchParams?: Promise<{
     scope?: "LOCAL" | "GLOBAL";
     type?: PostType;
     q?: string;
+    page?: string;
   }>;
 };
+
+const MY_POSTS_PAGE_SIZE = 20;
 
 const typeLabels: Record<PostType, string> = {
   HOSPITAL_REVIEW: "병원후기",
@@ -82,27 +85,43 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
   const parsedParams = postListSchema.safeParse(resolvedParams);
   const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
   const type = listInput?.type;
+  const requestedPage = Number.parseInt(
+    typeof resolvedParams.page === "string" ? resolvedParams.page : "1",
+    10,
+  );
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const query = listInput?.q?.trim() ?? "";
-  const posts = await listUserPosts({
+  const { items: posts, hasNext } = await listUserPostsPage({
     authorId: user.id,
     type,
     q: query || undefined,
+    limit: MY_POSTS_PAGE_SIZE,
+    page: currentPage,
   });
 
   const makeHref = ({
     nextType,
     nextQuery,
+    nextPage,
   }: {
     nextType?: PostType | null;
     nextQuery?: string | null;
+    nextPage?: number | null;
   }) => {
     const params = new URLSearchParams();
     const resolvedType = nextType === undefined ? type : nextType;
     const resolvedQuery = nextQuery === undefined ? query : nextQuery;
+    const isTypeChanged = nextType !== undefined && nextType !== type;
+    const isQueryChanged = nextQuery !== undefined && nextQuery !== query;
+    const resolvedPage =
+      nextPage === undefined ? (isTypeChanged || isQueryChanged ? 1 : currentPage) : nextPage;
 
     if (resolvedType) params.set("type", resolvedType);
     if (resolvedQuery) params.set("q", resolvedQuery);
+    if (resolvedPage && resolvedPage > 1) {
+      params.set("page", String(resolvedPage));
+    }
 
     const serialized = params.toString();
     return serialized ? `/my-posts?${serialized}` : "/my-posts";
@@ -197,7 +216,9 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
                   </div>
                 </div>
               </div>
-            <p className="border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">총 {posts.length}건</p>
+            <p className="border-t border-[#dbe6f6] pt-3 text-xs text-[#4f678d]">
+              페이지 {currentPage} · 현재 {posts.length}건 표시
+            </p>
           </div>
         </section>
 
@@ -271,6 +292,27 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
             </div>
           )}
         </section>
+        {posts.length > 0 ? (
+          <section className="flex items-center justify-center gap-2">
+            {currentPage > 1 ? (
+              <Link
+                href={makeHref({ nextPage: currentPage - 1 })}
+                className="tp-btn-soft px-3 py-1.5 text-xs font-semibold text-[#315484]"
+              >
+                이전 페이지
+              </Link>
+            ) : null}
+            <span className="text-xs text-[#4f678d]">{currentPage} 페이지</span>
+            {hasNext ? (
+              <Link
+                href={makeHref({ nextPage: currentPage + 1 })}
+                className="tp-btn-soft px-3 py-1.5 text-xs font-semibold text-[#315484]"
+              >
+                다음 페이지
+              </Link>
+            ) : null}
+          </section>
+        ) : null}
       </main>
     </div>
   );

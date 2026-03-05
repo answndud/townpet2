@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ServiceError } from "@/server/services/service-error";
 import { GET } from "@/app/api/posts/route";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listPosts } from "@/server/queries/post.queries";
 import {
@@ -13,7 +13,7 @@ import { enforceRateLimit } from "@/server/rate-limit";
 import { getClientIp } from "@/server/request-context";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 
-vi.mock("@/server/auth", () => ({ getCurrentUser: vi.fn() }));
+vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/post.queries", () => ({ listPosts: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({
@@ -26,7 +26,7 @@ vi.mock("@/lib/post-access", () => ({ isLoginRequiredPostType: vi.fn() }));
 vi.mock("@/server/queries/user.queries", () => ({ getUserWithNeighborhoods: vi.fn() }));
 vi.mock("@/server/services/post.service", () => ({ createPost: vi.fn() }));
 
-const mockGetCurrentUser = vi.mocked(getCurrentUser);
+const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockListPosts = vi.mocked(listPosts);
 const mockGetGuestReadLoginRequiredPostTypes = vi.mocked(
@@ -38,7 +38,7 @@ const mockIsLoginRequiredPostType = vi.mocked(isLoginRequiredPostType);
 
 describe("GET /api/posts contract", () => {
   beforeEach(() => {
-    mockGetCurrentUser.mockReset();
+    mockGetCurrentUserId.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockListPosts.mockReset();
     mockGetGuestReadLoginRequiredPostTypes.mockReset();
@@ -46,7 +46,7 @@ describe("GET /api/posts contract", () => {
     mockGetClientIp.mockReset();
     mockIsLoginRequiredPostType.mockReset();
 
-    mockGetCurrentUser.mockResolvedValue(null);
+    mockGetCurrentUserId.mockResolvedValue(null);
     mockGetGuestReadLoginRequiredPostTypes.mockResolvedValue([]);
     mockEnforceRateLimit.mockResolvedValue();
     mockGetClientIp.mockReturnValue("127.0.0.1");

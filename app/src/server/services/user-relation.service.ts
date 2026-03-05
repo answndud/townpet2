@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { userRelationTargetSchema } from "@/lib/validations/user-relation";
-import { getUserRelationState } from "@/server/queries/user-relation.queries";
+import {
+  getUserRelationState,
+  invalidateHiddenAuthorIdsCache,
+} from "@/server/queries/user-relation.queries";
 import { ServiceError } from "@/server/services/service-error";
 
 type UserRelationMutationParams = {
@@ -45,6 +48,8 @@ export async function blockUser({ userId, input }: UserRelationMutationParams) {
       blockedId: targetUserId,
     },
   });
+  invalidateHiddenAuthorIdsCache(userId);
+  invalidateHiddenAuthorIdsCache(targetUserId);
 
   return getUserRelationState(userId, targetUserId);
 }
@@ -57,6 +62,8 @@ export async function unblockUser({ userId, input }: UserRelationMutationParams)
       blockedId: targetUserId,
     },
   });
+  invalidateHiddenAuthorIdsCache(userId);
+  invalidateHiddenAuthorIdsCache(targetUserId);
 
   return getUserRelationState(userId, targetUserId);
 }
@@ -76,6 +83,7 @@ export async function muteUser({ userId, input }: UserRelationMutationParams) {
       mutedUserId: targetUserId,
     },
   });
+  invalidateHiddenAuthorIdsCache(userId);
 
   return getUserRelationState(userId, targetUserId);
 }
@@ -88,6 +96,7 @@ export async function unmuteUser({ userId, input }: UserRelationMutationParams) 
       mutedUserId: targetUserId,
     },
   });
+  invalidateHiddenAuthorIdsCache(userId);
 
   return getUserRelationState(userId, targetUserId);
 }

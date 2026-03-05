@@ -1227,6 +1227,40 @@ export async function getPostStatsById(id?: string, viewerId?: string) {
   return runStats();
 }
 
+export async function getPostReadAccessById(id?: string, viewerId?: string) {
+  if (!id) {
+    return null;
+  }
+  const shouldCache = !viewerId;
+  const runReadAccess = async () => {
+    const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
+    const visibilityFilter =
+      hiddenAuthorIds.length > 0 ? { authorId: { notIn: hiddenAuthorIds } } : {};
+
+    return prisma.post.findFirst({
+      where: { id, ...visibilityFilter },
+      select: {
+        id: true,
+        type: true,
+        scope: true,
+        status: true,
+        neighborhoodId: true,
+      },
+    });
+  };
+
+  if (shouldCache) {
+    const cacheKey = await createQueryCacheKey("post-detail", { id, mode: "read-access" });
+    return withQueryCache({
+      key: cacheKey,
+      ttlSeconds: 60,
+      fetcher: runReadAccess,
+    });
+  }
+
+  return runReadAccess();
+}
+
 export async function getPostContentById(id?: string, viewerId?: string) {
   if (!id) {
     return null;
@@ -2053,38 +2087,47 @@ type UserPostListOptions = {
   q?: string;
 };
 
+type UserPostPageOptions = UserPostListOptions & {
+  limit: number;
+  page: number;
+};
+
+function buildUserPostWhere({ authorId, scope, type, q }: UserPostListOptions): Prisma.PostWhereInput {
+  const equivalentTypes = type ? getEquivalentPostTypes(type) : null;
+
+  return {
+    authorId,
+    status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
+    ...(scope ? { scope } : {}),
+    ...(equivalentTypes
+      ? {
+          type:
+            equivalentTypes.length === 1
+              ? equivalentTypes[0]
+              : {
+                  in: equivalentTypes,
+                },
+        }
+      : {}),
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { content: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+}
+
 export async function countUserPosts({
   authorId,
   scope,
   type,
   q,
 }: UserPostListOptions) {
-  const equivalentTypes = type ? getEquivalentPostTypes(type) : null;
-
   return prisma.post.count({
-    where: {
-      authorId,
-      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-      ...(scope ? { scope } : {}),
-      ...(equivalentTypes
-        ? {
-            type:
-              equivalentTypes.length === 1
-                ? equivalentTypes[0]
-                : {
-                    in: equivalentTypes,
-                  },
-          }
-        : {}),
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { content: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
+    where: buildUserPostWhere({ authorId, scope, type, q }),
   });
 }
 
@@ -2094,32 +2137,8 @@ export async function listUserPosts({
   type,
   q,
 }: UserPostListOptions) {
-  const equivalentTypes = type ? getEquivalentPostTypes(type) : null;
-
   return prisma.post.findMany({
-    where: {
-      authorId,
-      status: { in: [PostStatus.ACTIVE, PostStatus.HIDDEN] },
-      ...(scope ? { scope } : {}),
-      ...(equivalentTypes
-        ? {
-            type:
-              equivalentTypes.length === 1
-                ? equivalentTypes[0]
-                : {
-                    in: equivalentTypes,
-                  },
-          }
-        : {}),
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { content: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
+    where: buildUserPostWhere({ authorId, scope, type, q }),
     orderBy: { createdAt: "desc" },
     include: {
       neighborhood: {
@@ -2140,6 +2159,48 @@ export async function listUserPosts({
       },
     },
   });
+}
+
+export async function listUserPostsPage({
+  authorId,
+  scope,
+  type,
+  q,
+  limit,
+  page,
+}: UserPostPageOptions) {
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const safePage = Math.max(page, 1);
+  const rows = await prisma.post.findMany({
+    where: buildUserPostWhere({ authorId, scope, type, q }),
+    orderBy: { createdAt: "desc" },
+    skip: (safePage - 1) * safeLimit,
+    take: safeLimit + 1,
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      title: true,
+      content: true,
+      commentCount: true,
+      likeCount: true,
+      viewCount: true,
+      createdAt: true,
+      neighborhood: {
+        select: { id: true, name: true, city: true, district: true },
+      },
+      images: {
+        select: { id: true },
+      },
+    },
+  });
+
+  const hasNext = rows.length > safeLimit;
+  const items = hasNext ? rows.slice(0, safeLimit) : rows;
+  return {
+    items,
+    hasNext,
+  };
 }
 
 type PostSearchSuggestionOptions = {

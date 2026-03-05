@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import { jsonError, jsonOk } from "@/server/response";
@@ -11,8 +11,8 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       return jsonError(401, {
         code: "AUTH_REQUIRED",
         message: "로그인이 필요합니다.",
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    const relationState = await getUserRelationState(user.id, targetUserId).catch(() => ({
+    const relationState = await getUserRelationState(userId, targetUserId).catch(() => ({
       isBlockedByMe: false,
       hasBlockedMe: false,
       isMutedByMe: false,

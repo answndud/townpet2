@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { AuthAuditAction, UserRole } from "@prisma/client";
+import { AuthAuditAction } from "@prisma/client";
 
-import { getCurrentUser } from "@/server/auth";
+import { requireModeratorUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   AUTH_AUDIT_LOG_LIMIT_MAX,
   listAuthAuditLogs,
 } from "@/server/queries/auth-audit.queries";
+import { ServiceError } from "@/server/services/service-error";
 
 const querySchema = z.object({
   action: z.string().optional(),
@@ -25,14 +26,7 @@ function toCsvValue(value: string | null) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, error: { code: "AUTH_REQUIRED", message: "로그인이 필요합니다." } }, { status: 401 });
-    }
-
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.MODERATOR) {
-      return NextResponse.json({ ok: false, error: { code: "FORBIDDEN", message: "권한이 없습니다." } }, { status: 403 });
-    }
+    await requireModeratorUserId();
 
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.safeParse({
@@ -93,6 +87,13 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return NextResponse.json(
+        { ok: false, error: { code: error.code, message: error.message } },
+        { status: error.status },
+      );
+    }
+
     await monitorUnhandledError(error, {
       route: "GET /api/admin/auth-audits/export",
       request,

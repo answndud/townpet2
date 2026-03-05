@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostContentById } from "@/server/queries/post.queries";
@@ -16,8 +16,9 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
-    const user = await getCurrentUser();
-    const post = await getPostContentById(postId, user?.id);
+    const userId = await getCurrentUserId();
+    const viewerId = userId ?? undefined;
+    const post = await getPostContentById(postId, viewerId);
     if (!post) {
       return jsonError(404, {
         code: "NOT_FOUND",
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    await assertPostReadable(post, user?.id);
+    await assertPostReadable(post, viewerId);
 
     const renderedContentHtml = renderLiteMarkdown(post.content);
     const renderedContentText = renderedContentHtml
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
       {
         headers: {
-          "cache-control": user ? "no-store" : buildCacheControlHeader(60, 600),
+          "cache-control": userId ? "no-store" : buildCacheControlHeader(60, 600),
         },
       },
     );

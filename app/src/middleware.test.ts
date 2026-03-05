@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isGuestPostDetailPath,
+  isPrefetchRequest,
   isNicknameRequiredProfilePath,
   resolveCspHeaders,
 } from "../middleware";
@@ -75,5 +76,22 @@ describe("isNicknameRequiredProfilePath", () => {
 
   it("blocks feed path", () => {
     expect(isNicknameRequiredProfilePath("/feed")).toBe(false);
+  });
+});
+
+describe("isPrefetchRequest", () => {
+  it("returns true when purpose header is prefetch", () => {
+    const headers = new Headers({ purpose: "prefetch" });
+    expect(isPrefetchRequest(headers)).toBe(true);
+  });
+
+  it("returns true when next-router-prefetch header is set", () => {
+    const headers = new Headers({ "next-router-prefetch": "1" });
+    expect(isPrefetchRequest(headers)).toBe(true);
+  });
+
+  it("returns false for normal request headers", () => {
+    const headers = new Headers();
+    expect(isPrefetchRequest(headers)).toBe(false);
   });
 });

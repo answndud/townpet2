@@ -1,14 +1,15 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { AuthAuditAction, UserRole } from "@prisma/client";
+import { AuthAuditAction } from "@prisma/client";
 
-import { getCurrentUser } from "@/server/auth";
+import { requireModeratorUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   AUTH_AUDIT_LOG_LIMIT_MAX,
   listAuthAuditLogs,
 } from "@/server/queries/auth-audit.queries";
 import { jsonError, jsonOk } from "@/server/response";
+import { ServiceError } from "@/server/services/service-error";
 
 const querySchema = z.object({
   action: z.string().optional(),
@@ -18,14 +19,7 @@ const querySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return jsonError(401, { code: "AUTH_REQUIRED", message: "로그인이 필요합니다." });
-    }
-
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.MODERATOR) {
-      return jsonError(403, { code: "FORBIDDEN", message: "권한이 없습니다." });
-    }
+    await requireModeratorUserId();
 
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.safeParse({
@@ -55,6 +49,13 @@ export async function GET(request: NextRequest) {
 
     return jsonOk(audits);
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     await monitorUnhandledError(error, {
       route: "GET /api/admin/auth-audits",
       request,

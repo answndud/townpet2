@@ -27,7 +27,7 @@ import { REVIEW_CATEGORY, type ReviewCategory } from "@/lib/review-category";
 import { isLocalRequiredPostType } from "@/lib/post-scope-policy";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
-import { listCommunities } from "@/server/queries/community.queries";
+import { listCommunityNavItems } from "@/server/queries/community.queries";
 import {
   countBestPosts,
   listBestPosts,
@@ -36,7 +36,6 @@ import {
 import {
   getUserWithNeighborhoods,
   listPetsByUserId,
-  listPreferredPetTypeIdsByUserId,
 } from "@/server/queries/user.queries";
 
 type FeedMode = "ALL" | "BEST";
@@ -58,6 +57,25 @@ const REVIEW_FILTER_OPTIONS: Array<{ label: string; value?: ReviewCategory }> = 
 const MAX_DEBUG_DELAY_MS = 5_000;
 type BestDay = (typeof BEST_DAY_OPTIONS)[number];
 type FeedPeriod = (typeof FEED_PERIOD_OPTIONS)[number];
+
+function extractPreferredPetTypeIds(user: unknown) {
+  if (!user || typeof user !== "object") {
+    return [];
+  }
+
+  const preferredPetTypes = (user as { preferredPetTypes?: unknown }).preferredPetTypes;
+  if (!Array.isArray(preferredPetTypes)) {
+    return [];
+  }
+
+  return preferredPetTypes
+    .map((item) =>
+      item && typeof item === "object"
+        ? (item as { petTypeId?: string | null }).petTypeId
+        : null,
+    )
+    .filter((petTypeId): petTypeId is string => typeof petTypeId === "string");
+}
 
 export const metadata: Metadata = {
   title: "피드",
@@ -170,8 +188,16 @@ const getGuestFeedContext = unstable_cache(
 );
 
 export default async function Home({ searchParams }: HomePageProps) {
-  const session = await auth();
+  const [session, communities, cookieStore] = await Promise.all([
+    auth(),
+    listCommunityNavItems(50).catch(() => []),
+    cookies(),
+  ]);
   const userId = session?.user?.id;
+  const allPetTypeIds = communities.map((item) => item.id);
+  const cookiePetTypeIds = parsePetTypePreferenceCookie(
+    cookieStore.get(PET_TYPE_PREFERENCE_COOKIE)?.value,
+  ).filter((id) => allPetTypeIds.includes(id));
   const user = userId
     ? await getUserWithNeighborhoods(userId).catch((error) => {
         if (isDatabaseUnavailableError(error)) {
@@ -180,34 +206,10 @@ export default async function Home({ searchParams }: HomePageProps) {
         throw error;
       })
     : null;
-  const communities = await listCommunities({ limit: 50 })
-    .then((result) => result.items.map((item) => ({ id: item.id })))
-    .catch(() => []);
-  const allPetTypeIds = communities.map((item) => item.id);
-  const cookieStore = await cookies();
-  const cookiePetTypeIds = parsePetTypePreferenceCookie(
-    cookieStore.get(PET_TYPE_PREFERENCE_COOKIE)?.value,
-  ).filter((id) => allPetTypeIds.includes(id));
-  const preferredPetTypeIds = userId
-    ? await listPreferredPetTypeIdsByUserId(userId).catch((error) => {
-        if (isDatabaseUnavailableError(error)) {
-          return [];
-        }
-        throw error;
-      })
-    : [];
-  const { loginRequiredTypes } = user
-    ? await Promise.all([
-        getGuestReadLoginRequiredPostTypes().catch((error) => {
-          if (isDatabaseUnavailableError(error)) {
-            return [];
-          }
-          throw error;
-        }),
-      ]).then(([loginRequiredTypes]) => ({
-        loginRequiredTypes,
-      }))
-    : await getGuestFeedContext();
+  const loginRequiredTypes = user
+    ? []
+    : await getGuestFeedContext().then((context) => context.loginRequiredTypes);
+  const preferredPetTypeIds = extractPreferredPetTypeIds(user);
   const isAuthenticated = Boolean(user);
   const blockedTypesForGuest = !isAuthenticated ? loginRequiredTypes : [];
 

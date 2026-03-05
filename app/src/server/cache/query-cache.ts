@@ -19,7 +19,15 @@ type UpstashPipelineResponse = Array<{
 
 const memoryCache = new Map<string, CacheEntry>();
 const memoryVersions = new Map<string, number>();
+const memoryVersionSnapshot = new Map<
+  string,
+  {
+    value: number;
+    expiresAt: number;
+  }
+>();
 const DEFAULT_VERSION = 1;
+const VERSION_SNAPSHOT_TTL_MS = 5_000;
 let redisFailureLoggedAt = 0;
 
 function shouldUseCache() {
@@ -45,6 +53,10 @@ function serializeParts(parts: CacheKeyParts) {
     .sort()
     .map((key) => `${key}=${encodeURIComponent(normalizePartValue(parts[key]))}`)
     .join("&");
+}
+
+export function createStaticQueryCacheKey(bucket: string, parts: CacheKeyParts) {
+  return `cache:${bucket}:static:${serializeParts(parts)}`;
 }
 
 function looksLikeIsoDate(value: string) {
@@ -151,12 +163,23 @@ export async function getCacheVersion(bucket: string) {
     return DEFAULT_VERSION;
   }
 
+  const now = getNow();
+  const versionSnapshot = memoryVersionSnapshot.get(bucket);
+  if (versionSnapshot && versionSnapshot.expiresAt > now) {
+    return versionSnapshot.value;
+  }
+
   if (runtimeEnv.isUpstashConfigured) {
     try {
       const payload = await runUpstashPipeline([["GET", `cache:version:${bucket}`]]);
       const raw = payload[0]?.result;
       const numeric = Number(raw);
-      return Number.isFinite(numeric) && numeric > 0 ? numeric : DEFAULT_VERSION;
+      const resolvedVersion = Number.isFinite(numeric) && numeric > 0 ? numeric : DEFAULT_VERSION;
+      memoryVersionSnapshot.set(bucket, {
+        value: resolvedVersion,
+        expiresAt: now + VERSION_SNAPSHOT_TTL_MS,
+      });
+      return resolvedVersion;
     } catch (error) {
       const now = getNow();
       if (now - redisFailureLoggedAt > 60_000) {
@@ -165,17 +188,28 @@ export async function getCacheVersion(bucket: string) {
           error: serializeError(error),
         });
       }
+      memoryVersionSnapshot.set(bucket, {
+        value: DEFAULT_VERSION,
+        expiresAt: now + VERSION_SNAPSHOT_TTL_MS,
+      });
       return DEFAULT_VERSION;
     }
   }
 
-  return memoryVersions.get(bucket) ?? DEFAULT_VERSION;
+  const fallbackVersion = memoryVersions.get(bucket) ?? DEFAULT_VERSION;
+  memoryVersionSnapshot.set(bucket, {
+    value: fallbackVersion,
+    expiresAt: now + VERSION_SNAPSHOT_TTL_MS,
+  });
+  return fallbackVersion;
 }
 
 export async function bumpCacheVersion(bucket: string) {
   if (!shouldUseCache()) {
     return;
   }
+
+  memoryVersionSnapshot.delete(bucket);
 
   if (runtimeEnv.isUpstashConfigured) {
     try {
@@ -193,7 +227,12 @@ export async function bumpCacheVersion(bucket: string) {
   }
 
   const current = memoryVersions.get(bucket) ?? DEFAULT_VERSION;
-  memoryVersions.set(bucket, current + 1);
+  const next = current + 1;
+  memoryVersions.set(bucket, next);
+  memoryVersionSnapshot.set(bucket, {
+    value: next,
+    expiresAt: getNow() + VERSION_SNAPSHOT_TTL_MS,
+  });
 }
 
 export async function createQueryCacheKey(bucket: string, parts: CacheKeyParts) {
@@ -260,4 +299,12 @@ export async function bumpPostDetailCacheVersion() {
 
 export async function bumpPostCommentsCacheVersion() {
   return bumpCacheVersion("post-comments");
+}
+
+export async function bumpNotificationUnreadCacheVersion(userId: string) {
+  return bumpCacheVersion(`notification-unread:${userId}`);
+}
+
+export async function bumpNotificationListCacheVersion(userId: string) {
+  return bumpCacheVersion(`notification-list:${userId}`);
 }

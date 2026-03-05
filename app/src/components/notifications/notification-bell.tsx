@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
+  emitNotificationUnreadSync,
+  subscribeNotificationUnreadSync,
+} from "@/lib/notification-unread-sync";
+import {
   archiveNotificationAction,
   markAllNotificationsReadAction,
   markNotificationReadAction,
@@ -110,6 +114,20 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
   }, [normalizedCount]);
 
   useEffect(() => {
+    return subscribeNotificationUnreadSync((payload) => {
+      if (typeof payload.resetTo === "number" && Number.isFinite(payload.resetTo)) {
+        setLocalUnreadCount(Math.max(0, payload.resetTo));
+        return;
+      }
+
+      const delta = payload.delta;
+      if (typeof delta === "number" && Number.isFinite(delta)) {
+        setLocalUnreadCount((prev) => Math.max(0, prev + delta));
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -153,7 +171,6 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
       }
 
       setItems(payload.data.items);
-      setLocalUnreadCount(payload.data.items.filter((item) => !item.isRead).length);
       setLoadedOnce(true);
     } catch (error) {
       setLoadError(
@@ -191,6 +208,7 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
 
       setItems((prev) => prev.filter((item) => item.id !== id));
       setLocalUnreadCount((prev) => Math.max(0, prev - 1));
+      emitNotificationUnreadSync({ delta: -1 });
     });
   };
 
@@ -211,12 +229,14 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
       setItems((prev) => prev.filter((item) => item.id !== id));
       if (!target.isRead) {
         setLocalUnreadCount((prev) => Math.max(0, prev - 1));
+        emitNotificationUnreadSync({ delta: -1 });
       }
     });
   };
 
   const markAllAsRead = () => {
-    const hasUnread = items.some((item) => !item.isRead);
+    const unreadBefore = items.filter((item) => !item.isRead).length;
+    const hasUnread = unreadBefore > 0;
     if (!hasUnread) {
       return;
     }
@@ -231,6 +251,7 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
 
       setItems([]);
       setLocalUnreadCount(0);
+      emitNotificationUnreadSync({ resetTo: 0 });
     });
   };
 

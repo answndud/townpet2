@@ -1,7 +1,8 @@
 import { CommonBoardType, PostStatus, Prisma } from "@prisma/client";
+import { cache } from "react";
 
 import { prisma } from "@/lib/prisma";
-import { createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
+import { createStaticQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 
 type ListCommunitiesOptions = {
   cursor?: string;
@@ -16,6 +17,12 @@ type ListCommonBoardPostsOptions = {
   commonBoardType: CommonBoardType;
   animalTag?: string;
   q?: string;
+};
+
+type CommunityNavItem = {
+  id: string;
+  slug: string;
+  labelKo: string;
 };
 
 function isMissingCommunitySchemaError(error: unknown) {
@@ -117,7 +124,7 @@ export async function listCommunities({
   const shouldCache = !cursor;
   const items = shouldCache
     ? await withQueryCache({
-        key: await createQueryCacheKey("communities", {
+        key: createStaticQueryCacheKey("communities", {
           limit: safeLimit,
           category: category ?? "",
           q: trimmedQ ?? "",
@@ -135,6 +142,47 @@ export async function listCommunities({
 
   return { items, nextCursor };
 }
+
+export const listCommunityNavItems = cache(
+  async (limit = 50): Promise<CommunityNavItem[]> => {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+
+    const runListCommunityNavItems = async () =>
+      prisma.community
+        .findMany({
+          where: {
+            isActive: true,
+            category: {
+              isActive: true,
+            },
+          },
+          select: {
+            id: true,
+            slug: true,
+            labelKo: true,
+          },
+          orderBy: [
+            { category: { sortOrder: "asc" } },
+            { sortOrder: "asc" },
+            { labelKo: "asc" },
+          ],
+          take: safeLimit,
+        })
+        .catch((error) => {
+          if (isMissingCommunitySchemaError(error)) {
+            return [];
+          }
+
+          throw error;
+        });
+
+    return withQueryCache({
+      key: createStaticQueryCacheKey("communities-nav", { limit: safeLimit }),
+      ttlSeconds: 300,
+      fetcher: runListCommunityNavItems,
+    });
+  },
+);
 
 export async function listCommonBoardPosts({
   cursor,

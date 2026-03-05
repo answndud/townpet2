@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getPostById } from "@/server/queries/post.queries";
@@ -23,9 +23,10 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await getCurrentUser();
+    const userId = await getCurrentUserId();
+    const viewerId = userId ?? undefined;
     const { id } = await params;
-    const post = await getPostById(id, user?.id);
+    const post = await getPostById(id, viewerId);
 
     if (!post) {
       return jsonError(404, {
@@ -34,11 +35,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    await assertPostReadable(post, user?.id);
+    await assertPostReadable(post, viewerId);
 
     const didCountView = await registerPostView({
       postId: id,
-      userId: user?.id,
+      userId: viewerId,
       clientIp: getClientIp(request),
       userAgent: request.headers.get("user-agent") ?? undefined,
     });
@@ -71,9 +72,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const forceGuestMode =
       process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
-    const user = forceGuestMode ? null : await getCurrentUser();
-    if (user) {
-      const post = await updatePost({ postId: id, authorId: user.id, input: body });
+    const userId = forceGuestMode ? null : await getCurrentUserId();
+    if (userId) {
+      const post = await updatePost({ postId: id, authorId: userId, input: body });
       return jsonOk(post);
     }
 
@@ -132,9 +133,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const forceGuestMode =
       process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
-    const user = forceGuestMode ? null : await getCurrentUser();
-    if (user) {
-      const result = await deletePost({ postId: id, authorId: user.id });
+    const userId = forceGuestMode ? null : await getCurrentUserId();
+    if (userId) {
+      const result = await deletePost({ postId: id, authorId: userId });
       return jsonOk(result);
     }
 

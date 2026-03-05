@@ -191,21 +191,6 @@ type PostDetailClientProps = {
 export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const [data, setData] = useState<PostDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [relationState, setRelationState] = useState<RelationState>({
-    isBlockedByMe: false,
-    hasBlockedMe: false,
-    isMutedByMe: false,
-  });
-  const [renderedContent, setRenderedContent] = useState<{
-    html: string;
-    text: string;
-  } | null>(null);
-  const [stats, setStats] = useState<{
-    viewCount: number;
-    likeCount: number;
-    dislikeCount: number;
-    commentCount: number;
-  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,138 +258,6 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
     };
   }, [postId]);
 
-  const payloadPost = data?.data?.post;
-  const payloadViewerId = data?.data?.viewerId ?? null;
-
-  useEffect(() => {
-    if (!postId) {
-      return;
-    }
-
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const response = await fetch(`/api/posts/${postId}/content`, {
-          method: "GET",
-          credentials: "same-origin",
-        });
-        if (!response.ok) {
-          return;
-        }
-        const payload = (await response.json()) as {
-          ok: boolean;
-          data?: { renderedContentHtml: string; renderedContentText: string };
-        };
-        if (!payload.ok || cancelled) {
-          return;
-        }
-        setRenderedContent({
-          html: payload.data?.renderedContentHtml ?? "",
-          text: payload.data?.renderedContentText ?? "",
-        });
-      } catch {
-        if (!cancelled) {
-          setRenderedContent(null);
-        }
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [postId]);
-
-  useEffect(() => {
-    if (!postId) {
-      return;
-    }
-
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const response = await fetch(`/api/posts/${postId}/stats`, {
-          method: "GET",
-          credentials: "same-origin",
-        });
-        if (!response.ok) {
-          return;
-        }
-        const payload = (await response.json()) as {
-          ok: boolean;
-          data?: {
-            viewCount: number;
-            likeCount: number;
-            dislikeCount: number;
-            commentCount: number;
-          };
-        };
-        if (!payload.ok || cancelled) {
-          return;
-        }
-        setStats({
-          viewCount: payload.data?.viewCount ?? 0,
-          likeCount: payload.data?.likeCount ?? 0,
-          dislikeCount: payload.data?.dislikeCount ?? 0,
-          commentCount: payload.data?.commentCount ?? 0,
-        });
-      } catch {
-        if (!cancelled) {
-          setStats(null);
-        }
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [postId]);
-
-  useEffect(() => {
-    if (!payloadViewerId || !payloadPost?.authorId) {
-      return;
-    }
-
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const response = await fetch(`/api/users/${payloadPost.authorId}/relation`, {
-          method: "GET",
-          credentials: "same-origin",
-        });
-        if (!response.ok) {
-          return;
-        }
-        const payload = (await response.json()) as {
-          ok: boolean;
-          data?: { relationState: RelationState };
-        };
-        if (!payload.ok || cancelled) {
-          return;
-        }
-        setRelationState(payload.data?.relationState ?? {
-          isBlockedByMe: false,
-          hasBlockedMe: false,
-          isMutedByMe: false,
-        });
-      } catch {
-        if (!cancelled) {
-          setRelationState({
-            isBlockedByMe: false,
-            hasBlockedMe: false,
-            isMutedByMe: false,
-          });
-        }
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [payloadViewerId, payloadPost?.authorId]);
-
   if (error) {
     return (
       <div className="tp-page-bg min-h-screen pb-16">
@@ -449,7 +302,11 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   }
 
   const { post, viewerId } = data.data;
-  const resolvedRelationState = data.data.relationState ?? relationState;
+  const resolvedRelationState = data.data.relationState ?? {
+    isBlockedByMe: false,
+    hasBlockedMe: false,
+    isMutedByMe: false,
+  };
   const canInteract = Boolean(viewerId);
   const isAuthor = viewerId === post.authorId;
   const canInteractWithPostOwner = !(
@@ -458,20 +315,16 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const meta = typeMeta[post.type];
   const createdAt = ensureDate(post.createdAt);
   const updatedAt = ensureDate(post.updatedAt);
-  const resolvedViewCount = stats?.viewCount ?? (Number.isFinite(post.viewCount) ? Number(post.viewCount) : 0);
-  const resolvedLikeCount = stats?.likeCount ?? (Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0);
-  const resolvedDislikeCount = stats?.dislikeCount ?? (Number.isFinite(post.dislikeCount) ? Number(post.dislikeCount) : 0);
-  const resolvedCommentCount = stats?.commentCount ?? (Number.isFinite(post.commentCount) ? Number(post.commentCount) : 0);
-  const renderedContentHtml = renderedContent?.html?.trim()
-    ? renderedContent.html
-    : post.renderedContentHtml?.trim()
-      ? post.renderedContentHtml
-      : renderLiteMarkdown(post.content);
-  const renderedContentText = renderedContent?.text?.trim()
-    ? renderedContent.text
-    : post.renderedContentText?.trim()
-      ? post.renderedContentText
-      : renderedContentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const resolvedViewCount = Number.isFinite(post.viewCount) ? Number(post.viewCount) : 0;
+  const resolvedLikeCount = Number.isFinite(post.likeCount) ? Number(post.likeCount) : 0;
+  const resolvedDislikeCount = Number.isFinite(post.dislikeCount) ? Number(post.dislikeCount) : 0;
+  const resolvedCommentCount = Number.isFinite(post.commentCount) ? Number(post.commentCount) : 0;
+  const renderedContentHtml = post.renderedContentHtml?.trim()
+    ? post.renderedContentHtml
+    : renderLiteMarkdown(post.content);
+  const renderedContentText = post.renderedContentText?.trim()
+    ? post.renderedContentText
+    : renderedContentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const shouldUsePlainFallback =
     renderedContentText.length === 0 || renderedContentText.includes("미리보기 내용이 없습니다");
   const orderedImages = [...post.images].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -585,7 +438,11 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                 </details>
                 {canInteract && !isAuthor ? (
                   <div className="mt-2 md:flex md:justify-end">
-                    <UserRelationControls targetUserId={post.authorId} initialState={relationState} compact />
+                    <UserRelationControls
+                      targetUserId={post.authorId}
+                      initialState={resolvedRelationState}
+                      compact
+                    />
                   </div>
                 ) : null}
               </div>

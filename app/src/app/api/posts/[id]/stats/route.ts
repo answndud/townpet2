@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUserId } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostStatsById } from "@/server/queries/post.queries";
@@ -15,8 +15,9 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
-    const user = await getCurrentUser();
-    const post = await getPostStatsById(postId, user?.id);
+    const userId = await getCurrentUserId();
+    const viewerId = userId ?? undefined;
+    const post = await getPostStatsById(postId, viewerId);
     if (!post) {
       return jsonError(404, {
         code: "NOT_FOUND",
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    await assertPostReadable(post, user?.id);
+    await assertPostReadable(post, viewerId);
 
     return jsonOk(
       {
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
       {
         headers: {
-          "cache-control": user ? "no-store" : buildCacheControlHeader(60, 600),
+          "cache-control": userId ? "no-store" : buildCacheControlHeader(60, 600),
         },
       },
     );

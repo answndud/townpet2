@@ -14,10 +14,9 @@ import {
   parsePetTypePreferenceCookie,
 } from "@/lib/pet-type-preference-cookie";
 import { getSiteOrigin } from "@/lib/site-url";
-import { getCurrentUser } from "@/server/auth";
-import { listCommunities } from "@/server/queries/community.queries";
+import { listCommunityNavItems } from "@/server/queries/community.queries";
 import { countUnreadNotifications } from "@/server/queries/notification.queries";
-import { listPreferredPetTypeIdsByUserId } from "@/server/queries/user.queries";
+import { getUserById } from "@/server/queries/user.queries";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -32,6 +31,25 @@ const plexMono = IBM_Plex_Mono({
 });
 
 const siteOrigin = getSiteOrigin();
+
+function extractPreferredPetTypeIds(user: unknown) {
+  if (!user || typeof user !== "object") {
+    return [];
+  }
+
+  const preferredPetTypes = (user as { preferredPetTypes?: unknown }).preferredPetTypes;
+  if (!Array.isArray(preferredPetTypes)) {
+    return [];
+  }
+
+  return preferredPetTypes
+    .map((item) =>
+      item && typeof item === "object"
+        ? (item as { petTypeId?: string | null }).petTypeId
+        : null,
+    )
+    .filter((petTypeId): petTypeId is string => typeof petTypeId === "string");
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
@@ -66,26 +84,23 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth().catch(() => null);
-  const currentUser = await getCurrentUser().catch(() => null);
+  const [session, communities] = await Promise.all([
+    auth().catch(() => null),
+    listCommunityNavItems(50).catch(() => []),
+  ]);
+  const userId = session?.user?.id ?? null;
+  const [currentUser, unreadNotificationCount, cookieStore] = await Promise.all([
+    userId ? getUserById(userId).catch(() => null) : Promise.resolve(null),
+    userId ? countUnreadNotifications(userId).catch(() => 0) : Promise.resolve(0),
+    cookies(),
+  ]);
+  const preferredPetTypeIds = extractPreferredPetTypeIds(currentUser);
   const canModerate =
     currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MODERATOR;
-  const unreadNotificationCount = currentUser
-    ? await countUnreadNotifications(currentUser.id).catch(() => 0)
-    : 0;
-  const communities = await listCommunities({ limit: 50 })
-    .then((result) =>
-      result.items.map((item) => ({ id: item.id, slug: item.slug, labelKo: item.labelKo })),
-    )
-    .catch(() => []);
   const allPetTypeIds = communities.map((item) => item.id);
-  const cookieStore = await cookies();
   const cookiePetTypeIds = parsePetTypePreferenceCookie(
     cookieStore.get(PET_TYPE_PREFERENCE_COOKIE)?.value,
   ).filter((id) => allPetTypeIds.includes(id));
-  const preferredPetTypeIds = currentUser
-    ? await listPreferredPetTypeIdsByUserId(currentUser.id).catch(() => [])
-    : [];
   const initialPreferredPetTypeIds = currentUser
     ? preferredPetTypeIds.filter((id) => allPetTypeIds.includes(id)).length > 0
       ? preferredPetTypeIds.filter((id) => allPetTypeIds.includes(id))

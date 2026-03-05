@@ -2,9 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserRole } from "@prisma/client";
 
 import { ServiceError } from "@/server/services/service-error";
-import { getCurrentUser, requireCurrentUser, requireModerator } from "@/server/auth";
+import {
+  getCurrentUser,
+  getCurrentUserId,
+  getCurrentUserRole,
+  requireAuthenticatedUserId,
+  requireCurrentUser,
+  requireModerator,
+  requireModeratorUserId,
+} from "@/server/auth";
 import { auth } from "@/lib/auth";
-import { getUserByEmail, getUserById } from "@/server/queries/user.queries";
+import {
+  getUserByEmail,
+  getUserById,
+  getUserRoleByEmail,
+  getUserRoleById,
+} from "@/server/queries/user.queries";
 import { getActiveInteractionSanction } from "@/server/services/sanction.service";
 
 vi.mock("@/lib/auth", () => ({
@@ -14,6 +27,8 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/server/queries/user.queries", () => ({
   getUserByEmail: vi.fn(),
   getUserById: vi.fn(),
+  getUserRoleByEmail: vi.fn(),
+  getUserRoleById: vi.fn(),
 }));
 
 vi.mock("@/server/services/sanction.service", () => ({
@@ -24,6 +39,8 @@ vi.mock("@/server/services/sanction.service", () => ({
 const mockAuth = vi.mocked(auth);
 const mockGetUserByEmail = vi.mocked(getUserByEmail);
 const mockGetUserById = vi.mocked(getUserById);
+const mockGetUserRoleByEmail = vi.mocked(getUserRoleByEmail);
+const mockGetUserRoleById = vi.mocked(getUserRoleById);
 const mockGetActiveInteractionSanction = vi.mocked(getActiveInteractionSanction);
 
 describe("auth helpers", () => {
@@ -33,6 +50,8 @@ describe("auth helpers", () => {
     mockAuth.mockReset();
     mockGetUserByEmail.mockReset();
     mockGetUserById.mockReset();
+    mockGetUserRoleByEmail.mockReset();
+    mockGetUserRoleById.mockReset();
     mockGetActiveInteractionSanction.mockReset();
     mockGetActiveInteractionSanction.mockResolvedValue(null);
     delete process.env.DEMO_USER_EMAIL;
@@ -61,6 +80,16 @@ describe("auth helpers", () => {
     expect(mockGetUserByEmail).not.toHaveBeenCalled();
   });
 
+  it("returns current user id from session without user DB read", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-id-only" } } as never);
+
+    const userId = await getCurrentUserId();
+
+    expect(userId).toBe("user-id-only");
+    expect(mockGetUserById).not.toHaveBeenCalled();
+    expect(mockGetUserByEmail).not.toHaveBeenCalled();
+  });
+
   it("falls back to demo user when no session", async () => {
     process.env.DEMO_USER_EMAIL = demoEmail;
     mockAuth.mockResolvedValue(null as never);
@@ -80,6 +109,25 @@ describe("auth helpers", () => {
     expect(mockGetUserByEmail).toHaveBeenCalledWith(demoEmail);
   });
 
+  it("falls back to demo user id when no session", async () => {
+    process.env.DEMO_USER_EMAIL = demoEmail;
+    mockAuth.mockResolvedValue(null as never);
+    mockGetUserByEmail.mockResolvedValue({
+      id: "demo-id-only",
+      email: demoEmail,
+      name: "Demo",
+      nickname: "demo",
+      bio: null,
+      image: null,
+      role: UserRole.USER,
+    });
+
+    const userId = await getCurrentUserId();
+
+    expect(userId).toBe("demo-id-only");
+    expect(mockGetUserByEmail).toHaveBeenCalledWith(demoEmail);
+  });
+
   it("does not use demo fallback in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.DEMO_USER_EMAIL = demoEmail;
@@ -95,10 +143,73 @@ describe("auth helpers", () => {
     }
   });
 
+  it("does not use demo id fallback in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.DEMO_USER_EMAIL = demoEmail;
+    mockAuth.mockResolvedValue(null as never);
+
+    try {
+      const userId = await getCurrentUserId();
+
+      expect(userId).toBeNull();
+      expect(mockGetUserByEmail).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("requireCurrentUser throws when missing", async () => {
     mockAuth.mockResolvedValue(null as never);
 
     await expect(requireCurrentUser()).rejects.toBeInstanceOf(ServiceError);
+  });
+
+  it("requireAuthenticatedUserId throws when missing", async () => {
+    mockAuth.mockResolvedValue(null as never);
+
+    await expect(requireAuthenticatedUserId()).rejects.toBeInstanceOf(ServiceError);
+  });
+
+  it("requireAuthenticatedUserId returns session id", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-auth-id" } } as never);
+
+    await expect(requireAuthenticatedUserId()).resolves.toBe("user-auth-id");
+  });
+
+  it("returns current user role summary from session", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-role-1" } } as never);
+    mockGetUserRoleById.mockResolvedValue({
+      id: "user-role-1",
+      role: UserRole.MODERATOR,
+    });
+
+    const userRole = await getCurrentUserRole();
+
+    expect(userRole).toEqual({
+      id: "user-role-1",
+      role: UserRole.MODERATOR,
+    });
+    expect(mockGetUserRoleById).toHaveBeenCalledWith("user-role-1");
+  });
+
+  it("requireModeratorUserId returns id for moderator", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "mod-1" } } as never);
+    mockGetUserRoleById.mockResolvedValue({
+      id: "mod-1",
+      role: UserRole.MODERATOR,
+    });
+
+    await expect(requireModeratorUserId()).resolves.toBe("mod-1");
+  });
+
+  it("requireModeratorUserId throws forbidden for normal user", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-9" } } as never);
+    mockGetUserRoleById.mockResolvedValue({
+      id: "user-9",
+      role: UserRole.USER,
+    });
+
+    await expect(requireModeratorUserId()).rejects.toBeInstanceOf(ServiceError);
   });
 
   it("requireModerator allows admin", async () => {
