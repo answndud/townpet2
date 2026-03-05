@@ -4807,6 +4807,19 @@
 - `pnpm -C app ops:check:security-env` 실행(개발 환경 기준 WARN-only, FAIL 0)
 - `NODE_ENV=production SECURITY_ENV_STRICT=1 ... pnpm -C app ops:check:security-env` 샘플 입력 기준 PASS(5/5)
 
+### 2026-03-05: Cycle 180 피드 cold MISS DB 인덱스 보강
+- 완료 내용
+- 피드 최신 조회 경로의 cold MISS tail-latency 완화를 위해 `Post` 인덱스 2종을 추가:
+  - `Post_scope_status_createdAt_idx` (`scope`, `status`, `createdAt DESC`)
+  - `Post_type_scope_status_createdAt_idx` (`type`, `scope`, `status`, `createdAt DESC`)
+- Prisma schema와 migration SQL을 함께 반영해 배포 시 인덱스가 생성되도록 구성.
+- 검증 결과
+- `pnpm -C app exec prisma validate` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/queries/post.queries.test.ts src/app/api/posts/route.test.ts` 통과
+- 리스크/메모
+- 인덱스 생성 효과는 migration이 실제 배포 DB에 적용된 뒤 측정 가능하므로, 배포 후 `ops:perf:snapshot` 재측정으로 확인 필요.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)

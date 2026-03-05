@@ -245,6 +245,8 @@ model Post {
   @@index([guestAuthorId, createdAt(sort: Desc)])
   @@index([neighborhoodId, type, status, createdAt(sort: Desc)])
   @@index([type, scope, status])
+  @@index([type, scope, status, createdAt(sort: Desc)], map: "Post_type_scope_status_createdAt_idx")
+  @@index([scope, status, createdAt(sort: Desc)], map: "Post_scope_status_createdAt_idx")
   @@index([boardScope, createdAt(sort: Desc)])
   @@index([petTypeId, createdAt(sort: Desc)], map: "Post_communityId_createdAt_idx")
   @@index([commonBoardType, createdAt(sort: Desc)])

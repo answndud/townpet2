@@ -1120,6 +1120,12 @@
 | CI 품질게이트에 보안 env preflight 단계 추가 | Codex | P1 | `done` | `quality-gate` 워크플로우에서 strict 보안 env 체크가 DB sync 이전에 수행되어 설정 누락을 조기 차단 | `.github/workflows/quality-gate.yml` |
 | 운영/보안 문서 동기화 | Codex | P1 | `done` | GUIDE + SECURITY_PLAN/PROGRESS/RISK_REGISTER에 실행 명령/리스크/검증 로그가 반영 | `docs/GUIDE.md`, `docs/security/*.md`, `PROGRESS.md` |
 
+### Cycle 180: 피드 cold MISS DB 인덱스 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 피드 최신 조회용 `Post` 인덱스 추가 | Codex | P1 | `done` | `scope/status/createdAt DESC`, `type/scope/status/createdAt DESC` 인덱스가 Prisma schema + migration에 반영 | `app/prisma/schema.prisma`, `app/prisma/migrations/20260305143000_add_post_feed_indexes/migration.sql` |
+| 인덱스 변경 회귀 검증 | Codex | P1 | `done` | `prisma validate`, `typecheck`, `post queries + posts API` 테스트가 통과 | `app/prisma/schema.prisma`, `app/src/server/queries/post.queries.test.ts`, `app/src/app/api/posts/route.test.ts` |
+
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
