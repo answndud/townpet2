@@ -17,6 +17,23 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 173 완료 (OAuth 실검증 run 갱신 + 수동 점검 템플릿 최신화)
+- 완료 내용
+- `oauth-real-e2e` 워크플로우를 수동 재실행해 최신 run success를 확보.
+  - run: `https://github.com/answndud/townpet2/actions/runs/22705265766`
+  - 상태: `success`
+- 운영 URL(`https://townpet2.vercel.app`) 기준으로 `ops:oauth:manual-report --strict-base-url 1`를 실행해 수동 점검 템플릿을 최신화.
+  - 출력 파일: `/tmp/oauth-manual-check-2026-03-05.md`
+  - 포함 항목: Base URL sanity, Kakao/Naver expected callback URL, Provider별 수동 증적 테이블
+- 검증 결과
+- `gh run view 22705265766 --repo answndud/townpet2` 조회로 `oauth-real-e2e` 완료 상태 확인.
+- `pnpm -C app ops:oauth:manual-report --base-url https://townpet2.vercel.app --strict-base-url 1 --date 2026-03-05 --run-url https://github.com/answndud/townpet2/actions/runs/22705265766 --kakao-status pending --naver-status pending --out /tmp/oauth-manual-check-2026-03-05.md` 통과.
+- 이슈/블로커
+- Cycle 23의 `카카오/네이버 로그인 -> 온보딩 -> 피드`는 실계정 수동 증적(스크린샷/영상 + pass 판정) 입력 전까지 `blocked` 유지.
+- 변경 파일(핵심)
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-05: Cycle 172 완료 (OAuth Base URL 사전검증 가드 추가)
 - 완료 내용
 - `ops:oauth:manual-report` 스크립트에 Base URL sanity 평가를 추가:

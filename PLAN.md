@@ -669,6 +669,13 @@
 | 운영 문서/체크리스트 동기화 | Codex | P2 | `done` | OAuth 운영 가이드/GUIDE/차단 해소 체크리스트에 preflight 단계와 금지 도메인(`vercel.com`, `*-projects.vercel.app`) 기준이 반영 | `docs/ops/oauth2-external-auth-operations-guide.md`, `docs/ops/차단 해소 체크리스트.md`, `docs/GUIDE.md` |
 | 검증 | Codex | P1 | `done` | lint/typecheck/preflight 스모크가 모두 통과 | `pnpm -C app lint ...`, `pnpm -C app typecheck`, `pnpm -C app ops:oauth:preflight` |
 
+### Cycle 173: OAuth 실검증 run 갱신 + 수동 점검 템플릿 최신화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `oauth-real-e2e` 최신 run 재실행/성공 확인 | Codex | P1 | `done` | workflow_dispatch run `22705265766`이 `success`로 완료되고 실OAuth 리다이렉트/앱 온보딩 회귀 단계가 모두 통과 | GitHub Actions `.github/workflows/oauth-real-e2e.yml` |
+| 운영 URL 기준 수동 점검 리포트 템플릿 생성 | Codex | P1 | `done` | `ops:oauth:manual-report --strict-base-url 1` 실행으로 Base URL sanity + callback URL이 포함된 템플릿 파일 생성 완료 | `/tmp/oauth-manual-check-2026-03-05.md` |
+| blocked 상태 유지 기준 명시 | Codex | P2 | `done` | 카카오/네이버 실계정 온보딩 수동 증적 미입력 상태에서는 Cycle 23 blocked를 유지한다는 기준을 실행로그에 반영 | `PROGRESS.md`, `PLAN.md` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
