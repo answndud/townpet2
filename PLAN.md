@@ -1132,6 +1132,12 @@
 | `ops:perf:snapshot` warm-up 분리 집계 추가 | Codex | P1 | `done` | `OPS_PERF_WARMUP_SAMPLES_PER_ENDPOINT`(기본 1) 설정으로 warm-up 샘플을 임계치 평가에서 제외하고 summary에 `Full/Warm-up/Steady-state` 3개 섹션이 출력됨 | `app/scripts/collect-latency-snapshot.ts` |
 | 배포 성능 재측정 및 임계치 PASS 확인 | Codex | P1 | `done` | 운영 URL 기준 110샘플 재측정에서 steady-state 기준 전 엔드포인트 PASS를 확인하고 결과 경로를 PROGRESS에 기록 | `/tmp/townpet_latency_snapshot_2026-03-05T14-30-57-594Z.tsv.summary.md` |
 
+### Cycle 182: 검색 확장(pg_trgm) 운영 점검 가시화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 내부 health 상세에 `pg_trgm` 상태 노출 | Codex | P1 | `done` | `/api/health` 내부 토큰 경로에서 `checks.search.pgTrgm(state/enabled/message)`가 제공되어 운영자가 확장 누락을 즉시 파악 가능 | `app/src/app/api/health/route.ts`, `app/src/app/api/health/route.test.ts` |
+| `ops:check:health`에 `pg_trgm` 강제 판정 옵션 추가 | Codex | P1 | `done` | `OPS_HEALTH_INTERNAL_TOKEN` + `OPS_HEALTH_REQUIRE_PG_TRGM=1` 조합으로 확장 누락 시 명시적 FAIL이 발생 | `app/scripts/check-health-endpoint.ts`, `docs/GUIDE.md` |
+
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { runtimeEnv, validateRuntimeEnv } from "@/lib/env";
@@ -6,6 +7,7 @@ import { logger } from "@/server/logger";
 import { checkRateLimitHealth } from "@/server/rate-limit";
 
 type CheckState = "ok" | "error";
+type CheckWarningState = CheckState | "warn";
 
 function resolveBearerToken(authorizationHeader: string | null) {
   if (!authorizationHeader) {
@@ -41,12 +43,38 @@ export async function GET(request: Request) {
 
   let dbState: CheckState = "ok";
   let dbMessage = "database connected";
+  let pgTrgmState: CheckWarningState = "ok";
+  let pgTrgmEnabled = true;
+  let pgTrgmMessage = "pg_trgm extension enabled";
 
   try {
     await prisma.$queryRaw`SELECT 1`;
   } catch (error) {
     dbState = "error";
     dbMessage = `database check failed: ${String(error)}`;
+  }
+
+  if (includeDetailedHealth && dbState === "ok") {
+    try {
+      const result = await prisma.$queryRaw<Array<{ enabled: boolean }>>(Prisma.sql`
+        SELECT EXISTS(
+          SELECT 1
+          FROM pg_extension
+          WHERE extname = 'pg_trgm'
+        ) AS enabled
+      `);
+
+      pgTrgmEnabled = Boolean(result[0]?.enabled);
+      if (!pgTrgmEnabled) {
+        pgTrgmState = "warn";
+        pgTrgmMessage =
+          "pg_trgm extension missing: trigram similarity search is disabled (tsvector fallback only)";
+      }
+    } catch (error) {
+      pgTrgmState = "warn";
+      pgTrgmEnabled = false;
+      pgTrgmMessage = `pg_trgm check failed: ${String(error)}`;
+    }
   }
 
   const rateLimitState = await checkRateLimitHealth();
@@ -89,6 +117,17 @@ export async function GET(request: Request) {
               backend: rateLimitState.backend,
               status: rateLimitState.status,
             },
+        ...(includeDetailedHealth && dbState === "ok"
+          ? {
+              search: {
+                pgTrgm: {
+                  state: pgTrgmState,
+                  enabled: pgTrgmEnabled,
+                  message: pgTrgmMessage,
+                },
+              },
+            }
+          : {}),
       },
     },
     { status: httpStatus },

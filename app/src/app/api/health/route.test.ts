@@ -66,6 +66,7 @@ describe("GET /api/health", () => {
     expect(payload.env.missing).toBeUndefined();
     expect(payload.checks.database).toMatchObject({ state: "error" });
     expect(payload.checks.database.message).toBeUndefined();
+    expect(payload.checks.search).toBeUndefined();
     expect(payload.checks.rateLimit).toEqual({
       backend: "redis",
       status: "error",
@@ -86,5 +87,32 @@ describe("GET /api/health", () => {
     expect(payload.env.missing).toEqual(["AUTH_SECRET"]);
     expect(payload.checks.database.message).toContain("db down");
     expect(payload.checks.rateLimit.detail).toContain("Redis ping 예외");
+  });
+
+  it("reports pg_trgm warning in detailed diagnostics when extension is missing", async () => {
+    mockValidateRuntimeEnv.mockReturnValue({ ok: true, missing: [] });
+    mockQueryRaw.mockResolvedValueOnce([{} as never]).mockResolvedValueOnce([{ enabled: false }]);
+    mockCheckRateLimitHealth.mockResolvedValue({
+      backend: "redis",
+      status: "ok",
+      detail: "ok",
+    });
+
+    const request = new Request("http://localhost/api/health", {
+      headers: {
+        "x-health-token": "health-secret",
+      },
+    });
+
+    const response = await GET(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.status).toBe("ok");
+    expect(payload.checks.search.pgTrgm).toMatchObject({
+      state: "warn",
+      enabled: false,
+    });
+    expect(payload.checks.search.pgTrgm.message).toContain("pg_trgm extension missing");
   });
 });

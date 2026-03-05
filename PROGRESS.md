@@ -4833,6 +4833,23 @@
 - 참고 메모
 - 같은 배포에서도 cold/warm-up 구간은 네트워크/edge cache 상태에 따라 변동성이 있으므로, 운영 기준은 steady-state PASS + warm-up 별도 관찰로 유지.
 
+### 2026-03-05: Cycle 182 검색 확장(pg_trgm) 운영 점검 가시화
+- 완료 내용
+- `/api/health` 내부 상세 응답(내부 토큰 사용 시)에 `checks.search.pgTrgm` 상태를 추가:
+  - `state`: `ok|warn`
+  - `enabled`: `true|false`
+  - `message`: 원인/설명
+- `ops:check:health` 스크립트 확장:
+  - `OPS_HEALTH_INTERNAL_TOKEN` 제공 시 `pg_trgm` 상세 상태를 로그로 출력
+  - `OPS_HEALTH_REQUIRE_PG_TRGM=1` 설정 시 `pg_trgm` 미설치/미노출이면 즉시 FAIL
+- 운영 가이드(`docs/GUIDE.md`)에 `pg_trgm` 필수 점검 복붙 명령을 추가.
+- 검증 결과
+- `pnpm -C app lint src/app/api/health/route.ts src/app/api/health/route.test.ts scripts/check-health-endpoint.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/app/api/health/route.test.ts` 통과
+- 기대 효과
+- staging/prod DB에서 `pg_trgm` 누락이 있어도 검색 fallback으로 조용히 넘어가던 상태를 운영 체크 단계에서 조기 감지 가능.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)
