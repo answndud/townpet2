@@ -38,6 +38,7 @@
     "agent:prompt": "tsx scripts/generate-agent-prompt.ts",
     "growth:day1:handoff": "tsx scripts/generate-day1-growth-handoff.ts",
     "ops:oauth:manual-report": "tsx scripts/generate-oauth-manual-check-report.ts",
+    "ops:oauth:preflight": "tsx scripts/generate-oauth-manual-check-report.ts --strict-base-url 1 --out /tmp/oauth-manual-check.md",
     "ops:check:health": "tsx scripts/check-health-endpoint.ts",
     "ops:check:sentry": "tsx scripts/check-sentry-ingestion.ts",
     "ops:perf:snapshot": "tsx scripts/collect-latency-snapshot.ts",

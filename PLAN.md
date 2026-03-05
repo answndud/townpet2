@@ -661,6 +661,14 @@
 | 성능 스냅샷 임계치 평가 옵션 추가 | Codex | P2 | `done` | `OPS_PERF_FAIL_ON_THRESHOLD_BREACH`로 p95/slow/non200 임계 초과 시 실패 처리 가능 | `app/scripts/collect-latency-snapshot.ts` |
 | 품질게이트 검증 | Codex | P1 | `done` | push run `22704731250`이 `success`로 완료 | GitHub Actions |
 
+### Cycle 172: OAuth Base URL 사전검증 가드 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| OAuth 수동 리포트 스크립트 Base URL sanity 평가 추가 | Codex | P1 | `done` | `ops:oauth:manual-report` 출력에 Base URL 위험도(OK/WARN/ERROR)와 provider callback URL이 포함되고 `strict-base-url` 옵션으로 실패 처리 가능 | `app/scripts/generate-oauth-manual-check-report.ts` |
+| OAuth 사전점검 명령 추가 | Codex | P2 | `done` | `pnpm -C app ops:oauth:preflight` 한 번으로 strict Base URL 점검 + 리포트 생성이 가능 | `app/package.json` |
+| 운영 문서/체크리스트 동기화 | Codex | P2 | `done` | OAuth 운영 가이드/GUIDE/차단 해소 체크리스트에 preflight 단계와 금지 도메인(`vercel.com`, `*-projects.vercel.app`) 기준이 반영 | `docs/ops/oauth2-external-auth-operations-guide.md`, `docs/ops/차단 해소 체크리스트.md`, `docs/GUIDE.md` |
+| 검증 | Codex | P1 | `done` | lint/typecheck/preflight 스모크가 모두 통과 | `pnpm -C app lint ...`, `pnpm -C app typecheck`, `pnpm -C app ops:oauth:preflight` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

@@ -219,6 +219,7 @@
 - 실패 시 에러 문구/경로 캡처
 
 5. 기록 반영
+- `pnpm -C app ops:oauth:preflight`로 Base URL sanity(ERROR/WARN) 먼저 확인
 - `pnpm -C app ops:oauth:manual-report --date <YYYY-MM-DD> --run-url <RUN_URL> --out /tmp/oauth-manual-check.md`로 기록 템플릿 생성
 - 생성된 markdown을 기준으로 `PROGRESS.md`에 결과 append
 - `PLAN.md`의 `blocked` 상태 갱신(조건 충족 시 `done`)
@@ -247,6 +248,9 @@ gh run view <RUN_ID> --repo answndud/townpet2
 
 # 워크플로우 수동 실행
 gh workflow run oauth-real-e2e.yml --repo answndud/townpet2
+
+# Base URL sanity 사전 점검(strict)
+pnpm -C app ops:oauth:preflight
 
 # 실계정 수동 점검 리포트 템플릿 생성
 pnpm -C app ops:oauth:manual-report --date 2026-03-04 --run-url https://github.com/answndud/townpet2/actions/runs/22662648513 --out /tmp/oauth-manual-check.md

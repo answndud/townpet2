@@ -17,6 +17,32 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 172 완료 (OAuth Base URL 사전검증 가드 추가)
+- 완료 내용
+- `ops:oauth:manual-report` 스크립트에 Base URL sanity 평가를 추가:
+  - 위험 신호(`vercel.com`, `*-projects.vercel.app`, non-https 운영 URL) 감지
+  - `Expected Callback URLs`(kakao/naver) 자동 출력
+  - `--strict-base-url <0|1>` 옵션으로 고위험 URL이면 non-zero 종료
+- 사전점검 명령 추가:
+  - `pnpm -C app ops:oauth:preflight`
+  - strict Base URL 점검 + 리포트(`/tmp/oauth-manual-check.md`) 생성
+- 운영 문서 동기화:
+  - OAuth 운영 가이드/차단 해소 체크리스트/GUIDE에 preflight 단계 반영
+  - `vercel.com`, `*-projects.vercel.app` 도메인 사용 금지 기준 명시
+- 검증 결과
+- `pnpm -C app lint scripts/generate-oauth-manual-check-report.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app ops:oauth:preflight` 통과(출력 파일: `/tmp/oauth-manual-check.md`).
+- 이슈/블로커
+- 없음(실계정 온보딩 완료 증적 자체는 여전히 외부 계정 접근 필요).
+- 변경 파일(핵심)
+- `app/scripts/generate-oauth-manual-check-report.ts`
+- `app/package.json`
+- `docs/ops/oauth2-external-auth-operations-guide.md`
+- `docs/ops/차단 해소 체크리스트.md`
+- `docs/GUIDE.md`
+- `PLAN.md`
+
 ### 2026-03-05: Cycle 171 완료 (핫패스 API 경량화/계약테스트 확장 + 성능 임계치 평가 보강)
 - 완료 내용
 - 읽기 API 다수 경로(`posts/suggestions/communities/neighborhoods/notifications/breed-lounge`)에서 rate-limit 짧은 허용 캐시(`cacheMs=1000`)를 확대해 연속 요청 구간 Redis 왕복 지연을 완화.
