@@ -17,6 +17,466 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 164 완료 (Search log 인증 조회 실패 guest fallback)
+- 완료 내용
+- `POST /api/search/log`에서 `getCurrentUserId` 조회가 예외를 던져도 요청을 실패시키지 않고 guest(IP) rate-limit key로 fallback 하도록 보강.
+- 인증 조회 불안정 시에도 검색 로그 API가 500으로 깨지지 않고 계속 동작하도록 복원력을 높임(보안상 권한 상승 없음, 최대 guest key 적용).
+- 계약 테스트에 `auth lookup 실패 -> guest key fallback` 케이스를 추가.
+- 검증 결과
+- `pnpm -C app lint src/app/api/search/log/route.ts src/app/api/search/log/route.test.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/app/api/search/log/route.test.ts` 통과(전체 62 files, 302 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/search/log/route.ts`
+- `app/src/app/api/search/log/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-05: Cycle 163 완료 (배포 API p50/p95 재측정)
+- 완료 내용
+- 배포 URL(`https://townpet2.vercel.app`) 기준으로 API 4개를 각 30회 재측정해 raw 샘플 120건 재수집.
+- 대상:
+  - `GET /api/posts?scope=GLOBAL`
+  - `GET /api/posts/suggestions?q=산책코스`
+  - `POST /api/search/log` (`{"q":"강아지 산책"}`)
+  - `GET /api/lounges/breeds/golden/posts?q=산책`
+- 집계 결과(ms):
+  - `api_posts_global`: TTFB p50 `155.6`, p95 `202.0` / total p50 `163.6`, p95 `206.1` (status `200 x30`)
+  - `api_posts_suggestions`: TTFB p50 `147.5`, p95 `393.9` / total p50 `153.2`, p95 `400.3` (status `200 x30`)
+  - `api_search_log`: TTFB p50 `241.2`, p95 `311.0` / total p50 `243.1`, p95 `311.3` (status `200 x30`)
+  - `api_breed_posts`: TTFB p50 `237.4`, p95 `362.1` / total p50 `241.7`, p95 `368.1` (status `200 x30`)
+- 2026-03-04 대비 관측
+  - `search_log`는 p50/p95 total이 `255.4/314.1 -> 243.1/311.3`으로 개선.
+  - `posts/suggestions`, `breed_posts`는 p95가 크게 튀는 스파이크 관측(단일 시점 트래픽/콜드 영향 가능).
+- 검증 결과
+- raw 샘플: `/tmp/townpet_perf_20260305_prod.tsv` (120 lines).
+- 추가 워밍업 측정(`/tmp/townpet_perf_20260305_prod_warm.tsv`)은 rate-limit/상태코드 혼합(429/500)이 섞여 비교 기준에서 제외.
+- 이슈/블로커
+- 배포 관측에서 `search/log` 고빈도 연속 호출 시 500 스파이크가 관측되어 Cycle 164(guest fallback)로 내결함성 보강 진행.
+- 변경 파일(핵심)
+- `PLAN.md`
+
+### 2026-03-05: Cycle 162 완료 (Search log 응답 경로 비동기화 + 에러 매핑 보강)
+- 완료 내용
+- `POST /api/search/log`에서 `recordSearchTerm` DB upsert를 응답 경로에서 await하지 않도록 변경해, 입력검증/rate-limit 통과 후 즉시 응답하도록 개선.
+- 비동기 기록 실패는 `monitorUnhandledError`로 별도 수집해 관측성을 유지.
+- route 예외 처리에 `ServiceError` 매핑을 추가해 rate-limit 등 정책 오류가 500이 아닌 원래 status/code(예: 429)로 반환되도록 보강.
+- `search/log` 계약 테스트에 `ServiceError` 매핑 케이스를 추가.
+- 검증 결과
+- `pnpm -C app lint src/app/api/search/log/route.ts src/app/api/search/log/route.test.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/app/api/search/log/route.test.ts` 통과(전체 62 files, 301 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/search/log/route.ts`
+- `app/src/app/api/search/log/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-05: Cycle 161 완료 (읽기 API rate-limit 짧은 허용 캐시 확대)
+- 완료 내용
+- 고빈도 읽기 API 4개에 `enforceRateLimit(..., cacheMs: 1_000)`를 적용해 짧은 구간 반복 요청에서 Upstash rate-limit 왕복을 완화.
+  - `GET /api/lounges/breeds/[breedCode]/posts`
+  - `GET /api/boards/[board]/posts`
+  - `GET /api/neighborhoods`
+  - `GET /api/communities`
+- `lounge posts` 계약 테스트의 `enforceRateLimit` 기대값을 `cacheMs` 포함으로 보강.
+- 검증 결과
+- `pnpm -C app lint 'src/app/api/lounges/breeds/[breedCode]/posts/route.ts' 'src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts' 'src/app/api/boards/[board]/posts/route.ts' src/app/api/neighborhoods/route.ts src/app/api/communities/route.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- 'src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts' 'src/app/api/boards/[board]/posts/route.test.ts' src/app/api/neighborhoods/route.test.ts src/app/api/communities/route.test.ts` 통과(전체 62 files, 300 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/lounges/breeds/[breedCode]/posts/route.ts`
+- `app/src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts`
+- `app/src/app/api/boards/[board]/posts/route.ts`
+- `app/src/app/api/neighborhoods/route.ts`
+- `app/src/app/api/communities/route.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 160 완료 (배포 API p50/p95 성능 스냅샷 기록)
+- 완료 내용
+- 배포 URL(`https://townpet2.vercel.app`) 기준으로 변경 영향 API 4개를 30회씩 반복 호출해 TTFB/total raw 샘플(총 120건)을 수집.
+- 대상:
+  - `GET /api/posts?scope=GLOBAL`
+  - `GET /api/posts/suggestions?q=산책코스`
+  - `POST /api/search/log` (`{"q":"강아지 산책"}`)
+  - `GET /api/lounges/breeds/golden/posts?q=산책`
+- 집계 결과(ms):
+  - `api_posts_global`: TTFB p50 `150.1`, p95 `188.0` / total p50 `156.9`, p95 `194.5` (status `200 x30`)
+  - `api_posts_suggestions`: TTFB p50 `151.6`, p95 `197.6` / total p50 `159.3`, p95 `204.0` (status `200 x30`)
+  - `api_search_log`: TTFB p50 `248.4`, p95 `305.7` / total p50 `255.4`, p95 `314.1` (status `200 x30`)
+- `api_breed_posts`: TTFB p50 `239.0`, p95 `292.5` / total p50 `239.2`, p95 `292.8` (status `200 x30`)
+- 검증 결과
+- 샘플 파일: `/tmp/townpet_perf_20260304_prod.tsv` (120 lines).
+- 모든 측정 엔드포인트에서 30/30 `200` 응답 확인.
+- 이슈/블로커
+- 로컬 포트 바인딩은 샌드박스 제한(`listen EPERM`)으로 실패하여, 배포 URL 직접 측정으로 전환.
+- 변경 파일(핵심)
+- `PLAN.md`
+
+### 2026-03-04: Cycle 159 완료 (Admin 감사로그 API 권한검증 경량화 + 계약 테스트 추가)
+- 완료 내용
+- `auth` 헬퍼에 `getCurrentUserRole`, `requireModeratorUserId`를 추가해 관리자 권한검증 경로를 `id/role` 최소 조회로 분리.
+- `user.queries`에 `getUserRoleById`, `getUserRoleByEmail`를 추가해 role 전용 조회를 표준화.
+- `GET /api/admin/auth-audits`, `GET /api/admin/auth-audits/export`를 `requireModeratorUserId` 기반으로 전환하고 `ServiceError`를 표준 에러 응답으로 매핑.
+- admin 감사로그 API 계약 테스트(권한 오류/입력 오류/정상/예외 500)와 auth 헬퍼 테스트를 추가/보강.
+- 검증 결과
+- `pnpm -C app lint src/server/auth.ts src/server/auth.test.ts src/server/queries/user.queries.ts src/app/api/admin/auth-audits/route.ts src/app/api/admin/auth-audits/export/route.ts src/app/api/admin/auth-audits/route.test.ts src/app/api/admin/auth-audits/export/route.test.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/server/auth.test.ts src/app/api/admin/auth-audits/route.test.ts src/app/api/admin/auth-audits/export/route.test.ts` 통과(전체 62 files, 300 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/auth.ts`
+- `app/src/server/queries/user.queries.ts`
+- `app/src/server/auth.test.ts`
+- `app/src/app/api/admin/auth-audits/route.ts`
+- `app/src/app/api/admin/auth-audits/export/route.ts`
+- `app/src/app/api/admin/auth-audits/route.test.ts`
+- `app/src/app/api/admin/auth-audits/export/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 158 완료 (Lounge/Upload API 인증 조회 경량화 + 계약 테스트 추가)
+- 완료 내용
+- `GET /api/lounges/breeds/[breedCode]/posts`, `POST /api/lounges/breeds/[breedCode]/groupbuys`, `POST /api/upload`, `POST /api/upload/client`의 인증 조회를 `getCurrentUser`에서 `getCurrentUserId` 기반으로 전환.
+- `id`만 필요한 경로에서 user 전체 조회를 제거해 요청당 DB read 오버헤드를 축소.
+- breed lounge posts 경로는 guest 전용 정책 조회(`getGuestReadLoginRequiredPostTypes`)를 비로그인 요청에서만 실행하도록 조정.
+- `lounge posts/groupbuys`, `upload/upload-client` 계약 테스트를 신규 추가해 인증/입력검증/예외 500 경로를 고정.
+- 검증 결과
+- `pnpm -C app lint 'src/app/api/lounges/breeds/[breedCode]/posts/route.ts' 'src/app/api/lounges/breeds/[breedCode]/groupbuys/route.ts' src/app/api/upload/route.ts src/app/api/upload/client/route.ts 'src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts' 'src/app/api/lounges/breeds/[breedCode]/groupbuys/route.test.ts' src/app/api/upload/route.test.ts src/app/api/upload/client/route.test.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- 'src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts' 'src/app/api/lounges/breeds/[breedCode]/groupbuys/route.test.ts' src/app/api/upload/route.test.ts src/app/api/upload/client/route.test.ts` 통과(전체 60 files, 291 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/lounges/breeds/[breedCode]/posts/route.ts`
+- `app/src/app/api/lounges/breeds/[breedCode]/groupbuys/route.ts`
+- `app/src/app/api/upload/route.ts`
+- `app/src/app/api/upload/client/route.ts`
+- `app/src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts`
+- `app/src/app/api/lounges/breeds/[breedCode]/groupbuys/route.test.ts`
+- `app/src/app/api/upload/route.test.ts`
+- `app/src/app/api/upload/client/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 157 완료 (Suggest/Search/Comment API 인증 조회 경량화 + 계약 테스트 추가)
+- 완료 내용
+- `GET /api/posts/suggestions`, `POST /api/search/log`, `PATCH/DELETE /api/comments/[id]`의 인증 조회를 `getCurrentUser`에서 `getCurrentUserId` 기반으로 전환.
+- `id`만 필요한 경로에서 user 전체 조회를 제거해 API 요청당 불필요한 DB read를 축소.
+- `/api/posts/suggestions`는 guest 전용 정책 조회(`getGuestReadLoginRequiredPostTypes`)를 비로그인 요청에서만 실행하도록 조정.
+- `suggestions/search` 계약 테스트를 신규 추가해 인증/입력검증/예외 500 경로를 고정.
+- 검증 결과
+- `pnpm -C app lint 'src/app/api/comments/[id]/route.ts' src/app/api/posts/suggestions/route.ts src/app/api/search/log/route.ts src/app/api/posts/suggestions/route.test.ts src/app/api/search/log/route.test.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/app/api/posts/suggestions/route.test.ts src/app/api/search/log/route.test.ts` 통과(전체 56 files, 279 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/comments/[id]/route.ts`
+- `app/src/app/api/posts/suggestions/route.ts`
+- `app/src/app/api/search/log/route.ts`
+- `app/src/app/api/posts/suggestions/route.test.ts`
+- `app/src/app/api/search/log/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 156 완료 (Posts 보조 API 인증 조회 경량화 + 계약 테스트 보강)
+- 완료 내용
+- `GET /api/posts/[id]/content`, `GET /api/posts/[id]/stats`, `POST /api/posts/[id]/view`, `GET /api/posts/[id]/reaction`, `GET /api/users/[id]/relation`의 인증 조회를 `getCurrentUser`에서 `getCurrentUserId` 기반으로 전환.
+- `user.id`만 필요했던 경로에서 불필요한 user 전체 조회를 제거해 API 요청당 DB read 오버헤드를 축소.
+- 새로 전환한 경로의 회귀 방지를 위해 `reaction/view/relation` 라우트 계약 테스트를 신규 추가(인증 실패/정상/예외 500).
+- 검증 결과
+- `pnpm -C app lint 'src/app/api/posts/[id]/content/route.ts' 'src/app/api/posts/[id]/stats/route.ts' 'src/app/api/posts/[id]/view/route.ts' 'src/app/api/posts/[id]/reaction/route.ts' 'src/app/api/users/[id]/relation/route.ts' 'src/app/api/posts/[id]/reaction/route.test.ts' 'src/app/api/posts/[id]/view/route.test.ts' 'src/app/api/users/[id]/relation/route.test.ts'` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- 'src/app/api/posts/[id]/reaction/route.test.ts' 'src/app/api/posts/[id]/view/route.test.ts' 'src/app/api/users/[id]/relation/route.test.ts' 'src/app/api/posts/[id]/route.test.ts' 'src/app/api/posts/[id]/comments/route.test.ts' 'src/app/api/posts/route.test.ts'` 통과(전체 54 files, 272 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/posts/[id]/content/route.ts`
+- `app/src/app/api/posts/[id]/stats/route.ts`
+- `app/src/app/api/posts/[id]/view/route.ts`
+- `app/src/app/api/posts/[id]/reaction/route.ts`
+- `app/src/app/api/users/[id]/relation/route.ts`
+- `app/src/app/api/posts/[id]/reaction/route.test.ts`
+- `app/src/app/api/posts/[id]/view/route.test.ts`
+- `app/src/app/api/users/[id]/relation/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 155 완료 (Posts API 인증 조회 경량화)
+- 완료 내용
+- `GET/POST /api/posts`를 `getCurrentUser`에서 `getCurrentUserId` 기반으로 전환해, user id만 필요한 경로의 불필요한 `getUserById` 조회를 제거.
+- `/api/posts` GET에서 guest 전용 정책(`getGuestReadLoginRequiredPostTypes`)은 비로그인 요청일 때만 읽도록 변경.
+- `GET/PATCH/DELETE /api/posts/[id]`, `GET/POST /api/posts/[id]/comments`, `GET /api/posts/[id]/detail`도 동일하게 id 기반 인증으로 정리해 API 공통 인증 오버헤드를 축소.
+- route 계약 테스트(`posts`, `posts/[id]`, `posts/[id]/comments`) mock 대상을 `getCurrentUserId`로 맞춰 회귀를 방지.
+- 검증 결과
+- `pnpm -C app lint src/app/api/posts/route.ts 'src/app/api/posts/[id]/route.ts' 'src/app/api/posts/[id]/comments/route.ts' 'src/app/api/posts/[id]/detail/route.ts' src/app/api/posts/route.test.ts 'src/app/api/posts/[id]/route.test.ts' 'src/app/api/posts/[id]/comments/route.test.ts'` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/app/api/posts/route.test.ts 'src/app/api/posts/[id]/route.test.ts' 'src/app/api/posts/[id]/comments/route.test.ts'` 통과(전체 51 files, 264 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/posts/route.ts`
+- `app/src/app/api/posts/[id]/route.ts`
+- `app/src/app/api/posts/[id]/comments/route.ts`
+- `app/src/app/api/posts/[id]/detail/route.ts`
+- `app/src/app/api/posts/route.test.ts`
+- `app/src/app/api/posts/[id]/route.test.ts`
+- `app/src/app/api/posts/[id]/comments/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 154 완료 (피드 로그인 경로 불필요 정책 조회 제거)
+- 완료 내용
+- `/feed`에서 로그인 사용자 렌더 시에도 실행되던 `getGuestReadLoginRequiredPostTypes` 조회를 제거.
+- 로그인 경로는 사용자 조회만 수행하고, guest 차단 타입 정책은 비로그인 경로에서만 `getGuestFeedContext`를 통해 읽도록 정리.
+- 결과적으로 로그인 피드 진입 요청에서 불필요한 정책 조회 1회를 제거해 서버 처리 시간을 완화.
+- 검증 결과
+- `pnpm -C app lint src/app/feed/page.tsx` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/server/queries/post.queries.test.ts` 통과(전체 51 files, 264 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/feed/page.tsx`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 153 완료 (커뮤니티 캐시 버전 조회 제거)
+- 완료 내용
+- `query-cache`에 `createStaticQueryCacheKey`를 추가해 version bucket 조회 없이 정적 캐시 키를 만들 수 있도록 분리.
+- `community.queries`의 `listCommunities`, `listCommunityNavItems`를 정적 캐시 키로 전환해 요청당 불필요한 `cache:version:*` 조회 RTT를 제거.
+- 결과적으로 레이아웃/피드의 공통 커뮤니티 조회 경로에서 외부 캐시 왕복 횟수를 줄여 체감 지연 원인을 완화.
+- 검증 결과
+- `pnpm -C app lint src/server/cache/query-cache.ts src/server/queries/community.queries.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test:unit:notifications` 통과(4 files, 32 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/cache/query-cache.ts`
+- `app/src/server/queries/community.queries.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 152 완료 (알림 서버 액션 계약 테스트 고정)
+- 완료 내용
+- 알림 서버 액션 테스트(`notification.test.ts`)를 신규 추가해
+- `markNotificationReadAction`
+- `markAllNotificationsReadAction`
+- `archiveNotificationAction`
+  의 성공/실패 계약을 자동 검증.
+- 고정한 핵심 계약:
+- 변경 발생 시에만 `revalidatePath("/notifications")`, `revalidatePath("/", "layout")` 호출
+- 변경 없음(`updated=0`)일 때는 revalidate 미호출
+- `ServiceError`는 `{ ok: false, code, message }`로 그대로 매핑
+- 예상치 못한 오류는 `{ ok: false, code: "INTERNAL_SERVER_ERROR" }` + `monitorUnhandledError` 호출
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/server/actions/notification.test.ts src/server/actions/notification.ts` 통과.
+- `pnpm -C app test -- src/server/actions/notification.test.ts src/app/api/notifications/route.test.ts src/server/auth.test.ts` 통과(전체 51 files, 264 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/actions/notification.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 151 완료 (알림 API 계약 테스트 고정)
+- 완료 내용
+- `/api/notifications` 라우트 테스트를 신규 추가해 인증/입력검증/정상 응답/예외 경로의 계약을 고정.
+- 핵심 검증 항목:
+- `AUTH_REQUIRED` 서비스 에러 -> 401 매핑
+- 잘못된 query(`limit`/`cursor`) -> `INVALID_QUERY` 400
+- 정상 조회 시 `listNotificationsByUser` 필터 전달(`kind/unreadOnly/limit`) 및 응답 매핑(`createdAt` ISO, actor 필드)
+- 예상치 못한 예외 -> 500 + `monitorUnhandledError` 호출
+- 추가로 rate-limit 호출 계약(`key`, `limit`, `windowMs`, `cacheMs`)이 고정되도록 검증.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/app/api/notifications/route.test.ts src/app/api/notifications/route.ts src/server/auth.ts src/server/actions/notification.ts` 통과.
+- `pnpm -C app test -- src/app/api/notifications/route.test.ts src/server/auth.test.ts` 통과(전체 50 files, 256 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/notifications/route.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 150 완료 (알림 API/액션 인증 경량화 + rate-limit 짧은 허용 캐시)
+- 완료 내용
+- `server/auth.ts`에 `requireAuthenticatedUserId`를 추가해, `AUTH_REQUIRED` 정책은 유지하면서 사용자 전체 조회 없이 id만 필요한 경로를 경량 처리하도록 분리.
+- `GET /api/notifications`에서 `requireCurrentUser` 대신 `requireAuthenticatedUserId`를 사용하도록 전환.
+- 같은 API 경로의 rate-limit에 `cacheMs: 1000`을 적용해 짧은 시간 연속 조회(필터 변경/추가 로딩) 시 Redis 왕복을 완화.
+- 알림 액션(`markNotificationReadAction`, `markAllNotificationsReadAction`, `archiveNotificationAction`)도 id 기반 인증 헬퍼를 사용하도록 변경해 액션당 인증 오버헤드를 축소.
+- `auth.test.ts`에 `requireAuthenticatedUserId` 성공/실패 케이스를 추가해 회귀를 방지.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/server/auth.ts src/server/auth.test.ts src/server/actions/notification.ts src/app/api/notifications/route.ts` 통과.
+- `pnpm -C app test -- src/server/auth.test.ts` 통과(전체 49 files, 251 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/auth.ts`
+- `app/src/server/auth.test.ts`
+- `app/src/app/api/notifications/route.ts`
+- `app/src/server/actions/notification.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 149 완료 (Notifications SSR 인증 경량화)
+- 완료 내용
+- `server/auth.ts`에 `getCurrentUserId` 헬퍼를 추가해, `userId`만 필요한 경로에서 사용자 전체 조회(`getUserById`) 없이 세션 id를 바로 사용할 수 있도록 분리.
+- `getCurrentUserId`는 기존 `getCurrentUser`와 동일하게 개발환경 `DEMO_USER_EMAIL` fallback(프로덕션 제외)을 유지해 동작 회귀를 방지.
+- `/notifications` 페이지는 `getCurrentUser` 대신 `getCurrentUserId`를 사용하도록 전환하고, 인증 조회와 query param 해석을 `Promise.all`로 병렬 처리.
+- `auth.test.ts`에 `getCurrentUserId` 전용 케이스(세션 id 반환, demo fallback, production에서 fallback 미사용)를 추가.
+- 검증 결과
+- `pnpm -C app test -- src/server/auth.test.ts` 통과(전체 49 files, 249 tests pass).
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/server/auth.ts src/server/auth.test.ts src/app/notifications/page.tsx` 통과.
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/auth.ts`
+- `app/src/server/auth.test.ts`
+- `app/src/app/notifications/page.tsx`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 148 완료 (알림 목록 1페이지 캐시 + list/unread 이중 무효화)
+- 완료 내용
+- `listNotificationsByUser`를 개선해 `cursor` 없는 1페이지 조회에만 short TTL(5s) query cache를 적용하고, `cursor` 기반 추가 로딩은 기존처럼 실시간 조회를 유지.
+- query cache 모듈에 `bumpNotificationListCacheVersion(userId)`를 추가하고, 알림 변경 경로에서 `notification-list` + `notification-unread` 버킷을 동시에 무효화하도록 통합.
+- 알림 변경 경로(`markNotificationRead`, `markAllNotificationsRead`, `archiveNotification`, `createNotification`)를 `bumpNotificationCaches` 헬퍼로 정리해 무효화 누락 가능성을 줄임.
+- 알림 쿼리 테스트를 보강해
+- 1페이지 캐시 사용 / 커서 페이지 캐시 제외
+- 변경 시 list/unread 동시 bump
+- 조건 불충족 시 bump 미호출
+  을 회귀 검증.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/server/cache/query-cache.ts src/server/queries/notification.queries.ts src/server/queries/notification.queries.test.ts` 통과.
+- `pnpm -C app test -- src/server/queries/notification.queries.test.ts` 통과(전체 49 files, 246 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/cache/query-cache.ts`
+- `app/src/server/queries/notification.queries.ts`
+- `app/src/server/queries/notification.queries.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 147 완료 (알림 unread 카운트 캐시 + 즉시 무효화)
+- 완료 내용
+- `countUnreadNotifications`에 user 단위 캐시 키(`notification-unread:${userId}`)와 TTL 5초를 적용해 레이아웃 SSR의 반복 count 질의를 완화.
+- 알림 상태 변경/생성 경로(`markNotificationRead`, `markAllNotificationsRead`, `archiveNotification`, `createNotification`)에서 unread 캐시 버전을 즉시 bump하도록 연결.
+- query cache 모듈에 `bumpNotificationUnreadCacheVersion(userId)` 헬퍼를 추가해 알림 unread 무효화 경로를 표준화.
+- 위 동작의 회귀 방지를 위해 `notification.queries.test.ts`를 추가하고, 상태 변경 결과에 따른 bump 호출/미호출을 검증.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/server/cache/query-cache.ts src/server/queries/notification.queries.ts src/server/queries/notification.queries.test.ts` 통과.
+- `pnpm -C app test -- src/server/queries/notification.queries.test.ts` 통과(전체 49 files, 244 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/cache/query-cache.ts`
+- `app/src/server/queries/notification.queries.ts`
+- `app/src/server/queries/notification.queries.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 146 완료 (커뮤니티 네비 조회 경량화 + 요청 단위 중복 완화)
+- 완료 내용
+- `community.queries`에 `listCommunityNavItems(limit)`를 추가해 네비게이션에서 필요한 `id/slug/labelKo`만 조회하도록 경량 경로를 분리.
+- 해당 경로는 `cache(react)` + query cache TTL(300s) 조합으로 요청 단위 중복 호출 및 반복 조회 부담을 줄이도록 구성.
+- `layout`, `/feed`에서 기존 `listCommunities` 의존을 제거하고 `listCommunityNavItems`로 전환해 초기 렌더 시 불필요한 `description/tags/defaultPostTypes/category` payload를 읽지 않도록 정리.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/server/queries/community.queries.ts src/app/layout.tsx src/app/feed/page.tsx` 통과.
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/queries/community.queries.ts`
+- `app/src/app/layout.tsx`
+- `app/src/app/feed/page.tsx`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 145 완료 (공통 조회 중복/프리패치 가드 최적화)
+- 완료 내용
+- `layout`에서 `getUserById` 결과(`preferredPetTypes`)를 재사용하도록 정리해 `listPreferredPetTypeIdsByUserId` 별도 호출을 제거.
+- `feed`에서도 `getUserWithNeighborhoods` 결과에서 선호 품종 ID를 파생하도록 바꿔 로그인 피드 진입 시 중복 조회 1회를 제거.
+- 미들웨어에 프리패치 요청 감지(`purpose`, `next-router-prefetch`, `x-middleware-prefetch`)를 추가해 링크 프리패치 구간에서는 `getToken` 복호화를 건너뛰도록 보강.
+- 프리패치 감지 유틸에 대한 유닛 테스트를 추가해 회귀를 방지.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/app/feed/page.tsx src/app/layout.tsx middleware.ts src/middleware.test.ts` 통과.
+- `pnpm -C app test -- src/middleware.test.ts` 통과(전체 48 files, 239 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/feed/page.tsx`
+- `app/src/app/layout.tsx`
+- `app/middleware.ts`
+- `app/src/middleware.test.ts`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 144 완료 (상세 구경로/알림 배지 동기화 정리)
+- 완료 내용
+- 댓글 API(`GET/POST /api/posts/[id]/comments`)에서 게시글 권한 확인용 조회를 `getPostStatsById`에서 최소 필드 전용 `getPostReadAccessById`로 전환해 과조회 payload를 축소.
+- 알림 unread 동기화를 위해 클라이언트 이벤트 채널(`notification-unread-sync`)을 추가하고, 알림센터/알림벨 액션 성공 시 delta/reset 이벤트를 브로드캐스트하도록 반영.
+- 알림 벨 미리보기 로드 시 `PREVIEW_LIMIT` 범위만으로 unread 배지를 덮어쓰던 동작을 제거해, 배지 총량이 잘못 축소되는 케이스를 방지.
+- 댓글 API 테스트를 신규 조회 함수 기준으로 보정해 계약 검증을 유지.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/components/notifications/notification-bell.tsx src/components/notifications/notification-center.tsx src/lib/notification-unread-sync.ts 'src/app/api/posts/[id]/comments/route.ts' 'src/app/api/posts/[id]/comments/route.test.ts' src/server/queries/post.queries.ts` 통과.
+- `pnpm -C app test -- 'src/app/api/posts/[id]/comments/route.test.ts' src/server/queries/post.queries.test.ts` 통과(전체 48 files, 236 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/queries/post.queries.ts`
+- `app/src/app/api/posts/[id]/comments/route.ts`
+- `app/src/app/api/posts/[id]/comments/route.test.ts`
+- `app/src/lib/notification-unread-sync.ts`
+- `app/src/components/notifications/notification-bell.tsx`
+- `app/src/components/notifications/notification-center.tsx`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 143 완료 (목록/알림 체감 성능 개선 2차)
+- 완료 내용
+- `my-posts` 페이지를 무제한 `findMany` 조회에서 페이지 단위 조회로 전환(`listUserPostsPage`, `limit+1`, `이전/다음 페이지` 링크 추가).
+- 작성글 목록 전용 경량 select 경로를 추가해 렌더에 불필요한 relation(`hospitalReview/placeReview/walkRoute`, 이미지 부가필드) 로드를 피함.
+- 알림센터에서 `읽음 처리/이동/모두 읽음/보관` 후 즉시 `router.refresh()`를 호출하던 경로를 제거해 액션 후 체감 지연을 완화.
+- `listUserPostsPage`에 대해 페이지네이션 핵심 동작(다음 페이지 존재 판정, page 정규화) 단위 테스트 2건을 추가.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app lint src/app/my-posts/page.tsx src/components/notifications/notification-center.tsx src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts` 통과.
+- `pnpm -C app test -- src/server/queries/post.queries.test.ts` 통과(전체 48 files, 236 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/queries/post.queries.ts`
+- `app/src/server/queries/post.queries.test.ts`
+- `app/src/app/my-posts/page.tsx`
+- `app/src/components/notifications/notification-center.tsx`
+- `PLAN.md`
+
+### 2026-03-04: Cycle 142 완료 (요청 경로 병목 제거 1차)
+- 완료 내용
+- 전역 레이아웃에서 `auth()` + `getCurrentUser()` 중복 호출을 제거하고, 사용자/알림/선호/쿠키 조회를 병렬화.
+- 게시글 상세 클라이언트의 `detail + content + stats + relation` 다중 API 호출을 `detail` 1회 응답으로 통합(서버에서 관계/렌더콘텐츠/카운트 포함 반환).
+- 피드 SSR 선행 구간(`auth/user/communities/cookies/preference/policy`)을 병렬화해 초기 워터폴을 단축.
+- Query cache version 조회에 5초 메모 스냅샷을 추가해 캐시 키 생성 시 원격 Redis 왕복 빈도를 완화.
+- 숨김 작성자 ID 조회에 5초 short cache를 적용하고, block/mute 변경 시 즉시 무효화 훅을 추가.
+- 미들웨어 matcher에서 `_next/data`와 정적 파일 확장자 경로를 제외해 불필요한 미들웨어 실행을 줄임.
+- 검증 결과
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/server/services/user-relation.service.test.ts` 통과.
+- `pnpm -C app test -- src/middleware.test.ts` 통과.
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/layout.tsx`
+- `app/src/app/feed/page.tsx`
+- `app/middleware.ts`
+- `app/src/app/api/posts/[id]/detail/route.ts`
+- `app/src/components/posts/post-detail-client.tsx`
+- `app/src/server/cache/query-cache.ts`
+- `app/src/server/queries/user-relation.queries.ts`
+- `app/src/server/services/user-relation.service.ts`
+- `app/src/server/services/user-relation.service.test.ts`
+- `PLAN.md`
+
 ### 2026-03-04: Cycle 141 완료 (닉네임 가드 체감 성능 개선)
 - 완료 내용
 - 미들웨어에서 세션 쿠키가 없는 요청과 `/profile`/`/api` 경로는 `getToken` 복호화를 건너뛰도록 조건을 최적화.

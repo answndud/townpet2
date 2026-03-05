@@ -437,6 +437,176 @@
 | `/profile` 요약 조회 경량화(전체 목록 -> count) | Codex | P1 | `done` | 프로필 페이지의 총 작성글 표시가 `findMany` 전체 조회 대신 `count` 단일 쿼리로 동작 | `app/src/server/queries/post.queries.ts`, `app/src/app/profile/page.tsx` |
 | 닉네임 미설정 단계에서 비핵심 섹션 lazy 처리 | Codex | P2 | `done` | 닉네임 미설정 상태에서는 관계관리/펫/동네 설정 섹션 조회를 생략해 초기 프로필 진입 지연을 완화 | `app/src/app/profile/page.tsx` |
 
+### Cycle 142: 요청 경로 병목 제거 1차 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 전역 레이아웃 인증/유저 조회 중복 제거 + 병렬화 | Codex | P0 | `done` | `layout`에서 `auth()` 1회 기준으로 사용자/알림/선호 조회를 병렬화해 기본 요청 워터폴을 단축 | `app/src/app/layout.tsx` |
+| 상세 페이지 다중 API 호출 제거(1회 응답 통합) | Codex | P0 | `done` | 상세 클라이언트가 `detail/content/stats/relation` 분리 호출 대신 `detail` 1회 응답으로 렌더 | `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/components/posts/post-detail-client.tsx` |
+| 피드 SSR 선행 조회 병렬화 | Codex | P1 | `done` | 피드 초반 `auth/user/communities/cookies/preference/policy` 경로를 병렬화해 TTFB 꼬리 지연 완화 | `app/src/app/feed/page.tsx` |
+| 캐시 버전 조회 로컬 스냅샷 적용 | Codex | P1 | `done` | 캐시 키 생성 시 원격 version 조회를 매번 수행하지 않도록 짧은 TTL 메모 스냅샷을 적용 | `app/src/server/cache/query-cache.ts` |
+| 숨김 작성자 목록 조회 short-TTL 캐시 + 변경 시 무효화 | Codex | P1 | `done` | 로그인 피드/검색에서 반복되는 hidden author 조회를 short cache로 완화하고 block/mute 변경 시 즉시 무효화 | `app/src/server/queries/user-relation.queries.ts`, `app/src/server/services/user-relation.service.ts` |
+| 미들웨어 정적 자원 경로 제외 강화 | Codex | P1 | `done` | `_next/data` 및 정적 확장자 요청이 미들웨어를 타지 않도록 matcher를 축소 | `app/middleware.ts` |
+
+### Cycle 143: 목록/알림 체감 성능 개선 2차 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `my-posts` 무제한 조회 제거 + 페이지네이션 적용 | Codex | P1 | `done` | `my-posts`가 페이지 단위 조회(`limit+1`)로 동작하고 다음/이전 페이지 이동이 가능 | `app/src/server/queries/post.queries.ts`, `app/src/app/my-posts/page.tsx` |
+| `my-posts` 목록 쿼리 경량 선택(select) 경로 추가 | Codex | P1 | `done` | 작성글 목록 렌더에 필요한 필드만 조회하는 `listUserPostsPage`가 추가되어 과도 relation 로드를 피함 | `app/src/server/queries/post.queries.ts` |
+| 알림센터 액션 후 불필요한 `router.refresh()` 제거 | Codex | P1 | `done` | 읽음/이동/모두읽음/보관 액션에서 즉시 전체 RSC refresh를 제거해 인터랙션 지연을 완화 | `app/src/components/notifications/notification-center.tsx` |
+| 페이지네이션 쿼리 회귀 테스트 추가 | Codex | P2 | `done` | `listUserPostsPage`의 `limit+1` 및 페이지 정규화 동작이 단위 테스트로 검증됨 | `app/src/server/queries/post.queries.test.ts` |
+
+### Cycle 144: 상세 구경로/알림 배지 동기화 정리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 API의 post 조회를 read-access 경량 경로로 전환 | Codex | P1 | `done` | `/api/posts/[id]/comments`에서 카운트 필드를 포함한 `getPostStatsById` 대신 권한검사용 최소 필드 조회를 사용 | `app/src/server/queries/post.queries.ts`, `app/src/app/api/posts/[id]/comments/route.ts` |
+| 알림 배지 실시간 동기화 이벤트 추가 | Codex | P1 | `done` | 알림센터/벨 액션 후 unread 증감이 layout refresh 없이도 즉시 배지에 반영 | `app/src/lib/notification-unread-sync.ts`, `app/src/components/notifications/notification-bell.tsx`, `app/src/components/notifications/notification-center.tsx` |
+| 댓글 API 테스트 mock/경로 정합 보정 | Codex | P2 | `done` | post 조회 함수 교체에 맞춰 route 테스트가 회귀 없이 통과 | `app/src/app/api/posts/[id]/comments/route.test.ts` |
+
+### Cycle 145: 공통 조회 중복/프리패치 가드 최적화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `layout/feed` 선호 품종 중복 조회 제거 | Codex | P1 | `done` | `listPreferredPetTypeIdsByUserId` 별도 쿼리를 제거하고 기존 사용자 조회 결과(`preferredPetTypes`)에서 파생해 요청당 DB read를 축소 | `app/src/app/layout.tsx`, `app/src/app/feed/page.tsx` |
+| 미들웨어 프리패치 요청 토큰 복호화 스킵 | Codex | P1 | `done` | `purpose/next-router-prefetch/x-middleware-prefetch` 요청에서는 `getToken` 복호화를 건너뛰어 링크 프리패치 지연을 완화 | `app/middleware.ts` |
+| 프리패치 감지 유닛 테스트 추가 | Codex | P2 | `done` | 프리패치 헤더 감지/비감지 케이스가 테스트로 검증됨 | `app/src/middleware.test.ts` |
+
+### Cycle 146: 커뮤니티 네비 조회 경량화 + 요청 단위 중복 완화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 커뮤니티 네비 전용 경량 조회 함수 추가 | Codex | P1 | `done` | `id/slug/labelKo`만 조회하는 `listCommunityNavItems`를 추가하고 short TTL 캐시를 적용 | `app/src/server/queries/community.queries.ts` |
+| `layout` 커뮤니티 조회를 경량 경로로 전환 | Codex | P1 | `done` | 전역 레이아웃이 `listCommunities` 대신 네비 전용 조회를 사용해 payload를 축소 | `app/src/app/layout.tsx` |
+| `/feed` 커뮤니티 조회를 경량 경로로 전환 | Codex | P1 | `done` | 피드 초기 로딩에서 커뮤니티 전체 필드 조회 대신 경량 경로를 사용해 초기 조회 비용을 줄임 | `app/src/app/feed/page.tsx` |
+
+### Cycle 147: 알림 unread 카운트 캐시 + 즉시 무효화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| unread 카운트 short-TTL 캐시 적용 | Codex | P1 | `done` | `countUnreadNotifications`가 5초 캐시 키로 조회되어 레이아웃 SSR에서 반복 count 부담을 줄임 | `app/src/server/queries/notification.queries.ts` |
+| 알림 상태 변경 시 unread 캐시 버전 무효화 | Codex | P1 | `done` | `mark/read-all/archive/create` 성공 경로에서 user 단위 unread 캐시 버전이 즉시 bump되어 stale 배지를 방지 | `app/src/server/queries/notification.queries.ts`, `app/src/server/cache/query-cache.ts` |
+| unread 캐시 무효화 회귀 테스트 추가 | Codex | P2 | `done` | 알림 상태 변경/생성 시 cache bump 호출 여부가 단위 테스트로 검증됨 | `app/src/server/queries/notification.queries.test.ts` |
+
+### Cycle 148: 알림 목록 1페이지 캐시 + list/unread 이중 무효화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 알림 목록 첫 페이지 short-TTL 캐시 적용 | Codex | P1 | `done` | `listNotificationsByUser`가 `cursor` 없는 경우에만 5초 캐시를 사용하고, 커서 페이지는 실시간 조회를 유지 | `app/src/server/queries/notification.queries.ts` |
+| 알림 변경 시 list/unread 캐시 동시 무효화 | Codex | P1 | `done` | `mark/read-all/archive/create` 성공 시 `notification-list`와 `notification-unread` 버킷이 함께 bump되어 목록/배지 stale을 방지 | `app/src/server/queries/notification.queries.ts`, `app/src/server/cache/query-cache.ts` |
+| 알림 목록 캐시 경로 회귀 테스트 보강 | Codex | P2 | `done` | 첫 페이지 캐시 사용/커서 페이지 캐시 제외, 변경 시 list/unread bump 동작이 단위 테스트로 검증됨 | `app/src/server/queries/notification.queries.test.ts` |
+
+### Cycle 149: Notifications SSR 인증 경량화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `userId` 전용 인증 헬퍼 추가 | Codex | P1 | `done` | `getCurrentUserId`를 도입해 사용자 전체 조회 없이 세션 기반 id를 가져오고, dev demo fallback도 유지 | `app/src/server/auth.ts` |
+| `/notifications` 페이지 인증 경로 DB 조회 제거 | Codex | P1 | `done` | 알림 페이지가 `getCurrentUser` 대신 `getCurrentUserId`를 사용해 불필요한 `getUserById` 쿼리를 피함 | `app/src/app/notifications/page.tsx` |
+| 인증 헬퍼 회귀 테스트 추가 | Codex | P2 | `done` | 세션/데모/production fallback에서 `getCurrentUserId` 동작이 테스트로 검증됨 | `app/src/server/auth.test.ts` |
+
+### Cycle 150: 알림 API/액션 인증 경량화 + rate-limit 짧은 허용 캐시 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 인증 id 강제 헬퍼(`requireAuthenticatedUserId`) 추가 | Codex | P1 | `done` | 로그인 강제(`AUTH_REQUIRED`)는 유지하면서 user id만 반환하는 경량 인증 경로가 제공됨 | `app/src/server/auth.ts` |
+| `/api/notifications` 경로 인증/제한 비용 경량화 | Codex | P1 | `done` | 알림 API가 user 전체 조회 없이 id 기반 인증을 사용하고, rate limit에 짧은 `cacheMs`를 적용해 연속 조회 시 Redis 왕복을 줄임 | `app/src/app/api/notifications/route.ts` |
+| 알림 액션(읽음/모두읽음/보관) 인증 경량화 | Codex | P1 | `done` | 알림 액션이 user 전체 조회 없이 id 기반 인증으로 동작해 액션당 불필요한 DB read를 줄임 | `app/src/server/actions/notification.ts` |
+| 인증 헬퍼 단위 테스트 보강 | Codex | P2 | `done` | `requireAuthenticatedUserId`의 성공/실패 경로가 테스트로 검증됨 | `app/src/server/auth.test.ts` |
+
+### Cycle 151: 알림 API 계약 테스트 고정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/api/notifications` 라우트 테스트 추가 | Codex | P1 | `done` | `AUTH_REQUIRED`, `INVALID_QUERY`, 정상 응답 매핑, 내부 오류 500 경로가 자동 검증됨 | `app/src/app/api/notifications/route.test.ts` |
+| rate-limit 파라미터 계약 검증 | Codex | P2 | `done` | notifications key/limit/window/cacheMs가 기대값으로 호출되는지 테스트로 고정됨 | `app/src/app/api/notifications/route.test.ts` |
+| 필터 전달 계약 검증(kind/unreadOnly/limit) | Codex | P2 | `done` | querystring 필터가 `listNotificationsByUser` 인자에 정확히 전달되는지 회귀 테스트로 검증됨 | `app/src/app/api/notifications/route.test.ts` |
+
+### Cycle 152: 알림 서버 액션 계약 테스트 고정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 알림 액션 테스트 추가(`mark/read-all/archive`) | Codex | P1 | `done` | 각 액션의 성공/실패 계약(`ok/updated`)이 테스트로 검증됨 | `app/src/server/actions/notification.test.ts` |
+| revalidate 호출 조건 계약 고정 | Codex | P2 | `done` | 변경 발생 시에만 `/notifications`, `("/", "layout")` revalidate가 호출되는지 자동 검증됨 | `app/src/server/actions/notification.test.ts` |
+| 예외 매핑 계약 고정(ServiceError/Unexpected) | Codex | P2 | `done` | ServiceError는 코드/메시지 그대로 반환, 예상치 못한 오류는 500 + monitor 호출이 보장됨 | `app/src/server/actions/notification.test.ts` |
+
+### Cycle 153: 커뮤니티 캐시 버전 조회 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 정적 캐시 키 헬퍼 추가 | Codex | P1 | `done` | 버전 bump가 필요 없는 조회 버킷에서 version GET 없이 캐시 키 생성 가능 | `app/src/server/cache/query-cache.ts` |
+| 커뮤니티 조회 캐시 키를 정적 키로 전환 | Codex | P1 | `done` | `listCommunities`, `listCommunityNavItems`가 `createQueryCacheKey` 대신 정적 키를 사용해 요청당 Redis 왕복을 줄임 | `app/src/server/queries/community.queries.ts` |
+| 알림 단위 계약 스위트 재검증 | Codex | P2 | `done` | `test:unit:notifications` 스위트가 pass되어 최근 알림 최적화/계약 회귀가 없음이 확인됨 | `app/package.json`, `app/src/app/api/notifications/route.test.ts`, `app/src/server/actions/notification.test.ts`, `app/src/server/queries/notification.queries.test.ts`, `app/src/server/auth.test.ts` |
+
+### Cycle 154: 피드 로그인 경로 불필요 정책 조회 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/feed` 로그인 경로에서 guest 정책 조회 제거 | Codex | P1 | `done` | 로그인 사용자 렌더 시 `getGuestReadLoginRequiredPostTypes` 호출을 제거해 요청당 불필요한 DB/설정 조회를 줄임 | `app/src/app/feed/page.tsx` |
+| guest 경로 정책 조회 유지 | Codex | P1 | `done` | 비로그인 사용자는 기존 `getGuestFeedContext` 캐시 경로를 그대로 사용해 정책 동작 회귀 없음 | `app/src/app/feed/page.tsx` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 vitest 스위트가 pass되어 피드 경로 변경 회귀가 없음 | `app/src/app/feed/page.tsx`, `app/src/server/queries/post.queries.test.ts` |
+
+### Cycle 155: Posts API 인증 조회 경량화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| posts API 인증 경로를 id 기반으로 전환 | Codex | P1 | `done` | `GET/POST /api/posts`가 `getCurrentUser` 대신 `getCurrentUserId`를 사용해 요청당 불필요한 user 조회를 줄임 | `app/src/app/api/posts/route.ts` |
+| post detail/comments API 인증 경로를 id 기반으로 전환 | Codex | P1 | `done` | `GET/PATCH/DELETE /api/posts/[id]`, `GET/POST /api/posts/[id]/comments`, `GET /api/posts/[id]/detail`가 id 기반 인증으로 동작 | `app/src/app/api/posts/[id]/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/posts/[id]/detail/route.ts` |
+| guest 정책 조회를 guest 요청에서만 수행 | Codex | P1 | `done` | `/api/posts` GET에서 로그인 사용자 요청은 `getGuestReadLoginRequiredPostTypes`를 건너뛰어 정책 조회 오버헤드를 제거 | `app/src/app/api/posts/route.ts` |
+| route 계약 테스트 mock 정합 보정 | Codex | P2 | `done` | posts/posts[id]/comments route 테스트가 `getCurrentUserId` 기준으로 회귀 없이 통과 | `app/src/app/api/posts/route.test.ts`, `app/src/app/api/posts/[id]/route.test.ts`, `app/src/app/api/posts/[id]/comments/route.test.ts` |
+
+### Cycle 156: Posts 보조 API 인증 조회 경량화 + 계약 테스트 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| posts 보조 API 인증 경로를 id 기반으로 전환 | Codex | P1 | `done` | `GET /api/posts/[id]/content`, `GET /api/posts/[id]/stats`, `POST /api/posts/[id]/view`, `GET /api/posts/[id]/reaction`, `GET /api/users/[id]/relation`가 `getCurrentUserId` 기반으로 동작 | `app/src/app/api/posts/[id]/content/route.ts`, `app/src/app/api/posts/[id]/stats/route.ts`, `app/src/app/api/posts/[id]/view/route.ts`, `app/src/app/api/posts/[id]/reaction/route.ts`, `app/src/app/api/users/[id]/relation/route.ts` |
+| reaction/view/relation 계약 테스트 추가 | Codex | P1 | `done` | 인증 실패/정상/예외 500 경로가 테스트로 고정되어 인증 헬퍼 전환 회귀를 방지 | `app/src/app/api/posts/[id]/reaction/route.test.ts`, `app/src/app/api/posts/[id]/view/route.test.ts`, `app/src/app/api/users/[id]/relation/route.test.ts` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 관련 라우트 테스트가 모두 pass되어 변경 회귀가 없음 | `app/src/app/api/posts/[id]/route.test.ts`, `app/src/app/api/posts/[id]/comments/route.test.ts`, `app/src/app/api/posts/route.test.ts` |
+
+### Cycle 157: Suggest/Search/Comment API 인증 조회 경량화 + 계약 테스트 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| suggestions/search/comment 인증 경로를 id 기반으로 전환 | Codex | P1 | `done` | `GET /api/posts/suggestions`, `POST /api/search/log`, `PATCH/DELETE /api/comments/[id]`가 `getCurrentUserId` 기반으로 동작 | `app/src/app/api/posts/suggestions/route.ts`, `app/src/app/api/search/log/route.ts`, `app/src/app/api/comments/[id]/route.ts` |
+| guest 전용 정책 조회를 guest 요청으로 제한 | Codex | P1 | `done` | `/api/posts/suggestions`에서 로그인 요청은 `getGuestReadLoginRequiredPostTypes`를 건너뛰어 정책 조회 오버헤드를 줄임 | `app/src/app/api/posts/suggestions/route.ts` |
+| suggestions/search 계약 테스트 추가 | Codex | P1 | `done` | 인증/입력검증/예외 500 경로가 테스트로 고정되어 인증 헬퍼 전환 회귀를 방지 | `app/src/app/api/posts/suggestions/route.test.ts`, `app/src/app/api/search/log/route.test.ts` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 route 테스트 스위트가 pass되어 변경 회귀가 없음 | `app/src/app/api/posts/suggestions/route.test.ts`, `app/src/app/api/search/log/route.test.ts` |
+
+### Cycle 158: Lounge/Upload API 인증 조회 경량화 + 계약 테스트 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| lounge/upload 인증 경로를 id 기반으로 전환 | Codex | P1 | `done` | `GET /api/lounges/breeds/[breedCode]/posts`, `POST /api/lounges/breeds/[breedCode]/groupbuys`, `POST /api/upload`, `POST /api/upload/client`가 `getCurrentUserId` 기반으로 동작 | `app/src/app/api/lounges/breeds/[breedCode]/posts/route.ts`, `app/src/app/api/lounges/breeds/[breedCode]/groupbuys/route.ts`, `app/src/app/api/upload/route.ts`, `app/src/app/api/upload/client/route.ts` |
+| lounge posts guest 정책 조회를 guest 요청으로 제한 | Codex | P1 | `done` | 로그인 요청은 `getGuestReadLoginRequiredPostTypes`를 건너뛰어 정책 조회 오버헤드를 줄임 | `app/src/app/api/lounges/breeds/[breedCode]/posts/route.ts` |
+| lounge/upload 계약 테스트 추가 | Codex | P1 | `done` | lounge posts/groupbuys, upload/upload-client 경로의 인증/입력검증/예외 500 경로가 테스트로 고정됨 | `app/src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts`, `app/src/app/api/lounges/breeds/[breedCode]/groupbuys/route.test.ts`, `app/src/app/api/upload/route.test.ts`, `app/src/app/api/upload/client/route.test.ts` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 신규 route 테스트가 pass되어 변경 회귀가 없음 | `app/src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts`, `app/src/app/api/lounges/breeds/[breedCode]/groupbuys/route.test.ts`, `app/src/app/api/upload/route.test.ts`, `app/src/app/api/upload/client/route.test.ts` |
+
+### Cycle 159: Admin 감사로그 API 권한검증 경량화 + 계약 테스트 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| role 전용 인증 헬퍼 추가 | Codex | P1 | `done` | `getCurrentUserRole`, `requireModeratorUserId`가 `id/role` 최소 조회로 동작해 관리자 API 권한검증 오버헤드를 줄임 | `app/src/server/auth.ts`, `app/src/server/queries/user.queries.ts` |
+| admin auth-audits API를 경량 권한 헬퍼로 전환 | Codex | P1 | `done` | `GET /api/admin/auth-audits`, `GET /api/admin/auth-audits/export`가 `requireModeratorUserId`를 사용하고 ServiceError를 표준 응답으로 매핑 | `app/src/app/api/admin/auth-audits/route.ts`, `app/src/app/api/admin/auth-audits/export/route.ts` |
+| admin auth-audits 계약 테스트 추가 | Codex | P1 | `done` | auth error/입력오류/정상/예외 500 경로가 테스트로 고정됨 | `app/src/app/api/admin/auth-audits/route.test.ts`, `app/src/app/api/admin/auth-audits/export/route.test.ts` |
+| auth helper 테스트 보강 | Codex | P2 | `done` | `getCurrentUserRole`, `requireModeratorUserId` 동작이 단위 테스트로 검증됨 | `app/src/server/auth.test.ts` |
+
+### Cycle 160: 배포 API p50/p95 성능 스냅샷 기록 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| API 4종 반복 측정(각 30회) | Codex | P1 | `done` | `/api/posts`, `/api/posts/suggestions`, `/api/search/log`, `/api/lounges/breeds/[breedCode]/posts`에 대해 TTFB/total 샘플 120건 수집 | `curl`, 배포 URL 접근 |
+| p50/p95 집계 및 응답코드 검증 | Codex | P1 | `done` | 엔드포인트별 TTFB/total p50/p95(ms)와 status 분포가 집계되어 200 응답 일관성 확인 | `/tmp/townpet_perf_20260304_prod.tsv` |
+| PROGRESS 실행 로그 반영 | Codex | P2 | `done` | 측정 조건(날짜/횟수/대상)과 결과 수치를 `PROGRESS.md`에 기록 | `PROGRESS.md` |
+
+### Cycle 161: 읽기 API rate-limit 짧은 허용 캐시 확대 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 고빈도 읽기 API의 rate-limit cacheMs 적용 | Codex | P1 | `done` | `GET /api/lounges/breeds/[breedCode]/posts`, `GET /api/boards/[board]/posts`, `GET /api/neighborhoods`, `GET /api/communities`에 `cacheMs=1000`이 적용되어 Upstash 왕복 오버헤드를 완화 | 각 route 구현 파일 |
+| lounge posts 계약 테스트 정합 보강 | Codex | P2 | `done` | `enforceRateLimit` 호출 계약이 `cacheMs` 포함 기대값으로 고정되어 회귀를 방지 | `app/src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 관련 route 계약 테스트가 통과해 회귀가 없음 | `pnpm -C app lint`, `pnpm -C app typecheck`, `pnpm -C app test -- ...` |
+
+### Cycle 162: Search log 응답 경로 비동기화 + 에러 매핑 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/api/search/log` DB write 대기 제거 | Codex | P1 | `done` | 요청 응답 경로에서 `recordSearchTerm` await를 제거하고 비동기 후처리로 전환되어 응답 지연을 완화 | `app/src/app/api/search/log/route.ts` |
+| `ServiceError` 상태코드 매핑 보강 | Codex | P1 | `done` | rate-limit 등 `ServiceError`가 500으로 뭉개지지 않고 원래 status/code로 반환됨 | `app/src/app/api/search/log/route.ts` |
+| search log 계약 테스트 보강 | Codex | P2 | `done` | `ServiceError` 매핑(429) 경로를 포함해 route 계약 테스트가 고정됨 | `app/src/app/api/search/log/route.test.ts` |
+
+### Cycle 163: 배포 API p50/p95 재측정 (2026-03-05) (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 배포 API 4종 반복 측정(각 30회) | Codex | P1 | `done` | `/api/posts`, `/api/posts/suggestions`, `/api/search/log`, `/api/lounges/breeds/[breedCode]/posts` 샘플 120건 재수집 | `curl`, 배포 URL 접근 |
+| p50/p95 재집계 + 상태코드 검증 | Codex | P1 | `done` | endpoint별 TTFB/total p50/p95와 status 분포(200 여부)를 재확인 | `/tmp/townpet_perf_20260305_prod.tsv` |
+| 재측정 로그 반영 | Codex | P2 | `done` | 2026-03-04 대비 증감/스파이크 관측치를 `PROGRESS.md`에 기록 | `PROGRESS.md` |
+
+### Cycle 164: Search log 인증 조회 실패 guest fallback (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| search log 인증 조회 예외 복원력 보강 | Codex | P1 | `done` | `getCurrentUserId` 예외 시 guest(IP) key로 fallback해 로그 API의 불필요한 500을 줄임 | `app/src/app/api/search/log/route.ts` |
+| fallback 계약 테스트 추가 | Codex | P2 | `done` | auth lookup 예외 시 200 응답 + guest rate key 사용이 테스트로 고정됨 | `app/src/app/api/search/log/route.test.ts` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 route 테스트 스위트가 pass되어 회귀 없음 | `pnpm -C app lint`, `pnpm -C app typecheck`, `pnpm -C app test -- src/app/api/search/log/route.test.ts` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
