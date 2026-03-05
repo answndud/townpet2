@@ -1,0 +1,76 @@
+name: ops-latency-snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_base_url:
+        description: "Deployment base URL (example: https://townpet.example.com)"
+        required: true
+        type: string
+      get_samples:
+        description: "GET endpoint samples per route"
+        required: true
+        default: "30"
+        type: string
+      post_samples:
+        description: "POST endpoint samples per route"
+        required: true
+        default: "20"
+        type: string
+      pause_ms:
+        description: "Delay between requests in milliseconds"
+        required: true
+        default: "200"
+        type: string
+  schedule:
+    # 00:10 / 08:10 / 16:10 UTC (KST 09:10 / 17:10 / 01:10)
+    - cron: "10 0,8,16 * * *"
+
+jobs:
+  latency-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    env:
+      OPS_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.target_base_url || vars.OPS_BASE_URL || 'https://townpet2.vercel.app' }}
+      OPS_PERF_GET_SAMPLES: ${{ github.event_name == 'workflow_dispatch' && inputs.get_samples || '30' }}
+      OPS_PERF_POST_SAMPLES: ${{ github.event_name == 'workflow_dispatch' && inputs.post_samples || '20' }}
+      OPS_PERF_PAUSE_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.pause_ms || '200' }}
+      OPS_PERF_OUT: ${{ github.workspace }}/artifacts/latency-snapshot-${{ github.run_id }}.tsv
+      OPS_PERF_SUMMARY_OUT: ${{ github.workspace }}/artifacts/latency-snapshot-${{ github.run_id }}.summary.md
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Collect latency snapshot
+        run: pnpm ops:perf:snapshot
+
+      - name: Append summary to job summary
+        run: |
+          cat "$OPS_PERF_SUMMARY_OUT" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload latency artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: latency-snapshot-${{ github.run_id }}
+          path: |
+            ${{ env.OPS_PERF_OUT }}
+            ${{ env.OPS_PERF_SUMMARY_OUT }}
+          if-no-files-found: error

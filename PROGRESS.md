@@ -17,6 +17,33 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 170 완료 (지연 스냅샷 자동 수집 파이프라인 구축)
+- 완료 내용
+- API 4종(`posts/suggestions/breed/search-log`) 지연 샘플을 자동 수집하는 스크립트 추가:
+  - `app/scripts/collect-latency-snapshot.ts`
+  - 출력: raw tsv + summary md(p50/p95, status 분포, slow count)
+- npm 실행 진입점 추가:
+  - `pnpm ops:perf:snapshot`
+- GitHub Actions 정기 수집 워크플로우 추가:
+  - `.github/workflows/ops-latency-snapshots.yml`
+  - `workflow_dispatch` 입력(`target_base_url/get_samples/post_samples/pause_ms`)
+  - schedule: UTC `00:10/08:10/16:10` (KST `09:10/17:10/01:10`)
+  - 실행 결과를 `GITHUB_STEP_SUMMARY` + artifact(tsv/md)로 보존
+- 운영 가이드 반영:
+  - `docs/GUIDE.md`에 `ops:perf:snapshot` 수동 실행법/환경변수/워크플로우 정보를 추가
+- 검증 결과
+- `pnpm -C app lint scripts/collect-latency-snapshot.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `OPS_BASE_URL=https://townpet2.vercel.app OPS_PERF_GET_SAMPLES=2 OPS_PERF_POST_SAMPLES=2 OPS_PERF_PAUSE_MS=50 pnpm -C app ops:perf:snapshot` 스모크 실행 통과(출력 파일: `/tmp/townpet_latency_snapshot_smoke.tsv`, `/tmp/townpet_latency_snapshot_smoke.md`).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/scripts/collect-latency-snapshot.ts`
+- `app/package.json`
+- `.github/workflows/ops-latency-snapshots.yml`
+- `docs/GUIDE.md`
+- `PLAN.md`
+
 ### 2026-03-05: Cycle 169 완료 (p95 아웃라이어 원인 분리 진단)
 - 완료 내용
 - 진단 샘플(`/tmp/townpet_outlier_diag2_20260305.tsv`)을 수집해 endpoint별로 `dns/connect/tls/ttfb/total`과 `x-vercel-cache/x-vercel-id`를 동시 분석.

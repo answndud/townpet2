@@ -643,6 +643,14 @@
 | 엔드포인트별 p50/p95 원인 분리 | Codex | P1 | `done` | GET/POST별 connect/tls/ttfb 분해 수치와 상태코드를 기반으로 병목층(네트워크 vs 서버)을 구분 | 진단 스크립트 집계 결과 |
 | 결과 문서화 | Codex | P2 | `done` | 단발 고지연 패턴이 재현/미재현되는 조건과 현재 안정 스냅샷을 `PROGRESS.md`에 기록 | `PROGRESS.md` |
 
+### Cycle 170: 지연 스냅샷 자동 수집 파이프라인 구축 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| ops 지연 스냅샷 수집 스크립트 추가 | Codex | P1 | `done` | `OPS_BASE_URL` 기준 API 4종 샘플 수집(tsv) + p50/p95 요약(md)을 생성하는 스크립트 제공 | `app/scripts/collect-latency-snapshot.ts` |
+| npm 실행 진입점 추가 | Codex | P2 | `done` | `pnpm ops:perf:snapshot`로 스크립트 실행 가능 | `app/package.json` |
+| GitHub Actions 정기 수집 워크플로우 추가 | Codex | P1 | `done` | `ops-latency-snapshots`가 workflow_dispatch + 하루 3회 schedule로 동작하고 artifact/step-summary를 남김 | `.github/workflows/ops-latency-snapshots.yml` |
+| 운영 가이드 실행법 반영 | Codex | P2 | `done` | GUIDE에 로컬 수동 실행법/환경변수/자동 수집 워크플로우 정보가 문서화됨 | `docs/GUIDE.md` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
