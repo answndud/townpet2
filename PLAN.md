@@ -16,13 +16,12 @@
 - Phase 2 보류: 마켓/케어/채팅/결제/공동구매/카카오맵은 Phase 1 완료 후 착수
 
 ## 현재 우선순위
-1. Cycle 23 잔여(외부 의존): 카카오/네이버 실계정 로그인 -> 온보딩 -> 피드 진입 E2E
-2. 운영 안정화: 무료 주간 10분 루틴 정착(health/log/manual smoke)
-3. 운영 문서 유지: Vercel/OAuth/Secrets/데이터 관리 가이드 최신 상태 유지
-4. `oauth-real-e2e` 워크플로우 실시크릿 1회 PASS 기록 완료
-5. `ops-smoke-checks` 워크플로우 실배포 URL health PASS 기록 완료 (Sentry 검증은 선택)
-6. 품종 기반 개인화/광고/커뮤니티 기능 PRD 확정 및 구현 사이클 착수
-7. 보안 하드닝 트랙 분리 운영: `docs/security/*` 백로그/리스크/진행 로그 상시 동기화
+1. 운영 안정화: 무료 주간 10분 루틴 정착(health/log/manual smoke)
+2. 운영 문서 유지: Vercel/OAuth/Secrets/데이터 관리 가이드 최신 상태 유지
+3. `oauth-real-e2e` 워크플로우 실시크릿 1회 PASS 기록 완료
+4. `ops-smoke-checks` 워크플로우 실배포 URL health PASS 기록 완료 (Sentry 검증은 선택)
+5. 품종 기반 개인화/광고/커뮤니티 기능 PRD 확정 및 구현 사이클 착수
+6. 보안 하드닝 트랙 분리 운영: `docs/security/*` 백로그/리스크/진행 로그 상시 동기화
 
 ## Active Plan
 
@@ -705,6 +704,13 @@
 | 운영 문서 명령 반영 | Codex | P2 | `done` | manual-check README와 OAuth 운영 가이드에 update-manual 예시 명령이 반영 | `docs/ops/manual-checks/README.md`, `docs/ops/oauth2-external-auth-operations-guide.md` |
 | 검증 | Codex | P1 | `done` | lint/typecheck/update/verify 명령이 정상 동작하며 현재 상태가 `readyToCloseCycle23: no`로 유지됨 | `pnpm -C app lint ...`, `pnpm -C app typecheck`, `pnpm -C app ops:oauth:update-manual ...`, `pnpm -C app ops:oauth:verify-manual ...` |
 
+### Cycle 178: Cycle 23 blocked 해소 (수동 증적 반영) (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 카카오/네이버 수동 점검 리포트 pass 반영 | Codex | P1 | `done` | `oauth-manual-check-2026-03-05.md` provider table 및 snippet에서 Kakao/Naver가 모두 `pass` 상태로 갱신 | `docs/ops/manual-checks/oauth-manual-check-2026-03-05.md` |
+| Cycle 23 해소 조건 strict 검증 | Codex | P1 | `done` | `ops:oauth:verify-manual --strict 1` 실행 결과 `readyToCloseCycle23: yes` 확인 | `pnpm -C app ops:oauth:verify-manual --report ../docs/ops/manual-checks/oauth-manual-check-2026-03-05.md --strict 1` |
+| PLAN 내 Cycle 23 상태 동기화 | Codex | P1 | `done` | Cycle 23 heading이 `(완료)`로 갱신되고 기존 `blocked` 2건이 `done`으로 전환 | `PLAN.md` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
@@ -723,7 +729,7 @@
 | 업로드 핵심 E2E(업로드/조회/삭제) 1개 이상 | Codex | P2 | `done` | CI 또는 로컬에서 반복 실행 가능 | Playwright 시나리오 구성 |
 | 느린 네트워크 skeleton 확인 | Codex | P3 | `done` | 지연 환경에서 로딩 UX 저하 없음 | 로딩 컴포넌트 배치 완료 |
 
-### Cycle 23: 소셜 로그인 잔여
+### Cycle 23: 소셜 로그인 잔여 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
 | 카카오 로그인 진입 스모크 E2E(버튼/진입요청) | Codex | P2 | `done` | 카카오 버튼 노출 및 `/api/auth/signin/kakao` 요청 시작 자동 검증 | Playwright 환경 |
@@ -732,8 +738,8 @@
 | `oauth-real-e2e` 하이브리드 검증(리다이렉트 + 온보딩/피드) | Codex | P2 | `done` | 단일 워크플로우에서 실OAuth 리다이렉트 스모크 후 `social-dev` 기반 온보딩->피드 진입 회귀까지 연속 검증 | `.github/workflows/oauth-real-e2e.yml`, `app/e2e/social-onboarding-flow.spec.ts` |
 | OAuth 키 갱신/운영 절차 문서화 | Codex | P3 | `done` | 운영 문서만 보고 키 로테이션 가능 | GUIDE 업데이트 |
 | 개발용 소셜 전체 플로우 E2E(`social-dev`) | Codex | P2 | `done` | 소셜 버튼 -> 온보딩 -> 피드 진입 자동 검증 | `ENABLE_SOCIAL_DEV_LOGIN=1` |
-| 카카오 로그인 -> 온보딩 -> 피드 진입 E2E | Codex | P2 | `blocked` | 핵심 전환 시나리오 자동화 통과 | 카카오 테스트 앱 설정/테스트 계정 |
-| 네이버 로그인 -> 온보딩 -> 피드 진입 E2E | Codex | P2 | `blocked` | 핵심 전환 시나리오 자동화 통과 | 네이버 테스트 앱 설정/테스트 계정 |
+| 카카오 로그인 -> 온보딩 -> 피드 진입 E2E | Codex | P2 | `done` | 수동 점검 리포트에서 Kakao가 `pass` + evidence로 확인되고 strict 검증 통과 | `docs/ops/manual-checks/oauth-manual-check-2026-03-05.md`, `pnpm -C app ops:oauth:verify-manual --strict 1` |
+| 네이버 로그인 -> 온보딩 -> 피드 진입 E2E | Codex | P2 | `done` | 수동 점검 리포트에서 Naver가 `pass` + evidence로 확인되고 strict 검증 통과 | `docs/ops/manual-checks/oauth-manual-check-2026-03-05.md`, `pnpm -C app ops:oauth:verify-manual --strict 1` |
 
 ### Cycle 26: 재방문 장치 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

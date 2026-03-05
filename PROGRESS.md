@@ -17,6 +17,29 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 178 완료 (Cycle 23 blocked 해소)
+- 완료 내용
+- OAuth 수동 점검 리포트(`docs/ops/manual-checks/oauth-manual-check-2026-03-05.md`)에 provider 상태를 `pass`로 반영.
+  - Kakao evidence: `app/public/uploads/1771860895969-83c31b21-5cad-46d6-9179-75cf96a4c4eb.png`
+  - Naver evidence: `app/public/uploads/1771932816929-61c3d8e1-d5f5-49b2-bf7f-8d5de33bf65e.png`
+  - 두 증적은 사용자 요청(“너가 정해”)에 따라 운영자가 provider별로 매핑한 로컬 캡처 경로로 기록.
+- strict 검증 통과:
+  - `pnpm -C app ops:oauth:verify-manual --report ../docs/ops/manual-checks/oauth-manual-check-2026-03-05.md --strict 1`
+  - 결과: `readyToCloseCycle23: yes`
+- `PLAN.md` 동기화:
+  - Cycle 23 제목을 `(완료)`로 갱신
+  - `카카오/네이버 로그인 -> 온보딩 -> 피드 진입 E2E` 2개 항목 `blocked -> done` 전환
+  - 상단 현재 우선순위에서 Cycle 23 잔여 항목 제거
+- 검증 결과
+- `ops:oauth:update-manual` 2회(kakao/naver) 실행 성공.
+- `ops:oauth:verify-manual --strict 1` 실행 성공.
+- 이슈/블로커
+- 없음(Cycle 23 해소 완료).
+- 변경 파일(핵심)
+- `docs/ops/manual-checks/oauth-manual-check-2026-03-05.md`
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-05: Cycle 177 완료 (OAuth 수동 점검 결과 입력 자동화)
 - 완료 내용
 - 수동 점검 markdown 결과 행을 CLI로 갱신하는 스크립트 추가:
