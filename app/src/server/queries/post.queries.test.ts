@@ -136,6 +136,34 @@ describe("post queries", () => {
     ]);
   });
 
+  it("skips reaction include for guest feed query", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([{ id: "g1" }]);
+
+    const result = await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.include.reactions).toBeUndefined();
+    expect((result.items[0] as { reactions?: Array<{ type: string }> } | undefined)?.reactions).toEqual(
+      [],
+    );
+  });
+
+  it("keeps reaction include for authenticated feed query", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([{ id: "u1", reactions: [{ type: "LIKE" }] }]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      viewerId: "user-1",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.include.reactions.where.userId).toBe("user-1");
+  });
+
   it("caps feed page size at 15 even when larger limit is requested", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
@@ -352,6 +380,20 @@ describe("post queries", () => {
       { viewCount: "desc" },
       { createdAt: "desc" },
     ]);
+  });
+
+  it("skips reaction include for guest best feed query", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([{ id: "b1" }]);
+
+    const result = await listBestPosts({
+      limit: 5,
+      days: 7,
+      scope: PostScope.GLOBAL,
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.include.reactions).toBeUndefined();
+    expect((result[0] as { reactions?: Array<{ type: string }> } | undefined)?.reactions).toEqual([]);
   });
 
   it("uses sentinel neighborhood for local best feed without primary neighborhood", async () => {

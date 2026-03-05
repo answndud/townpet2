@@ -529,7 +529,10 @@ export default async function Home({ searchParams }: HomePageProps) {
     images: post.images.map((image) => ({
       id: image.id,
     })),
-    reactions: post.reactions?.map((reaction) => ({ type: reaction.type })) ?? [],
+    reactions:
+      (post as { reactions?: Array<{ type: "LIKE" | "DISLIKE" }> }).reactions?.map(
+        (reaction) => ({ type: reaction.type }),
+      ) ?? [],
   }));
 
   const makeHref = ({

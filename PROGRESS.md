@@ -4768,6 +4768,45 @@
 - 주간 반복 점검 단계: `0개` -> `5개`(10분 루틴).
 - 신규 운영 문서: `0 -> 1`개(`docs/ops/free-ops-weekly-checklist.md`).
 
+### 2026-03-05: Cycle 72 피드/검색 API tail-latency 완화
+- 완료 내용
+- 게스트 조회(`viewerId` 없음)에서 `Post.reactions` relation 조회를 생략하도록 `listPosts/listBestPosts/listRankedSearchPosts`를 최적화하고, 응답 계약은 `reactions: []`로 유지.
+- `GET /api/posts`, `GET /api/posts/suggestions`에서 게스트 정책 조회를 레이트리밋과 병렬 시작하도록 변경해 선행 대기 시간 축소.
+- 피드/품종라운지 매핑부는 `reactions` 필드가 없는 응답 변형에도 안전하도록 방어 캐스팅을 추가.
+- 검증 결과
+- 정적 검증: `pnpm -C app lint ...changed files`, `pnpm -C app typecheck` 통과.
+- 테스트: `pnpm -C app test -- app/src/server/queries/post.queries.test.ts app/src/app/api/posts/route.test.ts app/src/app/api/posts/suggestions/route.test.ts` 통과(관련 회귀 테스트 3건 추가 포함).
+- 성능 측정 1차(2026-03-05 11:49Z): `/tmp/townpet_latency_snapshot_2026-03-05T11-49-19-588Z.tsv.summary.md`
+- `api_posts_global` p50/p95 `164.2/2468.9ms`(FAIL), 나머지 엔드포인트 PASS.
+- outlier 1건은 `x-vercel-cache=MISS` 단일 샘플(약 2.47s)로 확인.
+- 성능 측정 2차(2026-03-05 11:51Z): `/tmp/townpet_latency_snapshot_2026-03-05T11-51-18-762Z.tsv.summary.md`
+- `api_posts_global` p50/p95 `155.5/209.8ms` 포함 전 엔드포인트 PASS.
+- 리스크 메모
+- cold MISS 1건이 들어오면 p95가 크게 출렁일 수 있어, 운영상 tail-latency 모니터링은 계속 필요.
+
+### 2026-03-05: Cycle 179 보안 패치 업그레이드 + 운영 시크릿 점검 자동화
+- 완료 내용
+- 보안 의존성 패치 업그레이드 적용:
+  - `next` `16.1.4 -> 16.1.5`
+  - `eslint-config-next` `16.1.4 -> 16.1.5`
+  - `@vercel/blob` `1.1.1 -> 2.3.1`
+- 운영 보안 preflight 스크립트 추가:
+  - `pnpm -C app ops:check:security-env`
+  - 점검 항목: `AUTH_SECRET/NEXTAUTH_SECRET`, `CSP_ENFORCE_STRICT`, `GUEST_HASH_PEPPER`, `HEALTH_INTERNAL_TOKEN`, `UPSTASH_REDIS_REST_URL/TOKEN`
+  - 엄격 모드: `NODE_ENV=production SECURITY_ENV_STRICT=1`에서 운영 기준 FAIL 강제
+- CI 게이트 연동:
+  - `quality-gate` 워크플로우에 `Security env preflight` 단계를 추가해, DB sync/테스트 이전에 strict 보안 env 검증을 수행하도록 반영.
+- 운영 가이드/보안 문서 동기화:
+  - GUIDE에 보안 env 점검 명령(기본/엄격 모드) 추가
+  - SECURITY_PLAN/PROGRESS/RISK_REGISTER에 SEC-008/009 및 잔여 리스크 반영
+- 검증 결과
+- `pnpm -C app audit --prod` -> `No known vulnerabilities found`
+- `pnpm -C app lint scripts/check-security-env.ts src/lib/env.ts src/lib/auth.ts middleware.ts src/app/api/upload/client/route.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/app/api/upload/client/route.test.ts src/middleware.test.ts src/app/api/health/route.test.ts` 통과
+- `pnpm -C app ops:check:security-env` 실행(개발 환경 기준 WARN-only, FAIL 0)
+- `NODE_ENV=production SECURITY_ENV_STRICT=1 ... pnpm -C app ops:check:security-env` 샘플 입력 기준 PASS(5/5)
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)

@@ -1105,6 +1105,21 @@
 | 상단 `관심 동물` 멀티 체크 UI + 영구 저장 | Codex | P1 | `done` | 상단 메뉴에서 관심 동물을 체크박스로 다중 선택/저장할 수 있고 DB에 사용자별 선호 타입이 저장됨 | `app/src/components/navigation/feed-hover-menu.tsx`, `app/src/server/actions/user.ts`, `app/src/server/services/user.service.ts`, `app/src/lib/validations/user.ts`, `app/prisma/schema.prisma`, `app/prisma/migrations/20260303022000_add_user_pet_type_preferences/migration.sql` |
 | 피드/무한스크롤 다중 동물 필터 적용 및 게시판 이동 시 유지 | Codex | P1 | `done` | 사용자 선호 동물 설정이 `/feed` SSR/무한스크롤/API 쿼리에 반영되고 게시판 이동 후에도 동일 필터가 유지됨 | `app/src/app/layout.tsx`, `app/src/app/feed/page.tsx`, `app/src/app/api/posts/route.ts`, `app/src/components/posts/feed-infinite-list.tsx`, `app/src/server/queries/post.queries.ts`, `app/src/server/queries/user.queries.ts` |
 
+### Cycle 72: 피드/검색 API tail-latency 완화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게스트 조회 경로의 반응(reactions) 조인 제거 | Codex | P1 | `done` | `listPosts/listBestPosts/listRankedSearchPosts`에서 `viewerId` 없는 경우 반응 relation 조회를 생략하고 응답은 빈 reactions 배열 계약을 유지 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/post.queries.test.ts` |
+| 피드/검색 제안 API 선행 대기시간 단축 | Codex | P1 | `done` | `GET /api/posts`, `GET /api/posts/suggestions`에서 게스트 정책 조회를 레이트리밋과 동시 시작해 직렬 대기 시간을 줄임 | `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/suggestions/route.ts` |
+| 정량 재측정 및 PASS 재확인 | Codex | P1 | `done` | `ops:perf:snapshot` 2회 측정에서 최신 스냅샷 기준 모든 임계치 PASS를 확인하고, 단발 cold MISS outlier 리스크를 PROGRESS에 기록 | `/tmp/townpet_latency_snapshot_2026-03-05T11-49-19-588Z.tsv.summary.md`, `/tmp/townpet_latency_snapshot_2026-03-05T11-51-18-762Z.tsv.summary.md` |
+
+### Cycle 179: 보안 패치 업그레이드 + 운영 시크릿 점검 자동화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 보안 취약점 대응 의존성 패치(`next`, `@vercel/blob`) | Codex | P0 | `done` | `next/eslint-config-next/@vercel/blob`를 취약점 패치 버전으로 올리고 `pnpm -C app audit --prod` 결과가 clean | `app/package.json`, `app/pnpm-lock.yaml` |
+| 운영 보안 env preflight 스크립트 추가 | Codex | P1 | `done` | `ops:check:security-env`로 핵심 보안 변수(CSP strict, guest pepper, internal token, upstash, auth secret)를 자동 점검하고 strict 모드(`SECURITY_ENV_STRICT=1`)를 지원 | `app/scripts/check-security-env.ts`, `app/package.json` |
+| CI 품질게이트에 보안 env preflight 단계 추가 | Codex | P1 | `done` | `quality-gate` 워크플로우에서 strict 보안 env 체크가 DB sync 이전에 수행되어 설정 누락을 조기 차단 | `.github/workflows/quality-gate.yml` |
+| 운영/보안 문서 동기화 | Codex | P1 | `done` | GUIDE + SECURITY_PLAN/PROGRESS/RISK_REGISTER에 실행 명령/리스크/검증 로그가 반영 | `docs/GUIDE.md`, `docs/security/*.md`, `PROGRESS.md` |
+
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

@@ -60,6 +60,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Security env preflight
+        run: |
+          NODE_ENV=production \
+          SECURITY_ENV_STRICT=1 \
+          AUTH_SECRET='ci-auth-secret-strong-value-1234567890' \
+          CSP_ENFORCE_STRICT=1 \
+          GUEST_HASH_PEPPER='ci-guest-hash-pepper-1234567890' \
+          HEALTH_INTERNAL_TOKEN='ci-health-internal-token-1234567890' \
+          UPSTASH_REDIS_REST_URL='https://example.upstash.io' \
+          UPSTASH_REDIS_REST_TOKEN='ci-upstash-token' \
+          pnpm ops:check:security-env
+
       - name: Sync schema
         run: pnpm db:push
 

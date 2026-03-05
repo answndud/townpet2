@@ -27,14 +27,17 @@ export async function GET(request: NextRequest) {
       ? await getCurrentUserId()
       : null;
     const viewerId = currentUserId ?? undefined;
-    const loginRequiredTypes = currentUserId ? [] : await getGuestReadLoginRequiredPostTypes();
     const rateKey = currentUserId ? `feed:user:${currentUserId}` : `feed:ip:${clientIp}`;
+    const loginRequiredTypesPromise = currentUserId
+      ? Promise.resolve([])
+      : getGuestReadLoginRequiredPostTypes();
     await enforceRateLimit({
       key: rateKey,
       limit: 30,
       windowMs: 60_000,
       cacheMs: 1_000,
     });
+    const loginRequiredTypes = await loginRequiredTypesPromise;
     const { searchParams } = new URL(request.url);
     const petTypeQueryValues = searchParams
       .getAll("petType")

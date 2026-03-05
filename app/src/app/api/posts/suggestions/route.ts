@@ -44,6 +44,9 @@ export async function GET(request: NextRequest) {
       ? await getCurrentUserId()
       : null;
     const viewerId = currentUserId ?? undefined;
+    const loginRequiredTypesPromise = currentUserId
+      ? Promise.resolve([])
+      : getGuestReadLoginRequiredPostTypes();
     const rateKey = currentUserId
       ? `feed-suggest:user:${currentUserId}`
       : `feed-suggest:ip:${clientIp}`;
@@ -53,8 +56,7 @@ export async function GET(request: NextRequest) {
       windowMs: 60_000,
       cacheMs: 1_000,
     });
-
-    const loginRequiredTypes = currentUserId ? [] : await getGuestReadLoginRequiredPostTypes();
+    const loginRequiredTypes = await loginRequiredTypesPromise;
     if (!currentUserId && isLoginRequiredPostType(parsed.data.type, loginRequiredTypes)) {
       return jsonOk({ items: [] as string[] });
     }

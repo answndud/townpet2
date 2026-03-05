@@ -1324,6 +1324,7 @@ export async function listPosts({
   }
 
   const runListPosts = async () => {
+    const includeViewerReactions = Boolean(viewerId);
     const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
     const resolvedSort = sort ?? DEFAULT_POST_LIST_SORT;
     const reviewCategorySupported = supportsPostReviewCategoryField();
@@ -1464,8 +1465,11 @@ export async function listPosts({
     const items = await prisma.post
       .findMany({
         ...baseArgs,
-        include: buildPostListInclude(viewerId),
+        include: includeViewerReactions
+          ? buildPostListInclude(viewerId)
+          : buildPostListIncludeWithoutReactions(),
       })
+      .then((rows) => (includeViewerReactions ? rows : withEmptyReactions(rows)))
       .catch(async (error) => {
         if (
           !isUnavailableReactionsIncludeError(error) &&
@@ -1511,10 +1515,13 @@ export async function listPosts({
           : safeBaseArgs;
 
         if (isUnknownGuestAuthorIncludeError(error)) {
-          return prisma.post.findMany({
+          const rows = await prisma.post.findMany({
             ...safeFallbackBaseArgs,
-            include: buildPostListInclude(viewerId, false),
+            include: includeViewerReactions
+              ? buildPostListInclude(viewerId, false)
+              : buildPostListIncludeWithoutReactions(false),
           });
+          return includeViewerReactions ? rows : withEmptyReactions(rows);
         }
 
         if (
@@ -1524,9 +1531,13 @@ export async function listPosts({
         ) {
           const legacyItems = await prisma.post.findMany({
             ...safeFallbackBaseArgs,
-            select: buildLegacyPostListSelect(viewerId),
+            select: includeViewerReactions
+              ? buildLegacyPostListSelect(viewerId)
+              : buildLegacyPostListSelectWithoutReactions(),
           });
-          return withEmptyGuestPostMeta(legacyItems);
+          return includeViewerReactions
+            ? withEmptyGuestPostMeta(legacyItems)
+            : withEmptyReactions(withEmptyGuestPostMeta(legacyItems));
         }
 
         const fallbackItems = await prisma.post
@@ -1595,7 +1606,10 @@ export async function listPosts({
     }
 
     if (personalized && viewerId) {
-      const personalizedItems = await applyPetPersonalization(items, viewerId);
+      const personalizedItems = (await applyPetPersonalization(
+        items as Array<FeedLikePost & (typeof items)[number]>,
+        viewerId,
+      )) as typeof items;
       return {
         items: personalizedItems,
         nextCursor,
@@ -1664,6 +1678,7 @@ export async function listBestPosts({
   }
 
   const runListBestPosts = async () => {
+    const includeViewerReactions = Boolean(viewerId);
     const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
     const reviewCategorySupported = supportsPostReviewCategoryField();
     const effectiveType = reviewCategorySupported
@@ -1779,11 +1794,14 @@ export async function listBestPosts({
       return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
     }
 
-    return prisma.post
+    const items = await prisma.post
       .findMany({
         ...baseArgs,
-        include: buildPostListInclude(viewerId),
+        include: includeViewerReactions
+          ? buildPostListInclude(viewerId)
+          : buildPostListIncludeWithoutReactions(),
       })
+      .then((rows) => (includeViewerReactions ? rows : withEmptyReactions(rows)))
       .catch(async (error) => {
         if (
           !isUnavailableReactionsIncludeError(error) &&
@@ -1829,10 +1847,13 @@ export async function listBestPosts({
           : safeBaseArgs;
 
         if (isUnknownGuestAuthorIncludeError(error)) {
-          return prisma.post.findMany({
+          const rows = await prisma.post.findMany({
             ...safeFallbackBaseArgs,
-            include: buildPostListInclude(viewerId, false),
+            include: includeViewerReactions
+              ? buildPostListInclude(viewerId, false)
+              : buildPostListIncludeWithoutReactions(false),
           });
+          return includeViewerReactions ? rows : withEmptyReactions(rows);
         }
 
         if (
@@ -1842,9 +1863,13 @@ export async function listBestPosts({
         ) {
           const legacyItems = await prisma.post.findMany({
             ...safeFallbackBaseArgs,
-            select: buildLegacyPostListSelect(viewerId),
+            select: includeViewerReactions
+              ? buildLegacyPostListSelect(viewerId)
+              : buildLegacyPostListSelectWithoutReactions(),
           });
-          return withEmptyGuestPostMeta(legacyItems);
+          return includeViewerReactions
+            ? withEmptyGuestPostMeta(legacyItems)
+            : withEmptyReactions(withEmptyGuestPostMeta(legacyItems));
         }
 
         const fallbackItems = await prisma.post
@@ -1905,6 +1930,7 @@ export async function listBestPosts({
             });
         return withEmptyReactions(withEmptyGuestPostMeta(fallbackItems));
       });
+    return items;
   };
 
   const shouldCache = true;
@@ -2449,7 +2475,8 @@ export async function listRankedSearchPosts({
       },
     };
 
-    const fetchedPosts = !supportsPostReactionsField()
+    const includeViewerReactions = Boolean(viewerId);
+    const fetchedPosts = !supportsPostReactionsField() || !includeViewerReactions
       ? withEmptyReactions(
           await prisma.post.findMany({
             ...baseArgs,
