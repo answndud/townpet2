@@ -636,6 +636,13 @@
 | 배포 API 4종 성능 스냅샷 재수집 | Codex | P1 | `done` | `/api/posts`, `/api/posts/suggestions`, `/api/search/log`, `/api/lounges/breeds/[breedCode]/posts` 각 30회, 총 120건 재측정 | `/tmp/townpet_perf_20260305_after167.tsv` |
 | p50/p95 비교 기록 | Codex | P2 | `done` | breed p50 개선 및 p95 아웃라이어 변동성 패턴을 `PROGRESS.md`에 기록 | `PROGRESS.md` |
 
+### Cycle 169: p95 아웃라이어 원인 분리 진단 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 타이밍 계층/헤더 진단 샘플 수집 | Codex | P1 | `done` | `time_connect/time_appconnect/time_starttransfer/time_total` + `x-vercel-cache/x-vercel-id`를 포함한 진단 샘플 수집 완료 | `/tmp/townpet_outlier_diag2_20260305.tsv` |
+| 엔드포인트별 p50/p95 원인 분리 | Codex | P1 | `done` | GET/POST별 connect/tls/ttfb 분해 수치와 상태코드를 기반으로 병목층(네트워크 vs 서버)을 구분 | 진단 스크립트 집계 결과 |
+| 결과 문서화 | Codex | P2 | `done` | 단발 고지연 패턴이 재현/미재현되는 조건과 현재 안정 스냅샷을 `PROGRESS.md`에 기록 | `PROGRESS.md` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

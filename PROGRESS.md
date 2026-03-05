@@ -17,6 +17,29 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 169 완료 (p95 아웃라이어 원인 분리 진단)
+- 완료 내용
+- 진단 샘플(`/tmp/townpet_outlier_diag2_20260305.tsv`)을 수집해 endpoint별로 `dns/connect/tls/ttfb/total`과 `x-vercel-cache/x-vercel-id`를 동시 분석.
+- 표본:
+  - `api_posts_global`: 30
+  - `api_posts_suggestions`: 30
+  - `api_breed_posts`: 30
+  - `api_search_log`: 20 (rate-limit 창 고려)
+- 진단 집계(ms)
+  - `api_posts_global`: total p50 `153.7`, p95 `195.4` / connect p95 `14.6`, tls p95 `38.7`
+  - `api_posts_suggestions`: total p50 `148.0`, p95 `252.9` / connect p95 `13.3`, tls p95 `39.2`
+  - `api_breed_posts`: total p50 `146.0`, p95 `304.1` / connect p95 `14.2`, tls p95 `35.6`
+  - `api_search_log`: total p50 `264.2`, p95 `338.7` / connect p95 `54.0`, tls p95 `76.6`
+- 관측/해석
+- 이번 진단 런에서는 `>500ms` 단발 고지연이 재현되지 않았고(전 엔드포인트 0건), 이전 급격한 p95 악화는 콜드/일시 부하 표본에 크게 영향받은 것으로 판단.
+- GET 엔드포인트는 connect/tls가 낮게 유지되어 네트워크 핸드셰이크보다는 서버 처리/캐시 상태 변화가 체감 지연의 주된 변동 요인.
+- `search_log`는 다른 GET 대비 connect/tls p95가 높아 외부 왕복(인증/Redis/네트워크) 영향이 상대적으로 큼.
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-05: Cycle 168 완료 (Cycle 166/167 배포 후 성능 재측정)
 - 완료 내용
 - `quality-gate` run `22702076616` 성공 확인 후 최신 main 기준 배포 성능 재측정 수행.
