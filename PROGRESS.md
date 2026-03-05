@@ -17,6 +17,21 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 167 완료 (Search log rate-limit 허용 캐시 적용)
+- 완료 내용
+- `POST /api/search/log`의 rate-limit 호출에 `cacheMs: 500`을 적용해 동일 사용자/IP의 연속 입력 구간에서 Redis 왕복 오버헤드를 완화.
+- `search/log` 계약 테스트의 rate-limit 기대값(user/ip)에 `cacheMs: 500`을 반영.
+- 검증 결과
+- `pnpm -C app lint src/app/api/search/log/route.ts src/app/api/search/log/route.test.ts 'src/app/api/lounges/breeds/[breedCode]/posts/route.ts' 'src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app test -- src/app/api/search/log/route.test.ts 'src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts'` 통과(전체 62 files, 303 tests pass).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/app/api/search/log/route.ts`
+- `app/src/app/api/search/log/route.test.ts`
+- `PLAN.md`
+
 ### 2026-03-05: Cycle 166 완료 (Breed lounge posts 게스트 캐시 헤더 적용)
 - 완료 내용
 - `GET /api/lounges/breeds/[breedCode]/posts`에 게스트 첫 페이지 요청 전용 캐시 헤더를 적용:

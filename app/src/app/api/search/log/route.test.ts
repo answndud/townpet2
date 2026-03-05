@@ -67,6 +67,7 @@ describe("POST /api/search/log contract", () => {
       key: "search-log:user:user-1",
       limit: 30,
       windowMs: 60_000,
+      cacheMs: 500,
     });
   });
 
@@ -85,6 +86,7 @@ describe("POST /api/search/log contract", () => {
       key: "search-log:ip:127.0.0.1",
       limit: 30,
       windowMs: 60_000,
+      cacheMs: 500,
     });
   });
 

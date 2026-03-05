@@ -26,7 +26,12 @@ export async function POST(request: NextRequest) {
     const rateKey = currentUserId
       ? `search-log:user:${currentUserId}`
       : `search-log:ip:${clientIp}`;
-    await enforceRateLimit({ key: rateKey, limit: 30, windowMs: 60_000 });
+    await enforceRateLimit({
+      key: rateKey,
+      limit: 30,
+      windowMs: 60_000,
+      cacheMs: 500,
+    });
 
     const body = await request.json().catch(() => null);
     const parsed = searchLogSchema.safeParse(body);

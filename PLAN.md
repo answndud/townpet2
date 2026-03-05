@@ -622,6 +622,13 @@
 | 인증/게스트 캐시 계약 테스트 보강 | Codex | P2 | `done` | 인증 요청은 `no-store`, 게스트 요청은 캐시 헤더가 노출되는 계약이 테스트로 고정됨 | `app/src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts` |
 | 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 route 계약 테스트가 통과해 회귀 없음 | `pnpm -C app lint`, `pnpm -C app typecheck`, `pnpm -C app test -- ...` |
 
+### Cycle 167: Search log rate-limit 허용 캐시 적용 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| search log rate-limit cacheMs 도입 | Codex | P1 | `done` | `POST /api/search/log`가 `enforceRateLimit` 호출에 `cacheMs=500`을 사용해 연속 입력 구간의 Redis 왕복 지연을 완화 | `app/src/app/api/search/log/route.ts` |
+| search log 계약 테스트 정합 보강 | Codex | P2 | `done` | user/ip rate-limit key 기대값에 `cacheMs=500`이 포함되어 회귀 방지 | `app/src/app/api/search/log/route.test.ts` |
+| 타입/회귀 테스트 재검증 | Codex | P2 | `done` | lint/typecheck 및 route 테스트가 통과해 회귀 없음 | `pnpm -C app lint`, `pnpm -C app typecheck`, `pnpm -C app test -- ...` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
