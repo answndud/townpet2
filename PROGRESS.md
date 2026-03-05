@@ -17,6 +17,29 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 171 완료 (핫패스 API 경량화/계약테스트 확장 + 성능 임계치 평가 보강)
+- 완료 내용
+- 읽기 API 다수 경로(`posts/suggestions/communities/neighborhoods/notifications/breed-lounge`)에서 rate-limit 짧은 허용 캐시(`cacheMs=1000`)를 확대해 연속 요청 구간 Redis 왕복 지연을 완화.
+- query cache 경로를 Upstash pipeline 기반으로 정리하고 버전 snapshot TTL을 도입해 cache version 조회 오버헤드를 축소.
+- 알림 unread 동기화 유틸(`notification-unread-sync`) 및 알림 액션/쿼리 보강으로 벨/센터/페이지 간 unread 반영 지연을 줄임.
+- `collect-latency-snapshot`에 임계치 평가 섹션과 `OPS_PERF_FAIL_ON_THRESHOLD_BREACH` 옵션을 추가해 임계치 초과를 CI 실패 조건으로 승격할 수 있게 함.
+- admin audit/notification/upload/relation/post 보조 API 경로의 계약 테스트를 확장해 회귀 지점을 고정.
+- 검증 결과
+- `pnpm -C app lint` 통과.
+- `pnpm -C app typecheck` 통과.
+- push 품질게이트 성공: run `22704731250` (`quality-gate`, `success`).
+- 이슈/블로커
+- 없음.
+- 변경 파일(핵심)
+- `app/src/server/cache/query-cache.ts`
+- `app/src/lib/notification-unread-sync.ts`
+- `app/scripts/collect-latency-snapshot.ts`
+- `app/src/app/api/**/*.test.ts`
+- `app/src/server/actions/notification.test.ts`
+- `app/src/server/queries/notification.queries.test.ts`
+- `.github/workflows/quality-gate.yml`
+- `PLAN.md`
+
 ### 2026-03-05: Cycle 170 완료 (지연 스냅샷 자동 수집 파이프라인 구축)
 - 완료 내용
 - API 4종(`posts/suggestions/breed/search-log`) 지연 샘플을 자동 수집하는 스크립트 추가:

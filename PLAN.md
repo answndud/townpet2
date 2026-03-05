@@ -651,6 +651,16 @@
 | GitHub Actions 정기 수집 워크플로우 추가 | Codex | P1 | `done` | `ops-latency-snapshots`가 workflow_dispatch + 하루 3회 schedule로 동작하고 artifact/step-summary를 남김 | `.github/workflows/ops-latency-snapshots.yml` |
 | 운영 가이드 실행 항목 검증 | Codex | P2 | `done` | GUIDE에서 로컬 수동 실행법/환경변수/자동 수집 워크플로우 안내가 유지되고 있는지 확인 | `docs/GUIDE.md` |
 
+### Cycle 171: 핫패스 API 경량화/계약테스트 확장 + 성능 임계치 평가 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 읽기 API rate-limit 짧은 허용 캐시 확대 | Codex | P1 | `done` | posts/suggestions/communities/neighborhoods/notifications/breed-lounge 등 조회 경로가 `cacheMs=1000` 기반으로 연속 요청 구간 Redis 왕복을 완화 | `app/src/app/api/**/route.ts` |
+| query cache Upstash 왕복 최적화/스냅샷 보강 | Codex | P1 | `done` | Upstash REST 호출을 pipeline 경로로 통합하고 버전 snapshot TTL/메모리 fallback로 버전 조회 오버헤드를 완화 | `app/src/server/cache/query-cache.ts` |
+| 알림 unread 동기화/조회 체감 개선 | Codex | P1 | `done` | unread 동기화 이벤트 유틸과 알림 액션/쿼리 보강으로 벨/센터/페이지 간 unread 반영 지연을 축소 | `app/src/lib/notification-unread-sync.ts`, `app/src/server/actions/notification.ts`, `app/src/server/queries/notification.queries.ts` |
+| API/액션 계약 테스트 대폭 확장 | Codex | P1 | `done` | admin-audit, notification, upload, relation, post suggestion/reaction/view 등 회귀 지점을 테스트로 고정 | `app/src/app/api/**/*.test.ts`, `app/src/server/actions/notification.test.ts`, `app/src/server/queries/notification.queries.test.ts` |
+| 성능 스냅샷 임계치 평가 옵션 추가 | Codex | P2 | `done` | `OPS_PERF_FAIL_ON_THRESHOLD_BREACH`로 p95/slow/non200 임계 초과 시 실패 처리 가능 | `app/scripts/collect-latency-snapshot.ts` |
+| 품질게이트 검증 | Codex | P1 | `done` | push run `22704731250`이 `success`로 완료 | GitHub Actions |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
