@@ -689,6 +689,14 @@
 | 수동 증적 운영 README 추가 | Codex | P2 | `done` | 생성 명령/PII 금지/완료 처리 규칙이 `docs/ops/manual-checks/README.md`에 문서화됨 | `docs/ops/manual-checks/README.md` |
 | 오늘자 OAuth 수동 점검 템플릿 저장 | Codex | P1 | `done` | run `22705265766` 기준 템플릿 파일이 저장소 경로에 생성되어 바로 상태/evidence 입력 가능 | `docs/ops/manual-checks/oauth-manual-check-2026-03-05.md` |
 
+### Cycle 176: OAuth 수동 증적 충족 자동판정 도입 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 수동 증적 검증 스크립트 추가 | Codex | P1 | `done` | 보고서 markdown에서 Kakao/Naver 상태와 evidence 칸을 파싱해 Cycle 23 해소 가능 여부(`readyToCloseCycle23`)를 출력 | `app/scripts/verify-oauth-manual-check.ts` |
+| npm 검증 명령 추가 | Codex | P2 | `done` | `pnpm -C app ops:oauth:verify-manual --report <path> --strict 1`로 기준 미충족 시 non-zero 종료 가능 | `app/package.json` |
+| 운영 문서 명령 동기화 | Codex | P2 | `done` | OAuth 운영 가이드 및 manual-check README에 verify 명령이 반영됨 | `docs/ops/oauth2-external-auth-operations-guide.md`, `docs/ops/manual-checks/README.md` |
+| 동작 검증 | Codex | P1 | `done` | lint/typecheck/verify 실행 결과가 기록되고, 현재 보고서(pending)에서 `readyToCloseCycle23: no`가 확인됨 | `pnpm -C app lint ...`, `pnpm -C app typecheck`, `pnpm -C app ops:oauth:verify-manual ...` |
+
 ### Cycle 24: 피드 체류 개선 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

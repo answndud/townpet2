@@ -17,6 +17,33 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-05: Cycle 176 완료 (OAuth 수동 증적 충족 자동판정 도입)
+- 완료 내용
+- 수동 점검 markdown(`docs/ops/manual-checks/oauth-manual-check-*.md`)에서 provider 상태/증적 칸을 자동 판정하는 스크립트 추가:
+  - `app/scripts/verify-oauth-manual-check.ts`
+  - 출력: provider별 `status/evidence/ready` + `readyToCloseCycle23`
+  - strict 모드(`--strict 1`)에서 기준 미충족 시 non-zero 종료
+- npm 실행 명령 추가:
+  - `pnpm -C app ops:oauth:verify-manual --report <path> --strict 1`
+- 운영 문서 반영:
+  - OAuth 운영 가이드와 manual-checks README에 verify 명령 추가
+- 검증 결과
+- `pnpm -C app lint scripts/verify-oauth-manual-check.ts` 통과.
+- `pnpm -C app typecheck` 통과.
+- `pnpm -C app ops:oauth:verify-manual --report ../docs/ops/manual-checks/oauth-manual-check-2026-03-05.md` 실행 결과:
+  - Kakao `pending`, evidence `missing`
+  - Naver `pending`, evidence `missing`
+  - `readyToCloseCycle23: no`
+- 이슈/블로커
+- 자동판정 기준 도입 완료. 단, 실제 blocked 해소는 provider별 수동 `pass + evidence` 입력 후 strict 검증 통과가 필요.
+- 변경 파일(핵심)
+- `app/scripts/verify-oauth-manual-check.ts`
+- `app/package.json`
+- `docs/ops/manual-checks/README.md`
+- `docs/ops/oauth2-external-auth-operations-guide.md`
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-05: Cycle 175 완료 (OAuth 수동 증적 추적 가능화)
 - 완료 내용
 - `.gitignore` allowlist를 추가해 `docs/ops/manual-checks/*.md`를 저장소에서 추적 가능하도록 전환.

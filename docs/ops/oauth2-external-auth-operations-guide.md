@@ -255,6 +255,9 @@ pnpm -C app ops:oauth:preflight
 
 # 실계정 수동 점검 리포트 템플릿 생성
 pnpm -C app ops:oauth:manual-report --date 2026-03-05 --run-url https://github.com/answndud/townpet2/actions/runs/22705265766 --out ../docs/ops/manual-checks/oauth-manual-check-2026-03-05.md
+
+# Cycle 23 해소 조건 검증(strict)
+pnpm -C app ops:oauth:verify-manual --report ../docs/ops/manual-checks/oauth-manual-check-2026-03-05.md --strict 1
 ```
 
 Day1 핸드오프 템플릿 생성:
