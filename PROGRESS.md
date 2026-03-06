@@ -4850,6 +4850,19 @@
 - 기대 효과
 - staging/prod DB에서 `pg_trgm` 누락이 있어도 검색 fallback으로 조용히 넘어가던 상태를 운영 체크 단계에서 조기 감지 가능.
 
+### 2026-03-06: Cycle 183 배포 스모크 `pg_trgm` 강제 검증 옵션 추가
+- 완료 내용
+- `.github/workflows/ops-smoke-checks.yml`에 수동 입력 `verify_pg_trgm`(기본 `false`)을 추가.
+- `verify_pg_trgm=true`일 때:
+  - `HEALTH_INTERNAL_TOKEN` 시크릿 존재 여부를 먼저 검증
+  - `OPS_HEALTH_INTERNAL_TOKEN` + `OPS_HEALTH_REQUIRE_PG_TRGM=1` 조합으로 `pnpm ops:check:health`를 실행해 `pg_trgm` 미설치/미노출 시 즉시 FAIL
+- GUIDE에 신규 입력/시크릿/실행 기준을 반영해 운영자가 UI에서 체크박스만 켜서 동일 점검을 재현할 수 있도록 정리.
+- 검증 결과
+- `pnpm -C app lint scripts/check-health-endpoint.ts` 통과
+- `pnpm -C app typecheck` 통과
+- 메모
+- 자동 스케줄 경로는 기존처럼 health-only(`verify_pg_trgm=false`)로 유지해 불필요한 실패/시크릿 의존을 피함.
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
 - Sentry 실수신 검증(DSN/프로젝트 설정 필요)

@@ -1138,6 +1138,12 @@
 | 내부 health 상세에 `pg_trgm` 상태 노출 | Codex | P1 | `done` | `/api/health` 내부 토큰 경로에서 `checks.search.pgTrgm(state/enabled/message)`가 제공되어 운영자가 확장 누락을 즉시 파악 가능 | `app/src/app/api/health/route.ts`, `app/src/app/api/health/route.test.ts` |
 | `ops:check:health`에 `pg_trgm` 강제 판정 옵션 추가 | Codex | P1 | `done` | `OPS_HEALTH_INTERNAL_TOKEN` + `OPS_HEALTH_REQUIRE_PG_TRGM=1` 조합으로 확장 누락 시 명시적 FAIL이 발생 | `app/scripts/check-health-endpoint.ts`, `docs/GUIDE.md` |
 
+### Cycle 183: 배포 스모크에 `pg_trgm` 강제 검증 옵션 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `ops-smoke-checks`에 `verify_pg_trgm` 입력 추가 | Codex | P1 | `done` | 수동 실행 입력에 `verify_pg_trgm`이 추가되고, 활성화 시 `HEALTH_INTERNAL_TOKEN` 검증 후 `OPS_HEALTH_REQUIRE_PG_TRGM=1 pnpm ops:check:health`가 실행됨 | `.github/workflows/ops-smoke-checks.yml` |
+| 운영 가이드에 신규 입력/시크릿 반영 | Codex | P1 | `done` | GUIDE의 ops-smoke-checks 사용법/Secrets/실행기준에 `verify_pg_trgm` + `HEALTH_INTERNAL_TOKEN`이 반영됨 | `docs/GUIDE.md` |
+
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

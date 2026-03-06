@@ -12,6 +12,11 @@ on:
         required: true
         default: false
         type: boolean
+      verify_pg_trgm:
+        description: "Require pg_trgm extension check via internal health token"
+        required: true
+        default: false
+        type: boolean
   schedule:
     # Every Monday 00:15 UTC (KST 09:15)
     - cron: "15 0 * * 1"
@@ -49,6 +54,23 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check deployment health endpoint
+        run: pnpm ops:check:health
+
+      - name: Validate internal health token secret
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_pg_trgm }}
+        env:
+          HEALTH_INTERNAL_TOKEN: ${{ secrets.HEALTH_INTERNAL_TOKEN }}
+        run: |
+          if [ -z "${HEALTH_INTERNAL_TOKEN}" ]; then
+            echo "::error::Missing required secret: HEALTH_INTERNAL_TOKEN"
+            exit 1
+          fi
+
+      - name: Check pg_trgm extension via internal health endpoint
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_pg_trgm }}
+        env:
+          OPS_HEALTH_INTERNAL_TOKEN: ${{ secrets.HEALTH_INTERNAL_TOKEN }}
+          OPS_HEALTH_REQUIRE_PG_TRGM: "1"
         run: pnpm ops:check:health
 
       - name: Validate Sentry secrets
