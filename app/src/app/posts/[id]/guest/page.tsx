@@ -13,6 +13,7 @@ import { PostCommentSectionClient } from "@/components/posts/post-comment-sectio
 import { PostViewTracker } from "@/components/posts/post-view-tracker";
 import { getCspNonce } from "@/lib/csp-nonce";
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
+import { getGuestPostMeta } from "@/lib/post-guest-meta";
 import { canGuestReadPost } from "@/lib/post-access";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
@@ -221,24 +222,9 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
   }
 
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
-  const guestPostMeta = post as {
-    guestDisplayName?: string | null;
-    guestAuthor?: { displayName?: string | null } | null;
-    guestAuthorId?: string | null;
-  };
-  const guestIpMeta = post as {
-    guestIpDisplay?: string | null;
-    guestIpLabel?: string | null;
-    guestAuthor?: { ipDisplay?: string | null; ipLabel?: string | null } | null;
-  };
-  const resolvedGuestIpDisplay =
-    guestIpMeta.guestIpDisplay ?? guestIpMeta.guestAuthor?.ipDisplay ?? null;
-  const resolvedGuestIpLabel = guestIpMeta.guestIpLabel ?? guestIpMeta.guestAuthor?.ipLabel ?? null;
-  const resolvedGuestAuthorName =
-    guestPostMeta.guestDisplayName?.trim() || guestPostMeta.guestAuthor?.displayName?.trim() || "";
-  const isGuestPost = Boolean(resolvedGuestAuthorName) || Boolean(guestPostMeta.guestAuthorId);
-  const displayAuthorName = resolvedGuestAuthorName
-    ? resolvedGuestAuthorName
+  const guestPostMeta = getGuestPostMeta(post);
+  const displayAuthorName = guestPostMeta.guestAuthorName
+    ? guestPostMeta.guestAuthorName
     : post.author.nickname ?? post.author.name ?? "익명";
   const postUrl = toAbsoluteUrl(`/posts/${post.id}`);
   const meta = typeMeta[post.type];
@@ -266,7 +252,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
     mainEntityOfPage: postUrl,
     author: {
       "@type": "Person",
-      name: post.author.nickname ?? post.author.name ?? "익명",
+      name: displayAuthorName,
     },
     image: orderedImages.map((image) => toAbsoluteUrl(image.url)),
     interactionStatistic: [
@@ -317,11 +303,11 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
               <div className="text-sm text-[#4f678d] md:text-right">
                 <div className="flex items-start justify-between gap-3 md:flex-col md:items-end">
                   <p className="font-semibold text-[#1f3f71]">
-                    {isGuestPost ? (
+                    {guestPostMeta.isGuestPost ? (
                       <span>
                         {displayAuthorName}
-                        {resolvedGuestIpDisplay
-                          ? ` (${resolvedGuestIpLabel ?? "아이피"} ${resolvedGuestIpDisplay})`
+                        {guestPostMeta.guestIpDisplay
+                          ? ` (${guestPostMeta.guestIpLabel ?? "아이피"} ${guestPostMeta.guestIpDisplay})`
                           : ""}
                       </span>
                     ) : (
@@ -400,7 +386,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
                   <PostShareControls url={postUrl} title={post.title} />
                 </div>
               </div>
-              <GuestPostDetailActions postId={post.id} />
+              {guestPostMeta.isGuestPost ? <GuestPostDetailActions postId={post.id} /> : null}
             </div>
 
             <details className="mt-4 rounded-xl border border-[#d9e5f7] bg-white p-4">

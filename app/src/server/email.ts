@@ -1,16 +1,26 @@
 import { Resend } from "resend";
 
 import { runtimeEnv } from "@/lib/env";
-import { logger } from "@/server/logger";
+import { logger, serializeError } from "@/server/logger";
+import { ServiceError } from "@/server/services/service-error";
 
 let hasWarnedMissingApiKey = false;
 
-function getResendClient() {
+function getResendClient(required: boolean) {
   if (!runtimeEnv.resendApiKey) {
     if (!hasWarnedMissingApiKey) {
       hasWarnedMissingApiKey = true;
       logger.warn("RESEND_API_KEY가 없어 이메일 전송을 건너뜁니다.");
     }
+
+    if (required && runtimeEnv.isProduction) {
+      throw new ServiceError(
+        "이메일 전송 설정이 준비되지 않았습니다. 관리자에게 문의해 주세요.",
+        "EMAIL_DELIVERY_NOT_CONFIGURED",
+        503,
+      );
+    }
+
     return null;
   }
 
@@ -18,23 +28,49 @@ function getResendClient() {
 }
 
 async function sendEmail(params: {
+  kind: "password-reset" | "email-verification" | "welcome";
   to: string;
   subject: string;
   text: string;
   html: string;
+  required?: boolean;
 }) {
-  const resend = getResendClient();
+  const required = params.required ?? false;
+  const resend = getResendClient(required);
   if (!resend) {
     return;
   }
 
-  await resend.emails.send({
-    from: "TownPet <no-reply@townpet.dev>",
-    to: params.to,
-    subject: params.subject,
-    text: params.text,
-    html: params.html,
-  });
+  try {
+    const result = await resend.emails.send({
+      from: "TownPet <no-reply@townpet.dev>",
+      to: params.to,
+      subject: params.subject,
+      text: params.text,
+      html: params.html,
+    });
+
+    if (result && typeof result === "object" && "error" in result && result.error) {
+      throw result.error;
+    }
+  } catch (error) {
+    if (required && runtimeEnv.isProduction) {
+      logger.error("필수 이메일 전송에 실패했습니다.", {
+        kind: params.kind,
+        error: serializeError(error),
+      });
+      throw new ServiceError(
+        "이메일을 전송할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+        "EMAIL_DELIVERY_UNAVAILABLE",
+        503,
+      );
+    }
+
+    logger.warn("선택 이메일 전송에 실패했습니다.", {
+      kind: params.kind,
+      error: serializeError(error),
+    });
+  }
 }
 
 const appBaseUrl =
@@ -75,7 +111,14 @@ export async function sendPasswordResetEmail({
     </div>
   `;
 
-  await sendEmail({ to: email, subject, text, html });
+  await sendEmail({
+    kind: "password-reset",
+    to: email,
+    subject,
+    text,
+    html,
+    required: true,
+  });
 }
 
 export async function sendVerificationEmail({ email, token }: EmailVerificationParams) {
@@ -97,7 +140,14 @@ export async function sendVerificationEmail({ email, token }: EmailVerificationP
     </div>
   `;
 
-  await sendEmail({ to: email, subject, text, html });
+  await sendEmail({
+    kind: "email-verification",
+    to: email,
+    subject,
+    text,
+    html,
+    required: true,
+  });
 }
 
 export async function sendWelcomeEmail(email: string) {
@@ -112,5 +162,11 @@ export async function sendWelcomeEmail(email: string) {
     </div>
   `;
 
-  await sendEmail({ to: email, subject, text, html });
+  await sendEmail({
+    kind: "welcome",
+    to: email,
+    subject,
+    text,
+    html,
+  });
 }

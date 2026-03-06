@@ -3,12 +3,21 @@ import { redirect } from "next/navigation";
 
 import { SetPasswordForm } from "@/components/auth/set-password-form";
 import { auth } from "@/lib/auth";
+import { getPasswordSetupCopy } from "@/lib/password-setup";
+import { getUserPasswordStatusById } from "@/server/queries/user.queries";
 
 export default async function PasswordSetupPage() {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const passwordStatus = await getUserPasswordStatusById(session.user.id);
+  if (!passwordStatus) {
+    redirect("/login");
+  }
+
+  const copy = getPasswordSetupCopy(passwordStatus.hasPassword);
 
   return (
     <div className="tp-page-bg min-h-screen">
@@ -17,14 +26,14 @@ export default async function PasswordSetupPage() {
           <p className="text-xs uppercase tracking-[0.24em] text-[#4e6f9f]">
             보안
           </p>
-          <h1 className="text-3xl font-semibold text-[#10284a]">비밀번호 수정</h1>
+          <h1 className="text-3xl font-semibold text-[#10284a]">{copy.pageTitle}</h1>
           <p className="text-sm text-[#4f678d]">
-            기존 계정의 비밀번호를 새 비밀번호로 수정할 수 있습니다.
+            {copy.pageDescription}
           </p>
         </header>
 
         <section className="tp-card p-5 sm:p-6">
-          <SetPasswordForm />
+          <SetPasswordForm hasPassword={passwordStatus.hasPassword} />
         </section>
 
         <div className="flex items-center justify-between text-xs text-[#5a7398]">

@@ -3,9 +3,11 @@ import { SanctionLevel } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
+  assertUserInteractionAllowed,
   getActiveInteractionSanction,
   issueNextUserSanction,
 } from "@/server/services/sanction.service";
+import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -108,5 +110,22 @@ describe("sanction service", () => {
     const result = await getActiveInteractionSanction("u1");
 
     expect(result?.level).toBe(SanctionLevel.SUSPEND_30D);
+  });
+
+  it("throws when active interaction sanction exists", async () => {
+    mockPrisma.userSanction.findFirst.mockResolvedValueOnce({
+      id: "s-active",
+      userId: "u1",
+      moderatorId: "m1",
+      level: SanctionLevel.SUSPEND_7D,
+      reason: "active",
+      sourceReportId: "r1",
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+      createdAt: new Date(),
+    });
+
+    await expect(assertUserInteractionAllowed("u1")).rejects.toBeInstanceOf(
+      ServiceError,
+    );
   });
 });

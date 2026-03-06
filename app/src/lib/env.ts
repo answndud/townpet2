@@ -155,6 +155,14 @@ export function validateRuntimeEnv(): EnvValidationResult {
     missing.push("UPSTASH_REDIS_REST_URL_AND_TOKEN_PAIR");
   }
 
+  if (runtimeEnv.isProduction && !runtimeEnv.resendApiKey) {
+    missing.push("RESEND_API_KEY");
+  }
+
+  if (runtimeEnv.isProduction && !runtimeEnv.isBlobConfigured) {
+    missing.push("BLOB_READ_WRITE_TOKEN");
+  }
+
   if (runtimeEnv.isProduction && runtimeEnv.enableSocialDevLogin) {
     missing.push("ENABLE_SOCIAL_DEV_LOGIN_MUST_BE_DISABLED");
   }

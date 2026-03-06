@@ -109,6 +109,24 @@ function main() {
     })
   }
 
+  const resendApiKey = read("RESEND_API_KEY")
+  results.push({
+    key: "RESEND_API_KEY",
+    status: resendApiKey ? "PASS" : enforceProdRules ? "FAIL" : "WARN",
+    detail: resendApiKey
+      ? "설정됨"
+      : "미설정 시 인증/비밀번호 재설정 메일이 전송되지 않음",
+  })
+
+  const blobToken = read("BLOB_READ_WRITE_TOKEN")
+  results.push({
+    key: "BLOB_READ_WRITE_TOKEN",
+    status: blobToken ? "PASS" : enforceProdRules ? "FAIL" : "WARN",
+    detail: blobToken
+      ? "설정됨"
+      : "미설정 시 hosted runtime 이미지 업로드가 500으로 실패",
+  })
+
   const failed = results.filter((result) => result.status === "FAIL")
   const warned = results.filter((result) => result.status === "WARN")
 

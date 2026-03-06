@@ -19,7 +19,7 @@ import {
   getUserRoleByEmail,
   getUserRoleById,
 } from "@/server/queries/user.queries";
-import { getActiveInteractionSanction } from "@/server/services/sanction.service";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
@@ -33,8 +33,7 @@ vi.mock("@/server/queries/user.queries", () => ({
 }));
 
 vi.mock("@/server/services/sanction.service", () => ({
-  getActiveInteractionSanction: vi.fn(),
-  formatSanctionLevelLabel: vi.fn().mockReturnValue("7일 정지"),
+  assertUserInteractionAllowed: vi.fn(),
 }));
 
 const mockAuth = vi.mocked(auth);
@@ -42,7 +41,7 @@ const mockGetUserByEmail = vi.mocked(getUserByEmail);
 const mockGetUserById = vi.mocked(getUserById);
 const mockGetUserRoleByEmail = vi.mocked(getUserRoleByEmail);
 const mockGetUserRoleById = vi.mocked(getUserRoleById);
-const mockGetActiveInteractionSanction = vi.mocked(getActiveInteractionSanction);
+const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
 
 describe("auth helpers", () => {
   const demoEmail = "demo@townpet.dev";
@@ -53,8 +52,8 @@ describe("auth helpers", () => {
     mockGetUserById.mockReset();
     mockGetUserRoleByEmail.mockReset();
     mockGetUserRoleById.mockReset();
-    mockGetActiveInteractionSanction.mockReset();
-    mockGetActiveInteractionSanction.mockResolvedValue(null);
+    mockAssertUserInteractionAllowed.mockReset();
+    mockAssertUserInteractionAllowed.mockResolvedValue();
     delete process.env.DEMO_USER_EMAIL;
   });
 
@@ -276,16 +275,9 @@ describe("auth helpers", () => {
       image: null,
       role: UserRole.USER,
     });
-    mockGetActiveInteractionSanction.mockResolvedValue({
-      id: "sanction-1",
-      userId: "user-3",
-      moderatorId: "mod-1",
-      level: "SUSPEND_7D",
-      reason: "테스트 제재",
-      sourceReportId: "report-1",
-      expiresAt: new Date("2026-03-01T00:00:00.000Z"),
-      createdAt: new Date("2026-02-19T00:00:00.000Z"),
-    } as never);
+    mockAssertUserInteractionAllowed.mockRejectedValue(
+      new ServiceError("정지", "ACCOUNT_SUSPENDED", 403),
+    );
 
     await expect(requireCurrentUser()).rejects.toBeInstanceOf(ServiceError);
   });

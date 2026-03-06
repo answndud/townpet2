@@ -29,6 +29,8 @@ describe("GET /api/admin/auth-audits/export contract", () => {
       {
         action: AuthAuditAction.PASSWORD_SET,
         userId: "user-1",
+        identifierLabel: "u1***@te***.dev",
+        reasonCode: null,
         user: {
           id: "user-1",
           email: "u1@test.dev",
@@ -50,7 +52,7 @@ describe("GET /api/admin/auth-audits/export contract", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/csv");
-    expect(text).toContain("action,userId,email,nickname,ipAddress,userAgent,createdAt");
+    expect(text).toContain("action,reasonCode,userId,identifierLabel,email,nickname,ipAddress,userAgent,createdAt");
     expect(text).toContain("PASSWORD_SET");
     expect(text).toContain("u1@test.dev");
   });
@@ -76,6 +78,8 @@ describe("GET /api/admin/auth-audits/export contract", () => {
       {
         action: AuthAuditAction.PASSWORD_SET,
         userId: "user-1",
+        identifierLabel: "=evil@example.dev",
+        reasonCode: null,
         user: {
           id: "user-1",
           email: "=cmd|' /C calc'!A0",
@@ -96,7 +100,33 @@ describe("GET /api/admin/auth-audits/export contract", () => {
     expect(response.status).toBe(200);
     expect(text).toContain("\"'=cmd|' /C calc'!A0\"");
     expect(text).toContain("\"'+nickname\"");
+    expect(text).toContain("\"'=evil@example.dev\"");
     expect(text).toContain("\"'@evil-agent\"");
+  });
+
+  it("exports login failures without linked user relation", async () => {
+    mockListAuthAuditLogs.mockResolvedValue([
+      {
+        action: AuthAuditAction.LOGIN_FAILURE,
+        userId: null,
+        identifierLabel: "ab***@te***.dev",
+        reasonCode: "USER_NOT_FOUND",
+        user: null,
+        ipAddress: "127.0.0.1",
+        userAgent: "ua",
+        createdAt: new Date("2026-03-04T00:00:00.000Z"),
+      },
+    ] as never);
+
+    const request = new Request("http://localhost/api/admin/auth-audits/export") as NextRequest;
+
+    const response = await GET(request);
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).toContain("LOGIN_FAILURE");
+    expect(text).toContain("USER_NOT_FOUND");
+    expect(text).toContain("ab***@te***.dev");
   });
 
   it("returns 500 and monitors unexpected errors", async () => {

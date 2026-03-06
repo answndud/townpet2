@@ -1,4 +1,7 @@
-import { createHash } from "crypto";
+import { hashLoginIdentifierEmail, normalizeLoginIdentifierEmail } from "@/server/auth-login-identifier";
+
+export const LOGIN_ACCOUNT_IP_RULE_PREFIX = "auth:login:account-ip:";
+export const LOGIN_ACCOUNT_RULE_PREFIX = "auth:login:account:";
 
 export type LoginRateLimitRule = {
   key: string;
@@ -6,16 +9,12 @@ export type LoginRateLimitRule = {
   windowMs: number;
 };
 
-function hashLoginIdentity(value: string) {
-  return createHash("sha256").update(value).digest("hex");
-}
-
 export function buildLoginRateLimitRules(params: {
   email: string;
   clientIp: string;
 }): LoginRateLimitRule[] {
-  const normalizedEmail = params.email.trim().toLowerCase();
-  const emailHash = hashLoginIdentity(normalizedEmail || "unknown");
+  const normalizedEmail = normalizeLoginIdentifierEmail(params.email);
+  const emailHash = hashLoginIdentifierEmail(normalizedEmail || "unknown");
 
   return [
     {
@@ -24,12 +23,12 @@ export function buildLoginRateLimitRules(params: {
       windowMs: 60_000,
     },
     {
-      key: `auth:login:account-ip:${emailHash}:${params.clientIp}`,
+      key: `${LOGIN_ACCOUNT_IP_RULE_PREFIX}${emailHash}:${params.clientIp}`,
       limit: 5,
       windowMs: 15 * 60_000,
     },
     {
-      key: `auth:login:account:${emailHash}`,
+      key: `${LOGIN_ACCOUNT_RULE_PREFIX}${emailHash}`,
       limit: 30,
       windowMs: 24 * 60 * 60_000,
     },

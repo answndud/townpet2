@@ -7,11 +7,11 @@ import type { Provider } from "next-auth/providers";
 
 import { assertRuntimeEnv, isSocialDevLoginEnabled, runtimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { getClientIp } from "@/server/request-context";
-import { buildLoginRateLimitRules } from "@/server/auth-login-rate-limit";
-import { loginSchema } from "@/lib/validations/auth";
-import { verifyPassword } from "@/server/password";
-import { enforceRateLimit } from "@/server/rate-limit";
+import {
+  applyUserSessionStateToToken,
+  syncSessionVersionToken,
+} from "@/lib/session-version";
+import { authorizeCredentialsLogin } from "@/server/auth-credentials";
 
 const isProd = process.env.NODE_ENV === "production";
 const socialDevLoginEnabled = isSocialDevLoginEnabled();
@@ -48,57 +48,7 @@ const providers: Provider[] = [
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials, request) {
-      const parsed = loginSchema.safeParse(credentials);
-      if (!parsed.success) {
-        return null;
-      }
-
-      try {
-        const clientIp = request?.headers ? getClientIp(request.headers) : "anonymous";
-        const rateLimitRules = buildLoginRateLimitRules({
-          email: parsed.data.email,
-          clientIp,
-        });
-
-        for (const rule of rateLimitRules) {
-          await enforceRateLimit(rule);
-        }
-      } catch {
-        return null;
-      }
-
-      const existingUser = await prisma.user.findUnique({
-        where: { email: parsed.data.email },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          nickname: true,
-          image: true,
-          passwordHash: true,
-          emailVerified: true,
-        },
-      });
-
-      if (!existingUser?.passwordHash || !existingUser.emailVerified) {
-        return null;
-      }
-
-      const isValid = await verifyPassword(
-        parsed.data.password,
-        existingUser.passwordHash,
-      );
-      if (!isValid) {
-        return null;
-      }
-
-      return {
-        id: existingUser.id,
-        email: existingUser.email,
-        name: existingUser.name,
-        nickname: existingUser.nickname,
-        image: existingUser.image,
-      };
+      return authorizeCredentialsLogin(credentials, request);
     },
   }),
 ];
@@ -137,6 +87,7 @@ if (socialDevLoginEnabled) {
             nickname: true,
             image: true,
             emailVerified: true,
+            sessionVersion: true,
           },
         });
 
@@ -154,6 +105,7 @@ if (socialDevLoginEnabled) {
             name: existingUser.name,
             nickname: existingUser.nickname,
             image: existingUser.image,
+            sessionVersion: existingUser.sessionVersion,
           };
         }
 
@@ -169,6 +121,7 @@ if (socialDevLoginEnabled) {
             name: true,
             nickname: true,
             image: true,
+            sessionVersion: true,
           },
         });
 
@@ -178,6 +131,7 @@ if (socialDevLoginEnabled) {
           name: createdUser.name,
           nickname: createdUser.nickname,
           image: createdUser.image,
+          sessionVersion: createdUser.sessionVersion,
         };
       },
     }),
@@ -231,11 +185,16 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
       return true;
     },
-    jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-        token.nickname =
-          "nickname" in user && user.nickname ? String(user.nickname) : null;
+    async jwt({ token, user, trigger, session }) {
+      if (user && typeof user.id === "string" && user.id.length > 0) {
+        applyUserSessionStateToToken(token, {
+          id: user.id,
+          nickname: "nickname" in user && user.nickname ? String(user.nickname) : null,
+          sessionVersion:
+            "sessionVersion" in user && typeof user.sessionVersion === "number"
+              ? user.sessionVersion
+              : undefined,
+        });
       }
 
       if (trigger === "update" && session?.user) {
@@ -247,10 +206,41 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             ? String(session.user.nickname)
             : null;
       }
+
+      if (typeof token.id === "string" && token.id.length > 0) {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { sessionVersion: true, nickname: true },
+        });
+
+        return syncSessionVersionToken(
+          token,
+          currentUser
+            ? {
+                sessionVersion: currentUser.sessionVersion,
+                nickname: currentUser.nickname,
+              }
+            : null,
+        );
+      }
+
       return token;
     },
     session({ session, token }) {
-      if (session.user && token) {
+      if (
+        !session.user ||
+        !token ||
+        token.sessionInvalidated ||
+        typeof token.id !== "string" ||
+        token.id.length === 0
+      ) {
+        return {
+          ...session,
+          user: undefined,
+        };
+      }
+
+      if (session.user) {
         session.user.id = String(token.id ?? "");
         session.user.nickname = token.nickname ? String(token.nickname) : null;
       }

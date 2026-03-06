@@ -16,6 +16,7 @@ model User {
   bio               String?               @db.Text
   image             String?
   passwordHash      String?
+  sessionVersion    Int                   @default(0)
   emailVerified     DateTime?
   role              UserRole              @default(USER)
   neighborhoods     UserNeighborhood[]
@@ -703,16 +704,21 @@ model PasswordResetToken {
 }
 
 model AuthAuditLog {
-  id        String          @id @default(cuid())
-  userId    String
-  action    AuthAuditAction
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime        @default(now())
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String          @id @default(cuid())
+  userId          String?
+  identifierHash  String?
+  identifierLabel String?
+  action          AuthAuditAction
+  reasonCode      String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime        @default(now())
+  user            User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
-  @@index([action])
+  @@index([identifierHash, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([ipAddress, createdAt(sort: Desc)])
 }
 
 model SiteSetting {
@@ -765,6 +771,9 @@ enum AuthAuditAction {
   PASSWORD_SET
   PASSWORD_CHANGE
   PASSWORD_RESET
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGIN_RATE_LIMITED
 }
 
 enum NotificationType {

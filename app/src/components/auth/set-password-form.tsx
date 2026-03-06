@@ -3,21 +3,34 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-export function SetPasswordForm() {
+import { getPasswordSetupCopy, validatePasswordSetupForm } from "@/lib/password-setup";
+
+type SetPasswordFormProps = {
+  hasPassword: boolean;
+};
+
+export function SetPasswordForm({ hasPassword }: SetPasswordFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const copy = getPasswordSetupCopy(hasPassword);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setSuccess(false);
 
-    if (password !== passwordConfirm) {
-      setError("비밀번호가 일치하지 않습니다.");
+    const validationError = validatePasswordSetupForm({
+      hasPassword,
+      currentPassword,
+      password,
+      passwordConfirm,
+    });
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -46,16 +59,25 @@ export function SetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
-        현재 비밀번호 (있는 경우)
-        <input
-          type="password"
-          className="tp-input-soft px-3 py-2 text-sm"
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-          placeholder="기존 비밀번호"
-        />
-      </label>
+      {hasPassword ? (
+        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+          {copy.currentPasswordLabel}
+          <input
+            type="password"
+            className="tp-input-soft px-3 py-2 text-sm"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            placeholder={copy.currentPasswordPlaceholder}
+            required
+          />
+        </label>
+      ) : null}
+      <p className="text-xs text-[#5a7398]">{copy.currentPasswordHint}</p>
+      {hasPassword ? (
+        <p className="text-xs text-[#5a7398]">
+          현재 비밀번호를 잊었다면 <Link href="/password/reset" className="underline">이메일로 초기화</Link>를 사용해 주세요.
+        </p>
+      ) : null}
       <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
         새 비밀번호
         <input
@@ -81,7 +103,7 @@ export function SetPasswordForm() {
       {error ? <p className="text-xs text-rose-600">{error}</p> : null}
       {success ? (
         <div className="flex items-center justify-between text-xs text-emerald-600">
-          <span>비밀번호가 업데이트되었습니다.</span>
+          <span>{copy.successMessage}</span>
           <Link href="/profile" className="text-xs text-[#5a7398]">
             프로필로 이동
           </Link>
@@ -92,7 +114,7 @@ export function SetPasswordForm() {
         className="tp-btn-primary px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
         disabled={isPending}
       >
-        {isPending ? "저장 중..." : "비밀번호 수정"}
+        {isPending ? "저장 중..." : copy.submitLabel}
       </button>
     </form>
   );

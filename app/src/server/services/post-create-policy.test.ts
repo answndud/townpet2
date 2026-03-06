@@ -3,6 +3,8 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { createPost } from "@/server/services/post.service";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
+import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -36,6 +38,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/server/services/sanction.service", () => ({
+  assertUserInteractionAllowed: vi.fn(),
+}));
+
 const mockPrisma = vi.mocked(prisma) as unknown as {
   user: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -64,6 +70,7 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
     count: ReturnType<typeof vi.fn>;
   };
 };
+const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
 
 describe("createPost new-user restriction", () => {
   const petTypeId = "ckc7k5qsj0000u0t8qv6d1d7k";
@@ -93,6 +100,8 @@ describe("createPost new-user restriction", () => {
     });
     mockPrisma.user.create.mockResolvedValue({ id: "guest-user-1" });
     mockPrisma.guestAuthor.create.mockResolvedValue({ id: "guest-author-1" });
+    mockAssertUserInteractionAllowed.mockReset();
+    mockAssertUserInteractionAllowed.mockResolvedValue();
   });
 
   it("blocks restricted post types for new users", async () => {
@@ -170,6 +179,37 @@ describe("createPost new-user restriction", () => {
       }),
     ).rejects.toMatchObject({
       code: "CONTACT_RESTRICTED_FOR_NEW_USER",
+      status: 403,
+    });
+
+    expect(mockPrisma.post.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks sanctioned users before creating a post", async () => {
+    const now = new Date();
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(now.getTime() - 30 * 60 * 60 * 1000),
+    });
+    mockAssertUserInteractionAllowed.mockRejectedValue(
+      new ServiceError("정지", "ACCOUNT_SUSPENDED", 403),
+    );
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "정지 테스트",
+          content: "작성 차단",
+          type: PostType.FREE_POST,
+          scope: PostScope.GLOBAL,
+          petTypeId,
+          imageUrls: [],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "ACCOUNT_SUSPENDED",
       status: 403,
     });
 

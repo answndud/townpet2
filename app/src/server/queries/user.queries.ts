@@ -139,6 +139,22 @@ export async function getUserById(id: string) {
     });
 }
 
+export async function getUserPasswordStatusById(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, passwordHash: true },
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    hasPassword: Boolean(user.passwordHash),
+  } as const;
+}
+
 export async function getUserWithNeighborhoods(id: string) {
   const baseSelect = {
     id: true,

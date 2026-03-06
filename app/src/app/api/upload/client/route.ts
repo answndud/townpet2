@@ -8,6 +8,7 @@ import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 import { isTrustedUploadPathname } from "@/lib/upload-url";
 
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
         const guestFingerprint = request.headers.get("x-guest-fingerprint")?.trim() || undefined;
 
         if (userId) {
+          await assertUserInteractionAllowed(userId);
           await enforceRateLimit({
             key: `upload:user:${userId}:ip:${clientIp}`,
             limit: 20,

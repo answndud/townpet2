@@ -48,6 +48,7 @@ import {
 } from "@/server/services/guest-safety.service";
 import { getOrCreateGuestSystemUserId } from "@/server/services/guest-author.service";
 import { notifyReactionOnPost } from "@/server/services/notification.service";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 
 type CreatePostParams = {
@@ -375,6 +376,8 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     if (!author) {
       throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
     }
+
+    await assertUserInteractionAllowed(author.id);
 
     const writePolicy = evaluateNewUserPostWritePolicy({
       role: author.role,
@@ -776,17 +779,18 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
   const normalizedImageUrls = normalizeImageUrls(parsed.data.imageUrls);
   const { imageUrls, ...postData } = parsed.data;
 
+  const author = await prisma.user.findUnique({
+    where: { id: authorId },
+    select: { id: true, role: true, createdAt: true },
+  });
+  if (!author) {
+    throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+  }
+
+  await assertUserInteractionAllowed(author.id);
+
   if (postData.content !== undefined) {
-    const [author, newUserSafetyPolicy] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: authorId },
-        select: { id: true, role: true, createdAt: true },
-      }),
-      getNewUserSafetyPolicy(),
-    ]);
-    if (!author) {
-      throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
-    }
+    const newUserSafetyPolicy = await getNewUserSafetyPolicy();
 
     const contactPolicy = moderateContactContent({
       text: postData.content,
@@ -899,6 +903,8 @@ type DeletePostParams = {
 };
 
 export async function deletePost({ postId, authorId }: DeletePostParams) {
+  await assertUserInteractionAllowed(authorId);
+
   const existing = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, status: true, authorId: true },
@@ -1335,6 +1341,8 @@ export async function togglePostReaction({
   userId,
   type,
 }: TogglePostReactionParams): Promise<TogglePostReactionResult> {
+  await assertUserInteractionAllowed(userId);
+
   const existingPost = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, status: true, authorId: true, title: true },

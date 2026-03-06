@@ -2,6 +2,7 @@ import { Prisma, SanctionLevel } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { logger, serializeError } from "@/server/logger";
+import { ServiceError } from "@/server/services/service-error";
 
 type UserSanctionRecord = {
   id: string;
@@ -178,4 +179,23 @@ export async function getActiveInteractionSanction(userId: string) {
     warnMissingSanctionTable(error);
     return null;
   }
+}
+
+export async function assertUserInteractionAllowed(userId: string) {
+  const activeSanction = await getActiveInteractionSanction(userId);
+  if (!activeSanction) {
+    return;
+  }
+
+  const expiresLabel = activeSanction.expiresAt
+    ? ` (${activeSanction.expiresAt.toLocaleString("ko-KR")} 까지)`
+    : "";
+
+  throw new ServiceError(
+    `현재 계정은 ${formatSanctionLevelLabel(activeSanction.level)} 상태로 기능 사용이 제한됩니다.${expiresLabel}`,
+    activeSanction.level === SanctionLevel.PERMANENT_BAN
+      ? "ACCOUNT_PERMANENTLY_BANNED"
+      : "ACCOUNT_SUSPENDED",
+    403,
+  );
 }

@@ -12,6 +12,7 @@ import { PostReportForm } from "@/components/posts/post-report-form";
 import { PostShareControls } from "@/components/posts/post-share-controls";
 import { PostCommentSectionClient } from "@/components/posts/post-comment-section-client";
 import { PostViewTracker } from "@/components/posts/post-view-tracker";
+import { getGuestPostMeta } from "@/lib/post-guest-meta";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { formatRelativeDate } from "@/lib/post-presenter";
@@ -330,24 +331,9 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const orderedImages = [...post.images].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const postUrl = toAbsoluteUrl(`/posts/${post.id}`);
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${post.id}`)}`;
-  const guestPostMeta = post as {
-    guestDisplayName?: string | null;
-    guestAuthor?: { displayName?: string | null } | null;
-    guestAuthorId?: string | null;
-  };
-  const guestIpMeta = post as {
-    guestIpDisplay?: string | null;
-    guestIpLabel?: string | null;
-    guestAuthor?: { ipDisplay?: string | null; ipLabel?: string | null } | null;
-  };
-  const resolvedGuestIpDisplay =
-    guestIpMeta.guestIpDisplay ?? guestIpMeta.guestAuthor?.ipDisplay ?? null;
-  const resolvedGuestIpLabel = guestIpMeta.guestIpLabel ?? guestIpMeta.guestAuthor?.ipLabel ?? null;
-  const resolvedGuestAuthorName =
-    guestPostMeta.guestDisplayName?.trim() || guestPostMeta.guestAuthor?.displayName?.trim() || "";
-  const isGuestPost = Boolean(resolvedGuestAuthorName) || Boolean(guestPostMeta.guestAuthorId);
-  const displayAuthorName = resolvedGuestAuthorName
-    ? resolvedGuestAuthorName
+  const guestPostMeta = getGuestPostMeta(post);
+  const displayAuthorName = guestPostMeta.guestAuthorName
+    ? guestPostMeta.guestAuthorName
     : post.author.nickname ?? post.author.name ?? "익명";
   const structuredData = {
     "@context": "https://schema.org",
@@ -359,7 +345,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
     mainEntityOfPage: postUrl,
     author: {
       "@type": "Person",
-      name: post.author.nickname ?? post.author.name ?? "익명",
+      name: displayAuthorName,
     },
     image: post.images.map((image) => toAbsoluteUrl(image.url)),
     interactionStatistic: [
@@ -408,11 +394,11 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
               <div className="text-sm text-[#4f678d] md:text-right">
                 <div className="flex items-start justify-between gap-3 md:flex-col md:items-end">
                   <p className="min-w-0 break-all font-semibold text-[#1f3f71]">
-                    {isGuestPost ? (
+                    {guestPostMeta.isGuestPost ? (
                       <span>
                         {displayAuthorName}
-                        {resolvedGuestIpDisplay
-                          ? ` (${resolvedGuestIpLabel ?? "아이피"} ${resolvedGuestIpDisplay})`
+                        {guestPostMeta.guestIpDisplay
+                          ? ` (${guestPostMeta.guestIpLabel ?? "아이피"} ${guestPostMeta.guestIpDisplay})`
                           : ""}
                       </span>
                     ) : (
@@ -526,7 +512,9 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                   </details>
                 </>
               ) : null}
-              {!canInteract && isGuestPost ? <GuestPostDetailActions postId={post.id} /> : null}
+              {!canInteract && guestPostMeta.isGuestPost ? (
+                <GuestPostDetailActions postId={post.id} />
+              ) : null}
             </div>
 
             {canInteract && !isAuthor && !canInteractWithPostOwner ? (

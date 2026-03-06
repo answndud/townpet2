@@ -38,8 +38,9 @@ function enforceMemoryRateLimit({ key, limit, windowMs }: RateLimitOptions) {
   const existing = memoryStore.get(key);
 
   if (!existing || existing.resetAt <= now) {
-    memoryStore.set(key, { count: 1, resetAt: now + windowMs });
-    return;
+    const nextState = { count: 1, resetAt: now + windowMs };
+    memoryStore.set(key, nextState);
+    return nextState;
   }
 
   if (existing.count >= limit) {
@@ -47,6 +48,7 @@ function enforceMemoryRateLimit({ key, limit, windowMs }: RateLimitOptions) {
   }
 
   existing.count += 1;
+  return existing;
 }
 
 async function enforceUpstashRateLimit({ key, limit, windowMs }: RateLimitOptions) {
@@ -76,6 +78,11 @@ async function enforceUpstashRateLimit({ key, limit, windowMs }: RateLimitOption
   if (count > limit) {
     throw createRateLimitError();
   }
+
+  return {
+    count,
+    resetAt: Date.now() + Math.max(ttl, 0),
+  };
 }
 
 async function runUpstashPipeline(
@@ -106,21 +113,28 @@ async function runUpstashPipeline(
 }
 
 export async function enforceRateLimit(options: RateLimitOptions) {
+  await enforceRateLimitAndReturnState(options);
+}
+
+export async function enforceRateLimitAndReturnState(options: RateLimitOptions) {
   if (options.cacheMs && options.cacheMs > 0) {
     const cachedAt = recentAllowCache.get(options.key);
     const now = Date.now();
     if (cachedAt && now - cachedAt < options.cacheMs) {
-      return;
+      return {
+        count: 0,
+        resetAt: cachedAt + options.cacheMs,
+      };
     }
   }
 
   if (runtimeEnv.isUpstashConfigured) {
     try {
-      await enforceUpstashRateLimit(options);
+      const state = await enforceUpstashRateLimit(options);
       if (options.cacheMs && options.cacheMs > 0) {
         recentAllowCache.set(options.key, Date.now());
       }
-      return;
+      return state;
     } catch (error) {
       if (error instanceof ServiceError) {
         throw error;
@@ -137,9 +151,34 @@ export async function enforceRateLimit(options: RateLimitOptions) {
     }
   }
 
-  enforceMemoryRateLimit(options);
+  const state = enforceMemoryRateLimit(options);
   if (options.cacheMs && options.cacheMs > 0) {
     recentAllowCache.set(options.key, Date.now());
+  }
+  return state;
+}
+
+export async function clearRateLimitKeys(keys: string[]) {
+  for (const key of keys) {
+    memoryStore.delete(key);
+    recentAllowCache.delete(key);
+  }
+
+  if (!runtimeEnv.isUpstashConfigured || keys.length === 0) {
+    return;
+  }
+
+  try {
+    const endpoint = `${runtimeEnv.upstashRedisRestUrl}/pipeline`;
+    await runUpstashPipeline(
+      endpoint,
+      keys.map((key) => ["DEL", `ratelimit:${key}`]),
+    );
+  } catch (error) {
+    logger.warn("Redis rate limit key clear failed.", {
+      error: serializeError(error),
+      keyCount: keys.length,
+    });
   }
 }
 

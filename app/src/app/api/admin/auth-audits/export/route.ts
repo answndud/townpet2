@@ -58,7 +58,9 @@ export async function GET(request: NextRequest) {
 
     const header = [
       "action",
+      "reasonCode",
       "userId",
+      "identifierLabel",
       "email",
       "nickname",
       "ipAddress",
@@ -69,9 +71,11 @@ export async function GET(request: NextRequest) {
     const rows = audits.map((audit) =>
       [
         audit.action,
-        audit.userId,
-        audit.user.email ?? "",
-        audit.user.nickname ?? "",
+        audit.reasonCode ?? "",
+        audit.userId ?? "",
+        audit.identifierLabel ?? "",
+        audit.user?.email ?? "",
+        audit.user?.nickname ?? "",
         audit.ipAddress ?? "",
         audit.userAgent ?? "",
         audit.createdAt.toISOString(),

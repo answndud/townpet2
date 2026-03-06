@@ -21,6 +21,8 @@ describe("env security validation", () => {
     vi.stubEnv("HEALTH_INTERNAL_TOKEN", "");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
 
     const { validateRuntimeEnv } = await loadEnvModule();
     const result = validateRuntimeEnv();
@@ -30,6 +32,8 @@ describe("env security validation", () => {
     expect(result.missing).toContain("GUEST_HASH_PEPPER");
     expect(result.missing).toContain("HEALTH_INTERNAL_TOKEN");
     expect(result.missing).toContain("UPSTASH_REDIS_REST_URL_AND_TOKEN_PAIR");
+    expect(result.missing).toContain("RESEND_API_KEY");
+    expect(result.missing).toContain("BLOB_READ_WRITE_TOKEN");
   });
 
   it("enables social dev login only when explicitly opted in outside production", async () => {

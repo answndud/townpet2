@@ -2,13 +2,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
+import { getPasswordSetupCopy } from "@/lib/password-setup";
 import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-preference-form";
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
 import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
 import { ProfileInfoForm } from "@/components/profile/profile-info-form";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
-import { getUserWithNeighborhoods, listPetsByUserId } from "@/server/queries/user.queries";
+import {
+  getUserPasswordStatusById,
+  getUserWithNeighborhoods,
+  listPetsByUserId,
+} from "@/server/queries/user.queries";
 import { countUserPosts } from "@/server/queries/post.queries";
 import { listMyBlockedUsers, listMyMutedUsers } from "@/server/queries/user-relation.queries";
 
@@ -23,6 +28,9 @@ export default async function ProfilePage() {
   if (!user) {
     redirect("/login");
   }
+
+  const passwordStatus = await getUserPasswordStatusById(userId);
+  const passwordSetupCopy = getPasswordSetupCopy(passwordStatus?.hasPassword ?? true);
 
   const isNicknameMissing = !user.nickname?.trim();
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
@@ -115,7 +123,7 @@ export default async function ProfilePage() {
               href="/password/setup"
               className="tp-btn-soft px-3 py-1.5 text-[#315484]"
             >
-              비밀번호 수정
+              {passwordSetupCopy.profileLinkLabel}
             </Link>
           </div>
         </section>

@@ -25,6 +25,78 @@
 
 ## Active Plan
 
+### Cycle 206: guest 상세 작성자 유형 정합화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest 작성자 메타 판별 공용 helper 도입 | Codex | P1 | `done` | guest 작성자 여부/이름/IP 표시 규칙이 helper로 통일되고 guest 상세/편집/클라이언트 상세가 같은 기준을 사용함 | `app/src/lib/post-guest-meta.ts`, `app/src/app/posts/[id]/guest/page.tsx`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/edit/page.tsx` |
+| 회원 작성 글의 guest detail 제어 UI 비노출 | Codex | P1 | `done` | 비로그인 guest 상세 페이지에서도 실제 guest 글에만 비회원 수정/삭제 UI가 노출되고 회귀 테스트가 존재함 | `app/src/app/posts/[id]/guest/page.tsx`, `app/src/components/posts/guest-post-detail-actions.tsx`, `app/src/lib/post-guest-meta.test.ts` |
+
+### Cycle 205: 비회원 abuse defense 현실화
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest 쓰기 CAPTCHA/step-up trust 도입 | Codex | P1 | `pending` | 비회원 글/댓글/업로드 경로에 CAPTCHA 또는 동급 step-up 검증과 프록시/평판 기반 추가 방어가 적용되고 운영 정책 문서가 동기화됨 | `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/upload/*.ts`, `docs/policies/*` |
+| 긴급/사기/개인정보 우선순위 운영 큐 설계 | Codex | P1 | `pending` | 긴급/사기/개인정보 노출 유형이 신고 사유/우선순위에 반영되고 관리자 큐에서 별도 triage 기준을 제공함 | `app/prisma/schema.prisma`, `app/src/app/admin/reports/page.tsx`, `docs/policies/모더레이션_운영규칙.md` |
+
+### Cycle 204: 알림/운영 이력 retention 강화
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 읽음 처리와 보관/삭제 의미 분리 | Codex | P1 | `pending` | 읽음은 inbox에서 유지되고 archive/delete가 분리되어 3일 자동 삭제 의존이 제거됨 | `app/src/server/queries/notification.queries.ts`, `app/scripts/cleanup-notifications.ts`, `.github/workflows/notification-cleanup.yml` |
+| 운영/CS용 durable notification history 기준 수립 | Codex | P2 | `pending` | 알림 보존 기간과 지원용 이력 정책이 문서화되고 최소 1개 운영 확인 경로가 제공됨 | `docs/개발_운영_가이드.md`, `docs/operations/*` |
+
+### Cycle 203: 검색 로그 privacy/retention hardening
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 검색 로그 fire-and-forget/PII 필터링 보강 | Codex | P1 | `pending` | 검색어 기록이 서버리스 환경에서도 유실되지 않도록 보강되고 이메일/전화번호 등 민감 패턴은 통계 저장에서 제외됨 | `app/src/app/api/search/log/route.ts`, `app/src/server/queries/search.queries.ts` |
+| 검색 통계 retention/cleanup 운영 경로 추가 | Codex | P2 | `pending` | `SearchTermStat` 보존 기간과 정리 작업이 운영 스크립트/문서로 고정되고 회귀 테스트가 존재함 | `app/scripts/*`, `.github/workflows/*`, `docs/operations/검색 통계 전환 가이드.md` |
+
+### Cycle 202: 운영 보호장치 fail-open 제거
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| moderation/policy control plane missing schema fail-closed 전환 | Codex | P1 | `pending` | sanction/policy/block/mute/notification/guest-safety 핵심 모델 누락 시 기능 비활성화 대신 health/preflight FAIL 또는 명시 5xx로 surface됨 | `app/src/server/services/sanction.service.ts`, `app/src/server/queries/policy.queries.ts`, `app/src/server/queries/user-relation.queries.ts`, `app/src/server/queries/notification.queries.ts`, `app/src/server/services/guest-safety.service.ts` |
+| 운영 health/preflight를 moderation control plane까지 확장 | Codex | P1 | `pending` | health/security-env/ops 체크가 moderation 관련 스키마 drift를 조기에 감지하고 문서에 반영됨 | `app/src/app/api/health/route.ts`, `app/scripts/check-security-env.ts`, `docs/operations/*` |
+
+### Cycle 201: 신고/제재 운영 현실화
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| bulk 신고 처리의 sanction parity 복구 | Codex | P1 | `pending` | 일괄 승인 경로도 단건 승인과 동일하게 제재 적용 옵션/감사 이력을 제공하고 회귀 테스트가 존재함 | `app/src/server/services/report.service.ts`, `app/src/components/admin/report-queue-table.tsx` |
+| trust-weighted auto-hide + severity queue 도입 | Codex | P1 | `pending` | 신고 3건 고정 규칙을 대체할 reporter trust/계정연령/속도 기반 자동 숨김 또는 우선 검토 모델이 도입되고 운영 정책과 정렬됨 | `app/src/server/services/report.service.ts`, `docs/policies/신고_운영정책.md`, `docs/policies/모더레이션_운영규칙.md` |
+
+### Cycle 200: 신고 대상 모델/운영 정합화
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| Report target 스키마와 API/UI 범위 일치화 | Codex | P1 | `pending` | Post-only로 축소하거나 Comment/User까지 정식 지원하도록 schema/API/UI/docs가 하나의 기준으로 정렬됨 | `app/prisma/schema.prisma`, `app/src/lib/validations/report.ts`, `app/src/server/services/report.service.ts`, `app/src/components/posts/post-comment-thread.tsx`, `docs/policies/신고_운영정책.md` |
+| 관리자 신고 큐의 target type 운영 기준 정리 | Codex | P2 | `pending` | 관리자 페이지/통계/감사 로그가 실제 지원 target만 노출하고 운영 문서와 모순이 없음 | `app/src/app/admin/reports/page.tsx`, `app/src/server/queries/report.queries.ts`, `docs/policies/*` |
+
+### Cycle 199: 로그인 abuse hardening 2차 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| failed login 운영 가시성 확대 | Codex | P1 | `done` | 로그인 성공/실패/락아웃 이벤트가 운영 감사 경로에서 조회 가능하거나 동급 수준의 구조화 로그/알림으로 남고 테스트가 존재함 | `app/src/lib/auth.ts`, `app/src/server/queries/auth-audit.queries.ts`, `app/src/app/admin/auth-audits/page.tsx` |
+| step-up 방어(backoff/CAPTCHA/lockout) 설계 및 1차 구현 | Codex | P1 | `done` | rate-limit 외에 backoff/CAPTCHA/락아웃 중 최소 1개가 credentials 로그인 경로에 추가되고 운영 문서에 반영됨 | `app/src/lib/auth.ts`, `app/src/server/auth-login-rate-limit.ts`, `docs/security/*` |
+
+### Cycle 198: 비밀번호 변경/재설정 세션 즉시 무효화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| credential change용 session version 도입 | Codex | P1 | `done` | `User.sessionVersion` 기반으로 JWT 세션이 현재 버전과 동기화되고 이전 비밀번호 기반 세션은 자동 무효화됨 | `app/prisma/schema.prisma`, `app/prisma/migrations/20260306120000_add_user_session_version/migration.sql`, `app/src/lib/auth.ts`, `app/src/lib/session-version.ts` |
+| 비밀번호 변경/재설정 시 세션 버전 증가 + 회귀 테스트 | Codex | P1 | `done` | 기존 비밀번호 변경/이메일 reset 확정 시 session version이 증가하고 서비스/헬퍼 테스트로 고정됨 | `app/src/server/services/auth.service.ts`, `app/src/server/services/auth.service.test.ts`, `app/src/lib/session-version.test.ts` |
+
+### Cycle 197: 정지 계정 write-path enforcement parity (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 글/댓글/반응 서비스에 active sanction 가드 적용 | Codex | P1 | `done` | 글/댓글 작성·수정·삭제 및 반응 서비스가 active sanction에서 일관되게 403을 반환하고 helper/서비스 테스트가 존재함 | `app/src/server/services/sanction.service.ts`, `app/src/server/services/post.service.ts`, `app/src/server/services/comment.service.ts` |
+| 인증 사용자 업로드 경로 sanction enforcement 추가 | Codex | P1 | `done` | 인증 사용자의 업로드 API가 active sanction을 존중하고 route 테스트로 고정됨 | `app/src/app/api/upload/route.ts`, `app/src/app/api/upload/client/route.ts`, `app/src/app/api/upload/*.test.ts` |
+
+### Cycle 196: 비밀번호 변경/설정 UX 정합화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 계정 비밀번호 보유 여부 기반 copy/폼 분기 | Codex | P1 | `done` | `/password/setup`과 프로필 진입 링크가 계정의 비밀번호 보유 여부에 따라 `비밀번호 변경`/`비밀번호 설정`을 정확히 노출하고, 기존 비밀번호 보유 계정에는 현재 비밀번호가 필수로 표시됨 | `app/src/app/password/setup/page.tsx`, `app/src/components/auth/set-password-form.tsx`, `app/src/app/profile/page.tsx`, `app/src/server/queries/user.queries.ts` |
+| 클라이언트 검증/회귀 테스트 추가 | Codex | P1 | `done` | 기존 비밀번호 필요 여부와 확인 비밀번호 불일치 분기가 순수 helper 테스트로 고정됨 | `app/src/lib/password-setup.ts`, `app/src/lib/password-setup.test.ts` |
+
+### Cycle 195: production email/upload env fail-fast 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| transactional email misconfig fail-fast 처리 | Codex | P1 | `done` | 비밀번호 재설정/이메일 인증 메일은 production에서 발송 설정 누락 또는 전송 실패 시 503으로 surface되고 회귀 테스트로 고정됨 | `app/src/server/email.ts`, `app/src/app/api/auth/register/route.ts`, `app/src/app/api/auth/password/reset/request/route.ts`, `app/src/app/api/auth/verify/request/route.ts` |
+| production env/ops check에 email/blob 필수값 반영 | Codex | P1 | `done` | production env 검증과 `ops:check:security-env`가 `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN` 누락을 FAIL로 판정하고 테스트로 고정됨 | `app/src/lib/env.ts`, `app/scripts/check-security-env.ts`, `app/src/lib/env.test.ts` |
+
 ### Cycle 194: guest API prewarm/snapshot 자동화 확장 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

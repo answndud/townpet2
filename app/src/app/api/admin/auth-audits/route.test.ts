@@ -70,4 +70,37 @@ describe("GET /api/admin/auth-audits contract", () => {
     });
     expect(mockMonitorUnhandledError).toHaveBeenCalledOnce();
   });
+
+  it("returns login failures without linked user relation", async () => {
+    mockListAuthAuditLogs.mockResolvedValue([
+      {
+        id: "audit-1",
+        action: "LOGIN_FAILURE",
+        userId: null,
+        identifierLabel: "ab***@te***.dev",
+        reasonCode: "USER_NOT_FOUND",
+        user: null,
+        ipAddress: "127.0.0.1",
+        userAgent: "ua",
+        createdAt: new Date("2026-03-05T00:00:00.000Z"),
+      },
+    ] as never);
+    const request = new Request("http://localhost/api/admin/auth-audits") as NextRequest;
+
+    const response = await GET(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toMatchObject({
+      ok: true,
+      data: [
+        {
+          action: "LOGIN_FAILURE",
+          userId: null,
+          identifierLabel: "ab***@te***.dev",
+          reasonCode: "USER_NOT_FOUND",
+        },
+      ],
+    });
+  });
 });

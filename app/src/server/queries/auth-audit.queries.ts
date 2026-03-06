@@ -1,6 +1,7 @@
 import { AuthAuditAction } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { hashLoginIdentifierEmail } from "@/server/auth-login-identifier";
 
 export const AUTH_AUDIT_LOG_LIMIT_MAX = 200;
 export const AUTH_AUDIT_LOG_LIMIT_DEFAULT = 50;
@@ -17,6 +18,9 @@ export async function listAuthAuditLogs({
   limit,
 }: AuthAuditListOptions) {
   const trimmedQuery = query?.trim();
+  const identifierHash = trimmedQuery?.includes("@")
+    ? hashLoginIdentifierEmail(trimmedQuery)
+    : null;
   const safeLimit = Math.min(
     Math.max(limit ?? AUTH_AUDIT_LOG_LIMIT_DEFAULT, 1),
     AUTH_AUDIT_LOG_LIMIT_MAX,
@@ -29,6 +33,9 @@ export async function listAuthAuditLogs({
         ? {
             OR: [
               { userId: { contains: trimmedQuery, mode: "insensitive" } },
+              ...(identifierHash ? [{ identifierHash }] : []),
+              { identifierLabel: { contains: trimmedQuery, mode: "insensitive" } },
+              { reasonCode: { contains: trimmedQuery, mode: "insensitive" } },
               { ipAddress: { contains: trimmedQuery, mode: "insensitive" } },
               { userAgent: { contains: trimmedQuery, mode: "insensitive" } },
               {

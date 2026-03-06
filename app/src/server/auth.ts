@@ -1,4 +1,4 @@
-import { SanctionLevel, UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import {
@@ -7,10 +7,7 @@ import {
   getUserRoleByEmail,
   getUserRoleById,
 } from "@/server/queries/user.queries";
-import {
-  formatSanctionLevelLabel,
-  getActiveInteractionSanction,
-} from "@/server/services/sanction.service";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 
 const SESSION_COOKIE_NAMES = [
@@ -105,19 +102,7 @@ export async function requireCurrentUser() {
   }
 
   if (user.role === UserRole.USER) {
-    const activeSanction = await getActiveInteractionSanction(user.id);
-    if (activeSanction) {
-      const expiresLabel = activeSanction.expiresAt
-        ? ` (${activeSanction.expiresAt.toLocaleString("ko-KR")} 까지)`
-        : "";
-      throw new ServiceError(
-        `현재 계정은 ${formatSanctionLevelLabel(activeSanction.level)} 상태로 기능 사용이 제한됩니다.${expiresLabel}`,
-        activeSanction.level === SanctionLevel.PERMANENT_BAN
-          ? "ACCOUNT_PERMANENTLY_BANNED"
-          : "ACCOUNT_SUSPENDED",
-        403,
-      );
-    }
+    await assertUserInteractionAllowed(user.id);
   }
 
   return user;

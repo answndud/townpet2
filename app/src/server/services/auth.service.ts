@@ -218,7 +218,10 @@ export async function setPasswordForUser({ userId, input, meta }: SetPasswordPar
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        ...(hadPassword ? { sessionVersion: { increment: 1 } } : {}),
+      },
     });
     await tx.authAuditLog.create({
       data: {
@@ -305,7 +308,10 @@ export async function confirmPasswordReset({ input, meta }: PasswordResetConfirm
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: tokenEntry.userId },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        sessionVersion: { increment: 1 },
+      },
     });
     await tx.passwordResetToken.update({
       where: { id: tokenEntry.id },

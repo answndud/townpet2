@@ -14,6 +14,18 @@ const actionLabels: Record<AuthAuditAction, string> = {
   PASSWORD_SET: "비밀번호 설정",
   PASSWORD_CHANGE: "비밀번호 변경",
   PASSWORD_RESET: "비밀번호 재설정",
+  LOGIN_SUCCESS: "로그인 성공",
+  LOGIN_FAILURE: "로그인 실패",
+  LOGIN_RATE_LIMITED: "로그인 제한",
+};
+
+const reasonLabels: Record<string, string> = {
+  INVALID_INPUT: "입력 형식 오류",
+  USER_NOT_FOUND: "사용자 없음",
+  PASSWORD_NOT_SET: "비밀번호 미설정",
+  EMAIL_NOT_VERIFIED: "이메일 미인증",
+  INVALID_PASSWORD: "비밀번호 불일치",
+  RATE_LIMITED: "요청 제한",
 };
 
 export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps) {
@@ -85,7 +97,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
             인증 감사 로그
           </h1>
           <p className="mt-2 text-sm text-[#4f678d]">
-            비밀번호 설정/변경/재설정 기록을 확인합니다.
+            로그인 성공/실패/제한과 비밀번호 변경 기록을 확인합니다.
           </p>
         </header>
 
@@ -94,7 +106,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
             <input
               name="q"
               defaultValue={query}
-              placeholder="이메일/닉네임/ID/IP 검색"
+              placeholder="이메일/닉네임/ID/IP/사유 검색"
               className="tp-input-soft w-full max-w-xs bg-white px-3 py-2 text-xs"
             />
             <button
@@ -143,6 +155,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
                 <thead className="border-b border-[#dbe6f6] text-[10px] uppercase tracking-[0.24em] text-[#5b78a1]">
                   <tr>
                     <th className="py-2">액션</th>
+                    <th className="py-2">사유</th>
                     <th className="py-2">사용자</th>
                     <th className="py-2">IP</th>
                     <th className="py-2">User Agent</th>
@@ -156,10 +169,22 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
                         {actionLabels[audit.action]}
                       </td>
                       <td className="py-3">
-                        <div className="text-[#1f3f71]">
-                          {audit.user.nickname ?? audit.user.email}
-                        </div>
-                        <div className="text-[10px] text-[#5a7398]">{audit.user.id}</div>
+                        {audit.reasonCode ? reasonLabels[audit.reasonCode] ?? audit.reasonCode : "-"}
+                      </td>
+                      <td className="py-3">
+                        {audit.user ? (
+                          <>
+                            <div className="text-[#1f3f71]">
+                              {audit.user.nickname ?? audit.user.email}
+                            </div>
+                            <div className="text-[10px] text-[#5a7398]">{audit.user.id}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-[#1f3f71]">{audit.identifierLabel ?? "미연결 식별자"}</div>
+                            <div className="text-[10px] text-[#5a7398]">계정 미연결</div>
+                          </>
+                        )}
                       </td>
                       <td className="py-3">{audit.ipAddress ?? "-"}</td>
                       <td className="py-3">

@@ -8,6 +8,8 @@ import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
+import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@vercel/blob/client", () => ({ handleUpload: vi.fn() }));
 vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
@@ -15,6 +17,9 @@ vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({ getGuestPostPolicy: vi.fn() }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
+vi.mock("@/server/services/sanction.service", () => ({
+  assertUserInteractionAllowed: vi.fn(),
+}));
 
 const mockHandleUpload = vi.mocked(handleUpload);
 const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
@@ -22,6 +27,7 @@ const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetClientIp = vi.mocked(getClientIp);
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
+const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
 
 describe("POST /api/upload/client contract", () => {
   beforeEach(() => {
@@ -31,6 +37,7 @@ describe("POST /api/upload/client contract", () => {
     mockGetGuestPostPolicy.mockReset();
     mockGetClientIp.mockReset();
     mockEnforceRateLimit.mockReset();
+    mockAssertUserInteractionAllowed.mockReset();
 
     mockGetCurrentUserId.mockResolvedValue(null);
     mockGetGuestPostPolicy.mockResolvedValue({
@@ -38,6 +45,7 @@ describe("POST /api/upload/client contract", () => {
     } as never);
     mockGetClientIp.mockReturnValue("127.0.0.1");
     mockEnforceRateLimit.mockResolvedValue();
+    mockAssertUserInteractionAllowed.mockResolvedValue();
     mockHandleUpload.mockImplementation(async (params) => {
       await params.onBeforeGenerateToken("uploads/test.png", null, false);
       return {
@@ -62,6 +70,27 @@ describe("POST /api/upload/client contract", () => {
       key: "upload:user:user-1:ip:127.0.0.1",
       limit: 20,
       windowMs: 60_000,
+    });
+  });
+
+  it("returns sanction error for suspended user", async () => {
+    mockGetCurrentUserId.mockResolvedValue("user-1");
+    mockAssertUserInteractionAllowed.mockRejectedValue(
+      new ServiceError("정지", "ACCOUNT_SUSPENDED", 403),
+    );
+    const request = new Request("http://localhost/api/upload/client", {
+      method: "POST",
+      body: JSON.stringify({ type: "blob.generate-client-token" }),
+      headers: { "content-type": "application/json" },
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "ACCOUNT_SUSPENDED" },
     });
   });
 

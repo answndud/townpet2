@@ -7,6 +7,8 @@ import {
   notifyReplyToComment,
 } from "@/server/services/notification.service";
 import { createComment, toggleCommentReaction } from "@/server/services/comment.service";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
+import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -25,6 +27,10 @@ vi.mock("@/server/services/notification.service", () => ({
   notifyReplyToComment: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/server/services/sanction.service", () => ({
+  assertUserInteractionAllowed: vi.fn(),
+}));
+
 const mockPrisma = vi.mocked(prisma) as unknown as {
   user: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -37,6 +43,7 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 
 const mockNotifyCommentOnPost = vi.mocked(notifyCommentOnPost);
 const mockNotifyReplyToComment = vi.mocked(notifyReplyToComment);
+const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
 
 describe("comment service notification flow", () => {
   beforeEach(() => {
@@ -48,6 +55,8 @@ describe("comment service notification flow", () => {
     mockNotifyReplyToComment.mockReset();
     mockNotifyCommentOnPost.mockResolvedValue(null);
     mockNotifyReplyToComment.mockResolvedValue(null);
+    mockAssertUserInteractionAllowed.mockReset();
+    mockAssertUserInteractionAllowed.mockResolvedValue();
     mockPrisma.user.findUnique.mockResolvedValue({
       id: "actor-1",
       role: UserRole.USER,
@@ -93,6 +102,25 @@ describe("comment service notification flow", () => {
       commentContent: "좋은 정보 감사합니다",
     });
     expect(mockNotifyReplyToComment).not.toHaveBeenCalled();
+  });
+
+  it("blocks sanctioned users before creating a comment", async () => {
+    mockAssertUserInteractionAllowed.mockRejectedValue(
+      new ServiceError("정지", "ACCOUNT_SUSPENDED", 403),
+    );
+
+    await expect(
+      createComment({
+        authorId: "actor-1",
+        postId: "post-1",
+        input: { content: "작성 차단" },
+      }),
+    ).rejects.toMatchObject({
+      code: "ACCOUNT_SUSPENDED",
+      status: 403,
+    });
+
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("notifies both post author and parent comment author on reply", async () => {

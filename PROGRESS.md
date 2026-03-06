@@ -17,6 +17,196 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-06: Cycle 206 완료 (guest 상세 작성자 유형 정합화)
+- 완료 내용
+- 실배포 smoke에서 회원 작성 글도 `/posts/:id/guest`에서 `비회원 수정/삭제` UI가 노출되는 버그를 확인하고 guest 작성자 판별 기준을 공용 helper로 통일:
+  - `app/src/lib/post-guest-meta.ts`
+  - guest 작성자 여부, 표시 이름, IP 표시값을 하나의 기준으로 계산
+- guest 상세/편집/클라이언트 상세 반영:
+  - `app/src/app/posts/[id]/guest/page.tsx`
+  - `app/src/components/posts/post-detail-client.tsx`
+  - `app/src/app/posts/[id]/edit/page.tsx`
+  - 실제 guest 글일 때만 `GuestPostDetailActions`가 노출되도록 수정
+  - 구조화 데이터 author도 같은 표시 이름을 사용하도록 정렬
+- 회귀 테스트 추가
+  - `app/src/lib/post-guest-meta.test.ts`
+  - guest 필드가 없는 회원 글은 `isGuestPost=false`로 판정되는 케이스를 고정
+- 검증 결과
+- `pnpm -C app lint src/lib/post-guest-meta.ts src/lib/post-guest-meta.test.ts src/app/posts/[id]/guest/page.tsx src/components/posts/post-detail-client.tsx src/app/posts/[id]/edit/page.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/post-guest-meta.test.ts` 실행 시 전체 Vitest 스위트가 수행됐고 `77 files / 380 tests` 모두 통과
+- 이슈/블로커
+- guest 상세 경로의 비로그인 리다이렉트(`/posts/:id -> /posts/:id/guest`) 자체는 현재 제품 의도로 유지했고, 이번 수정은 잘못된 guest 관리 UI 노출만 제거
+
+### 2026-03-06: Cycle 199 완료 (로그인 감사 로그 + progressive backoff)
+- 완료 내용
+- credentials 로그인 경로를 전용 모듈로 분리하고 운영 감사/지연 방어를 추가:
+  - `app/src/server/auth-credentials.ts`
+  - 로그인 성공, 실패, rate limit 이벤트를 공통 경로에서 처리
+- 감사 로그 스키마 확장:
+  - `app/prisma/schema.prisma`
+  - `app/prisma/migrations/20260306133000_expand_auth_audit_for_login_events/migration.sql`
+  - `AuthAuditLog`에 `identifierHash`, `identifierLabel`, `reasonCode`를 추가하고 `userId`를 nullable로 전환
+  - `AuthAuditAction`에 `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGIN_RATE_LIMITED` 추가
+- 운영 UI/API 확장:
+  - `app/src/server/queries/auth-audit.queries.ts`
+  - `app/src/app/admin/auth-audits/page.tsx`
+  - `app/src/app/api/admin/auth-audits/export/route.ts`
+  - 운영자가 로그인 실패 사유, 마스킹된 식별자, rate limit 이벤트까지 검색/내보내기 가능
+- 1차 step-up 방어:
+  - `app/src/server/rate-limit.ts`
+  - `app/src/server/auth-login-rate-limit.ts`
+  - 계정+IP 시도 횟수 기반 progressive delay(3회째 750ms, 이후 단계적 증가, 최대 5s) 추가
+  - 성공 로그인 시 account/account+ip 카운터를 정리해 정상 사용자의 오탐 체류를 줄임
+- 회귀 테스트 추가/보강
+  - `app/src/server/auth-credentials.test.ts`
+  - `app/src/server/auth-login-identifier.test.ts`
+  - `app/src/app/api/admin/auth-audits/export/route.test.ts`
+  - `app/src/app/api/admin/auth-audits/route.test.ts`
+- 검증 결과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app lint src/lib/auth.ts src/server/auth-credentials.ts src/server/auth-credentials.test.ts src/server/auth-audit-log.ts src/server/auth-login-identifier.ts src/server/auth-login-identifier.test.ts src/server/auth-login-rate-limit.ts src/server/rate-limit.ts src/server/queries/auth-audit.queries.ts src/app/admin/auth-audits/page.tsx src/app/api/admin/auth-audits/export/route.ts src/app/api/admin/auth-audits/export/route.test.ts src/app/api/admin/auth-audits/route.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/auth-credentials.test.ts src/server/auth-login-identifier.test.ts src/app/api/admin/auth-audits/export/route.test.ts src/app/api/admin/auth-audits/route.test.ts src/server/auth.service.test.ts` 통과
+- 이슈/블로커
+- 실제 운영 DB에는 `pnpm prisma migrate deploy`로 `20260306133000_expand_auth_audit_for_login_events` 마이그레이션을 반영해야 함
+- CAPTCHA/MFA 같은 상위 단계 방어는 추후 별도 cycle로 확장 가능하지만, 현재 cycle DoD 범위의 observability + step-up(backoff)은 충족
+
+### 2026-03-06: 운영/보안 findings 등록 + Cycle 197/198 처리
+- 완료 내용
+- 운영/보안 리뷰에서 식별한 후속 과제를 `PLAN.md`에 Cycle 197~205로 등록:
+  - 정지 계정 write-path enforcement
+  - 비밀번호 변경/재설정 세션 무효화
+  - 로그인 abuse hardening 2차
+  - 신고 스키마/운영 정합화
+  - bulk sanction/auto-hide 현실화
+  - moderation control plane fail-open 제거
+  - 검색 로그 privacy/retention
+  - 알림 retention 강화
+  - guest abuse defense 현실화
+- Cycle 197 완료:
+  - `app/src/server/services/sanction.service.ts`
+    - `assertUserInteractionAllowed()` 공용 가드 추가
+  - `app/src/server/services/post.service.ts`
+  - `app/src/server/services/comment.service.ts`
+    - 글/댓글 작성·수정·삭제 및 반응 경로에서 active sanction을 서비스 레이어에서 다시 검증
+  - `app/src/app/api/upload/route.ts`
+  - `app/src/app/api/upload/client/route.ts`
+    - 인증 사용자 업로드 경로도 sanction 상태를 존중하도록 보강
+- Cycle 198 완료:
+  - `app/prisma/schema.prisma`
+  - `app/prisma/migrations/20260306120000_add_user_session_version/migration.sql`
+    - `User.sessionVersion` 추가
+  - `app/src/lib/auth.ts`
+  - `app/src/lib/session-version.ts`
+    - JWT 세션이 현재 `sessionVersion`과 동기화되고 mismatch 시 기존 세션을 무효화
+  - `app/src/server/services/auth.service.ts`
+    - 기존 비밀번호 변경/비밀번호 reset 확정 시 `sessionVersion` 증가
+- 회귀 테스트 추가/보강
+  - `app/src/lib/session-version.test.ts`
+  - `app/src/server/services/auth.service.test.ts`
+  - `app/src/server/services/sanction.service.test.ts`
+  - `app/src/server/services/post-create-policy.test.ts`
+  - `app/src/server/services/comment.service.test.ts`
+  - `app/src/app/api/upload/route.test.ts`
+  - `app/src/app/api/upload/client/route.test.ts`
+  - `app/src/server/auth.test.ts`
+- 검증 결과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app lint src/lib/auth.ts src/lib/session-version.ts src/lib/session-version.test.ts src/types/next-auth.d.ts src/server/auth.ts src/server/auth.test.ts src/server/services/sanction.service.ts src/server/services/sanction.service.test.ts src/server/services/post.service.ts src/server/services/comment.service.ts src/server/services/auth.service.ts src/server/services/auth.service.test.ts src/server/services/post-create-policy.test.ts src/server/services/comment.service.test.ts src/app/api/upload/route.ts src/app/api/upload/route.test.ts src/app/api/upload/client/route.ts src/app/api/upload/client/route.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/session-version.test.ts src/server/auth.test.ts src/server/services/sanction.service.test.ts src/server/services/auth.service.test.ts src/server/services/post-create-policy.test.ts src/server/services/comment.service.test.ts src/app/api/upload/route.test.ts src/app/api/upload/client/route.test.ts` 통과
+- 이슈/블로커
+- `User.sessionVersion` 마이그레이션은 코드와 함께 추가했지만 실제 운영 DB에는 `pnpm prisma migrate deploy`로 반영해야 함
+- 로그인 abuse 2차(실패 로그인 감사/step-up 방어), 신고 스키마 정합화, moderation fail-open 제거는 새 사이클로 pending 등록
+- 변경 파일(핵심)
+- `PLAN.md`
+- `PROGRESS.md`
+- `app/prisma/schema.prisma`
+- `app/prisma/migrations/20260306120000_add_user_session_version/migration.sql`
+- `app/src/lib/auth.ts`
+- `app/src/lib/session-version.ts`
+- `app/src/lib/session-version.test.ts`
+- `app/src/server/services/auth.service.ts`
+- `app/src/server/services/auth.service.test.ts`
+- `app/src/server/services/sanction.service.ts`
+- `app/src/server/services/post.service.ts`
+- `app/src/server/services/comment.service.ts`
+- `app/src/app/api/upload/route.ts`
+- `app/src/app/api/upload/client/route.ts`
+
+### 2026-03-06: Cycle 196 비밀번호 변경/설정 UX 정합화
+- 완료 내용
+- 비밀번호 보유 여부 조회 추가:
+  - `app/src/server/queries/user.queries.ts`
+  - 현재 사용자가 `passwordHash`를 보유하는지 확인하는 `getUserPasswordStatusById()` 추가
+- `/password/setup` 서버 copy 분기:
+  - `app/src/app/password/setup/page.tsx`
+  - 로그인 사용자의 `hasPassword`를 조회해 헤더 문구를 `비밀번호 변경`/`비밀번호 설정`으로 분기
+- 폼 UX 정합화:
+  - `app/src/components/auth/set-password-form.tsx`
+  - 기존 비밀번호가 있는 계정에만 현재 비밀번호 입력칸을 노출하고 필수 처리
+  - 비밀번호를 잊은 경우에는 `/password/reset` 이메일 초기화 경로를 안내
+  - 비밀번호가 없는 계정은 현재 비밀번호 없이 새 비밀번호만 설정하도록 분기
+- 프로필 진입 링크 정합화:
+  - `app/src/app/profile/page.tsx`
+  - 프로필의 계정 액션 버튼도 `비밀번호 변경`/`비밀번호 설정`으로 일치시킴
+- 순수 helper + 회귀 테스트 추가:
+  - `app/src/lib/password-setup.ts`
+  - `app/src/lib/password-setup.test.ts`
+  - 현재 비밀번호 필수 분기와 확인 비밀번호 불일치 분기를 테스트로 고정
+- 검증 결과
+- `pnpm -C app lint src/lib/password-setup.ts src/lib/password-setup.test.ts src/server/queries/user.queries.ts src/app/password/setup/page.tsx src/components/auth/set-password-form.tsx src/app/profile/page.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/password-setup.test.ts` 통과
+- 이슈/블로커
+- 서버 정책 자체는 기존과 동일하며, 이번 작업은 UI/클라이언트 검증 정합화에 집중
+- 변경 파일(핵심)
+- `app/src/lib/password-setup.ts`
+- `app/src/lib/password-setup.test.ts`
+- `app/src/server/queries/user.queries.ts`
+- `app/src/app/password/setup/page.tsx`
+- `app/src/components/auth/set-password-form.tsx`
+- `app/src/app/profile/page.tsx`
+- `PLAN.md`
+- `PROGRESS.md`
+
+### 2026-03-06: Cycle 195 production email/upload env fail-fast 보강
+- 완료 내용
+- production env 검증 강화:
+  - `app/src/lib/env.ts`
+  - `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`를 production 필수 env로 추가
+  - health/build/auth import 경로에서 email/upload 설정 누락이 더 이상 조용히 지나가지 않도록 fail-fast 기준을 확장
+- ops 보안 env 체크 동기화:
+  - `app/scripts/check-security-env.ts`
+  - `ops:check:security-env`도 동일하게 `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN` 누락을 FAIL로 표시
+- transactional email 실패 가시화:
+  - `app/src/server/email.ts`
+  - 비밀번호 재설정/이메일 인증 메일은 production에서 Resend 설정 누락 또는 전송 실패 시 `EMAIL_DELIVERY_NOT_CONFIGURED` / `EMAIL_DELIVERY_UNAVAILABLE`로 503 반환
+  - 환영 메일은 회원 인증 완료 자체를 막지 않도록 best-effort 유지
+- 회귀 테스트 추가/보강:
+  - `app/src/app/api/auth/password/reset/request/route.test.ts`
+  - `app/src/app/api/auth/verify/request/route.test.ts`
+  - `app/src/app/api/auth/register/route.test.ts`
+  - `app/src/lib/env.test.ts`
+  - 인증 메일 발송 실패 시 503, production env 누락 시 fail 판정을 테스트로 고정
+- 검증 결과
+- `pnpm -C app lint src/lib/env.ts src/server/email.ts scripts/check-security-env.ts src/lib/env.test.ts src/app/api/auth/register/route.test.ts src/app/api/auth/password/reset/request/route.test.ts src/app/api/auth/verify/request/route.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/env.test.ts src/app/api/auth/register/route.test.ts src/app/api/auth/password/reset/request/route.test.ts src/app/api/auth/verify/request/route.test.ts` 통과
+- 이슈/블로커
+- `next build` 전체 재검증은 이 환경에서 Google Fonts 외부 fetch 제한 때문에 완료 판단 근거로 사용하지 않음
+- 변경 파일(핵심)
+- `app/src/lib/env.ts`
+- `app/src/server/email.ts`
+- `app/scripts/check-security-env.ts`
+- `app/src/lib/env.test.ts`
+- `app/src/app/api/auth/register/route.test.ts`
+- `app/src/app/api/auth/password/reset/request/route.test.ts`
+- `app/src/app/api/auth/verify/request/route.test.ts`
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-06: Cycle 194 guest API prewarm/snapshot 자동화 확장
 - 완료 내용
 - `ops:prewarm` 대상 확장:

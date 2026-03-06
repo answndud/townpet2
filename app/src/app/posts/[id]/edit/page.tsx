@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-gate-notice";
 import { PostDetailEditForm } from "@/components/posts/post-detail-edit-form";
 import { auth } from "@/lib/auth";
+import { getGuestPostMeta } from "@/lib/post-guest-meta";
 import { getPostById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
@@ -23,11 +24,7 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
     notFound();
   }
 
-  const isGuestPost = Boolean(
-    (post as { guestAuthorId?: string | null; guestDisplayName?: string | null })
-      .guestAuthorId ??
-      (post as { guestDisplayName?: string | null }).guestDisplayName,
-  );
+  const isGuestPost = getGuestPostMeta(post).isGuestPost;
   const isGuestEdit = isGuestPost && !user;
   if (!isGuestEdit && !user) {
     redirect("/login");

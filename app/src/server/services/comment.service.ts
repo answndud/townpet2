@@ -31,6 +31,7 @@ import {
   hashGuestIdentityCandidates,
   registerGuestViolation,
 } from "@/server/services/guest-safety.service";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 
 type CreateCommentParams = {
@@ -130,6 +131,8 @@ export async function createComment({
   if (!author) {
     throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
   }
+
+  await assertUserInteractionAllowed(author.id);
 
   const contactPolicy = moderateContactContent({
     text: parsed.data.content,
@@ -346,6 +349,8 @@ export async function updateComment({
     throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
   }
 
+  await assertUserInteractionAllowed(author.id);
+
   const contactPolicy = moderateContactContent({
     text: parsed.data.content,
     role: author.role,
@@ -416,6 +421,8 @@ type DeleteCommentParams = {
 };
 
 export async function deleteComment({ commentId, authorId }: DeleteCommentParams) {
+  await assertUserInteractionAllowed(authorId);
+
   const deleted = await prisma.$transaction(async (tx) => {
     const comment = await tx.comment.findUnique({
       where: { id: commentId },
@@ -716,6 +723,8 @@ export async function toggleCommentReaction({
   userId,
   type,
 }: ToggleCommentReactionParams): Promise<ToggleCommentReactionResult> {
+  await assertUserInteractionAllowed(userId);
+
   return prisma.$transaction(async (tx) => {
     const comment = await tx.comment.findUnique({
       where: { id: commentId },
