@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 192: guest 피드 API/클라이언트 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| guest 피드 초기 상태용 공개 API 추가 | Codex | P1 | `done` | guest 피드의 gate/feed 초기 상태를 public cache 헤더와 함께 반환하는 `/api/feed/guest`가 추가되고 route 테스트로 고정됨 | `app/src/app/api/feed/guest/route.ts`, `app/src/app/api/feed/guest/route.test.ts` |
+| guest `/feed`를 클라이언트 로더 기반으로 전환 | Codex | P1 | `done` | `feed/guest` 서버 페이지가 DB를 직접 읽지 않고 클라이언트에서 `/api/feed/guest`를 통해 초기 상태를 불러오며 Suspense fallback을 제공 | `app/src/components/posts/guest-feed-page-client.tsx`, `app/src/app/feed/guest/page.tsx` |
+
 ### Cycle 191: guest 검색 API/클라이언트 전환 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
