@@ -17,6 +17,37 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-06: Cycle 190 HTML CDN 캐시 제약 분석 및 방향 전환
+- 완료 내용
+- 실배포 guest HTML 헤더 재확인:
+  - `https://townpet2.vercel.app/feed`
+  - `https://townpet2.vercel.app/search`
+  - `https://townpet2.vercel.app/feed/guest`
+  - `https://townpet2.vercel.app/search/guest`
+  - `https://townpet2.vercel.app/posts/cmm4cdxqp0001wzxivh0focsf/guest`
+  - 모두 `cache-control: private, no-cache, no-store, max-age=0, must-revalidate`
+- 구조 원인 정리:
+  - `app/middleware.ts`가 모든 요청에 대해 새 `x-nonce` / `x-csp-nonce`를 생성
+  - Next HTML 응답의 preload/script nonce가 요청마다 달라진다
+  - 따라서 guest rewrite와 `Cache-Control` 헤더만으로는 HTML 응답을 CDN public cache로 만들 수 없다
+- 방향 전환:
+  - 현재 prewarm과 API cache는 유지
+  - HTML 공개 캐시가 필요하면 CSP nonce 전략 재설계 또는 정적 shell + 클라이언트 data fetch 방식으로 옮겨야 한다
+  - 보안 우선순위상 CSP nonce를 당장 약화시키기보다, 이후 최적화는 API/클라이언트 중심으로 가져가는 쪽이 안전하다
+- 검증 결과
+- `gh run list --repo answndud/townpet2 --limit 8`
+  - `Fix Vercel build regressions` quality-gate 성공 확인
+- 원격 헤더 확인:
+  - `/feed`, `/search`, `/feed/guest`, `/search/guest`, `/posts/:id/guest` 모두 `private, no-store`
+  - `/api/posts`는 public cache 경로 유지 확인
+- 이슈/블로커
+- HTML page CDN cache를 목표로 둔 Cycle 188 잔여 과제는 CSP nonce 설계와 충돌
+- 다음 성능 작업은 HTML cache가 아니라 API 응답 cache와 클라이언트 초기 로딩 경량화 쪽으로 재설계하는 것이 맞음
+- 변경 파일(핵심)
+- `PLAN.md`
+- `PROGRESS.md`
+- `docs/operations/캐시_성능_적용_기록.md`
+
 ### 2026-03-06: Cycle 189 Vercel build 회귀 복구
 - 완료 내용
 - `FeedHoverMenu`에서 `useSearchParams()` 의존 제거:

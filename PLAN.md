@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 190: HTML CDN 캐시 제약 분석 및 방향 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 실배포 guest HTML 헤더 재검증 | Codex | P1 | `done` | `/feed`, `/search`, `/feed/guest`, `/search/guest`, `/posts/:id/guest`가 모두 `private, no-store`임을 확인하고 rewrite 누락과 구분 | `app/middleware.ts`, `docs/operations/캐시_성능_적용_기록.md` |
+| CSP nonce 기반 HTML 비공개 캐시 제약 기록 | Codex | P1 | `done` | 요청별 CSP nonce가 Next HTML 응답을 매번 달라지게 만들어 CDN public cache를 구조적으로 막는다는 점과 다음 최적화 방향(API/클라이언트 중심)을 기록 | `app/middleware.ts`, `app/src/lib/csp-nonce.ts`, `docs/operations/캐시_성능_적용_기록.md`, `PROGRESS.md` |
+
 ### Cycle 189: Vercel build 회귀 복구 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
@@ -36,7 +42,7 @@
 |---|---|---|---|---|---|
 | root layout의 서버 auth/cookie 의존 제거 | Codex | P1 | `done` | 최상위 layout이 서버에서 `auth()`/`cookies()`를 읽지 않고 viewer shell은 client fetch로 보강됨 | `app/src/app/layout.tsx`, `app/src/components/navigation/app-shell-header.tsx`, `app/src/app/api/viewer-shell/route.ts` |
 | guest /search 정적 분리 + rewrite 캐시 적용 | Codex | P1 | `done` | guest `/search`가 전용 경로로 rewrite되고 public cache-control이 적용됨. 코드/테스트 기준 검증 완료 | `app/src/app/search/page.tsx`, `app/src/app/search/guest/page.tsx`, `app/middleware.ts` |
-| guest /feed 정적 분리 + rewrite 캐시 적용 | Codex | P1 | `in_progress` | guest `/feed`가 전용 경로로 rewrite되고 public cache-control이 적용됨. 실배포 헤더 확인까지 완료 | `app/src/app/feed/guest/page.tsx`, `app/src/components/navigation/feed-hover-menu.tsx`, `app/middleware.ts` |
+| guest /feed 정적 분리 + rewrite 캐시 적용 | Codex | P1 | `blocked` | guest `/feed` rewrite는 완료됐지만 요청별 CSP nonce 때문에 HTML 응답이 `private, no-store`로 전달되어 CDN public cache 검증이 보류됨. 다음 단계는 HTML cache가 아니라 API/클라이언트 로딩 중심 최적화 | `app/src/app/feed/guest/page.tsx`, `app/src/components/navigation/feed-hover-menu.tsx`, `app/middleware.ts`, `app/src/lib/csp-nonce.ts` |
 
 ### Cycle 187: 배포 prewarm 자동화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
