@@ -17,6 +17,36 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-06: Cycle 191 guest 검색 API/클라이언트 전환
+- 완료 내용
+- guest 검색 전용 API 추가:
+  - `app/src/app/api/search/guest/route.ts`
+  - 비로그인 검색 결과, 인기 검색어, guest 차단 타입 판정을 한 번에 반환
+  - `cache-control: public, s-maxage=45, stale-while-revalidate=300` 적용
+- guest `/search` 페이지를 클라이언트 로더 기반으로 전환:
+  - `app/src/components/posts/guest-search-page-client.tsx`
+  - `app/src/app/search/guest/page.tsx`
+  - 서버 페이지는 더 이상 DB를 직접 읽지 않고 Suspense fallback만 제공
+  - 실제 검색 결과/인기 검색어는 클라이언트에서 `/api/search/guest`를 호출해 로드
+- 기대 효과
+- guest `/search` 첫 HTML 응답에서 서버 DB 조회를 제거해 TTFB 부담을 줄임
+- HTML 자체는 CSP nonce 때문에 여전히 `private, no-store`일 수 있지만, 검색 데이터는 public API cache 경로로 이동
+- 검증 결과
+- `pnpm -C app lint src/app/api/search/guest/route.ts src/app/api/search/guest/route.test.ts src/components/posts/guest-search-page-client.tsx src/app/search/guest/page.tsx` 통과
+- `pnpm -C app test -- src/app/api/search/guest/route.test.ts`
+  - Vitest 설정상 전체 단위 테스트가 함께 실행되어 `68 files / 338 tests` 통과
+- `pnpm -C app typecheck` 통과
+- 이슈/블로커
+- guest `/search`의 HTML 응답 public cache 자체는 여전히 Cycle 190의 CSP nonce 제약을 받음
+- 이번 변경은 HTML cache가 아니라 서버 render 부하를 줄이고 검색 데이터를 public API cache로 분리하는 데 목적이 있음
+- 변경 파일(핵심)
+- `app/src/app/api/search/guest/route.ts`
+- `app/src/app/api/search/guest/route.test.ts`
+- `app/src/components/posts/guest-search-page-client.tsx`
+- `app/src/app/search/guest/page.tsx`
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-06: Cycle 190 HTML CDN 캐시 제약 분석 및 방향 전환
 - 완료 내용
 - 실배포 guest HTML 헤더 재확인:
