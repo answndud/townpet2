@@ -4863,19 +4863,28 @@
 - 메모
 - 자동 스케줄 경로는 기존처럼 health-only(`verify_pg_trgm=false`)로 유지해 불필요한 실패/시크릿 의존을 피함.
 
+### 2026-03-06: `verify_pg_trgm` 수동 실행 1차 결과 (blocked 확인)
+- 실행 내용
+- 워크플로우 실행: `https://github.com/answndud/townpet2/actions/runs/22746431810`
+- 입력값: `target_base_url=https://townpet2.vercel.app`, `verify_sentry=false`, `verify_pg_trgm=true`
+- 결과
+- `failure`
+- 실패 단계: `Validate internal health token secret`
+- 원인: GitHub Actions secret `HEALTH_INTERNAL_TOKEN` 미설정
+- 후속 조치
+- repository secret `HEALTH_INTERNAL_TOKEN` 추가 후 동일 입력으로 재실행 필요
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
-- Sentry 실수신 검증(DSN/프로젝트 설정 필요)
-- 배포 환경 health 최종 검증(staging/prod 필요)
+- `ops-smoke-checks`의 `verify_pg_trgm=true` 경로 실행을 위한 GitHub secret `HEALTH_INTERNAL_TOKEN` 미설정
 - 기능/기술 부채
-- 구형 `SiteSetting(popular_search_terms_v1)` 키 운영 DB 정리 필요
-- 검색 품질 최대치를 위해 staging/prod DB `pg_trgm` 확장 설치 필요
+- 검색 품질 최대치를 위해 staging/prod DB `pg_trgm` 확장 설치 확인/적용 필요
 
 ## 다음 핸드오프
 - `PLAN.md` 기준 즉시 착수 순서
-1. Cycle 23: 카카오/네이버 실계정 전체 플로우 E2E(온보딩->피드) 환경 구성 (현재 blocked)
-2. 환경 블로커 해소: Sentry 실수신 검증(DSN/프로젝트)
-3. Cycle 32 후속: 구형 `SiteSetting(popular_search_terms_v1)` 키 정리 실행
+1. GitHub Actions secret `HEALTH_INTERNAL_TOKEN` 설정
+2. `ops-smoke-checks` 재실행(`verify_pg_trgm=true`)으로 PASS 확인
+3. 필요 시 운영 DB `pg_trgm` 확장 적용 후 같은 워크플로우로 재검증
 
 ## 참고 문서
 - 운영/실행 가이드: `docs/GUIDE.md`

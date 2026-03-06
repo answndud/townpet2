@@ -1147,4 +1147,5 @@
 ## Blocked (환경 의존)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
+| `ops-smoke-checks` `verify_pg_trgm` 경로 활성화 | Codex | P2 | `blocked` | workflow_dispatch에서 `verify_pg_trgm=true` 실행이 PASS(`HEALTH_INTERNAL_TOKEN` 검증 + `ops:check:health` 통과) | GitHub Actions repository secret `HEALTH_INTERNAL_TOKEN` 설정 |
 | Sentry 실수신 검증(의도적 에러, 선택) | Codex | P3 | `done` | 실제 Sentry 프로젝트에서 이벤트 수신 확인(선택 운영, 미연동 시 deferred 유지) | `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`(유효 토큰/만료·권한 확인), `SENTRY_ORG_SLUG`, `SENTRY_PROJECT_SLUG` 저장소 시크릿 설정 |
