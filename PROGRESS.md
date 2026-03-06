@@ -4874,17 +4874,31 @@
 - 후속 조치
 - repository secret `HEALTH_INTERNAL_TOKEN` 추가 후 동일 입력으로 재실행 필요
 
+### 2026-03-06: `verify_pg_trgm` 수동 실행 2차 결과 (원인 확정)
+- 실행 내용
+- 워크플로우 실행: `https://github.com/answndud/townpet2/actions/runs/22747240206`
+- 입력값: `target_base_url=https://townpet2.vercel.app`, `verify_sentry=false`, `verify_pg_trgm=true`
+- 결과
+- `failure`
+- 실패 단계: `Check pg_trgm extension via internal health endpoint`
+- 확인 사실
+- `HEALTH_INTERNAL_TOKEN` 검증 단계는 통과(시크릿 설정 정상 반영)
+- `/api/health` 상세 응답에서 `checks.search.pgTrgm.state=warn`, `enabled=false` 확인
+- 실패 메시지: `pg_trgm extension missing: trigram similarity search is disabled (tsvector fallback only)`
+- 결론
+- 현재 잔여 블로커는 시크릿이 아니라 운영 DB `pg_trgm` 확장 미설치
+
 ## 이슈/블로커 통합
 - 환경 의존 블로커
-- `ops-smoke-checks`의 `verify_pg_trgm=true` 경로 실행을 위한 GitHub secret `HEALTH_INTERNAL_TOKEN` 미설정
+- 운영 DB `pg_trgm` 확장 미설치(`verify_pg_trgm=true` 경로에서 `search.pgTrgm.enabled=false`)
 - 기능/기술 부채
 - 검색 품질 최대치를 위해 staging/prod DB `pg_trgm` 확장 설치 확인/적용 필요
 
 ## 다음 핸드오프
 - `PLAN.md` 기준 즉시 착수 순서
-1. GitHub Actions secret `HEALTH_INTERNAL_TOKEN` 설정
+1. 운영 DB에 `CREATE EXTENSION IF NOT EXISTS pg_trgm;` 적용
 2. `ops-smoke-checks` 재실행(`verify_pg_trgm=true`)으로 PASS 확인
-3. 필요 시 운영 DB `pg_trgm` 확장 적용 후 같은 워크플로우로 재검증
+3. PASS 후 blocked 항목 닫기(PLAN/PROGRESS 동기화)
 
 ## 참고 문서
 - 운영/실행 가이드: `docs/GUIDE.md`
