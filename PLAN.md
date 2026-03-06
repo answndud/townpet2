@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 193: guest 공개 API 배포 검증 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/api/feed/guest`, `/api/search/guest` 실배포 캐시 헤더 확인 | Codex | P1 | `done` | 실배포 응답에서 두 guest API가 `cache-control: public`과 `x-vercel-cache: STALE` 상태로 캐시 재사용되는 것을 확인 | `app/src/app/api/feed/guest/route.ts`, `app/src/app/api/search/guest/route.ts` |
+| latency snapshot 재측정 | Codex | P1 | `done` | 운영 URL 기준 steady-state p95가 모두 threshold 통과하고 결과가 진행 로그에 기록됨 | `app/scripts/collect-latency-snapshot.ts`, `PROGRESS.md` |
+
 ### Cycle 192: guest 피드 API/클라이언트 전환 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

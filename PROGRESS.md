@@ -17,6 +17,40 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-06: Cycle 193 guest 공개 API 배포 검증
+- 완료 내용
+- 실배포 헤더 확인:
+  - `https://townpet2.vercel.app/api/feed/guest`
+  - `https://townpet2.vercel.app/api/search/guest?q=강아지`
+  - 첫 요청은 `x-vercel-cache: MISS`
+  - 직후 재요청에서는 둘 다 `x-vercel-cache: STALE`, `age` 증가 확인
+  - 응답 헤더는 Vercel에서 `cache-control: public`만 노출하지만 실제 CDN 재사용은 동작함
+- latency snapshot 재실행:
+  - `OPS_BASE_URL=https://townpet2.vercel.app pnpm -C app ops:perf:snapshot`
+  - steady-state 기준 전 API threshold PASS
+- 핵심 수치(steady-state p95)
+- `api_breed_posts`: `205.8ms`
+- `api_posts_global`: `370.6ms`
+- `api_posts_suggestions`: `245.0ms`
+- `api_search_log`: `273.6ms`
+- warm-up tail
+- `api_posts_global` 첫 샘플 TTFB `3089.3ms`
+- `api_posts_suggestions` 첫 샘플 TTFB `1042.3ms`
+- 해석
+- 공개 guest API 전환 후 캐시 재사용 경로는 배포에서 확인됨
+- steady-state는 여전히 배포 가능 수준으로 안정적
+- 남은 성능 리스크는 HTML cache가 아니라 첫 요청 warm-up tail latency
+- 검증 결과
+- `curl -sD - -o /dev/null 'https://townpet2.vercel.app/api/feed/guest'`
+- `curl -sD - -o /dev/null 'https://townpet2.vercel.app/api/search/guest?q=%EA%B0%95%EC%95%84%EC%A7%80'`
+- `OPS_BASE_URL=https://townpet2.vercel.app pnpm -C app ops:perf:snapshot`
+- 이슈/블로커
+- Vercel 응답 헤더에 `s-maxage` 값이 그대로 드러나지 않지만 `STALE`/`age` 기준으로 캐시 재사용은 확인됨
+- HTML page 자체의 `private, no-store` 제약은 여전히 Cycle 190 범위로 유지
+- 변경 파일(핵심)
+- `PLAN.md`
+- `PROGRESS.md`
+
 ### 2026-03-06: Cycle 192 guest 피드 API/클라이언트 전환
 - 완료 내용
 - guest 피드 전용 API 추가:
