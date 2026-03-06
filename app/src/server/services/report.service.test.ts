@@ -1,29 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReportStatus, ReportTarget } from "@prisma/client";
 
-import { bulkUpdateReports } from "@/server/services/report.service";
+import { createReport, bulkUpdateReports } from "@/server/services/report.service";
 import { ServiceError } from "@/server/services/service-error";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: vi.fn(),
+    report: {
+      findFirst: vi.fn(),
+    },
   },
 }));
 
 const mockPrisma = vi.mocked(prisma);
+const mockFindFirst = prisma.report.findFirst as unknown as ReturnType<typeof vi.fn>;
 
 describe("bulk report moderation", () => {
   beforeEach(() => {
     mockPrisma.$transaction.mockReset();
+    mockFindFirst.mockReset();
   });
 
-  it("rejects hide action for non-post targets", async () => {
+  it("rejects non-post targets at report creation", async () => {
+    await expect(
+      createReport({
+        reporterId: "user-1",
+        input: {
+          targetType: "COMMENT",
+          targetId: "ckc7k5qsj0000u0t8qv6d1d7k",
+          reason: "SPAM",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+
+    expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects bulk actions for non-post targets", async () => {
     mockPrisma.$transaction.mockImplementation(async (callback) =>
       callback({
         report: {
           findMany: vi.fn().mockResolvedValue([
-            { id: "r-1", targetType: ReportTarget.COMMENT, targetId: "c-1" },
+            { id: "r-1", targetType: "COMMENT" as ReportTarget, targetId: "c-1" },
           ]),
         },
       } as never),

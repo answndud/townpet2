@@ -17,6 +17,43 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 200 완료 (신고 target 범위 Post-only 정렬)
+- 완료 내용
+- 신고 target 범위를 Post-only로 고정:
+  - `app/prisma/schema.prisma`
+  - `app/prisma/migrations/20260307011000_limit_report_target_to_post/migration.sql`
+  - `ReportTarget` enum을 `POST`만 남기고, migration에서 non-post 레코드가 있으면 명시적으로 실패하도록 가드 추가
+- 입력/서비스 정렬:
+  - `app/src/lib/validations/report.ts`
+  - `app/src/server/services/report.service.ts`
+  - 신규 신고는 `POST`만 허용하고, legacy `COMMENT/USER` 타입이 들어오면 생성/처리/일괄 처리에서 명시적으로 거부
+- 관리자 신고 큐/상세/통계 정렬:
+  - `app/src/lib/report-target.ts`
+  - `app/src/server/queries/report.queries.ts`
+  - `app/src/app/admin/reports/page.tsx`
+  - `app/src/app/admin/reports/[id]/page.tsx`
+  - `app/src/components/admin/report-queue-table.tsx`
+  - 관리자 필터/통계/큐는 지원 대상(Post)만 노출하고, direct URL로 legacy 신고를 열어도 깨지지 않도록 fallback 표시 추가
+- 댓글 UI 정리:
+  - `app/src/components/posts/post-comment-thread.tsx`
+  - 댓글 메뉴에서 신고 동선을 제거해 실제 운영 범위와 사용자 UI를 일치시킴
+- 정책 문서 동기화:
+  - `docs/policies/신고_운영정책.md`
+  - `docs/policies/모더레이션_운영규칙.md`
+- 회귀 테스트 보강:
+  - `app/src/lib/validations/report.test.ts`
+  - `app/src/server/services/report.service.test.ts`
+  - `app/src/server/queries/report.queries.test.ts`
+- 검증 결과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app exec prisma format --schema prisma/schema.prisma` 통과
+- `pnpm -C app lint src/lib/report-target.ts src/lib/validations/report.ts src/lib/validations/report.test.ts src/server/services/report.service.ts src/server/services/report.service.test.ts src/server/queries/report.queries.ts src/server/queries/report.queries.test.ts src/app/admin/reports/page.tsx src/app/admin/reports/[id]/page.tsx src/components/admin/report-queue-table.tsx src/components/posts/post-comment-thread.tsx scripts/seed-reports.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app exec vitest run src/lib/validations/report.test.ts src/server/services/report.service.test.ts src/server/queries/report.queries.test.ts src/app/api/reports/route.test.ts` 통과
+- 이슈/블로커
+- migration은 non-post 신고 레코드가 DB에 존재하면 의도적으로 실패한다. 실제 배포 전 운영 DB에 legacy `COMMENT/USER` 신고가 없는지 확인이 필요
+- 로컬 워크트리에 남아 있는 `app/src/lib/env.ts` 별도 수정 때문에 `pnpm -C app test -- ...` 형태의 광역 실행은 unrelated `env.test.ts` 실패가 섞일 수 있어, 이번 cycle 검증은 대상 파일만 `vitest run`으로 한정
+
 ### 2026-03-06: Cycle 206 완료 (guest 상세 작성자 유형 정합화)
 - 완료 내용
 - 실배포 smoke에서 회원 작성 글도 `/posts/:id/guest`에서 `비회원 수정/삭제` UI가 노출되는 버그를 확인하고 guest 작성자 판별 기준을 공용 helper로 통일:

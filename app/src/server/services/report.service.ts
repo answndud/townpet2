@@ -19,36 +19,15 @@ import { ServiceError } from "@/server/services/service-error";
 
 const AUTO_HIDE_THRESHOLD = 3;
 
-async function resolveReportTargetUserId(
+async function resolvePostReportTargetUserId(
   tx: Prisma.TransactionClient,
-  targetType: ReportTarget,
   targetId: string,
 ) {
-  if (targetType === ReportTarget.USER) {
-    const user = await tx.user.findUnique({
-      where: { id: targetId },
-      select: { id: true },
-    });
-    return user?.id ?? null;
-  }
-
-  if (targetType === ReportTarget.POST) {
-    const post = await tx.post.findUnique({
-      where: { id: targetId },
-      select: { authorId: true },
-    });
-    return post?.authorId ?? null;
-  }
-
-  if (targetType === ReportTarget.COMMENT) {
-    const comment = await tx.comment.findUnique({
-      where: { id: targetId },
-      select: { authorId: true },
-    });
-    return comment?.authorId ?? null;
-  }
-
-  return null;
+  const post = await tx.post.findUnique({
+    where: { id: targetId },
+    select: { authorId: true },
+  });
+  return post?.authorId ?? null;
 }
 
 type CreateReportParams = {
@@ -76,11 +55,7 @@ export async function createReport({ reporterId, input }: CreateReportParams) {
 
   let shouldBumpCache = false;
   const report = await prisma.$transaction(async (tx) => {
-    const targetUserId = await resolveReportTargetUserId(
-      tx,
-      parsed.data.targetType,
-      parsed.data.targetId,
-    );
+    const targetUserId = await resolvePostReportTargetUserId(tx, parsed.data.targetId);
 
     if (!targetUserId) {
       throw new ServiceError("신고 대상을 찾을 수 없습니다.", "REPORT_TARGET_NOT_FOUND", 404);
@@ -108,21 +83,19 @@ export async function createReport({ reporterId, input }: CreateReportParams) {
       },
     });
 
-    if (parsed.data.targetType === ReportTarget.POST) {
-      const count = await tx.report.count({
-        where: {
-          targetType: parsed.data.targetType,
-          targetId: parsed.data.targetId,
-        },
-      });
+    const count = await tx.report.count({
+      where: {
+        targetType: parsed.data.targetType,
+        targetId: parsed.data.targetId,
+      },
+    });
 
-      if (count >= AUTO_HIDE_THRESHOLD) {
-        await tx.post.update({
-          where: { id: parsed.data.targetId },
-          data: { status: PostStatus.HIDDEN },
-        });
-        shouldBumpCache = true;
-      }
+    if (count >= AUTO_HIDE_THRESHOLD) {
+      await tx.post.update({
+        where: { id: parsed.data.targetId },
+        data: { status: PostStatus.HIDDEN },
+      });
+      shouldBumpCache = true;
     }
 
     return report;
@@ -167,6 +140,14 @@ export async function updateReport({
       throw new ServiceError("신고를 찾을 수 없습니다.", "REPORT_NOT_FOUND", 404);
     }
 
+    if (report.targetType !== ReportTarget.POST) {
+      throw new ServiceError(
+        "현재 운영에서는 게시글 신고만 처리할 수 있습니다.",
+        "UNSUPPORTED_REPORT_TARGET",
+        409,
+      );
+    }
+
     const updated = await tx.report.update({
       where: { id: reportId },
       data: {
@@ -186,29 +167,17 @@ export async function updateReport({
       },
     });
 
-    if (report.targetType === ReportTarget.POST && report.post) {
-      if (parsed.data.status === ReportStatus.DISMISSED) {
-        await tx.post.update({
-          where: { id: report.targetId },
-          data: { status: PostStatus.ACTIVE },
-        });
-        shouldBumpCache = true;
-      }
+    if (report.post && parsed.data.status === ReportStatus.DISMISSED) {
+      await tx.post.update({
+        where: { id: report.targetId },
+        data: { status: PostStatus.ACTIVE },
+      });
+      shouldBumpCache = true;
     }
 
     let targetUserId = report.targetUserId;
-    if (!targetUserId && report.targetType === ReportTarget.POST) {
+    if (!targetUserId) {
       targetUserId = report.post?.authorId ?? null;
-    }
-    if (!targetUserId && report.targetType === ReportTarget.COMMENT) {
-      const comment = await tx.comment.findUnique({
-        where: { id: report.targetId },
-        select: { authorId: true },
-      });
-      targetUserId = comment?.authorId ?? null;
-    }
-    if (!targetUserId && report.targetType === ReportTarget.USER) {
-      targetUserId = report.targetId;
     }
 
     return {
@@ -273,25 +242,22 @@ export async function bulkUpdateReports({ input, moderatorId }: BulkUpdateReport
       throw new ServiceError("처리할 신고가 없습니다.", "REPORT_NOT_FOUND", 404);
     }
 
+    const unsupportedReports = reports.filter(
+      (report) => report.targetType !== ReportTarget.POST,
+    );
+    if (unsupportedReports.length > 0) {
+      throw new ServiceError(
+        "현재 운영에서는 게시글 신고만 일괄 처리할 수 있습니다.",
+        "UNSUPPORTED_REPORT_TARGET",
+        409,
+      );
+    }
+
     const now = new Date();
     const status =
       action === "RESOLVE" || action === "HIDE_POST"
         ? ReportStatus.RESOLVED
         : ReportStatus.DISMISSED;
-
-    if (action === "HIDE_POST" || action === "UNHIDE_POST") {
-      const nonPostReports = reports.filter(
-        (report) => report.targetType !== ReportTarget.POST,
-      );
-
-      if (nonPostReports.length > 0) {
-        throw new ServiceError(
-          "게시글 대상 신고만 숨김 처리할 수 있습니다.",
-          "INVALID_TARGET",
-          400,
-        );
-      }
-    }
 
     await tx.report.updateMany({
       where: { id: { in: reportIds } },

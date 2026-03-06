@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ReportStatus, ReportTarget, UserRole } from "@prisma/client";
+import { ReportStatus, UserRole } from "@prisma/client";
 
 import { ReportActions } from "@/components/admin/report-actions";
+import { getReportTargetLabel, isSupportedReportTarget } from "@/lib/report-target";
 import { getCurrentUser } from "@/server/auth";
-import { listCommentsByIds } from "@/server/queries/comment.queries";
 import { listReportAudits } from "@/server/queries/report-audit.queries";
 import { getReportById } from "@/server/queries/report.queries";
 import { listUsersByIds } from "@/server/queries/user.queries";
@@ -18,12 +18,6 @@ const statusLabels: Record<ReportStatus, string> = {
   PENDING: "대기",
   RESOLVED: "승인",
   DISMISSED: "기각",
-};
-
-const targetLabels: Record<ReportTarget, string> = {
-  POST: "게시글",
-  COMMENT: "댓글",
-  USER: "사용자",
 };
 
 export default async function ReportDetailPage({ params, searchParams }: ReportDetailPageProps) {
@@ -66,11 +60,6 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
     );
   }
 
-  const commentTargetIds =
-    report.targetType === ReportTarget.COMMENT ? [report.targetId] : [];
-  const comments = await listCommentsByIds(commentTargetIds);
-  const comment = comments[0];
-
   const resolvedParams = (await searchParams) ?? {};
   const query = resolvedParams.q?.trim() ?? "";
   const order = resolvedParams.order === "asc" ? "asc" : "desc";
@@ -80,7 +69,8 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
     order,
   });
 
-  const targetUserIds = report.targetUserId ? [report.targetUserId] : [];
+  const targetUserIds =
+    report.targetUserId && !report.post ? [report.targetUserId] : [];
   const targetUsers = await listUsersByIds(targetUserIds);
   const targetUser = targetUsers[0];
 
@@ -116,14 +106,14 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
             <div className="flex flex-col gap-2">
               <span className="text-xs uppercase tracking-[0.24em] text-[#5b78a1]">상태</span>
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`border px-3 py-1 text-xs font-semibold ${statusBadgeClass}`}>
+              <span className={`border px-3 py-1 text-xs font-semibold ${statusBadgeClass}`}>
                   {statusLabels[report.status]}
                 </span>
                 <span className="text-xs text-[#5a7398]">신고 ID: {report.id}</span>
               </div>
             </div>
             <div className="grid gap-1 text-xs text-[#4f678d]">
-              <span>대상: {targetLabels[report.targetType]}</span>
+              <span>대상: {getReportTargetLabel(report.targetType)}</span>
               <span>신고 시간: {formatDateTime(report.createdAt)}</span>
               <span>처리자: {resolver?.nickname ?? resolver?.email ?? report.resolvedBy ?? "-"}</span>
             </div>
@@ -149,7 +139,7 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
           <div className="border border-[#d8e4f6] bg-[#f8fbff] p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">신고 대상</p>
             <p className="mt-2 text-sm font-semibold text-[#163462]">
-              {targetLabels[report.targetType]}
+              {getReportTargetLabel(report.targetType)}
             </p>
           </div>
           <div className="border border-[#d8e4f6] bg-[#f8fbff] p-4">
@@ -178,33 +168,18 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
                 </Link>
                 <span className="text-xs text-[#5a7398]">게시글로 이동</span>
               </div>
-            ) : report.targetType === ReportTarget.COMMENT && comment ? (
-              <div className="flex flex-col gap-2 border border-[#d8e4f6] bg-[#f8fbff] p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-md border border-[#cbdcf5] bg-white px-2 py-0.5 text-[10px] text-[#355988]">
-                    댓글
-                  </span>
-                  <span className="text-xs text-[#5a7398]">
-                    {comment.author.nickname ?? comment.author.name ?? "익명"}
-                  </span>
-                </div>
-                <span>{comment.content}</span>
-                <Link href={`/posts/${comment.postId}`} className="text-xs text-[#5a7398]">
-                  댓글 위치로 이동
-                </Link>
-              </div>
-            ) : report.targetType === ReportTarget.USER && targetUser ? (
+            ) : !isSupportedReportTarget(report.targetType) && targetUser ? (
               <div className="flex flex-col gap-2 border border-[#d8e4f6] bg-[#f8fbff] p-4">
                 <span className="rounded-md border border-[#cbdcf5] bg-white px-2 py-0.5 text-[10px] text-[#355988]">
-                  사용자
+                  legacy 대상
                 </span>
                 <span className="rounded-lg border border-[#cbdcf5] bg-white px-3 py-1 text-xs font-semibold text-[#163462]">
                   {targetUser.nickname ?? targetUser.email}
                 </span>
-                <span className="text-xs text-[#5a7398]">신고 대상</span>
+                <span className="text-xs text-[#5a7398]">현재 운영 범위 밖의 신고 대상입니다.</span>
               </div>
             ) : (
-              <div>대상을 찾을 수 없습니다.</div>
+              <div>현재 운영에서는 게시글 신고만 지원합니다.</div>
             )}
           </div>
         </section>

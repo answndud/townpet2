@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useState, useTransition } from "react";
 
 import { ReportActions } from "@/components/admin/report-actions";
+import { getReportTargetLabel } from "@/lib/report-target";
 
 type ReportQueueAudit = {
   id: string;
@@ -38,12 +39,6 @@ const statusLabels: Record<ReportStatus, string> = {
   PENDING: "대기",
   RESOLVED: "승인",
   DISMISSED: "기각",
-};
-
-const targetLabels: Record<ReportTarget, string> = {
-  POST: "게시글",
-  COMMENT: "댓글",
-  USER: "사용자",
 };
 
 export function ReportQueueTable({ reports }: ReportQueueTableProps) {
@@ -214,7 +209,7 @@ export function ReportQueueTable({ reports }: ReportQueueTableProps) {
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-[#4f678d]">
-                      {targetLabels[report.targetType]}
+                      {getReportTargetLabel(report.targetType)}
                     </td>
                     <td className="px-3 py-2.5">
                       <span

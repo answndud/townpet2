@@ -61,7 +61,7 @@ describe("report stats", () => {
       ],
       [
         { targetType: ReportTarget.POST, _count: { _all: 3 } },
-        { targetType: ReportTarget.COMMENT, _count: { _all: 1 } },
+        { targetType: "COMMENT", _count: { _all: 1 } },
       ],
       recentReports,
       resolvedReports,

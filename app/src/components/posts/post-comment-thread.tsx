@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PostStatus, ReportReason, ReportTarget } from "@prisma/client";
+import { PostStatus } from "@prisma/client";
 import { useMemo, useState, useTransition, type KeyboardEvent } from "react";
 
 import { CommentReactionControls } from "@/components/posts/comment-reaction-controls";
@@ -72,14 +72,6 @@ function getGuestFingerprint() {
   return created;
 }
 
-const reasonLabels: Record<ReportReason, string> = {
-  SPAM: "스팸",
-  HARASSMENT: "괴롭힘",
-  INAPPROPRIATE: "부적절",
-  FAKE: "허위",
-  OTHER: "기타",
-};
-
 function buildPaginationItems(currentPage: number, totalPages: number) {
   const pages = new Set<number>([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
   const normalized = [...pages].filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
@@ -109,9 +101,6 @@ export function PostCommentThread({
   const [editOpen, setEditOpen] = useState<Record<string, boolean>>({});
   const [replyContent, setReplyContent] = useState<CommentFormState>({});
   const [editContent, setEditContent] = useState<CommentFormState>({});
-  const [reportReason, setReportReason] = useState<Record<string, ReportReason>>({});
-  const [reportDescription, setReportDescription] = useState<CommentFormState>({});
-  const [reportOpen, setReportOpen] = useState<Record<string, boolean>>({});
   const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
   const [guestActionPassword, setGuestActionPassword] = useState<Record<string, string>>({});
   const [guestActionPrompt, setGuestActionPrompt] = useState<Record<string, "EDIT" | "DELETE" | null>>({});
@@ -353,36 +342,6 @@ export function PostCommentThread({
     void handleDelete(commentId, true, password);
   };
 
-  const handleReport = (commentId: string) => {
-    if (!canInteract) {
-      setMessage("로그인 후 신고할 수 있습니다.");
-      return;
-    }
-
-    startTransition(async () => {
-      setMessage(null);
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetType: ReportTarget.COMMENT,
-          targetId: commentId,
-          reason: reportReason[commentId] ?? ReportReason.SPAM,
-          description: reportDescription[commentId]?.trim() || undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json();
-        setMessage(payload?.error?.message ?? "신고에 실패했습니다.");
-        return;
-      }
-
-      setReportOpen((prev) => ({ ...prev, [commentId]: false }));
-      setMessage("신고가 접수되었습니다.");
-    });
-  };
-
   const renderComment = (comment: CommentItem, depth = 0) => {
     const replies = repliesMap.get(comment.id) ?? [];
     const isDeleted = comment.status === "DELETED";
@@ -398,8 +357,7 @@ export function PostCommentThread({
     const isAuthor = currentUserId && comment.author.id === currentUserId;
     const hasActiveReply = replies.some((reply) => reply.status === "ACTIVE");
     const canEdit = (isAuthor || isGuestComment) && !hasActiveReply && comment.status === "ACTIVE";
-    const canOpenMenu =
-      !isDeleted && (canEdit || (canInteract && !isAuthor && comment.status === "ACTIVE"));
+    const canOpenMenu = !isDeleted && canEdit;
     const canReply = canComment && comment.status === "ACTIVE";
     const displayName = isGuestComment
       ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
@@ -481,20 +439,6 @@ export function PostCommentThread({
                           삭제
                         </button>
                       </>
-                    ) : null}
-                    {canInteract && !isAuthor && comment.status === "ACTIVE" ? (
-                      <button
-                        type="button"
-                        className="block w-full rounded px-2 py-1 text-left text-xs text-[#2f4f7d] hover:bg-[#f5f9ff]"
-                        onClick={() =>
-                          setReportOpen((prev) => ({
-                            ...prev,
-                            [comment.id]: !prev[comment.id],
-                          }))
-                        }
-                      >
-                        신고
-                      </button>
                     ) : null}
                   </div>
                 </details>
@@ -682,48 +626,6 @@ export function PostCommentThread({
                 수정 저장
               </button>
             </div>
-          </div>
-        ) : null}
-
-        {canInteract && reportOpen[comment.id] && !isAuthor ? (
-          <div className="mt-3 rounded-xl border border-[#dbe6f6] bg-[#f8fbff] p-3 text-xs text-[#355988]">
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="tp-input-soft bg-white px-2 py-1"
-                value={reportReason[comment.id] ?? ReportReason.SPAM}
-                onChange={(event) =>
-                  setReportReason((prev) => ({
-                    ...prev,
-                    [comment.id]: event.target.value as ReportReason,
-                  }))
-                }
-              >
-                {Object.values(ReportReason).map((value) => (
-                  <option key={value} value={value}>
-                    {reasonLabels[value]}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="border border-rose-300 bg-white px-2 py-1 text-rose-700 transition hover:bg-rose-50"
-                onClick={() => handleReport(comment.id)}
-                disabled={isPending}
-              >
-                접수
-              </button>
-            </div>
-            <textarea
-              className="tp-input-soft mt-2 w-full bg-white px-2 py-1 text-xs"
-              value={reportDescription[comment.id] ?? ""}
-              onChange={(event) =>
-                setReportDescription((prev) => ({
-                  ...prev,
-                  [comment.id]: event.target.value,
-                }))
-              }
-              placeholder="상세 설명(선택)"
-            />
           </div>
         ) : null}
 

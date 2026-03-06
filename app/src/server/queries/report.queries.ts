@@ -1,5 +1,6 @@
 import { ReportReason, ReportStatus, ReportTarget } from "@prisma/client";
 
+import { SUPPORTED_REPORT_TARGETS, isSupportedReportTarget } from "@/lib/report-target";
 import { prisma } from "@/lib/prisma";
 
 type ReportListOptions = {
@@ -9,11 +10,15 @@ type ReportListOptions = {
 
 export async function listReports({ status, targetType }: ReportListOptions = {}) {
   const statusFilter = status ?? ReportStatus.PENDING;
+  const normalizedTargetType =
+    targetType && targetType !== "ALL" && isSupportedReportTarget(targetType)
+      ? targetType
+      : null;
 
   return prisma.report.findMany({
     where: {
       ...(statusFilter === "ALL" ? {} : { status: statusFilter }),
-      ...(targetType && targetType !== "ALL" ? { targetType } : {}),
+      targetType: normalizedTargetType ?? { in: [...SUPPORTED_REPORT_TARGETS] },
     },
     orderBy: { createdAt: "desc" },
     include: {
@@ -27,7 +32,7 @@ export type ReportStats = {
   totalCount: number;
   statusCounts: Record<ReportStatus, number>;
   reasonCounts: Record<ReportReason, number>;
-  targetCounts: Record<ReportTarget, number>;
+  targetCounts: Partial<Record<ReportTarget, number>>;
   dailyCounts: { date: string; count: number }[];
   averageResolutionHours: number | null;
 };
@@ -40,28 +45,39 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
 
   const [totalCount, statusGroups, reasonGroups, targetGroups, recentReports, resolvedReports] =
     await prisma.$transaction([
-      prisma.report.count(),
+      prisma.report.count({
+        where: { targetType: { in: [...SUPPORTED_REPORT_TARGETS] } },
+      }),
       prisma.report.groupBy({
+        where: { targetType: { in: [...SUPPORTED_REPORT_TARGETS] } },
         by: ["status"],
         orderBy: { status: "asc" },
         _count: { _all: true },
       }),
       prisma.report.groupBy({
+        where: { targetType: { in: [...SUPPORTED_REPORT_TARGETS] } },
         by: ["reason"],
         orderBy: { reason: "asc" },
         _count: { _all: true },
       }),
       prisma.report.groupBy({
+        where: { targetType: { in: [...SUPPORTED_REPORT_TARGETS] } },
         by: ["targetType"],
         orderBy: { targetType: "asc" },
         _count: { _all: true },
       }),
       prisma.report.findMany({
-        where: { createdAt: { gte: startDate } },
+        where: {
+          targetType: { in: [...SUPPORTED_REPORT_TARGETS] },
+          createdAt: { gte: startDate },
+        },
         select: { createdAt: true },
       }),
       prisma.report.findMany({
-        where: { resolvedAt: { not: null } },
+        where: {
+          targetType: { in: [...SUPPORTED_REPORT_TARGETS] },
+          resolvedAt: { not: null },
+        },
         select: { createdAt: true, resolvedAt: true },
       }),
     ]);
@@ -85,12 +101,14 @@ export async function getReportStats(days = 7): Promise<ReportStats> {
     reasonCounts[group.reason] = getGroupCount(group._count);
   }
 
-  const targetCounts = Object.values(ReportTarget).reduce(
+  const targetCounts = [...SUPPORTED_REPORT_TARGETS].reduce(
     (acc, value) => ({ ...acc, [value]: 0 }),
-    {} as Record<ReportTarget, number>,
+    {} as Partial<Record<ReportTarget, number>>,
   );
   for (const group of targetGroups) {
-    targetCounts[group.targetType] = getGroupCount(group._count);
+    if (isSupportedReportTarget(group.targetType)) {
+      targetCounts[group.targetType] = getGroupCount(group._count);
+    }
   }
 
   const dailyMap = new Map<string, number>();

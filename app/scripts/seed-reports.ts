@@ -79,7 +79,7 @@ async function main() {
   }
 
   const demoEmail = process.env.DEMO_USER_EMAIL ?? "demo@townpet.dev";
-  const [demoUser, reporterA, reporterB, moderator] = await Promise.all([
+  const [, reporterA, reporterB, moderator] = await Promise.all([
     ensureUser(demoEmail, "TownPet Demo"),
     ensureUser("reporter1@townpet.dev", "Report Seed A"),
     ensureUser("reporter2@townpet.dev", "Report Seed B"),
@@ -110,17 +110,17 @@ async function main() {
 
   await createReport({
     reporterId: reporterB.id,
-    targetType: ReportTarget.COMMENT,
-    targetId: primaryPost.id,
+    targetType: ReportTarget.POST,
+    targetId: secondaryPost.id,
     reason: ReportReason.HARASSMENT,
     status: ReportStatus.PENDING,
   });
 
   await createReport({
     reporterId: reporterA.id,
-    targetType: ReportTarget.USER,
-    targetId: secondaryPost.id,
-    targetUserId: demoUser.id,
+    targetType: ReportTarget.POST,
+    targetId: primaryPost.id,
+    targetUserId: primaryPost.authorId,
     reason: ReportReason.OTHER,
     status: ReportStatus.PENDING,
   });
@@ -147,22 +147,22 @@ async function main() {
 
   await createReport({
     reporterId: reporterB.id,
-    targetType: ReportTarget.COMMENT,
-    targetId: primaryPost.id,
+    targetType: ReportTarget.POST,
+    targetId: secondaryPost.id,
     reason: ReportReason.SPAM,
     status: ReportStatus.RESOLVED,
-    resolution: "댓글 삭제 안내",
+    resolution: "게시글 신고 승인",
     resolvedBy: moderator.id,
   });
 
   await createReport({
     reporterId: reporterA.id,
-    targetType: ReportTarget.USER,
-    targetId: secondaryPost.id,
-    targetUserId: demoUser.id,
+    targetType: ReportTarget.POST,
+    targetId: primaryPost.id,
+    targetUserId: primaryPost.authorId,
     reason: ReportReason.OTHER,
     status: ReportStatus.DISMISSED,
-    resolution: "사용자 신고 근거 부족",
+    resolution: "게시글 신고 근거 부족",
     resolvedBy: moderator.id,
   });
 

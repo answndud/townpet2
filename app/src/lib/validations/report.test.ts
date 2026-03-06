@@ -22,4 +22,14 @@ describe("report validations", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("rejects non-post targets", () => {
+    const result = reportCreateSchema.safeParse({
+      targetType: "COMMENT",
+      targetId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      reason: ReportReason.SPAM,
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

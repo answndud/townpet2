@@ -2,7 +2,7 @@ import { ReportReason, ReportTarget } from "@prisma/client";
 import { z } from "zod";
 
 export const reportCreateSchema = z.object({
-  targetType: z.nativeEnum(ReportTarget),
+  targetType: z.literal(ReportTarget.POST),
   targetId: z.string().cuid(),
   reason: z.nativeEnum(ReportReason),
   description: z.string().min(1).max(500).optional(),

@@ -8,29 +8,29 @@ datasource db {
 }
 
 model User {
-  id                String                @id @default(cuid())
-  email             String                @unique
+  id                String                  @id @default(cuid())
+  email             String                  @unique
   name              String?
-  nickname          String?               @unique
+  nickname          String?                 @unique
   nicknameUpdatedAt DateTime?
-  bio               String?               @db.Text
+  bio               String?                 @db.Text
   image             String?
   passwordHash      String?
-  sessionVersion    Int                   @default(0)
+  sessionVersion    Int                     @default(0)
   emailVerified     DateTime?
-  role              UserRole              @default(USER)
+  role              UserRole                @default(USER)
   neighborhoods     UserNeighborhood[]
   posts             Post[]
   comments          Comment[]
-  reports           Report[]              @relation("ReportedBy")
-  receivedReports   Report[]              @relation("ReportedUser")
-  reportAudits      ReportAudit[]         @relation("ReportAuditResolvedBy")
-  sanctionsReceived UserSanction[]        @relation("SanctionedUser")
-  sanctionsIssued   UserSanction[]        @relation("SanctionModerator")
-  blocksGiven       UserBlock[]           @relation("UserBlocksGiven")
-  blocksReceived    UserBlock[]           @relation("UserBlocksReceived")
-  mutesGiven        UserMute[]            @relation("UserMutesGiven")
-  mutesReceived     UserMute[]            @relation("UserMutesReceived")
+  reports           Report[]                @relation("ReportedBy")
+  receivedReports   Report[]                @relation("ReportedUser")
+  reportAudits      ReportAudit[]           @relation("ReportAuditResolvedBy")
+  sanctionsReceived UserSanction[]          @relation("SanctionedUser")
+  sanctionsIssued   UserSanction[]          @relation("SanctionModerator")
+  blocksGiven       UserBlock[]             @relation("UserBlocksGiven")
+  blocksReceived    UserBlock[]             @relation("UserBlocksReceived")
+  mutesGiven        UserMute[]              @relation("UserMutesGiven")
+  mutesReceived     UserMute[]              @relation("UserMutesReceived")
   pets              Pet[]
   audienceSegments  UserAudienceSegment[]
   passwordResets    PasswordResetToken[]
@@ -38,10 +38,10 @@ model User {
   postReactions     PostReaction[]
   commentReactions  CommentReaction[]
   preferredPetTypes UserPetTypePreference[]
-  notifications     Notification[]        @relation("NotificationRecipient")
-  actions           Notification[]        @relation("NotificationActor")
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  notifications     Notification[]          @relation("NotificationRecipient")
+  actions           Notification[]          @relation("NotificationActor")
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   accounts          Account[]
   sessions          Session[]
 }
@@ -173,20 +173,20 @@ model CommunityCategory {
 }
 
 model Community {
-  id               String            @id @default(cuid())
+  id               String                  @id @default(cuid())
   categoryId       String
-  slug             String            @unique
+  slug             String                  @unique
   labelKo          String
   description      String?
-  isActive         Boolean           @default(true)
-  sortOrder        Int               @default(100)
-  defaultPostTypes PostType[]        @default([])
-  tags             String[]          @default([])
-  category         CommunityCategory @relation(fields: [categoryId], references: [id])
+  isActive         Boolean                 @default(true)
+  sortOrder        Int                     @default(100)
+  defaultPostTypes PostType[]              @default([])
+  tags             String[]                @default([])
+  category         CommunityCategory       @relation(fields: [categoryId], references: [id])
   posts            Post[]
   preferredByUsers UserPetTypePreference[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
 
   @@index([categoryId, sortOrder])
 }
@@ -210,7 +210,7 @@ model Post {
   guestAuthorId   String?
   neighborhoodId  String?
   boardScope      BoardScope       @default(COMMUNITY)
-  petTypeId       String?           @map("communityId")
+  petTypeId       String?          @map("communityId")
   commonBoardType CommonBoardType?
   animalTags      String[]         @default([])
   reviewCategory  ReviewCategory?
@@ -226,7 +226,7 @@ model Post {
   author          User             @relation(fields: [authorId], references: [id])
   guestAuthor     GuestAuthor?     @relation(fields: [guestAuthorId], references: [id], onDelete: SetNull)
   neighborhood    Neighborhood?    @relation(fields: [neighborhoodId], references: [id])
-  petType         Community?        @relation(fields: [petTypeId], references: [id])
+  petType         Community?       @relation(fields: [petTypeId], references: [id])
   comments        Comment[]
   images          PostImage[]
   reports         Report[]
@@ -587,8 +587,6 @@ model ReportAudit {
 
 enum ReportTarget {
   POST
-  COMMENT
-  USER
 }
 
 enum ReportReason {

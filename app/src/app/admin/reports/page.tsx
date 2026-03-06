@@ -4,8 +4,12 @@ import { ReportReason, ReportStatus, ReportTarget, UserRole } from "@prisma/clie
 
 import { ReportQueueTable } from "@/components/admin/report-queue-table";
 import { ReportUpdateBanner } from "@/components/admin/report-update-banner";
+import {
+  SUPPORTED_REPORT_TARGETS,
+  getReportTargetLabel,
+  isSupportedReportTarget,
+} from "@/lib/report-target";
 import { getCurrentUser } from "@/server/auth";
-import { listCommentsByIds } from "@/server/queries/comment.queries";
 import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
 import { getReportStats, listReports } from "@/server/queries/report.queries";
 import { listRecentSanctions } from "@/server/queries/sanction.queries";
@@ -20,12 +24,6 @@ const statusLabels: Record<ReportStatus, string> = {
   PENDING: "대기",
   RESOLVED: "승인",
   DISMISSED: "기각",
-};
-
-const targetLabels: Record<ReportTarget, string> = {
-  POST: "게시글",
-  COMMENT: "댓글",
-  USER: "사용자",
 };
 
 const reasonLabels: Record<ReportReason, string> = {
@@ -69,7 +67,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       : ReportStatus.PENDING;
   const targetParam = resolvedParams.target ?? "ALL";
   const targetType =
-    targetParam === "ALL" || Object.values(ReportTarget).includes(targetParam as ReportTarget)
+    targetParam === "ALL" || isSupportedReportTarget(targetParam)
       ? (targetParam as ReportTarget | "ALL")
       : "ALL";
   const showUpdated = resolvedParams.updated === "1";
@@ -81,12 +79,6 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   ]);
 
   const reportIds = reports.map((report) => report.id);
-  const commentIds = reports
-    .filter((report) => report.targetType === ReportTarget.COMMENT)
-    .map((report) => report.targetId);
-  const comments = await listCommentsByIds(commentIds);
-  const commentMap = new Map(comments.map((comment) => [comment.id, comment]));
-
   const audits = await listReportAuditsByReportIds(reportIds);
   const auditMap = new Map<string, typeof audits>();
   for (const audit of audits) {
@@ -109,25 +101,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     date ? date.toLocaleString("ko-KR") : "-";
 
   const reportRows = reports.map((report) => {
-    const targetTitle =
-      report.targetType === ReportTarget.POST
-        ? report.post?.title ?? report.targetId
-        : report.targetType === ReportTarget.COMMENT
-          ? commentMap.get(report.targetId)
-            ? `댓글: ${commentMap.get(report.targetId)?.content.slice(0, 40)}`
-            : report.targetId
-          : report.targetId;
-
-    const targetHref =
-      report.targetType === ReportTarget.POST
-        ? report.post
-          ? `/posts/${report.post.id}`
-          : undefined
-        : report.targetType === ReportTarget.COMMENT
-          ? commentMap.get(report.targetId)
-            ? `/posts/${commentMap.get(report.targetId)?.postId}`
-            : undefined
-          : undefined;
+    const targetTitle = report.post?.title ?? report.targetId;
+    const targetHref = report.post ? `/posts/${report.post.id}` : undefined;
 
     const auditsForReport = auditMap.get(report.id) ?? [];
 
@@ -238,10 +213,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">대상 분포</p>
             <div className="mt-2 flex flex-col gap-1.5 text-xs text-[#4f678d]">
               {Object.entries(stats.targetCounts).map(([target, count]) => (
-                <div key={target} className="flex items-center justify-between">
-                  <span>{targetLabels[target as ReportTarget]}</span>
-                  <span className="font-semibold text-[#163462]">{count}</span>
-                </div>
+                isSupportedReportTarget(target) ? (
+                  <div key={target} className="flex items-center justify-between">
+                    <span>{getReportTargetLabel(target)}</span>
+                    <span className="font-semibold text-[#163462]">{count}</span>
+                  </div>
+                ) : null
               ))}
             </div>
           </div>
@@ -283,7 +260,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <span className="text-[10px] uppercase tracking-[0.24em] text-[#5b78a1]">
               타입 필터
             </span>
-            {["ALL", ...Object.values(ReportTarget)].map((value) => (
+            {["ALL", ...SUPPORTED_REPORT_TARGETS].map((value) => (
               <Link
                 key={value}
                 href={buildLink(status, value as ReportTarget | "ALL")}
@@ -293,7 +270,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
                 }`}
               >
-                {value === "ALL" ? "전체" : targetLabels[value as ReportTarget]}
+                {value === "ALL" ? "전체" : getReportTargetLabel(value)}
               </Link>
             ))}
           </div>

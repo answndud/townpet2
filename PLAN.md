@@ -61,11 +61,11 @@
 | bulk 신고 처리의 sanction parity 복구 | Codex | P1 | `pending` | 일괄 승인 경로도 단건 승인과 동일하게 제재 적용 옵션/감사 이력을 제공하고 회귀 테스트가 존재함 | `app/src/server/services/report.service.ts`, `app/src/components/admin/report-queue-table.tsx` |
 | trust-weighted auto-hide + severity queue 도입 | Codex | P1 | `pending` | 신고 3건 고정 규칙을 대체할 reporter trust/계정연령/속도 기반 자동 숨김 또는 우선 검토 모델이 도입되고 운영 정책과 정렬됨 | `app/src/server/services/report.service.ts`, `docs/policies/신고_운영정책.md`, `docs/policies/모더레이션_운영규칙.md` |
 
-### Cycle 200: 신고 대상 모델/운영 정합화
+### Cycle 200: 신고 대상 모델/운영 정합화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| Report target 스키마와 API/UI 범위 일치화 | Codex | P1 | `pending` | Post-only로 축소하거나 Comment/User까지 정식 지원하도록 schema/API/UI/docs가 하나의 기준으로 정렬됨 | `app/prisma/schema.prisma`, `app/src/lib/validations/report.ts`, `app/src/server/services/report.service.ts`, `app/src/components/posts/post-comment-thread.tsx`, `docs/policies/신고_운영정책.md` |
-| 관리자 신고 큐의 target type 운영 기준 정리 | Codex | P2 | `pending` | 관리자 페이지/통계/감사 로그가 실제 지원 target만 노출하고 운영 문서와 모순이 없음 | `app/src/app/admin/reports/page.tsx`, `app/src/server/queries/report.queries.ts`, `docs/policies/*` |
+| Report target 스키마와 API/UI 범위 일치화 | Codex | P1 | `done` | Post-only로 축소하거나 Comment/User까지 정식 지원하도록 schema/API/UI/docs가 하나의 기준으로 정렬됨 | `app/prisma/schema.prisma`, `app/src/lib/validations/report.ts`, `app/src/server/services/report.service.ts`, `app/src/components/posts/post-comment-thread.tsx`, `docs/policies/신고_운영정책.md` |
+| 관리자 신고 큐의 target type 운영 기준 정리 | Codex | P2 | `done` | 관리자 페이지/통계/감사 로그가 실제 지원 target만 노출하고 운영 문서와 모순이 없음 | `app/src/app/admin/reports/page.tsx`, `app/src/server/queries/report.queries.ts`, `docs/policies/*` |
 
 ### Cycle 199: 로그인 abuse hardening 2차 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
