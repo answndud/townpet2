@@ -13,6 +13,7 @@ import {
   withQueryCache,
 } from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
+import { assertSchemaDelegate, rethrowSchemaSyncRequired } from "@/server/schema-sync";
 
 type ListNotificationsByUserOptions = {
   userId: string;
@@ -76,22 +77,6 @@ function getNotificationDelegate() {
   return delegate ?? null;
 }
 
-function isNotificationTableMissingError(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2021"
-  );
-}
-
-function isNotificationArchiveColumnMissingError(error: unknown) {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2022") {
-    return false;
-  }
-
-  const column = typeof error.meta?.column === "string" ? error.meta.column : "";
-  return column.includes("Notification.archivedAt");
-}
-
 function warnMissingNotificationTable(error: unknown) {
   if (notificationTableMissingWarned) {
     return;
@@ -100,6 +85,30 @@ function warnMissingNotificationTable(error: unknown) {
   logger.warn("Notification 테이블이 없어 알림 기능을 비활성화합니다.", {
     error: serializeError(error),
   });
+}
+
+function requireNotificationDelegate() {
+  return assertSchemaDelegate(
+    getNotificationDelegate(),
+    "Notification 모델이 누락되어 알림 기능을 사용할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+function throwNotificationSchemaSyncRequired(error: unknown): never {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022")
+  ) {
+    warnMissingNotificationTable(error);
+  }
+
+  rethrowSchemaSyncRequired(
+    error,
+    "Notification 스키마가 누락되어 알림 기능을 사용할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+    {
+      columns: ["Notification.archivedAt"],
+    },
+  );
 }
 
 function bumpNotificationCaches(userId: string) {
@@ -114,10 +123,7 @@ export async function listNotificationsByUser({
   kind = "ALL",
   unreadOnly = false,
 }: ListNotificationsByUserOptions): Promise<ListNotificationsByUserResult> {
-  const delegate = getNotificationDelegate();
-  if (!delegate) {
-    return { items: [], nextCursor: null };
-  }
+  const delegate = requireNotificationDelegate();
 
   const safeLimit = Math.min(Math.max(limit, 1), 50);
   const typeFilter =
@@ -159,38 +165,7 @@ export async function listNotificationsByUser({
         },
       });
     } catch (error) {
-      if (isNotificationArchiveColumnMissingError(error)) {
-        items = await delegate.findMany({
-          where: {
-            userId,
-            ...(unreadOnly ? { isRead: false } : {}),
-            ...(typeFilter ? { type: { in: typeFilter } } : {}),
-          },
-          take: safeLimit + 1,
-          ...(cursor
-            ? {
-                cursor: { id: cursor },
-                skip: 1,
-              }
-            : {}),
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          include: {
-            actor: {
-              select: {
-                id: true,
-                nickname: true,
-                name: true,
-                image: true,
-              },
-            },
-          },
-        });
-      } else if (!isNotificationTableMissingError(error)) {
-        throw error;
-      } else {
-        warnMissingNotificationTable(error);
-        return { items: [], nextCursor: null };
-      }
+      throwNotificationSchemaSyncRequired(error);
     }
 
     let nextCursor: string | null = null;
@@ -218,10 +193,7 @@ export async function listNotificationsByUser({
 }
 
 export async function countUnreadNotifications(userId: string) {
-  const delegate = getNotificationDelegate();
-  if (!delegate) {
-    return 0;
-  }
+  const delegate = requireNotificationDelegate();
 
   const fetchUnreadCount = async () => {
     try {
@@ -233,19 +205,7 @@ export async function countUnreadNotifications(userId: string) {
         },
       });
     } catch (error) {
-      if (isNotificationArchiveColumnMissingError(error)) {
-        return await delegate.count({
-          where: {
-            userId,
-            isRead: false,
-          },
-        });
-      }
-      if (!isNotificationTableMissingError(error)) {
-        throw error;
-      }
-      warnMissingNotificationTable(error);
-      return 0;
+      throwNotificationSchemaSyncRequired(error);
     }
   };
 
@@ -259,10 +219,7 @@ export async function countUnreadNotifications(userId: string) {
 }
 
 export async function markNotificationRead(userId: string, notificationId: string) {
-  const delegate = getNotificationDelegate();
-  if (!delegate) {
-    return false;
-  }
+  const delegate = requireNotificationDelegate();
 
   let result: { count: number };
   try {
@@ -280,24 +237,7 @@ export async function markNotificationRead(userId: string, notificationId: strin
       },
     });
   } catch (error) {
-    if (isNotificationArchiveColumnMissingError(error)) {
-      result = await delegate.updateMany({
-        where: {
-          id: notificationId,
-          userId,
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      });
-    } else if (!isNotificationTableMissingError(error)) {
-      throw error;
-    } else {
-      warnMissingNotificationTable(error);
-      return false;
-    }
+    throwNotificationSchemaSyncRequired(error);
   }
 
   const changed = result.count > 0;
@@ -309,10 +249,7 @@ export async function markNotificationRead(userId: string, notificationId: strin
 }
 
 export async function markAllNotificationsRead(userId: string) {
-  const delegate = getNotificationDelegate();
-  if (!delegate) {
-    return 0;
-  }
+  const delegate = requireNotificationDelegate();
 
   let result: { count: number };
   try {
@@ -329,23 +266,7 @@ export async function markAllNotificationsRead(userId: string) {
       },
     });
   } catch (error) {
-    if (isNotificationArchiveColumnMissingError(error)) {
-      result = await delegate.updateMany({
-        where: {
-          userId,
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      });
-    } else if (!isNotificationTableMissingError(error)) {
-      throw error;
-    } else {
-      warnMissingNotificationTable(error);
-      return 0;
-    }
+    throwNotificationSchemaSyncRequired(error);
   }
 
   if (result.count > 0) {
@@ -356,10 +277,7 @@ export async function markAllNotificationsRead(userId: string) {
 }
 
 export async function archiveNotification(userId: string, notificationId: string) {
-  const delegate = getNotificationDelegate();
-  if (!delegate) {
-    return false;
-  }
+  const delegate = requireNotificationDelegate();
 
   let result: { count: number };
   try {
@@ -374,24 +292,7 @@ export async function archiveNotification(userId: string, notificationId: string
       },
     });
   } catch (error) {
-    if (isNotificationArchiveColumnMissingError(error)) {
-      result = await delegate.updateMany({
-        where: {
-          id: notificationId,
-          userId,
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      });
-    } else if (!isNotificationTableMissingError(error)) {
-      throw error;
-    } else {
-      warnMissingNotificationTable(error);
-      return false;
-    }
+    throwNotificationSchemaSyncRequired(error);
   }
 
   const changed = result.count > 0;
@@ -403,10 +304,7 @@ export async function archiveNotification(userId: string, notificationId: string
 }
 
 export async function createNotification(params: CreateNotificationParams) {
-  const delegate = getNotificationDelegate();
-  if (!delegate) {
-    return null;
-  }
+  const delegate = requireNotificationDelegate();
 
   try {
     const created = await delegate.create({
@@ -427,10 +325,22 @@ export async function createNotification(params: CreateNotificationParams) {
     bumpNotificationCaches(params.userId);
     return created;
   } catch (error) {
-    if (!isNotificationTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingNotificationTable(error);
-    return null;
+    throwNotificationSchemaSyncRequired(error);
+  }
+}
+
+export async function assertNotificationControlPlaneReady() {
+  const delegate = requireNotificationDelegate();
+
+  try {
+    await delegate.count({
+      where: {
+        userId: "__schema_probe__",
+        archivedAt: null,
+        isRead: false,
+      },
+    });
+  } catch (error) {
+    throwNotificationSchemaSyncRequired(error);
   }
 }

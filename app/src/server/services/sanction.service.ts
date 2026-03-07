@@ -2,6 +2,10 @@ import { Prisma, SanctionLevel } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { logger, serializeError } from "@/server/logger";
+import {
+  assertSchemaDelegate,
+  rethrowSchemaSyncRequired,
+} from "@/server/schema-sync";
 import { ServiceError } from "@/server/services/service-error";
 
 type UserSanctionRecord = {
@@ -63,6 +67,24 @@ function warnMissingSanctionTable(error: unknown) {
   });
 }
 
+function requireUserSanctionDelegate() {
+  return assertSchemaDelegate(
+    getUserSanctionDelegate(),
+    "UserSanction 모델이 누락되어 제재 상태를 확인할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+function throwSanctionSchemaSyncRequired(error: unknown): never {
+  if (isUserSanctionTableMissingError(error)) {
+    warnMissingSanctionTable(error);
+  }
+
+  rethrowSchemaSyncRequired(
+    error,
+    "UserSanction 스키마가 누락되어 제재 기능을 사용할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
 function nextLevelFromPrevious(level: SanctionLevel | null) {
   if (level === null) {
     return SanctionLevel.WARNING;
@@ -112,10 +134,7 @@ export async function issueNextUserSanction({
   reason,
   sourceReportId,
 }: IssueNextUserSanctionParams) {
-  const delegate = getUserSanctionDelegate();
-  if (!delegate) {
-    return null;
-  }
+  const delegate = requireUserSanctionDelegate();
 
   let latest: UserSanctionRecord | null = null;
   try {
@@ -124,11 +143,7 @@ export async function issueNextUserSanction({
       orderBy: [{ createdAt: "desc" }],
     });
   } catch (error) {
-    if (!isUserSanctionTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSanctionTable(error);
-    return null;
+    throwSanctionSchemaSyncRequired(error);
   }
 
   const level = nextLevelFromPrevious(latest?.level ?? null);
@@ -147,19 +162,12 @@ export async function issueNextUserSanction({
       },
     });
   } catch (error) {
-    if (!isUserSanctionTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSanctionTable(error);
-    return null;
+    throwSanctionSchemaSyncRequired(error);
   }
 }
 
 export async function getActiveInteractionSanction(userId: string) {
-  const delegate = getUserSanctionDelegate();
-  if (!delegate) {
-    return null;
-  }
+  const delegate = requireUserSanctionDelegate();
 
   try {
     return await delegate.findFirst({
@@ -173,11 +181,20 @@ export async function getActiveInteractionSanction(userId: string) {
       orderBy: [{ createdAt: "desc" }],
     });
   } catch (error) {
-    if (!isUserSanctionTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSanctionTable(error);
-    return null;
+    throwSanctionSchemaSyncRequired(error);
+  }
+}
+
+export async function assertSanctionControlPlaneReady() {
+  const delegate = requireUserSanctionDelegate();
+
+  try {
+    await delegate.findFirst({
+      where: { userId: "__schema_probe__" },
+      orderBy: [{ createdAt: "desc" }],
+    });
+  } catch (error) {
+    throwSanctionSchemaSyncRequired(error);
   }
 }
 

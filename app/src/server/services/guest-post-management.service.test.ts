@@ -31,6 +31,10 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    guestBan: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
     guestViolation: {
       create: vi.fn(),
       count: vi.fn(),
@@ -42,6 +46,10 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   post: {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+  };
+  guestBan: {
+    findFirst: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
   };
   guestViolation: {
     create: ReturnType<typeof vi.fn>;
@@ -63,6 +71,9 @@ describe("guest post management", () => {
   beforeEach(() => {
     mockPrisma.post.findUnique.mockReset();
     mockPrisma.post.update.mockReset();
+    mockPrisma.guestBan.findFirst.mockReset();
+    mockPrisma.guestBan.findFirst.mockResolvedValue(null);
+    mockPrisma.guestBan.create.mockReset();
     mockPrisma.guestViolation.create.mockReset();
     mockPrisma.guestViolation.count.mockReset();
 
@@ -151,7 +162,7 @@ describe("guest post management", () => {
       status: 403,
     });
 
-    expect(mockPrisma.guestViolation.create).toHaveBeenCalledTimes(0);
+    expect(mockPrisma.guestViolation.create).toHaveBeenCalledTimes(1);
     expect(mockPrisma.post.update).not.toHaveBeenCalled();
   });
 
@@ -180,7 +191,7 @@ describe("guest post management", () => {
       status: 403,
     });
 
-    expect(mockPrisma.guestViolation.create).toHaveBeenCalledTimes(0);
+    expect(mockPrisma.guestViolation.create).toHaveBeenCalledTimes(1);
     expect(mockPrisma.post.update).not.toHaveBeenCalled();
   });
 

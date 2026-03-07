@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { countUnreadNotifications } from "@/server/queries/notification.queries";
 import { getUserById } from "@/server/queries/user.queries";
+import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
@@ -90,5 +91,29 @@ describe("GET /api/viewer-shell contract", () => {
       },
     });
     expect(mockMonitorUnhandledError).not.toHaveBeenCalled();
+  });
+
+  it("surfaces notification schema sync errors for authenticated shell", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } } as never);
+    mockGetUserById.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      preferredPetTypes: [],
+    } as never);
+    mockCountUnreadNotifications.mockRejectedValue(
+      new ServiceError("schema sync required", "SCHEMA_SYNC_REQUIRED", 503),
+    );
+
+    const response = await GET(new Request("http://localhost/api/viewer-shell") as NextRequest);
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload).toEqual({
+      ok: false,
+      error: {
+        code: "SCHEMA_SYNC_REQUIRED",
+        message: "schema sync required",
+      },
+    });
   });
 });

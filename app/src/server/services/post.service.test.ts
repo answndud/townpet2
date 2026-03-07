@@ -14,6 +14,13 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    userBlock: {
+      findFirst: vi.fn(),
+    },
+    userSanction: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -27,6 +34,13 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  userBlock: {
+    findFirst: ReturnType<typeof vi.fn>;
+  };
+  userSanction: {
+    findFirst: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+  };
   $transaction: ReturnType<typeof vi.fn>;
 };
 const mockNotifyReactionOnPost = vi.mocked(notifyReactionOnPost);
@@ -35,6 +49,10 @@ describe("post reaction toggle", () => {
   beforeEach(() => {
     mockPrisma.post.findUnique.mockReset();
     mockPrisma.post.update.mockReset();
+    mockPrisma.userBlock.findFirst.mockReset();
+    mockPrisma.userBlock.findFirst.mockResolvedValue(null);
+    mockPrisma.userSanction.findFirst.mockReset();
+    mockPrisma.userSanction.findFirst.mockResolvedValue(null);
     mockPrisma.$transaction.mockReset();
     mockNotifyReactionOnPost.mockReset();
     mockNotifyReactionOnPost.mockResolvedValue(null);

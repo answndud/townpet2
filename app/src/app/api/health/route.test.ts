@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/health/route";
 import { validateRuntimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { checkModerationControlPlaneHealth } from "@/server/moderation-control-plane";
 import { checkRateLimitHealth } from "@/server/rate-limit";
 
 vi.mock("@/lib/env", () => ({
@@ -24,6 +25,10 @@ vi.mock("@/server/rate-limit", () => ({
   checkRateLimitHealth: vi.fn(),
 }));
 
+vi.mock("@/server/moderation-control-plane", () => ({
+  checkModerationControlPlaneHealth: vi.fn(),
+}));
+
 vi.mock("@/server/logger", () => ({
   logger: {
     warn: vi.fn(),
@@ -33,12 +38,14 @@ vi.mock("@/server/logger", () => ({
 const mockValidateRuntimeEnv = vi.mocked(validateRuntimeEnv);
 const mockQueryRaw = vi.mocked(prisma.$queryRaw);
 const mockCheckRateLimitHealth = vi.mocked(checkRateLimitHealth);
+const mockCheckModerationControlPlaneHealth = vi.mocked(checkModerationControlPlaneHealth);
 
 describe("GET /api/health", () => {
   beforeEach(() => {
     mockValidateRuntimeEnv.mockReset();
     mockQueryRaw.mockReset();
     mockCheckRateLimitHealth.mockReset();
+    mockCheckModerationControlPlaneHealth.mockReset();
 
     mockValidateRuntimeEnv.mockReturnValue({ ok: false, missing: ["AUTH_SECRET"] });
     mockQueryRaw.mockRejectedValue(new Error("db down: secret detail"));
@@ -46,6 +53,16 @@ describe("GET /api/health", () => {
       backend: "redis",
       status: "error",
       detail: "Redis ping 예외: boom",
+    });
+    mockCheckModerationControlPlaneHealth.mockResolvedValue({
+      state: "error",
+      checks: [
+        {
+          key: "notification",
+          state: "error",
+          message: "Notification 스키마가 누락되었습니다.",
+        },
+      ],
     });
 
   });
@@ -71,6 +88,9 @@ describe("GET /api/health", () => {
       backend: "redis",
       status: "error",
     });
+    expect(payload.checks.controlPlane).toEqual({
+      state: "error",
+    });
   });
 
   it("includes detailed diagnostics with valid internal token", async () => {
@@ -87,6 +107,16 @@ describe("GET /api/health", () => {
     expect(payload.env.missing).toEqual(["AUTH_SECRET"]);
     expect(payload.checks.database.message).toContain("db down");
     expect(payload.checks.rateLimit.detail).toContain("Redis ping 예외");
+    expect(payload.checks.controlPlane).toEqual({
+      state: "error",
+      checks: [
+        {
+          key: "notification",
+          state: "error",
+          message: "Notification 스키마가 누락되었습니다.",
+        },
+      ],
+    });
   });
 
   it("reports pg_trgm warning in detailed diagnostics when extension is missing", async () => {
@@ -96,6 +126,16 @@ describe("GET /api/health", () => {
       backend: "redis",
       status: "ok",
       detail: "ok",
+    });
+    mockCheckModerationControlPlaneHealth.mockResolvedValue({
+      state: "ok",
+      checks: [
+        {
+          key: "notification",
+          state: "ok",
+          message: "notification ready",
+        },
+      ],
     });
 
     const request = new Request("http://localhost/api/health", {
@@ -109,6 +149,16 @@ describe("GET /api/health", () => {
 
     expect(response.status).toBe(200);
     expect(payload.status).toBe("ok");
+    expect(payload.checks.controlPlane).toEqual({
+      state: "ok",
+      checks: [
+        {
+          key: "notification",
+          state: "ok",
+          message: "notification ready",
+        },
+      ],
+    });
     expect(payload.checks.search.pgTrgm).toMatchObject({
       state: "warn",
       enabled: false,

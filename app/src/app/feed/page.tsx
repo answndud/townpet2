@@ -171,14 +171,7 @@ function isDatabaseUnavailableError(error: unknown) {
 
 const getGuestFeedContext = unstable_cache(
   async () => {
-    const [loginRequiredTypes] = await Promise.all([
-      getGuestReadLoginRequiredPostTypes().catch((error) => {
-        if (isDatabaseUnavailableError(error)) {
-          return [];
-        }
-        throw error;
-      }),
-    ]);
+    const [loginRequiredTypes] = await Promise.all([getGuestReadLoginRequiredPostTypes()]);
 
     return {
       loginRequiredTypes,

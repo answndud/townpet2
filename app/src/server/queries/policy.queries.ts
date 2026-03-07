@@ -27,6 +27,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { bumpCacheVersion, createQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 import { logger, serializeError } from "@/server/logger";
+import { assertSchemaDelegate, rethrowSchemaSyncRequired } from "@/server/schema-sync";
 
 type SiteSettingRecord = {
   key: string;
@@ -83,11 +84,26 @@ function getSiteSettingDelegate() {
   return delegate ?? null;
 }
 
-export async function getGuestReadLoginRequiredPostTypes() {
-  const delegate = getSiteSettingDelegate();
-  if (!delegate) {
-    return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
+function requireSiteSettingDelegate() {
+  return assertSchemaDelegate(
+    getSiteSettingDelegate(),
+    "SiteSetting 모델이 누락되어 운영 정책을 읽을 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+function throwPolicySchemaSyncRequired(error: unknown): never {
+  if (isSiteSettingTableMissingError(error)) {
+    warnMissingSiteSettingTable(error);
   }
+
+  rethrowSchemaSyncRequired(
+    error,
+    "SiteSetting 스키마가 누락되어 운영 정책을 읽을 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+export async function getGuestReadLoginRequiredPostTypes() {
+  const delegate = requireSiteSettingDelegate();
 
   const cacheKey = await createQueryCacheKey("policy", { key: GUEST_READ_POLICY_KEY });
   return withQueryCache({
@@ -101,11 +117,7 @@ export async function getGuestReadLoginRequiredPostTypes() {
           select: { value: true },
         });
       } catch (error) {
-        if (!isSiteSettingTableMissingError(error)) {
-          throw error;
-        }
-        warnMissingSiteSettingTable(error);
-        return [...DEFAULT_LOGIN_REQUIRED_POST_TYPES];
+        throwPolicySchemaSyncRequired(error);
       }
 
       return normalizeLoginRequiredPostTypes(
@@ -149,10 +161,7 @@ export async function setGuestReadLoginRequiredPostTypes(types: PostType[]) {
 }
 
 export async function getForbiddenKeywords() {
-  const delegate = getSiteSettingDelegate();
-  if (!delegate) {
-    return [...DEFAULT_FORBIDDEN_KEYWORDS];
-  }
+  const delegate = requireSiteSettingDelegate();
 
   let setting: { value: unknown } | null = null;
   try {
@@ -161,11 +170,7 @@ export async function getForbiddenKeywords() {
       select: { value: true },
     });
   } catch (error) {
-    if (!isSiteSettingTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSiteSettingTable(error);
-    return [...DEFAULT_FORBIDDEN_KEYWORDS];
+    throwPolicySchemaSyncRequired(error);
   }
 
   return normalizeForbiddenKeywords(
@@ -205,14 +210,7 @@ export async function setForbiddenKeywords(keywords: string[]) {
 }
 
 export async function getNewUserSafetyPolicy() {
-  const delegate = getSiteSettingDelegate();
-  if (!delegate) {
-    return normalizeNewUserSafetyPolicy(undefined, {
-      minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
-      restrictedPostTypes: [...DEFAULT_NEW_USER_RESTRICTED_POST_TYPES],
-      contactBlockWindowHours: DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
-    });
-  }
+  const delegate = requireSiteSettingDelegate();
 
   let setting: { value: unknown } | null = null;
   try {
@@ -221,15 +219,7 @@ export async function getNewUserSafetyPolicy() {
       select: { value: true },
     });
   } catch (error) {
-    if (!isSiteSettingTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSiteSettingTable(error);
-    return normalizeNewUserSafetyPolicy(undefined, {
-      minAccountAgeHours: DEFAULT_NEW_USER_MIN_ACCOUNT_AGE_HOURS,
-      restrictedPostTypes: [...DEFAULT_NEW_USER_RESTRICTED_POST_TYPES],
-      contactBlockWindowHours: DEFAULT_CONTACT_BLOCK_WINDOW_HOURS,
-    });
+    throwPolicySchemaSyncRequired(error);
   }
 
   return normalizeNewUserSafetyPolicy(setting?.value, {
@@ -270,10 +260,7 @@ export async function setNewUserSafetyPolicy(input: NewUserSafetyPolicy) {
 }
 
 export async function getGuestPostPolicy() {
-  const delegate = getSiteSettingDelegate();
-  if (!delegate) {
-    return normalizeGuestPostPolicy(DEFAULT_GUEST_POST_POLICY, DEFAULT_GUEST_POST_POLICY);
-  }
+  const delegate = requireSiteSettingDelegate();
 
   let setting: { value: unknown } | null = null;
   try {
@@ -282,11 +269,7 @@ export async function getGuestPostPolicy() {
       select: { value: true },
     });
   } catch (error) {
-    if (!isSiteSettingTableMissingError(error)) {
-      throw error;
-    }
-    warnMissingSiteSettingTable(error);
-    return normalizeGuestPostPolicy(DEFAULT_GUEST_POST_POLICY, DEFAULT_GUEST_POST_POLICY);
+    throwPolicySchemaSyncRequired(error);
   }
 
   return normalizeGuestPostPolicy(setting?.value, DEFAULT_GUEST_POST_POLICY);
@@ -316,4 +299,17 @@ export async function setGuestPostPolicy(input: GuestPostPolicy) {
   }
 
   return { ok: true, setting } as const satisfies SetGuestReadPolicyResult;
+}
+
+export async function assertPolicyControlPlaneReady() {
+  const delegate = requireSiteSettingDelegate();
+
+  try {
+    await delegate.findUnique({
+      where: { key: GUEST_READ_POLICY_KEY },
+      select: { value: true },
+    });
+  } catch (error) {
+    throwPolicySchemaSyncRequired(error);
+  }
 }

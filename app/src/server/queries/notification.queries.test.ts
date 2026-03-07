@@ -94,6 +94,25 @@ describe("notification queries cache behavior", () => {
 
     expect(mockWithQueryCache).not.toHaveBeenCalled();
   });
+
+  it("fails closed when notification delegate is missing", async () => {
+    const originalDelegate = (mockPrisma as { notification?: unknown }).notification;
+    delete (mockPrisma as { notification?: unknown }).notification;
+
+    await expect(
+      listNotificationsByUser({
+        userId: "user-missing",
+        limit: 20,
+        kind: "ALL",
+        unreadOnly: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "SCHEMA_SYNC_REQUIRED",
+      status: 503,
+    });
+
+    (mockPrisma as { notification?: unknown }).notification = originalDelegate;
+  });
 });
 
 describe("notification queries invalidation behavior", () => {

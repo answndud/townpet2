@@ -55,11 +55,11 @@
 | 검색 로그 fire-and-forget/PII 필터링 보강 | Codex | P1 | `pending` | 검색어 기록이 서버리스 환경에서도 유실되지 않도록 보강되고 이메일/전화번호 등 민감 패턴은 통계 저장에서 제외됨 | `app/src/app/api/search/log/route.ts`, `app/src/server/queries/search.queries.ts` |
 | 검색 통계 retention/cleanup 운영 경로 추가 | Codex | P2 | `pending` | `SearchTermStat` 보존 기간과 정리 작업이 운영 스크립트/문서로 고정되고 회귀 테스트가 존재함 | `app/scripts/*`, `.github/workflows/*`, `docs/operations/검색 통계 전환 가이드.md` |
 
-### Cycle 202: 운영 보호장치 fail-open 제거
+### Cycle 202: 운영 보호장치 fail-open 제거 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| moderation/policy control plane missing schema fail-closed 전환 | Codex | P1 | `pending` | sanction/policy/block/mute/notification/guest-safety 핵심 모델 누락 시 기능 비활성화 대신 health/preflight FAIL 또는 명시 5xx로 surface됨 | `app/src/server/services/sanction.service.ts`, `app/src/server/queries/policy.queries.ts`, `app/src/server/queries/user-relation.queries.ts`, `app/src/server/queries/notification.queries.ts`, `app/src/server/services/guest-safety.service.ts` |
-| 운영 health/preflight를 moderation control plane까지 확장 | Codex | P1 | `pending` | health/security-env/ops 체크가 moderation 관련 스키마 drift를 조기에 감지하고 문서에 반영됨 | `app/src/app/api/health/route.ts`, `app/scripts/check-security-env.ts`, `docs/operations/*` |
+| moderation/policy control plane missing schema fail-closed 전환 | Codex | P1 | `done` | sanction/policy/block/mute/notification/guest-safety 핵심 모델 누락 시 기능 비활성화 대신 health/preflight FAIL 또는 명시 5xx로 surface됨 | `app/src/server/services/sanction.service.ts`, `app/src/server/queries/policy.queries.ts`, `app/src/server/queries/user-relation.queries.ts`, `app/src/server/queries/notification.queries.ts`, `app/src/server/services/guest-safety.service.ts` |
+| 운영 health/preflight를 moderation control plane까지 확장 | Codex | P1 | `done` | health/security-env/ops 체크가 moderation 관련 스키마 drift를 조기에 감지하고 문서에 반영됨 | `app/src/app/api/health/route.ts`, `app/scripts/check-security-env.ts`, `docs/operations/*` |
 
 ### Cycle 201: 신고/제재 운영 현실화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

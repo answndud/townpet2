@@ -4,6 +4,7 @@ import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import { jsonError, jsonOk } from "@/server/response";
+import { ServiceError } from "@/server/services/service-error";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -27,14 +28,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    const relationState = await getUserRelationState(userId, targetUserId).catch(() => ({
-      isBlockedByMe: false,
-      hasBlockedMe: false,
-      isMutedByMe: false,
-    }));
+    const relationState = await getUserRelationState(userId, targetUserId);
 
     return jsonOk({ relationState });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     await monitorUnhandledError(error, { route: "GET /api/users/[id]/relation", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",

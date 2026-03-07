@@ -21,6 +21,7 @@ import {
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
+import { ServiceError } from "@/server/services/service-error";
 
 type FeedMode = "ALL" | "BEST";
 type FeedSort = "LATEST" | "LIKE" | "COMMENT";
@@ -195,12 +196,7 @@ export async function GET(request: NextRequest) {
     }
 
     const isCursorPagination = Boolean(parsed.data.cursor?.trim());
-    const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch((error) => {
-      if (isDatabaseUnavailableError(error)) {
-        return [];
-      }
-      throw error;
-    });
+    const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
     const communities = isCursorPagination
       ? []
       : await listCommunityNavItems(50).catch((error) => {
@@ -450,6 +446,13 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     await monitorUnhandledError(error, { route: "GET /api/feed/guest", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",

@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/feed/guest/route";
+import { ServiceError } from "@/server/services/service-error";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listCommunityNavItems } from "@/server/queries/community.queries";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
@@ -195,5 +196,25 @@ describe("GET /api/feed/guest", () => {
     expect(response.status).toBe(500);
     expect(payload.ok).toBe(false);
     expect(mockMonitorUnhandledError).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces schema sync errors from guest read policy", async () => {
+    mockGetGuestReadLoginRequiredPostTypes.mockRejectedValue(
+      new ServiceError("schema sync required", "SCHEMA_SYNC_REQUIRED", 503),
+    );
+
+    const response = await GET(
+      new Request("http://localhost/api/feed/guest") as NextRequest,
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload).toEqual({
+      ok: false,
+      error: {
+        code: "SCHEMA_SYNC_REQUIRED",
+        message: "schema sync required",
+      },
+    });
   });
 });

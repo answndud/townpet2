@@ -28,6 +28,12 @@ vi.mock("@/lib/prisma", () => ({
     pet: {
       findMany: vi.fn(),
     },
+    userBlock: {
+      findMany: vi.fn(),
+    },
+    userMute: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -38,12 +44,22 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   pet: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  userBlock: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
+  userMute: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 };
 
 describe("post queries", () => {
   beforeEach(() => {
     mockPrisma.post.findMany.mockReset();
     mockPrisma.pet.findMany.mockReset();
+    mockPrisma.userBlock.findMany.mockReset();
+    mockPrisma.userBlock.findMany.mockResolvedValue([]);
+    mockPrisma.userMute.findMany.mockReset();
+    mockPrisma.userMute.findMany.mockResolvedValue([]);
   });
 
   it("filters local feed by primary neighborhood", async () => {

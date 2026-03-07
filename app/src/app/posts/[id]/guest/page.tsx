@@ -74,7 +74,7 @@ export async function generateMetadata({
     };
   }
 
-  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes().catch(() => []);
+  const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
   const guestReadable = canGuestReadPost({
     scope: post.scope,
     type: post.type,

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { logger, serializeError } from "@/server/logger";
+import { assertSchemaDelegate, rethrowSchemaSyncRequired } from "@/server/schema-sync";
 
 type UserBlockDelegate = {
   findMany(args: Prisma.UserBlockFindManyArgs): Promise<
@@ -74,6 +75,20 @@ function getMuteDelegate() {
   return delegate ?? null;
 }
 
+function requireBlockDelegate() {
+  return assertSchemaDelegate(
+    getBlockDelegate(),
+    "UserBlock 모델이 누락되어 차단 상태를 확인할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+function requireMuteDelegate() {
+  return assertSchemaDelegate(
+    getMuteDelegate(),
+    "UserMute 모델이 누락되어 뮤트 상태를 확인할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
 function isMissingTableError(error: unknown) {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -89,6 +104,17 @@ function warnMissingTable(error: unknown) {
   logger.warn("UserBlock/UserMute 테이블이 없어 사용자 관계 기능을 비활성화합니다.", {
     error: serializeError(error),
   });
+}
+
+function throwUserRelationSchemaSyncRequired(error: unknown): never {
+  if (isMissingTableError(error)) {
+    warnMissingTable(error);
+  }
+
+  rethrowSchemaSyncRequired(
+    error,
+    "UserBlock/UserMute 스키마가 누락되어 사용자 관계 상태를 확인할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
 }
 
 export type UserRelationState = {
@@ -108,8 +134,8 @@ export async function listHiddenAuthorIdsForViewer(viewerId?: string) {
     return cached.ids;
   }
 
-  const blockDelegate = getBlockDelegate();
-  const muteDelegate = getMuteDelegate();
+  const blockDelegate = requireBlockDelegate();
+  const muteDelegate = requireMuteDelegate();
   const hiddenIds = new Set<string>();
 
   try {
@@ -137,11 +163,7 @@ export async function listHiddenAuthorIdsForViewer(viewerId?: string) {
       }
     }
   } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-    warnMissingTable(error);
-    return [];
+    throwUserRelationSchemaSyncRequired(error);
   }
 
   hiddenIds.delete(viewerId);
@@ -162,8 +184,8 @@ export async function getUserRelationState(viewerId?: string, targetUserId?: str
     } satisfies UserRelationState;
   }
 
-  const blockDelegate = getBlockDelegate();
-  const muteDelegate = getMuteDelegate();
+  const blockDelegate = requireBlockDelegate();
+  const muteDelegate = requireMuteDelegate();
 
   let isBlockedByMe = false;
   let hasBlockedMe = false;
@@ -202,10 +224,7 @@ export async function getUserRelationState(viewerId?: string, targetUserId?: str
       isMutedByMe = Boolean(mute);
     }
   } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-    warnMissingTable(error);
+    throwUserRelationSchemaSyncRequired(error);
   }
 
   return {
@@ -220,10 +239,7 @@ export async function hasBlockingRelation(userId: string, targetUserId: string) 
     return false;
   }
 
-  const blockDelegate = getBlockDelegate();
-  if (!blockDelegate) {
-    return false;
-  }
+  const blockDelegate = requireBlockDelegate();
 
   try {
     const [blockedByMe, blockedMe] = await Promise.all([
@@ -244,19 +260,12 @@ export async function hasBlockingRelation(userId: string, targetUserId: string) 
     ]);
     return Boolean(blockedByMe || blockedMe);
   } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-    warnMissingTable(error);
-    return false;
+    throwUserRelationSchemaSyncRequired(error);
   }
 }
 
 export async function listMyBlockedUsers(userId: string) {
-  const blockDelegate = getBlockDelegate();
-  if (!blockDelegate) {
-    return [];
-  }
+  const blockDelegate = requireBlockDelegate();
 
   try {
     return await blockDelegate.findMany({
@@ -269,19 +278,12 @@ export async function listMyBlockedUsers(userId: string) {
       },
     });
   } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-    warnMissingTable(error);
-    return [];
+    throwUserRelationSchemaSyncRequired(error);
   }
 }
 
 export async function listMyMutedUsers(userId: string) {
-  const muteDelegate = getMuteDelegate();
-  if (!muteDelegate) {
-    return [];
-  }
+  const muteDelegate = requireMuteDelegate();
 
   try {
     return await muteDelegate.findMany({
@@ -294,10 +296,26 @@ export async function listMyMutedUsers(userId: string) {
       },
     });
   } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-    warnMissingTable(error);
-    return [];
+    throwUserRelationSchemaSyncRequired(error);
+  }
+}
+
+export async function assertUserRelationControlPlaneReady() {
+  const blockDelegate = requireBlockDelegate();
+  const muteDelegate = requireMuteDelegate();
+
+  try {
+    await Promise.all([
+      blockDelegate.findFirst({
+        where: { blockerId: "__schema_probe__", blockedId: "__schema_probe__" },
+        select: { id: true },
+      }),
+      muteDelegate.findFirst({
+        where: { userId: "__schema_probe__", mutedUserId: "__schema_probe__" },
+        select: { id: true },
+      }),
+    ]);
+  } catch (error) {
+    throwUserRelationSchemaSyncRequired(error);
   }
 }

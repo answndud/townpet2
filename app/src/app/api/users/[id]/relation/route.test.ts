@@ -5,6 +5,7 @@ import { GET } from "@/app/api/users/[id]/relation/route";
 import { getCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
+import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
@@ -42,23 +43,21 @@ describe("GET /api/users/[id]/relation contract", () => {
     });
   });
 
-  it("returns fallback relation state when query fails", async () => {
+  it("surfaces schema sync errors from relation query", async () => {
     mockGetCurrentUserId.mockResolvedValue("user-1");
-    mockGetUserRelationState.mockRejectedValue(new Error("db unavailable"));
+    mockGetUserRelationState.mockRejectedValue(
+      new ServiceError("schema sync required", "SCHEMA_SYNC_REQUIRED", 503),
+    );
     const request = new Request("http://localhost/api/users/user-2/relation") as NextRequest;
 
     const response = await GET(request, { params: Promise.resolve({ id: "user-2" }) });
     const payload = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(payload).toMatchObject({
-      ok: true,
-      data: {
-        relationState: {
-          isBlockedByMe: false,
-          hasBlockedMe: false,
-          isMutedByMe: false,
-        },
+      ok: false,
+      error: {
+        code: "SCHEMA_SYNC_REQUIRED",
       },
     });
   });

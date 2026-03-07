@@ -3,6 +3,7 @@ import { createHash, createHmac } from "crypto";
 
 import { DEFAULT_GUEST_POST_POLICY, type GuestPostPolicy } from "@/lib/guest-post-policy";
 import { prisma } from "@/lib/prisma";
+import { assertSchemaDelegate, rethrowSchemaSyncRequired } from "@/server/schema-sync";
 import { ServiceError } from "@/server/services/service-error";
 
 type GuestIdentity = {
@@ -45,6 +46,30 @@ function getGuestViolationDelegate(): GuestViolationDelegate | null {
   const delegate = (prisma as unknown as { guestViolation?: GuestViolationDelegate })
     .guestViolation;
   return delegate ?? null;
+}
+
+function requireGuestBanDelegate() {
+  return assertSchemaDelegate(
+    getGuestBanDelegate(),
+    "GuestBan 모델이 누락되어 비회원 제재 상태를 확인할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+function requireGuestViolationDelegate() {
+  return assertSchemaDelegate(
+    getGuestViolationDelegate(),
+    "GuestViolation 모델이 누락되어 비회원 위반 기록을 처리할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+  );
+}
+
+function throwGuestSafetySchemaSyncRequired(error: unknown): never {
+  rethrowSchemaSyncRequired(
+    error,
+    "GuestBan/GuestViolation 스키마가 누락되어 비회원 보호 정책을 적용할 수 없습니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+    {
+      fallbackPatterns: ["guestban", "guestviolation", "p2021", "p2022"],
+    },
+  );
 }
 
 function hashValue(value: string) {
@@ -106,10 +131,7 @@ export async function assertGuestNotBanned(identity: GuestIdentity) {
   const now = new Date();
   const { ipHashes, fingerprintHashes } = hashGuestIdentityCandidates(identity);
   const orConditions = buildIdentityOrConditions({ ipHashes, fingerprintHashes });
-  const guestBanDelegate = getGuestBanDelegate();
-  if (!guestBanDelegate) {
-    return;
-  }
+  const guestBanDelegate = requireGuestBanDelegate();
 
   let activeBan: { expiresAt: Date } | null = null;
   try {
@@ -123,7 +145,7 @@ export async function assertGuestNotBanned(identity: GuestIdentity) {
     });
   } catch (error) {
     if (isGuestSafetyTableMissingError(error)) {
-      return;
+      throwGuestSafetySchemaSyncRequired(error);
     }
     throw error;
   }
@@ -167,11 +189,8 @@ export async function registerGuestViolation(params: {
   const { ipHash, fingerprintHash } = hashGuestIdentity(params.identity);
   const { ipHashes, fingerprintHashes } = hashGuestIdentityCandidates(params.identity);
   const orConditions = buildIdentityOrConditions({ ipHashes, fingerprintHashes });
-  const guestViolationDelegate = getGuestViolationDelegate();
-  const guestBanDelegate = getGuestBanDelegate();
-  if (!guestViolationDelegate || !guestBanDelegate) {
-    return;
-  }
+  const guestViolationDelegate = requireGuestViolationDelegate();
+  const guestBanDelegate = requireGuestBanDelegate();
 
   try {
     await guestViolationDelegate.create({
@@ -228,7 +247,34 @@ export async function registerGuestViolation(params: {
     });
   } catch (error) {
     if (isGuestSafetyTableMissingError(error)) {
-      return;
+      throwGuestSafetySchemaSyncRequired(error);
+    }
+    throw error;
+  }
+}
+
+export async function assertGuestSafetyControlPlaneReady() {
+  const guestBanDelegate = requireGuestBanDelegate();
+  const guestViolationDelegate = requireGuestViolationDelegate();
+
+  try {
+    await Promise.all([
+      guestBanDelegate.findFirst({
+        where: {
+          expiresAt: { gt: new Date() },
+          OR: [{ ipHash: "__schema_probe__" }, { fingerprintHash: "__schema_probe__" }],
+        },
+        select: { expiresAt: true },
+      }),
+      guestViolationDelegate.count({
+        where: {
+          OR: [{ ipHash: "__schema_probe__" }, { fingerprintHash: "__schema_probe__" }],
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isGuestSafetyTableMissingError(error)) {
+      throwGuestSafetySchemaSyncRequired(error);
     }
     throw error;
   }

@@ -6,6 +6,7 @@ import { monitorUnhandledError } from "@/server/error-monitor";
 import { countUnreadNotifications } from "@/server/queries/notification.queries";
 import { getUserById } from "@/server/queries/user.queries";
 import { jsonError, jsonOk } from "@/server/response";
+import { ServiceError } from "@/server/services/service-error";
 
 function extractPreferredPetTypeIds(user: unknown) {
   if (!user || typeof user !== "object") {
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const [currentUser, unreadNotificationCount] = await Promise.all([
       getUserById(userId).catch(() => null),
-      countUnreadNotifications(userId).catch(() => 0),
+      countUnreadNotifications(userId),
     ]);
     const canModerate =
       currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MODERATOR;
@@ -67,6 +68,13 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     await monitorUnhandledError(error, {
       route: "GET /api/viewer-shell",
       request,

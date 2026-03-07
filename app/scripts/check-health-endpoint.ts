@@ -6,6 +6,14 @@ type HealthResponse = {
   timestamp?: string
   durationMs?: number
   checks?: {
+    controlPlane?: {
+      state?: string
+      checks?: Array<{
+        key?: string
+        state?: string
+        message?: string
+      }>
+    }
     search?: {
       pgTrgm?: {
         state?: string
@@ -69,6 +77,18 @@ async function main() {
   console.log(`- payload.timestamp: ${payload.timestamp ?? "unknown"}`)
   console.log(`- elapsedMs: ${Date.now() - startedAt}`)
   if (healthInternalToken) {
+    const controlPlane = payload.checks?.controlPlane
+    if (controlPlane) {
+      console.log(`- controlPlane.state: ${controlPlane.state ?? "unknown"}`)
+      for (const check of controlPlane.checks ?? []) {
+        console.log(
+          `- controlPlane.${check.key ?? "unknown"}: ${check.state ?? "unknown"} (${check.message ?? "n/a"})`,
+        )
+      }
+    } else {
+      console.log("- controlPlane: unavailable (token invalid or endpoint detail disabled)")
+    }
+
     const pgTrgm = payload.checks?.search?.pgTrgm
     if (pgTrgm) {
       console.log(`- search.pgTrgm.state: ${pgTrgm.state ?? "unknown"}`)

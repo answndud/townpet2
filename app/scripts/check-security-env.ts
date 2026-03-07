@@ -6,6 +6,19 @@ type CheckResult = {
   detail: string
 }
 
+type RemoteHealthResponse = {
+  checks?: {
+    controlPlane?: {
+      state?: string
+      checks?: Array<{
+        key?: string
+        state?: string
+        message?: string
+      }>
+    }
+  }
+}
+
 function read(key: string) {
   return process.env[key]?.trim() ?? ""
 }
@@ -33,7 +46,7 @@ function resolveAuthSecret() {
   return read("AUTH_SECRET") || read("NEXTAUTH_SECRET")
 }
 
-function main() {
+async function main() {
   const nodeEnv = read("NODE_ENV") || "development"
   const strictMode = hasTruthyFlag(read("SECURITY_ENV_STRICT"))
   const enforceProdRules = nodeEnv === "production" || strictMode
@@ -127,6 +140,68 @@ function main() {
       : "미설정 시 hosted runtime 이미지 업로드가 500으로 실패",
   })
 
+  const opsBaseUrl = read("OPS_BASE_URL")
+  const opsHealthToken = read("OPS_HEALTH_INTERNAL_TOKEN")
+  if (!opsBaseUrl) {
+    results.push({
+      key: "MODERATION_CONTROL_PLANE_HEALTH",
+      status: "WARN",
+      detail:
+        "OPS_BASE_URL 미설정: 원격 /api/health 기반 moderation control plane drift 검사를 건너뜁니다.",
+    })
+  } else {
+    try {
+      const headers: Record<string, string> = {
+        accept: "application/json",
+        "cache-control": "no-cache",
+      }
+      if (opsHealthToken) {
+        headers["x-health-token"] = opsHealthToken
+      }
+
+      const response = await fetch(`${opsBaseUrl.replace(/\/$/, "")}/api/health`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      })
+      const payload = (await response.json()) as RemoteHealthResponse
+      const controlPlane = payload.checks?.controlPlane
+      const failingChecks = (controlPlane?.checks ?? []).filter((check) => check.state === "error")
+
+      if (response.status !== 200 || controlPlane?.state === "error") {
+        results.push({
+          key: "MODERATION_CONTROL_PLANE_HEALTH",
+          status: "FAIL",
+          detail:
+            failingChecks.length > 0
+              ? `원격 health에서 control plane drift 감지: ${failingChecks
+                  .map((check) => `${check.key}: ${check.message ?? "error"}`)
+                  .join("; ")}`
+              : `원격 health 확인 실패 (HTTP ${response.status})`,
+        })
+      } else if (!controlPlane || !opsHealthToken) {
+        results.push({
+          key: "MODERATION_CONTROL_PLANE_HEALTH",
+          status: "WARN",
+          detail:
+            "OPS_HEALTH_INTERNAL_TOKEN 미설정 또는 invalid: control plane 상세 상태를 확인하지 못했습니다.",
+        })
+      } else {
+        results.push({
+          key: "MODERATION_CONTROL_PLANE_HEALTH",
+          status: "PASS",
+          detail: "원격 health에서 moderation control plane 상태 정상",
+        })
+      }
+    } catch (error) {
+      results.push({
+        key: "MODERATION_CONTROL_PLANE_HEALTH",
+        status: enforceProdRules ? "FAIL" : "WARN",
+        detail: `원격 /api/health 검사 실패: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }
+
   const failed = results.filter((result) => result.status === "FAIL")
   const warned = results.filter((result) => result.status === "WARN")
 
@@ -143,4 +218,7 @@ function main() {
   }
 }
 
-main()
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

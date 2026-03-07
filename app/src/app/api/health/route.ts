@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { runtimeEnv, validateRuntimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/server/logger";
+import { checkModerationControlPlaneHealth } from "@/server/moderation-control-plane";
 import { checkRateLimitHealth } from "@/server/rate-limit";
 
 type CheckState = "ok" | "error";
@@ -78,9 +79,13 @@ export async function GET(request: Request) {
   }
 
   const rateLimitState = await checkRateLimitHealth();
+  const controlPlaneState = await checkModerationControlPlaneHealth();
   const envState: CheckState = envValidation.ok ? "ok" : "error";
   const status =
-    dbState === "ok" && envState === "ok" && rateLimitState.status !== "error"
+    dbState === "ok" &&
+    envState === "ok" &&
+    rateLimitState.status !== "error" &&
+    controlPlaneState.state === "ok"
       ? "ok"
       : "degraded";
   const httpStatus = status === "ok" ? 200 : 503;
@@ -91,6 +96,7 @@ export async function GET(request: Request) {
       dbState,
       dbMessage,
       rateLimitState,
+      controlPlaneState,
     });
   }
 
@@ -116,6 +122,11 @@ export async function GET(request: Request) {
           : {
               backend: rateLimitState.backend,
               status: rateLimitState.status,
+            },
+        controlPlane: includeDetailedHealth
+          ? controlPlaneState
+          : {
+              state: controlPlaneState.state,
             },
         ...(includeDetailedHealth && dbState === "ok"
           ? {

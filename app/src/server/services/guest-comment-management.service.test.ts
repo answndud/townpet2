@@ -35,6 +35,10 @@ vi.mock("@/lib/prisma", () => ({
     post: {
       update: vi.fn(),
     },
+    guestBan: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
     guestViolation: {
       create: vi.fn(),
       count: vi.fn(),
@@ -51,6 +55,10 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   };
   post: {
     update: ReturnType<typeof vi.fn>;
+  };
+  guestBan: {
+    findFirst: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
   };
   guestViolation: {
     create: ReturnType<typeof vi.fn>;
@@ -75,6 +83,9 @@ describe("guest comment management", () => {
     mockPrisma.comment.count.mockReset();
     mockPrisma.comment.update.mockReset();
     mockPrisma.post.update.mockReset();
+    mockPrisma.guestBan.findFirst.mockReset();
+    mockPrisma.guestBan.findFirst.mockResolvedValue(null);
+    mockPrisma.guestBan.create.mockReset();
     mockPrisma.$transaction.mockReset();
     mockPrisma.guestViolation.create.mockReset();
     mockPrisma.guestViolation.count.mockReset();

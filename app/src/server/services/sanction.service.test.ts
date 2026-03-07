@@ -128,4 +128,16 @@ describe("sanction service", () => {
       ServiceError,
     );
   });
+
+  it("fails closed when sanction delegate is missing", async () => {
+    const originalDelegate = (mockPrisma as { userSanction?: unknown }).userSanction;
+    delete (mockPrisma as { userSanction?: unknown }).userSanction;
+
+    await expect(getActiveInteractionSanction("u1")).rejects.toMatchObject({
+      code: "SCHEMA_SYNC_REQUIRED",
+      status: 503,
+    });
+
+    (mockPrisma as { userSanction?: unknown }).userSanction = originalDelegate;
+  });
 });

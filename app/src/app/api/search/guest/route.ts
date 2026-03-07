@@ -11,6 +11,7 @@ import { getPopularSearchTerms } from "@/server/queries/search.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
+import { ServiceError } from "@/server/services/service-error";
 
 const guestSearchSchema = z.object({
   q: z.string().trim().min(0).max(100).default(""),
@@ -81,6 +82,13 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     await monitorUnhandledError(error, { route: "GET /api/search/guest", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",

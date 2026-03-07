@@ -12,6 +12,7 @@ import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
+import { ServiceError } from "@/server/services/service-error";
 
 const searchSuggestionSchema = z.object({
   q: z.string().min(1).max(100),
@@ -101,6 +102,13 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return jsonError(error.status, {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     await monitorUnhandledError(error, { route: "GET /api/posts/suggestions", request });
     return jsonError(500, {
       code: "INTERNAL_SERVER_ERROR",

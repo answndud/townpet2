@@ -17,6 +17,51 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 202 완료 (운영 보호장치 fail-open 제거)
+- 완료 내용
+- moderation/policy control plane fail-closed 전환:
+  - `app/src/server/schema-sync.ts`
+  - `app/src/server/moderation-control-plane.ts`
+  - `app/src/server/services/sanction.service.ts`
+  - `app/src/server/queries/policy.queries.ts`
+  - `app/src/server/queries/user-relation.queries.ts`
+  - `app/src/server/queries/notification.queries.ts`
+  - `app/src/server/services/guest-safety.service.ts`
+  - sanction/policy/block/mute/notification/guest-safety가 Prisma delegate 누락 또는 table/column drift를 만나면 더 이상 기본값/빈 결과로 통과하지 않고 `SCHEMA_SYNC_REQUIRED` 503으로 실패
+  - `Notification.archivedAt` 컬럼 fallback과 guest ban/sanction/policy default fallback 제거
+- route/page fail-open 제거:
+  - `app/src/app/api/users/[id]/relation/route.ts`
+  - `app/src/app/api/viewer-shell/route.ts`
+  - `app/src/app/api/feed/guest/route.ts`
+  - `app/src/app/api/search/guest/route.ts`
+  - `app/src/app/api/posts/suggestions/route.ts`
+  - `app/src/app/feed/page.tsx`
+  - `app/src/app/posts/[id]/guest/page.tsx`
+  - control plane schema drift가 나면 관계 상태/알림 개수/guest read policy를 조용히 빈 값으로 숨기지 않고 route는 명시 503, SSR 페이지는 실패로 surface
+- health/preflight 확장:
+  - `app/src/app/api/health/route.ts`
+  - `app/scripts/check-health-endpoint.ts`
+  - `app/scripts/check-security-env.ts`
+  - `/api/health` detailed payload에 `checks.controlPlane` 추가
+  - `ops:check:health`가 control plane probe 결과를 출력
+  - `ops:check:security-env`는 `OPS_BASE_URL`이 주어지면 원격 health를 함께 확인해 schema drift를 조기 감지
+- 회귀 테스트 추가/보강
+  - `app/src/server/queries/policy.queries.test.ts`
+  - `app/src/server/services/guest-safety-control-plane.test.ts`
+  - `app/src/server/services/sanction.service.test.ts`
+  - `app/src/server/queries/notification.queries.test.ts`
+  - `app/src/app/api/users/[id]/relation/route.test.ts`
+  - `app/src/app/api/viewer-shell/route.test.ts`
+  - `app/src/app/api/feed/guest/route.test.ts`
+  - `app/src/app/api/health/route.test.ts`
+- 검증 결과
+- `pnpm -C app lint scripts/check-health-endpoint.ts scripts/check-security-env.ts src/app/api/feed/guest/route.ts src/app/api/feed/guest/route.test.ts src/app/api/health/route.ts src/app/api/health/route.test.ts src/app/api/posts/suggestions/route.ts src/app/api/search/guest/route.ts src/app/api/users/[id]/relation/route.ts src/app/api/users/[id]/relation/route.test.ts src/app/api/viewer-shell/route.ts src/app/api/viewer-shell/route.test.ts src/app/feed/page.tsx src/app/posts/[id]/guest/page.tsx src/server/moderation-control-plane.ts src/server/schema-sync.ts src/server/queries/notification.queries.ts src/server/queries/notification.queries.test.ts src/server/queries/policy.queries.ts src/server/queries/policy.queries.test.ts src/server/queries/user-relation.queries.ts src/server/services/guest-safety.service.ts src/server/services/guest-safety-control-plane.test.ts src/server/services/sanction.service.ts src/server/services/sanction.service.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app exec vitest run src/server/services/sanction.service.test.ts src/server/services/guest-safety-control-plane.test.ts src/server/queries/notification.queries.test.ts src/server/queries/policy.queries.test.ts src/app/api/health/route.test.ts src/app/api/users/[id]/relation/route.test.ts src/app/api/viewer-shell/route.test.ts src/app/api/feed/guest/route.test.ts` 통과
+- `pnpm -C app exec vitest run src/app/api/search/guest/route.test.ts src/app/api/posts/suggestions/route.test.ts src/app/api/lounges/breeds/[breedCode]/posts/route.test.ts src/app/api/posts/route.test.ts src/app/api/notifications/route.test.ts src/server/services/post-read-access.service.test.ts` 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 207 완료 (middleware incident defense-in-depth)
 - 완료 내용
 - 정적 security header fallback 추가:

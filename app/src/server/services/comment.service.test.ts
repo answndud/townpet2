@@ -18,6 +18,9 @@ vi.mock("@/lib/prisma", () => ({
     siteSetting: {
       findUnique: vi.fn(),
     },
+    userBlock: {
+      findFirst: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -38,6 +41,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   siteSetting: {
     findUnique: ReturnType<typeof vi.fn>;
   };
+  userBlock: {
+    findFirst: ReturnType<typeof vi.fn>;
+  };
   $transaction: ReturnType<typeof vi.fn>;
 };
 
@@ -49,6 +55,8 @@ describe("comment service notification flow", () => {
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
     mockPrisma.siteSetting.findUnique.mockReset();
+    mockPrisma.userBlock.findFirst.mockReset();
+    mockPrisma.userBlock.findFirst.mockResolvedValue(null);
     mockPrisma.siteSetting.findUnique.mockResolvedValue(null);
     mockPrisma.$transaction.mockReset();
     mockNotifyCommentOnPost.mockReset();
