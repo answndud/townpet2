@@ -718,6 +718,7 @@ export function PostDetailEditForm({
           }}
           label="게시글 이미지"
           maxFiles={isAuthenticated ? 10 : GUEST_MAX_IMAGE_COUNT}
+          guestWriteScope={!isAuthenticated ? "upload" : undefined}
         />
       </div>
 

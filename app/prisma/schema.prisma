@@ -594,6 +594,9 @@ enum ReportReason {
   HARASSMENT
   INAPPROPRIATE
   FAKE
+  FRAUD
+  PRIVACY
+  EMERGENCY
   OTHER
 }
 

@@ -37,11 +37,11 @@
 | guest 작성자 메타 판별 공용 helper 도입 | Codex | P1 | `done` | guest 작성자 여부/이름/IP 표시 규칙이 helper로 통일되고 guest 상세/편집/클라이언트 상세가 같은 기준을 사용함 | `app/src/lib/post-guest-meta.ts`, `app/src/app/posts/[id]/guest/page.tsx`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/edit/page.tsx` |
 | 회원 작성 글의 guest detail 제어 UI 비노출 | Codex | P1 | `done` | 비로그인 guest 상세 페이지에서도 실제 guest 글에만 비회원 수정/삭제 UI가 노출되고 회귀 테스트가 존재함 | `app/src/app/posts/[id]/guest/page.tsx`, `app/src/components/posts/guest-post-detail-actions.tsx`, `app/src/lib/post-guest-meta.test.ts` |
 
-### Cycle 205: 비회원 abuse defense 현실화
+### Cycle 205: 비회원 abuse defense 현실화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| guest 쓰기 CAPTCHA/step-up trust 도입 | Codex | P1 | `pending` | 비회원 글/댓글/업로드 경로에 CAPTCHA 또는 동급 step-up 검증과 프록시/평판 기반 추가 방어가 적용되고 운영 정책 문서가 동기화됨 | `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/upload/*.ts`, `docs/policies/*` |
-| 긴급/사기/개인정보 우선순위 운영 큐 설계 | Codex | P1 | `pending` | 긴급/사기/개인정보 노출 유형이 신고 사유/우선순위에 반영되고 관리자 큐에서 별도 triage 기준을 제공함 | `app/prisma/schema.prisma`, `app/src/app/admin/reports/page.tsx`, `docs/policies/모더레이션_운영규칙.md` |
+| guest 쓰기 CAPTCHA/step-up trust 도입 | Codex | P1 | `done` | 비회원 글/댓글/업로드 경로에 CAPTCHA 또는 동급 step-up 검증과 프록시/평판 기반 추가 방어가 적용되고 운영 정책 문서가 동기화됨 | `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/upload/*.ts`, `docs/policies/*` |
+| 긴급/사기/개인정보 우선순위 운영 큐 설계 | Codex | P1 | `done` | 긴급/사기/개인정보 노출 유형이 신고 사유/우선순위에 반영되고 관리자 큐에서 별도 triage 기준을 제공함 | `app/prisma/schema.prisma`, `app/src/app/admin/reports/page.tsx`, `docs/policies/모더레이션_운영규칙.md` |
 
 ### Cycle 204: 알림/운영 이력 retention 강화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

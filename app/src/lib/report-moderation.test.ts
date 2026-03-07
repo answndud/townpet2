@@ -85,4 +85,40 @@ describe("report moderation policy", () => {
     expect(summary.priority).toBe("HIGH");
     expect(summary.signalLabels).toContain("저신뢰 계정 집중");
   });
+
+  it("forces emergency reports into the critical queue", () => {
+    const summary = summarizeReportModeration([
+      {
+        reporterId: "user-1",
+        createdAt: new Date("2026-03-07T00:00:00.000Z"),
+        reason: "EMERGENCY",
+        reporterTrustWeight: 0.45,
+      },
+    ]);
+
+    expect(summary.priority).toBe("CRITICAL");
+    expect(summary.shouldAutoHide).toBe(false);
+    expect(summary.signalLabels).toContain("긴급 신고");
+  });
+
+  it("elevates privacy and fraud reports even before auto-hide", () => {
+    const summary = summarizeReportModeration([
+      {
+        reporterId: "user-1",
+        createdAt: new Date("2026-03-07T00:00:00.000Z"),
+        reason: "PRIVACY",
+        reporterTrustWeight: 0.45,
+      },
+      {
+        reporterId: "user-2",
+        createdAt: new Date("2026-03-07T00:06:00.000Z"),
+        reason: "FRAUD",
+        reporterTrustWeight: 0.5,
+      },
+    ]);
+
+    expect(summary.priority).toBe("HIGH");
+    expect(summary.signalLabels).toContain("개인정보 노출");
+    expect(summary.signalLabels).toContain("사기/거래 위험");
+  });
 });

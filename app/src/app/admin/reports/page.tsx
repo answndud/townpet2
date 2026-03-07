@@ -9,6 +9,7 @@ import {
   getReportQueuePriorityOrder,
   summarizeReportModeration,
 } from "@/lib/report-moderation";
+import { getReportReasonLabel, reportReasonOptions } from "@/lib/report-reason";
 import { ReportUpdateBanner } from "@/components/admin/report-update-banner";
 import {
   SUPPORTED_REPORT_TARGETS,
@@ -31,14 +32,6 @@ const statusLabels: Record<ReportStatus, string> = {
   PENDING: "대기",
   RESOLVED: "승인",
   DISMISSED: "기각",
-};
-
-const reasonLabels: Record<ReportReason, string> = {
-  SPAM: "스팸",
-  HARASSMENT: "괴롭힘",
-  INAPPROPRIATE: "부적절",
-  FAKE: "허위",
-  OTHER: "기타",
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -162,7 +155,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         targetTitle,
         targetHref,
         status: report.status,
-        reason: reasonLabels[report.reason] ?? report.reason,
+        reason: getReportReasonLabel(report.reason),
         description: report.description ?? null,
         reporterLabel: report.reporter.nickname ?? report.reporter.email,
         resolution: report.resolution ?? null,
@@ -277,10 +270,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <div className="border border-[#d8e4f6] bg-white p-3 sm:col-span-2 lg:col-span-1">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">사유 분포</p>
             <div className="mt-2 flex flex-col gap-1.5 text-xs text-[#4f678d]">
-              {Object.entries(stats.reasonCounts).map(([reason, count]) => (
+              {reportReasonOptions.map((reason) => (
                 <div key={reason} className="flex items-center justify-between">
-                  <span>{reasonLabels[reason as ReportReason]}</span>
-                  <span className="font-semibold text-[#163462]">{count}</span>
+                  <span>{getReportReasonLabel(reason)}</span>
+                  <span className="font-semibold text-[#163462]">
+                    {stats.reasonCounts[reason]}
+                  </span>
                 </div>
               ))}
             </div>

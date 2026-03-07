@@ -8,6 +8,7 @@ import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getPostReadAccessById } from "@/server/queries/post.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
+import { assertGuestStepUp } from "@/server/guest-step-up";
 import { listComments } from "@/server/queries/comment.queries";
 import { assertPostReadable } from "@/server/services/post-read-access.service";
 import { createComment } from "@/server/services/comment.service";
@@ -23,6 +24,7 @@ vi.mock("@/server/queries/post.queries", () => ({ getPostReadAccessById: vi.fn()
 vi.mock("@/server/queries/comment.queries", () => ({ listComments: vi.fn() }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
+vi.mock("@/server/guest-step-up", () => ({ assertGuestStepUp: vi.fn() }));
 vi.mock("@/server/services/post-read-access.service", () => ({
   assertPostReadable: vi.fn(),
 }));
@@ -53,6 +55,7 @@ const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetPostReadAccessById = vi.mocked(getPostReadAccessById);
 const mockGetClientIp = vi.mocked(getClientIp);
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
+const mockAssertGuestStepUp = vi.mocked(assertGuestStepUp);
 const mockListComments = vi.mocked(listComments);
 const mockAssertPostReadable = vi.mocked(assertPostReadable);
 const mockCreateComment = vi.mocked(createComment);
@@ -67,6 +70,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
     mockGetPostReadAccessById.mockReset();
     mockGetClientIp.mockReset();
     mockEnforceRateLimit.mockReset();
+    mockAssertGuestStepUp.mockReset();
     mockListComments.mockReset();
     mockAssertPostReadable.mockReset();
     mockCreateComment.mockReset();
@@ -86,6 +90,10 @@ describe("POST /api/posts/[id]/comments contract", () => {
     } as never);
     mockGetClientIp.mockReturnValue("127.0.0.1");
     mockEnforceRateLimit.mockResolvedValue();
+    mockAssertGuestStepUp.mockResolvedValue({
+      difficulty: 2,
+      riskLevel: "NORMAL",
+    } as never);
     mockListComments.mockResolvedValue([]);
     mockAssertPostReadable.mockResolvedValue();
   });
@@ -137,6 +145,34 @@ describe("POST /api/posts/[id]/comments contract", () => {
     });
   });
 
+  it("returns GUEST_STEP_UP_REQUIRED before guest comment creation", async () => {
+    mockAssertGuestStepUp.mockRejectedValue(
+      new ServiceError("step-up", "GUEST_STEP_UP_REQUIRED", 428),
+    );
+    const request = new Request("http://localhost/api/posts/post-1/comments", {
+      method: "POST",
+      body: JSON.stringify({
+        content: "hello",
+        guestDisplayName: "익명",
+        guestPassword: "1234",
+      }),
+      headers: {
+        "content-type": "application/json",
+        "x-guest-fingerprint": "guest-fp-1",
+      },
+    }) as NextRequest;
+
+    const response = await POST(request, { params: Promise.resolve({ id: "post-1" }) });
+    const payload = await response.json();
+
+    expect(response.status).toBe(428);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "GUEST_STEP_UP_REQUIRED" },
+    });
+    expect(mockCreateGuestAuthor).not.toHaveBeenCalled();
+  });
+
   it("creates guest author and writes guestAuthorId in guest comment flow", async () => {
     mockGetOrCreateGuestSystemUserId.mockResolvedValue("guest-system-user");
     mockCreateGuestAuthor.mockResolvedValue({ id: "guest-author-1" } as never);
@@ -148,12 +184,22 @@ describe("POST /api/posts/[id]/comments contract", () => {
         guestDisplayName: "동네손님",
         guestPassword: "1234",
       }),
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-guest-fingerprint": "guest-fp-1",
+      },
     }) as NextRequest;
 
     const response = await POST(request, { params: Promise.resolve({ id: "post-1" }) });
 
     expect(response.status).toBe(201);
+    expect(mockAssertGuestStepUp).toHaveBeenCalledWith({
+      scope: "comment:create",
+      ip: "127.0.0.1",
+      fingerprint: "guest-fp-1",
+      token: null,
+      proof: null,
+    });
     expect(mockCreateGuestAuthor).toHaveBeenCalledOnce();
     expect(mockCreateComment).toHaveBeenCalledWith(
       expect.objectContaining({

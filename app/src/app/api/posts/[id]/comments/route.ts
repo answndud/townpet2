@@ -4,6 +4,7 @@ import { buildGuestIpMeta } from "@/lib/guest-ip-display";
 import { getCurrentUserId } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
+import { assertGuestStepUp } from "@/server/guest-step-up";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { listComments } from "@/server/queries/comment.queries";
 import { getPostReadAccessById } from "@/server/queries/post.queries";
@@ -106,6 +107,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       key: `${guestRateKey}:10m`,
       limit: Math.max(5, guestPostPolicy.postRateLimit10m),
       windowMs: 10 * 60_000,
+    });
+    await assertGuestStepUp({
+      scope: "comment:create",
+      ip: clientIp,
+      fingerprint: guestFingerprint,
+      token: request.headers.get("x-guest-step-up-token"),
+      proof: request.headers.get("x-guest-step-up-proof"),
     });
 
     const guestDisplayName = body.guestDisplayName?.trim() || "익명";

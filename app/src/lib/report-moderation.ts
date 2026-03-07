@@ -41,6 +41,9 @@ const reasonSeverityWeight: Record<ReportReason, number> = {
   HARASSMENT: 0.25,
   INAPPROPRIATE: 0.15,
   FAKE: 0.25,
+  FRAUD: 0.55,
+  PRIVACY: 0.85,
+  EMERGENCY: 1.4,
   OTHER: 0,
 };
 
@@ -138,14 +141,19 @@ export function summarizeReportModeration(
     burstReports.map((report) => report.reporterId),
   ).size;
   const lowTrustCount = reports.filter((report) => report.reporterTrustWeight < 0.8).length;
+  const hasFraud = reports.some((report) => report.reason === ReportReason.FRAUD);
+  const hasPrivacy = reports.some((report) => report.reason === ReportReason.PRIVACY);
+  const hasEmergency = reports.some((report) => report.reason === ReportReason.EMERGENCY);
 
   const shouldAutoHide =
     uniqueReporterCount >= 2 && weightedScore >= REPORT_AUTO_HIDE_SCORE_THRESHOLD;
 
   let priority: ReportQueuePriority = "LOW";
-  if (shouldAutoHide) {
+  if (hasEmergency || shouldAutoHide) {
     priority = "CRITICAL";
   } else if (
+    hasPrivacy ||
+    hasFraud ||
     weightedScore >= HIGH_PRIORITY_SCORE_THRESHOLD ||
     burstUniqueReporterCount >= 3 ||
     (burstUniqueReporterCount >= 2 && burstWeightedScore >= 1.8)
@@ -156,6 +164,15 @@ export function summarizeReportModeration(
   }
 
   const signalLabels = [`가중치 ${weightedScore.toFixed(2)}`];
+  if (hasEmergency) {
+    signalLabels.push("긴급 신고");
+  }
+  if (hasPrivacy) {
+    signalLabels.push("개인정보 노출");
+  }
+  if (hasFraud) {
+    signalLabels.push("사기/거래 위험");
+  }
   if (burstUniqueReporterCount >= 2) {
     signalLabels.push(`10분 내 ${burstUniqueReporterCount}명 신고`);
   }

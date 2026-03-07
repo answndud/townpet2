@@ -2,16 +2,19 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ServiceError } from "@/server/services/service-error";
-import { GET } from "@/app/api/posts/route";
+import { GET, POST } from "@/app/api/posts/route";
 import { getCurrentUserId, hasSessionCookieFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listPosts } from "@/server/queries/post.queries";
 import {
+  getGuestPostPolicy,
   getGuestReadLoginRequiredPostTypes,
 } from "@/server/queries/policy.queries";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { getClientIp } from "@/server/request-context";
+import { assertGuestStepUp } from "@/server/guest-step-up";
 import { isLoginRequiredPostType } from "@/lib/post-access";
+import { createPost } from "@/server/services/post.service";
 
 vi.mock("@/server/auth", () => ({
   getCurrentUserId: vi.fn(),
@@ -23,6 +26,7 @@ vi.mock("@/server/queries/policy.queries", () => ({
   getGuestReadLoginRequiredPostTypes: vi.fn(),
   getGuestPostPolicy: vi.fn(),
 }));
+vi.mock("@/server/guest-step-up", () => ({ assertGuestStepUp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/lib/post-access", () => ({ isLoginRequiredPostType: vi.fn() }));
@@ -33,12 +37,15 @@ const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
 const mockHasSessionCookieFromRequest = vi.mocked(hasSessionCookieFromRequest);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockListPosts = vi.mocked(listPosts);
+const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetGuestReadLoginRequiredPostTypes = vi.mocked(
   getGuestReadLoginRequiredPostTypes,
 );
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
 const mockGetClientIp = vi.mocked(getClientIp);
+const mockAssertGuestStepUp = vi.mocked(assertGuestStepUp);
 const mockIsLoginRequiredPostType = vi.mocked(isLoginRequiredPostType);
+const mockCreatePost = vi.mocked(createPost);
 
 describe("GET /api/posts contract", () => {
   beforeEach(() => {
@@ -46,18 +53,31 @@ describe("GET /api/posts contract", () => {
     mockHasSessionCookieFromRequest.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockListPosts.mockReset();
+    mockGetGuestPostPolicy.mockReset();
     mockGetGuestReadLoginRequiredPostTypes.mockReset();
     mockEnforceRateLimit.mockReset();
     mockGetClientIp.mockReset();
+    mockAssertGuestStepUp.mockReset();
     mockIsLoginRequiredPostType.mockReset();
+    mockCreatePost.mockReset();
 
     mockGetCurrentUserId.mockResolvedValue(null);
     mockHasSessionCookieFromRequest.mockReturnValue(false);
+    mockGetGuestPostPolicy.mockResolvedValue({
+      postRateLimit10m: 5,
+      postRateLimit1h: 10,
+      postRateLimit24h: 20,
+    } as never);
     mockGetGuestReadLoginRequiredPostTypes.mockResolvedValue([]);
     mockEnforceRateLimit.mockResolvedValue();
     mockGetClientIp.mockReturnValue("127.0.0.1");
+    mockAssertGuestStepUp.mockResolvedValue({
+      difficulty: 2,
+      riskLevel: "NORMAL",
+    } as never);
     mockIsLoginRequiredPostType.mockReturnValue(false);
     mockListPosts.mockResolvedValue({ items: [], nextCursor: null });
+    mockCreatePost.mockResolvedValue({ id: "post-1" } as never);
   });
 
   it("returns INVALID_QUERY for malformed query params", async () => {
@@ -139,5 +159,77 @@ describe("GET /api/posts contract", () => {
       error: { code: "INTERNAL_SERVER_ERROR" },
     });
     expect(mockMonitorUnhandledError).toHaveBeenCalledOnce();
+  });
+});
+
+describe("POST /api/posts contract", () => {
+  beforeEach(() => {
+    mockGetCurrentUserId.mockResolvedValue(null);
+    mockGetGuestPostPolicy.mockResolvedValue({
+      postRateLimit10m: 5,
+      postRateLimit1h: 10,
+      postRateLimit24h: 20,
+    } as never);
+    mockEnforceRateLimit.mockResolvedValue();
+    mockGetClientIp.mockReturnValue("127.0.0.1");
+    mockAssertGuestStepUp.mockResolvedValue({
+      difficulty: 2,
+      riskLevel: "NORMAL",
+    } as never);
+    mockCreatePost.mockResolvedValue({ id: "post-1" } as never);
+  });
+
+  it("returns guest step-up errors for unauthenticated writes", async () => {
+    mockAssertGuestStepUp.mockRejectedValue(
+      new ServiceError("need proof", "GUEST_STEP_UP_REQUIRED", 428),
+    );
+    const request = new Request("http://localhost/api/posts", {
+      method: "POST",
+      body: JSON.stringify({ title: "guest post" }),
+      headers: {
+        "content-type": "application/json",
+        "x-guest-fingerprint": "guest-fp-1",
+      },
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(428);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "GUEST_STEP_UP_REQUIRED" },
+    });
+    expect(mockCreatePost).not.toHaveBeenCalled();
+  });
+
+  it("creates guest posts only after guest step-up passes", async () => {
+    const request = new Request("http://localhost/api/posts", {
+      method: "POST",
+      body: JSON.stringify({ title: "guest post", content: "hello" }),
+      headers: {
+        "content-type": "application/json",
+        "x-guest-fingerprint": "guest-fp-1",
+      },
+    }) as NextRequest;
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(201);
+    expect(mockAssertGuestStepUp).toHaveBeenCalledWith({
+      scope: "post:create",
+      ip: "127.0.0.1",
+      fingerprint: "guest-fp-1",
+      token: null,
+      proof: null,
+    });
+    expect(mockCreatePost).toHaveBeenCalledWith({
+      input: { title: "guest post", content: "hello" },
+      guestIdentity: {
+        ip: "127.0.0.1",
+        fingerprint: "guest-fp-1",
+        userAgent: undefined,
+      },
+    });
   });
 });

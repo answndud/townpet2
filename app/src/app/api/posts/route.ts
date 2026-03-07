@@ -9,6 +9,7 @@ import { listPosts } from "@/server/queries/post.queries";
 import { getCurrentUserId, hasSessionCookieFromRequest } from "@/server/auth";
 import { buildCacheControlHeader } from "@/server/cache/query-cache";
 import { monitorUnhandledError } from "@/server/error-monitor";
+import { assertGuestStepUp } from "@/server/guest-step-up";
 import {
   getGuestPostPolicy,
   getGuestReadLoginRequiredPostTypes,
@@ -178,6 +179,13 @@ export async function POST(request: NextRequest) {
       key: `${guestRateKey}:24h`,
       limit: guestPostPolicy.postRateLimit24h,
       windowMs: 24 * 60 * 60_000,
+    });
+    await assertGuestStepUp({
+      scope: "post:create",
+      ip: clientIp,
+      fingerprint: guestFingerprint,
+      token: request.headers.get("x-guest-step-up-token"),
+      proof: request.headers.get("x-guest-step-up-proof"),
     });
 
     const post = await createPost({

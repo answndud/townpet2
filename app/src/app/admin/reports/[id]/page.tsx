@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ReportStatus, UserRole } from "@prisma/client";
 
 import { ReportActions } from "@/components/admin/report-actions";
+import { getReportReasonLabel } from "@/lib/report-reason";
 import { getReportTargetLabel, isSupportedReportTarget } from "@/lib/report-target";
 import { getCurrentUser } from "@/server/auth";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
@@ -126,7 +127,7 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
 
           <div className="mt-5 grid gap-2 border-t border-[#e1e9f5] pt-4 text-sm text-[#355988]">
             <div>대상 ID: {report.targetId}</div>
-            <div>사유: {report.reason}</div>
+            <div>사유: {getReportReasonLabel(report.reason)}</div>
             <div>설명: {report.description ?? "-"}</div>
             <div>신고자: {report.reporter.nickname ?? report.reporter.email}</div>
             <div>처리 메모: {report.resolution ?? "-"}</div>

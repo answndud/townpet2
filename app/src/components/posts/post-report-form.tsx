@@ -3,16 +3,10 @@
 import { ReportReason, ReportTarget } from "@prisma/client";
 import { useState, useTransition } from "react";
 
+import { getReportReasonLabel, reportReasonOptions } from "@/lib/report-reason";
+
 type PostReportFormProps = {
   postId: string;
-};
-
-const reasonLabels: Record<ReportReason, string> = {
-  SPAM: "스팸",
-  HARASSMENT: "괴롭힘",
-  INAPPROPRIATE: "부적절",
-  FAKE: "허위",
-  OTHER: "기타",
 };
 
 export function PostReportForm({ postId }: PostReportFormProps) {
@@ -74,9 +68,9 @@ export function PostReportForm({ postId }: PostReportFormProps) {
               setReason(event.target.value as ReportReason)
             }
           >
-            {Object.values(ReportReason).map((value) => (
+            {reportReasonOptions.map((value) => (
               <option key={value} value={value}>
-                {reasonLabels[value]}
+                {getReportReasonLabel(value)}
               </option>
             ))}
           </select>

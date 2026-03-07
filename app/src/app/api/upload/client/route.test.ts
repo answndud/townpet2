@@ -8,6 +8,7 @@ import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
+import { assertGuestStepUp } from "@/server/guest-step-up";
 import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -17,6 +18,7 @@ vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({ getGuestPostPolicy: vi.fn() }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
+vi.mock("@/server/guest-step-up", () => ({ assertGuestStepUp: vi.fn() }));
 vi.mock("@/server/services/sanction.service", () => ({
   assertUserInteractionAllowed: vi.fn(),
 }));
@@ -27,6 +29,7 @@ const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetClientIp = vi.mocked(getClientIp);
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
+const mockAssertGuestStepUp = vi.mocked(assertGuestStepUp);
 const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
 
 describe("POST /api/upload/client contract", () => {
@@ -37,6 +40,7 @@ describe("POST /api/upload/client contract", () => {
     mockGetGuestPostPolicy.mockReset();
     mockGetClientIp.mockReset();
     mockEnforceRateLimit.mockReset();
+    mockAssertGuestStepUp.mockReset();
     mockAssertUserInteractionAllowed.mockReset();
 
     mockGetCurrentUserId.mockResolvedValue(null);
@@ -45,6 +49,10 @@ describe("POST /api/upload/client contract", () => {
     } as never);
     mockGetClientIp.mockReturnValue("127.0.0.1");
     mockEnforceRateLimit.mockResolvedValue();
+    mockAssertGuestStepUp.mockResolvedValue({
+      difficulty: 2,
+      riskLevel: "NORMAL",
+    } as never);
     mockAssertUserInteractionAllowed.mockResolvedValue();
     mockHandleUpload.mockImplementation(async (params) => {
       await params.onBeforeGenerateToken("uploads/test.png", null, false);
@@ -108,6 +116,29 @@ describe("POST /api/upload/client contract", () => {
       key: "upload:guest:ip:127.0.0.1:fp:none:10m",
       limit: 10,
       windowMs: 600000,
+    });
+  });
+
+  it("returns guest step-up errors for unauthenticated client uploads", async () => {
+    mockAssertGuestStepUp.mockRejectedValue(
+      new ServiceError("step-up", "GUEST_STEP_UP_REQUIRED", 428),
+    );
+    const request = new Request("http://localhost/api/upload/client", {
+      method: "POST",
+      body: JSON.stringify({ type: "blob.generate-client-token" }),
+      headers: {
+        "content-type": "application/json",
+        "x-guest-fingerprint": "guest-fp-1",
+      },
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(428);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "GUEST_STEP_UP_REQUIRED" },
     });
   });
 

@@ -5804,3 +5804,45 @@
 ## 참고 문서
 - 운영/실행 가이드: `docs/개발_운영_가이드.md`
 - 현재 계획: `PLAN.md`
+
+### 2026-03-07: Cycle 205 비회원 abuse defense 현실화
+- 완료 내용
+- 비회원 글/댓글/업로드 경로에 공용 step-up 검증을 도입했다.
+  - `app/src/server/guest-step-up.ts`
+  - `app/src/app/api/guest/step-up/route.ts`
+  - `app/src/lib/guest-step-up.client.ts`
+  - `app/src/lib/guest-client.ts`
+- step-up은 3분 TTL의 서명된 challenge + SHA-256 proof-of-work로 동작하고, `IP + fingerprint`에 바인딩된다.
+- 위험 신호(자동화 UA, fingerprint 없음, 과도한 프록시 체인, locale 헤더 없음)에 따라 난이도를 `NORMAL/ELEVATED/HIGH`로 높인다.
+- guest 글/댓글/이미지 업로드 API가 step-up proof 없이는 `428 GUEST_STEP_UP_REQUIRED`를 반환하도록 바꿨다.
+  - `app/src/app/api/posts/route.ts`
+  - `app/src/app/api/posts/[id]/comments/route.ts`
+  - `app/src/app/api/upload/route.ts`
+  - `app/src/app/api/upload/client/route.ts`
+- guest 작성/업로드 클라이언트도 새 step-up 헤더를 붙이도록 연동했다.
+  - `app/src/components/posts/post-create-form.tsx`
+  - `app/src/components/posts/post-comment-thread.tsx`
+  - `app/src/components/posts/post-detail-edit-form.tsx`
+  - `app/src/components/ui/image-upload-field.tsx`
+- 신고 triage를 운영 현실에 맞춰 확장했다.
+  - `ReportReason`에 `FRAUD`, `PRIVACY`, `EMERGENCY`를 추가하고 마이그레이션을 생성
+  - `app/src/lib/report-reason.ts`로 레이블/표시 순서를 공용화
+  - `EMERGENCY`는 단건이어도 `CRITICAL`, `PRIVACY/FRAUD`는 최소 `HIGH` 우선순위로 승격
+  - 관리자 큐/상세/신고 폼이 새 사유와 레이블을 반영
+- 정책 문서를 실제 운영 로직 기준으로 동기화했다.
+  - `docs/policies/모더레이션_운영규칙.md`
+  - `docs/policies/신고_운영정책.md`
+- 검증 결과
+- `pnpm -C app exec prisma format` 통과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app lint` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/guest-step-up.test.ts src/app/api/guest/step-up/route.test.ts src/app/api/posts/route.test.ts 'src/app/api/posts/[id]/comments/route.test.ts' src/app/api/upload/route.test.ts src/app/api/upload/client/route.test.ts src/lib/report-moderation.test.ts src/lib/validations/report.test.ts src/server/queries/report.queries.test.ts` 통과
+- `pnpm -C app test` 통과 (`87 files`, `429 tests`)
+- 메모
+- 운영 DB에는 새 신고 사유 enum 반영을 위해 `20260307030000_expand_report_reason_triage` 마이그레이션 적용이 필요하다.
+- guest step-up은 외부 CAPTCHA 서비스 대신 자체 proof-of-work 방식이므로, 실제 운영 트래픽을 보며 난이도/레이트리밋 값은 후속 조정 가능하다.
+- 다음 핸드오프
+1. `pnpm -C app exec prisma migrate deploy`로 운영 DB에 `20260307030000_expand_report_reason_triage` 적용
+2. Vercel 재배포 후 guest 글/댓글/이미지 업로드 smoke 확인
+3. 새 오픈 사이클이 없으므로 이후 백로그는 blocked 상태의 Cycle 188 재개 또는 신규 운영 과제 등록 기준으로 판단

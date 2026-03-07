@@ -32,4 +32,20 @@ describe("report validations", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts emergency and privacy reasons", () => {
+    const emergency = reportCreateSchema.safeParse({
+      targetType: ReportTarget.POST,
+      targetId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      reason: ReportReason.EMERGENCY,
+    });
+    const privacy = reportCreateSchema.safeParse({
+      targetType: ReportTarget.POST,
+      targetId: "ckc7k5qsj0000u0t8qv6d1d7k",
+      reason: ReportReason.PRIVACY,
+    });
+
+    expect(emergency.success).toBe(true);
+    expect(privacy.success).toBe(true);
+  });
 });

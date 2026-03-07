@@ -7,6 +7,8 @@ import { useMemo, useState, useTransition, type KeyboardEvent } from "react";
 
 import { CommentReactionControls } from "@/components/posts/comment-reaction-controls";
 import { LinkifiedContent } from "@/components/content/linkified-content";
+import { getGuestFingerprint } from "@/lib/guest-client";
+import { getGuestWriteHeaders } from "@/lib/guest-step-up.client";
 import {
   createCommentAction,
   deleteCommentAction,
@@ -47,29 +49,12 @@ type CommentFormState = {
 
 const ROOTS_PER_PAGE = 30;
 
-const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
-
 function formatCommentDate(value: Date | string) {
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     return "";
   }
   return parsed.toLocaleDateString("ko-KR");
-}
-
-function getGuestFingerprint() {
-  if (typeof window === "undefined") {
-    return "server";
-  }
-
-  const existing = window.localStorage.getItem(GUEST_FP_STORAGE_KEY);
-  if (existing && existing.trim().length > 0) {
-    return existing;
-  }
-
-  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  window.localStorage.setItem(GUEST_FP_STORAGE_KEY, created);
-  return created;
 }
 
 function buildPaginationItems(currentPage: number, totalPages: number) {
@@ -170,21 +155,23 @@ export function PostCommentThread({
       setMessage(null);
       const result = currentUserId
         ? await createCommentAction(postId, { content }, parentId)
-        : await fetch(`/api/posts/${postId}/comments`, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "x-guest-fingerprint": getGuestFingerprint(),
-              "x-guest-mode": "1",
-            },
-            body: JSON.stringify({
-              content,
-              parentId,
-              guestDisplayName,
-              guestPassword,
-            }),
-          })
-            .then(async (response) => {
+        : await (async () => {
+            try {
+              const guestHeaders = await getGuestWriteHeaders("comment:create");
+              const response = await fetch(`/api/posts/${postId}/comments`, {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  ...guestHeaders,
+                  "x-guest-mode": "1",
+                },
+                body: JSON.stringify({
+                  content,
+                  parentId,
+                  guestDisplayName,
+                  guestPassword,
+                }),
+              });
               const payload = (await response.json()) as {
                 ok: boolean;
                 error?: { message?: string };
@@ -198,8 +185,16 @@ export function PostCommentThread({
                 ok: false,
                 message: payload.error?.message ?? "댓글 등록에 실패했습니다.",
               } as const;
-            })
-            .catch(() => ({ ok: false, message: "네트워크 오류가 발생했습니다." } as const));
+            } catch (guestError) {
+              return {
+                ok: false,
+                message:
+                  guestError instanceof Error && guestError.message.trim().length > 0
+                    ? guestError.message
+                    : "네트워크 오류가 발생했습니다.",
+              } as const;
+            }
+          })();
 
       if (!result.ok) {
         setMessage(result.message);

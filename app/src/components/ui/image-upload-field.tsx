@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { upload } from "@vercel/blob/client";
 
+import {
+  getGuestWriteHeaders,
+  type GuestWriteScope,
+} from "@/lib/guest-step-up.client";
+
 type UploadResponse = {
   ok: boolean;
   data?: {
@@ -22,6 +27,7 @@ type ImageUploadFieldProps = {
   onChange: (next: string[]) => void;
   label?: string;
   maxFiles?: number;
+  guestWriteScope?: GuestWriteScope;
 };
 
 type FailedUploadItem = {
@@ -30,24 +36,8 @@ type FailedUploadItem = {
   message: string;
 };
 
-const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
 const MAX_CLIENT_IMAGE_SIDE = 1920;
 const MAX_PARALLEL_UPLOADS = 3;
-
-function getGuestFingerprint() {
-  if (typeof window === "undefined") {
-    return "server";
-  }
-
-  const existing = window.localStorage.getItem(GUEST_FP_STORAGE_KEY);
-  if (existing && existing.trim().length > 0) {
-    return existing;
-  }
-
-  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  window.localStorage.setItem(GUEST_FP_STORAGE_KEY, created);
-  return created;
-}
 
 function formatUploadError(error: unknown) {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -151,6 +141,7 @@ export function ImageUploadField({
   onChange,
   label = "이미지",
   maxFiles = 10,
+  guestWriteScope,
 }: ImageUploadFieldProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isRetryingAll, setIsRetryingAll] = useState(false);
@@ -177,6 +168,10 @@ export function ImageUploadField({
   };
 
   const uploadSingleFile = async (file: File) => {
+    const guestHeaders = guestWriteScope
+      ? await getGuestWriteHeaders(guestWriteScope)
+      : undefined;
+
     try {
       const preparedFile = await compressImageForUpload(file);
       const safeName = normalizeFileName(preparedFile.name);
@@ -185,9 +180,7 @@ export function ImageUploadField({
       const result = await upload(pathname, preparedFile, {
         access: "public",
         handleUploadUrl: "/api/upload/client",
-        headers: {
-          "x-guest-fingerprint": getGuestFingerprint(),
-        },
+        headers: guestHeaders,
       });
 
       return result.url;
@@ -197,9 +190,7 @@ export function ImageUploadField({
 
       const response = await fetch("/api/upload", {
         method: "POST",
-        headers: {
-          "x-guest-fingerprint": getGuestFingerprint(),
-        },
+        headers: guestHeaders,
         body: formData,
       });
 

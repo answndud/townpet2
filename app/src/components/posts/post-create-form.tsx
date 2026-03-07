@@ -16,6 +16,7 @@ import {
   GUEST_BLOCKED_POST_TYPES,
   GUEST_MAX_IMAGE_COUNT,
 } from "@/lib/guest-post-policy";
+import { getGuestWriteHeaders } from "@/lib/guest-step-up.client";
 import {
   isAnimalTagsRequiredCommonBoardPostType,
   isCommonBoardPostType,
@@ -121,7 +122,6 @@ const reviewCategoryOptions: Array<{ value: ReviewCategory; label: string }> = [
 ];
 
 const DRAFT_STORAGE_KEY = "townpet:post-create-draft:v1";
-const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
 
 type EditorTab = "write" | "preview";
 
@@ -147,21 +147,6 @@ function isDraftFormState(value: unknown): value is PostCreateFormState {
     !!candidate.placeReview &&
     !!candidate.walkRoute
   );
-}
-
-function getGuestFingerprint() {
-  if (typeof window === "undefined") {
-    return "server";
-  }
-
-  const existing = window.localStorage.getItem(GUEST_FP_STORAGE_KEY);
-  if (existing && existing.trim().length > 0) {
-    return existing;
-  }
-
-  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  window.localStorage.setItem(GUEST_FP_STORAGE_KEY, created);
-  return created;
 }
 
 export function PostCreateForm({
@@ -764,31 +749,42 @@ export function PostCreateForm({
 
       const result = isAuthenticated
         ? await createPostAction(payload)
-        : await fetch("/api/posts", {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "x-guest-fingerprint": getGuestFingerprint(),
-              "x-guest-mode": "1",
-            },
-            body: JSON.stringify(payload),
-          })
-            .then(async (response) => {
-              const payload = (await response.json()) as {
+        : await (async () => {
+            try {
+              const guestHeaders = await getGuestWriteHeaders("post:create");
+              const response = await fetch("/api/posts", {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  ...guestHeaders,
+                  "x-guest-mode": "1",
+                },
+                body: JSON.stringify(payload),
+              });
+              const responsePayload = (await response.json()) as {
                 ok: boolean;
                 error?: { message?: string };
               };
 
-              if (response.ok && payload.ok) {
+              if (response.ok && responsePayload.ok) {
                 return { ok: true } as const;
               }
 
               return {
                 ok: false,
-                message: payload.error?.message ?? "비회원 글 등록에 실패했습니다.",
+                message:
+                  responsePayload.error?.message ?? "비회원 글 등록에 실패했습니다.",
               } as const;
-            })
-            .catch(() => ({ ok: false, message: "네트워크 오류가 발생했습니다." } as const));
+            } catch (guestError) {
+              return {
+                ok: false,
+                message:
+                  guestError instanceof Error && guestError.message.trim().length > 0
+                    ? guestError.message
+                    : "네트워크 오류가 발생했습니다.",
+              } as const;
+            }
+          })();
 
       if (!result.ok) {
         setError(result.message ?? "게시글 등록에 실패했습니다.");
@@ -1351,6 +1347,7 @@ export function PostCreateForm({
           }}
           label="이미지 첨부"
           maxFiles={isAuthenticated ? 10 : GUEST_MAX_IMAGE_COUNT}
+          guestWriteScope={!isAuthenticated ? "upload" : undefined}
         />
         {!isAuthenticated ? (
           <p className="mt-2 text-xs text-[#5d789f]">비회원 이미지는 최대 1장, 파일당 2MB까지 업로드할 수 있습니다.</p>
