@@ -78,6 +78,17 @@
 3. 상위 에러 코드 Top N 개선 항목 선정
 4. `PLAN.md`/`PROGRESS.md`에 반영
 
+## 6-1. 알림 보존 기준
+- inbox 기준:
+  - `archivedAt IS NULL`인 알림만 사용자 inbox와 벨 미리보기에 노출
+  - `읽음 처리`는 `isRead/readAt`만 갱신하고 inbox에서는 유지
+- 보관 기준:
+  - 사용자가 `보관`한 알림만 `archivedAt`이 기록되어 inbox에서 숨김
+  - 운영/CS 확인용으로 보관 알림은 기본 90일 유지
+- 정리 기준:
+  - GitHub Actions `notification-cleanup`가 하루 1회 실행
+  - 삭제 대상은 `archivedAt < now() - 90 days`인 알림만 해당
+
 ## 7. 단계적 고도화
 - Stage 1: 로그 기반 수동 집계
 - Stage 2: Sentry + 지표 저장소 + 알람 채널 연동

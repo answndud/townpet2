@@ -17,6 +17,42 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 204 완료 (알림/운영 이력 retention 강화)
+- 완료 내용
+- 읽음/보관 의미 분리:
+  - `app/src/server/queries/notification.queries.ts`
+  - `읽음 처리`와 `모두 읽음 처리`가 더 이상 `archivedAt`을 함께 쓰지 않고 `isRead/readAt`만 갱신
+  - 보관(`archive`)만 inbox에서 숨김을 담당하도록 정리
+- 알림 UI/브라우저 흐름 정합화:
+  - `app/src/components/notifications/notification-center.tsx`
+  - `app/src/components/notifications/notification-bell.tsx`
+  - 읽음 처리 후 알림이 목록에 남고, unread-only 필터에서는 즉시 빠지며, `보관`만 목록 제거를 담당하도록 업데이트
+  - 알림 센터 copy를 `읽음은 유지 / 보관은 숨김` 기준으로 수정
+- retention/cleanup 운영 경로 고도화:
+  - `app/src/server/notification-retention.ts`
+  - `app/scripts/cleanup-notifications.ts`
+  - `.github/workflows/notification-cleanup.yml`
+  - 보관 알림 cleanup을 공용 helper로 분리하고 기본 retention을 `90일`로 상향
+  - cleanup script는 더 이상 missing schema를 조용히 skip하지 않고 실패를 surface
+- 운영 문서/확인 경로 추가:
+  - `docs/개발_운영_가이드.md`
+  - `docs/operations/SLO_알림_기준.md`
+  - support/ops가 `archivedAt IS NOT NULL` 기준으로 특정 사용자 보관 이력을 확인할 SQL 경로를 문서화
+- 회귀 테스트 추가/보강:
+  - `app/src/server/notification-retention.test.ts`
+  - `app/src/server/queries/notification.queries.test.ts`
+  - `app/e2e/notification-comment-flow.spec.ts`
+  - `app/e2e/notification-filter-controls.spec.ts`
+  - 알림 E2E가 credentials 로그인 단계를 자체적으로 수행하도록 보강
+- 검증 결과
+- `pnpm -C app lint src/server/queries/notification.queries.ts src/server/queries/notification.queries.test.ts src/server/notification-retention.ts src/server/notification-retention.test.ts scripts/cleanup-notifications.ts src/components/notifications/notification-center.tsx src/components/notifications/notification-bell.tsx e2e/notification-comment-flow.spec.ts e2e/notification-filter-controls.spec.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/queries/notification.queries.test.ts src/server/actions/notification.test.ts src/app/api/notifications/route.test.ts src/server/notification-retention.test.ts` 실행 시 전체 Vitest 스위트 `85 files / 414 tests` 통과
+- `pnpm -C app exec playwright install chromium` 완료
+- `pnpm -C app test:e2e -- e2e/notification-comment-flow.spec.ts e2e/notification-filter-controls.spec.ts --project=chromium --workers=1` 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 203 완료 (검색 로그 privacy/retention hardening)
 - 완료 내용
 - 검색 로그 저장 보강:

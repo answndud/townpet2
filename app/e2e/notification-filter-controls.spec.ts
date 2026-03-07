@@ -1,17 +1,31 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   NotificationEntityType,
   NotificationType,
 } from "@prisma/client";
 
 import { prisma } from "../src/lib/prisma";
+import { hashPassword } from "../src/server/password";
 
 const recipientEmail = process.env.E2E_RECIPIENT_EMAIL ?? "power.reviewer@townpet.dev";
 const actorEmail = process.env.E2E_ACTOR_EMAIL ?? "mod.trust@townpet.dev";
+const recipientPassword =
+  process.env.E2E_RECIPIENT_PASSWORD ??
+  process.env.E2E_LOGIN_PASSWORD ??
+  process.env.SEED_DEFAULT_PASSWORD ??
+  "dev-password-1234";
 
 let createdNotificationIds: string[] = [];
 let runId = "";
 let unreadSystemId = "";
+
+async function loginAsRecipient(page: Page) {
+  await page.goto("/login?next=%2Fnotifications");
+  await page.getByTestId("login-email").fill(recipientEmail);
+  await page.getByTestId("login-password").fill(recipientPassword);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/notifications/, { timeout: 20_000 });
+}
 
 test.describe("notification filter controls", () => {
   test.beforeEach(async () => {
@@ -32,6 +46,14 @@ test.describe("notification filter controls", () => {
     if (!actor) {
       throw new Error(`Actor user not found: ${actorEmail}`);
     }
+
+    await prisma.user.update({
+      where: { id: recipient.id },
+      data: {
+        emailVerified: new Date(),
+        passwordHash: await hashPassword(recipientPassword),
+      },
+    });
 
     runId = `pw-noti-filter-${Date.now().toString(36)}`;
     createdNotificationIds = [];
@@ -105,8 +127,7 @@ test.describe("notification filter controls", () => {
   });
 
   test("applies kind tabs and unread-only toggle with URL sync", async ({ page }) => {
-    await page.goto("/notifications");
-    await expect(page).toHaveURL(/\/notifications/);
+    await loginAsRecipient(page);
 
     await expect(page.getByText(`[${runId}] 댓글 알림`)).toBeVisible();
     await expect(page.getByText(`[${runId}] 반응 알림(미확인)`)).toBeVisible();
@@ -142,12 +163,13 @@ test.describe("notification filter controls", () => {
   });
 
   test("dismisses notification with X button", async ({ page }) => {
-    await page.goto("/notifications");
-    const targetTitle = page.getByText(`[${runId}] 시스템 알림`);
+    await loginAsRecipient(page);
+    await page.getByRole("button", { name: "시스템", exact: true }).click();
+    await expect(page).toHaveURL(/\/notifications\?kind=SYSTEM/);
 
-    await expect(targetTitle).toBeVisible();
+    const item = page.getByTestId(`notification-item-${unreadSystemId}`);
+    await expect(item).toContainText(`[${runId}] 시스템 알림`);
     await page.getByTestId(`notification-dismiss-${unreadSystemId}`).click();
-    await expect(targetTitle).toHaveCount(0);
     await expect(page.getByTestId(`notification-item-${unreadSystemId}`)).toHaveCount(0);
   });
 });

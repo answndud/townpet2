@@ -53,6 +53,17 @@ type NotificationApiError = {
 
 const PREVIEW_LIMIT = 6;
 
+function markPreviewItemRead(items: NotificationPreviewItem[], id: string) {
+  return items.map((item) =>
+    item.id === id
+      ? {
+          ...item,
+          isRead: true,
+        }
+      : item,
+  );
+}
+
 function buildNotificationHref(notification: {
   postId: string | null;
   commentId: string | null;
@@ -206,7 +217,11 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
         return;
       }
 
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      setItems((prev) =>
+        previewFilter === "UNREAD"
+          ? prev.filter((item) => item.id !== id)
+          : markPreviewItemRead(prev, id),
+      );
       setLocalUnreadCount((prev) => Math.max(0, prev - 1));
       emitNotificationUnreadSync({ delta: -1 });
     });
@@ -249,7 +264,16 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
         return;
       }
 
-      setItems([]);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.isRead
+            ? item
+            : {
+                ...item,
+                isRead: true,
+              },
+        ),
+      );
       setLocalUnreadCount(0);
       emitNotificationUnreadSync({ resetTo: 0 });
     });
@@ -377,7 +401,7 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
                           type="button"
                           onClick={() => archiveOne(item.id)}
                           disabled={isActionPending}
-                          aria-label="알림 닫기"
+                          aria-label="알림 보관"
                           className="tp-btn-soft inline-flex h-6 w-6 shrink-0 items-center justify-center p-0 text-[11px] font-semibold text-[#5f79a0] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           X

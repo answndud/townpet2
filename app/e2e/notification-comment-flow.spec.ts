@@ -1,9 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { PostScope, PostType, NotificationType } from "@prisma/client";
 
 import { prisma } from "../src/lib/prisma";
 import { createComment } from "../src/server/services/comment.service";
 import { listNotificationsByUser } from "../src/server/queries/notification.queries";
+import { hashPassword } from "../src/server/password";
 import { createPost } from "../src/server/services/post.service";
 
 type SeededFlow = {
@@ -17,8 +18,21 @@ type SeededFlow = {
 
 const recipientEmail = process.env.E2E_RECIPIENT_EMAIL ?? "power.reviewer@townpet.dev";
 const actorEmail = process.env.E2E_ACTOR_EMAIL ?? "mod.trust@townpet.dev";
+const recipientPassword =
+  process.env.E2E_RECIPIENT_PASSWORD ??
+  process.env.E2E_LOGIN_PASSWORD ??
+  process.env.SEED_DEFAULT_PASSWORD ??
+  "dev-password-1234";
 
 let seeded: SeededFlow;
+
+async function loginAsRecipient(page: Page) {
+  await page.goto("/login?next=%2Fnotifications");
+  await page.getByTestId("login-email").fill(recipientEmail);
+  await page.getByTestId("login-password").fill(recipientPassword);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/notifications/, { timeout: 20_000 });
+}
 
 test.describe("notification comment flow", () => {
   test.beforeEach(async () => {
@@ -40,6 +54,14 @@ test.describe("notification comment flow", () => {
     if (recipient.id === actor.id) {
       throw new Error("E2E users must be different.");
     }
+
+    await prisma.user.update({
+      where: { id: recipient.id },
+      data: {
+        emailVerified: new Date(),
+        passwordHash: await hashPassword(recipientPassword),
+      },
+    });
 
     const defaultCommunity = await prisma.community.findFirst({
       where: { isActive: true },
@@ -119,9 +141,8 @@ test.describe("notification comment flow", () => {
     });
   });
 
-  test("hides notification after reading and moving to post", async ({ page }) => {
-    await page.goto("/notifications");
-    await expect(page).toHaveURL(/\/notifications/);
+  test("keeps read notification in inbox until it is archived", async ({ page }) => {
+    await loginAsRecipient(page);
 
     const item = page.getByTestId(`notification-item-${seeded.notificationId}`);
     await expect(item).toContainText(seeded.runId);
@@ -129,12 +150,16 @@ test.describe("notification comment flow", () => {
       page.getByTestId(`notification-read-${seeded.notificationId}`),
     ).toBeVisible();
 
-    await page.getByTestId(`notification-move-${seeded.notificationId}`).click();
-    await expect(page).toHaveURL(new RegExp(`/posts/${seeded.postId}`));
+    await page.getByTestId(`notification-read-${seeded.notificationId}`).click();
+    await expect(page.getByTestId(`notification-read-${seeded.notificationId}`)).toHaveCount(0);
+    await expect(item.getByText("읽음", { exact: true })).toBeVisible();
+    await page.reload();
+    const persistedItem = page.getByTestId(`notification-item-${seeded.notificationId}`);
+    await expect(persistedItem).toContainText(seeded.runId);
+    await expect(page.getByTestId(`notification-read-${seeded.notificationId}`)).toHaveCount(0);
+    await expect(persistedItem.getByText("읽음", { exact: true })).toBeVisible();
 
-    await page.goto("/notifications");
-    await expect(
-      page.getByTestId(`notification-item-${seeded.notificationId}`),
-    ).toHaveCount(0);
+    await page.getByTestId(`notification-dismiss-${seeded.notificationId}`).click();
+    await expect(page.getByTestId(`notification-item-${seeded.notificationId}`)).toHaveCount(0);
   });
 });

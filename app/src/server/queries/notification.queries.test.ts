@@ -134,6 +134,18 @@ describe("notification queries invalidation behavior", () => {
     const changed = await markNotificationRead("user-1", "noti-1");
 
     expect(changed).toBe(true);
+    expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "noti-1",
+        userId: "user-1",
+        archivedAt: null,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: expect.any(Date),
+      },
+    });
     expect(mockBumpUnreadVersion).toHaveBeenCalledWith("user-1");
     expect(mockBumpListVersion).toHaveBeenCalledWith("user-1");
   });
@@ -154,6 +166,17 @@ describe("notification queries invalidation behavior", () => {
     const updated = await markAllNotificationsRead("user-2");
 
     expect(updated).toBe(3);
+    expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-2",
+        archivedAt: null,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: expect.any(Date),
+      },
+    });
     expect(mockBumpUnreadVersion).toHaveBeenCalledWith("user-2");
     expect(mockBumpListVersion).toHaveBeenCalledWith("user-2");
   });
@@ -164,6 +187,16 @@ describe("notification queries invalidation behavior", () => {
     const changed = await archiveNotification("user-3", "noti-9");
 
     expect(changed).toBe(true);
+    expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "noti-9",
+        userId: "user-3",
+        archivedAt: null,
+      },
+      data: {
+        archivedAt: expect.any(Date),
+      },
+    });
     expect(mockBumpUnreadVersion).toHaveBeenCalledWith("user-3");
     expect(mockBumpListVersion).toHaveBeenCalledWith("user-3");
   });

@@ -43,11 +43,11 @@
 | guest 쓰기 CAPTCHA/step-up trust 도입 | Codex | P1 | `pending` | 비회원 글/댓글/업로드 경로에 CAPTCHA 또는 동급 step-up 검증과 프록시/평판 기반 추가 방어가 적용되고 운영 정책 문서가 동기화됨 | `app/src/app/api/posts/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/upload/*.ts`, `docs/policies/*` |
 | 긴급/사기/개인정보 우선순위 운영 큐 설계 | Codex | P1 | `pending` | 긴급/사기/개인정보 노출 유형이 신고 사유/우선순위에 반영되고 관리자 큐에서 별도 triage 기준을 제공함 | `app/prisma/schema.prisma`, `app/src/app/admin/reports/page.tsx`, `docs/policies/모더레이션_운영규칙.md` |
 
-### Cycle 204: 알림/운영 이력 retention 강화
+### Cycle 204: 알림/운영 이력 retention 강화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| 읽음 처리와 보관/삭제 의미 분리 | Codex | P1 | `pending` | 읽음은 inbox에서 유지되고 archive/delete가 분리되어 3일 자동 삭제 의존이 제거됨 | `app/src/server/queries/notification.queries.ts`, `app/scripts/cleanup-notifications.ts`, `.github/workflows/notification-cleanup.yml` |
-| 운영/CS용 durable notification history 기준 수립 | Codex | P2 | `pending` | 알림 보존 기간과 지원용 이력 정책이 문서화되고 최소 1개 운영 확인 경로가 제공됨 | `docs/개발_운영_가이드.md`, `docs/operations/*` |
+| 읽음 처리와 보관/삭제 의미 분리 | Codex | P1 | `done` | 읽음은 inbox에서 유지되고 archive/delete가 분리되어 3일 자동 삭제 의존이 제거됨 | `app/src/server/queries/notification.queries.ts`, `app/scripts/cleanup-notifications.ts`, `.github/workflows/notification-cleanup.yml` |
+| 운영/CS용 durable notification history 기준 수립 | Codex | P2 | `done` | 알림 보존 기간과 지원용 이력 정책이 문서화되고 최소 1개 운영 확인 경로가 제공됨 | `docs/개발_운영_가이드.md`, `docs/operations/*` |
 
 ### Cycle 203: 검색 로그 privacy/retention hardening (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

@@ -51,6 +51,17 @@ type NotificationApiError = {
   };
 };
 
+function markItemRead(items: NotificationCenterItem[], id: string) {
+  return items.map((item) =>
+    item.id === id
+      ? {
+          ...item,
+          isRead: true,
+        }
+      : item,
+  );
+}
+
 const filterTabs: Array<{ kind: NotificationFilterKind; label: string }> = [
   { kind: "ALL", label: "전체" },
   { kind: "COMMENT", label: "댓글/답글" },
@@ -241,7 +252,9 @@ export function NotificationCenter({
     if (!result.ok) {
       setMessage(result.message);
     } else {
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      setItems((prev) =>
+        unreadOnly ? prev.filter((item) => item.id !== id) : markItemRead(prev, id),
+      );
       emitNotificationUnreadSync({ delta: -1 });
     }
 
@@ -258,7 +271,11 @@ export function NotificationCenter({
       if (!result.ok) {
         setMessage(result.message);
       } else {
-        setItems((prev) => prev.filter((candidate) => candidate.id !== item.id));
+        setItems((prev) =>
+          unreadOnly
+            ? prev.filter((candidate) => candidate.id !== item.id)
+            : markItemRead(prev, item.id),
+        );
         emitNotificationUnreadSync({ delta: -1 });
       }
       setPending(item.id, false);
@@ -280,7 +297,16 @@ export function NotificationCenter({
       setItems([]);
       setCursor(null);
     } else {
-      setItems((prev) => prev.filter((item) => item.isRead));
+      setItems((prev) =>
+        prev.map((item) =>
+          item.isRead
+            ? item
+            : {
+                ...item,
+                isRead: true,
+              },
+        ),
+      );
     }
 
     startMarkAllTransition(async () => {
@@ -325,6 +351,9 @@ export function NotificationCenter({
           내 알림
         </h1>
         <p className="mt-2 text-sm text-[#4f678d] sm:text-base">미확인 알림 {unreadCount}건</p>
+        <p className="mt-1 text-xs text-[#5f79a0]">
+          읽음 처리 후에도 목록에 남아 있으며, 보관한 알림만 목록에서 숨겨집니다.
+        </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {filterTabs.map((tab) => (
             <button
@@ -368,7 +397,7 @@ export function NotificationCenter({
       <section className="tp-card overflow-hidden">
         {items.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-[#5f79a0]">
-            도착한 알림이 없습니다.
+            {unreadOnly ? "미확인 알림이 없습니다." : "도착한 알림이 없습니다."}
           </div>
         ) : (
           <div className="divide-y divide-[#e1e9f5]">
@@ -408,7 +437,7 @@ export function NotificationCenter({
                       disabled={isPending}
                       className="tp-btn-soft px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      X
+                      보관
                     </button>
                     {!notification.isRead ? (
                       <button

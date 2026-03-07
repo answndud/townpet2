@@ -42,5 +42,5 @@ jobs:
       - name: Cleanup archived notifications
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NOTIFICATION_RETENTION_DAYS: "3"
+          NOTIFICATION_RETENTION_DAYS: "90"
         run: pnpm db:cleanup:notifications

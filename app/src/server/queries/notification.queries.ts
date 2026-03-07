@@ -233,7 +233,6 @@ export async function markNotificationRead(userId: string, notificationId: strin
       data: {
         isRead: true,
         readAt: new Date(),
-        archivedAt: new Date(),
       },
     });
   } catch (error) {
@@ -262,7 +261,6 @@ export async function markAllNotificationsRead(userId: string) {
       data: {
         isRead: true,
         readAt: new Date(),
-        archivedAt: new Date(),
       },
     });
   } catch (error) {
