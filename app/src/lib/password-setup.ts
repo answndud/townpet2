@@ -21,8 +21,7 @@ export function getPasswordSetupCopy(hasPassword: boolean) {
     profileLinkLabel: "비밀번호 설정",
     currentPasswordLabel: "",
     currentPasswordPlaceholder: "",
-    currentPasswordHint:
-      "소셜 로그인 계정이라면 현재 비밀번호 없이 새 비밀번호를 바로 설정할 수 있습니다.",
+    currentPasswordHint: "현재 비밀번호 없이 새 비밀번호를 바로 설정할 수 있습니다.",
     submitLabel: "비밀번호 설정",
     successMessage: "비밀번호가 설정되었습니다.",
   } as const;

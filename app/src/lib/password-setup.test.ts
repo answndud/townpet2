@@ -17,6 +17,7 @@ describe("password setup copy", () => {
       profileLinkLabel: "비밀번호 설정",
       submitLabel: "비밀번호 설정",
     });
+    expect(getPasswordSetupCopy(false).currentPasswordHint).not.toContain("소셜 로그인");
   });
 });
 

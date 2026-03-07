@@ -200,7 +200,11 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
       return true;
     },
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, account, trigger, session }) {
+      if (account?.provider) {
+        token.authProvider = account.provider;
+      }
+
       if (user && typeof user.id === "string" && user.id.length > 0) {
         applyUserSessionStateToToken(token, {
           id: user.id,
@@ -220,6 +224,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           typeof session.user.nickname === "string" && session.user.nickname
             ? String(session.user.nickname)
             : null;
+        if (typeof session.user.authProvider === "string") {
+          token.authProvider = session.user.authProvider;
+        }
       }
 
       if (typeof token.id === "string" && token.id.length > 0) {
@@ -258,6 +265,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       if (session.user) {
         session.user.id = String(token.id ?? "");
         session.user.nickname = token.nickname ? String(token.nickname) : null;
+        session.user.authProvider =
+          typeof token.authProvider === "string" ? String(token.authProvider) : null;
       }
       return session;
     },

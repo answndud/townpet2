@@ -17,6 +17,30 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-08: Cycle 232 완료 (소셜 로그인 프로필 비밀번호 버튼 숨김)
+- 완료 내용
+- 비밀번호 관리 가능 여부 정책/세션 정리:
+  - `app/src/lib/password-management.ts`
+  - `app/src/lib/password-management.test.ts`
+  - `app/src/lib/auth.ts`
+  - `app/src/types/next-auth.d.ts`
+  - 현재 로그인 방식이 `kakao` 또는 `naver`이면 비밀번호 관리 버튼과 `/password/setup` 접근을 모두 막는 공용 정책 helper를 추가
+  - JWT/session에 `authProvider`를 보존해 현재 세션 로그인 방식을 프로필/보안 페이지에서 재사용할 수 있게 정리
+  - 구세션 fallback을 위해 `getUserPasswordStatusById`가 linked account provider 목록도 반환하도록 확장
+- 프로필/보안 페이지 반영:
+  - `app/src/app/profile/page.tsx`
+  - `app/src/app/password/setup/page.tsx`
+  - `app/src/lib/password-setup.ts`
+  - `/profile` 계정 정보 카드에서 소셜 로그인 세션은 비밀번호 변경/설정 버튼 대신 안내 문구만 노출
+  - 카카오/네이버 세션이 `/password/setup`에 직접 접근하면 `/profile?notice=PASSWORD_MANAGEMENT_UNAVAILABLE`로 되돌리고 notice 배너를 표시
+  - 비밀번호 설정 copy에서 더 이상 `소셜 로그인 계정이면 설정 가능` 문구를 노출하지 않도록 정리
+- 검증 결과
+- `pnpm -C app lint src/app/profile/page.tsx src/app/password/setup/page.tsx src/lib/auth.ts src/lib/password-management.ts src/lib/password-management.test.ts src/lib/password-setup.ts src/lib/password-setup.test.ts src/server/queries/user.queries.ts src/types/next-auth.d.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/password-management.test.ts src/lib/password-setup.test.ts` 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 231 완료 (회원가입 name 제거 + User.name 컬럼 삭제)
 - 완료 내용
 - 회원가입/UI/인증 정리:

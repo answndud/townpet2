@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 
 import { SetPasswordForm } from "@/components/auth/set-password-form";
 import { auth } from "@/lib/auth";
+import {
+  buildPasswordManagementUnavailableHref,
+  canManagePassword,
+} from "@/lib/password-management";
 import { getPasswordSetupCopy } from "@/lib/password-setup";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getUserPasswordStatusById } from "@/server/queries/user.queries";
@@ -20,6 +24,15 @@ export default async function PasswordSetupPage() {
   const passwordStatus = await getUserPasswordStatusById(session.user.id);
   if (!passwordStatus) {
     redirect("/login");
+  }
+
+  const passwordManagementAllowed = canManagePassword({
+    authProvider: session.user.authProvider,
+    hasPassword: passwordStatus.hasPassword,
+    linkedAccountProviders: passwordStatus.linkedAccountProviders,
+  });
+  if (!passwordManagementAllowed) {
+    redirect(buildPasswordManagementUnavailableHref());
   }
 
   const copy = getPasswordSetupCopy(passwordStatus.hasPassword);

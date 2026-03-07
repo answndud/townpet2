@@ -141,7 +141,13 @@ export async function getUserById(id: string) {
 export async function getUserPasswordStatusById(id: string) {
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, passwordHash: true },
+    select: {
+      id: true,
+      passwordHash: true,
+      accounts: {
+        select: { provider: true },
+      },
+    },
   });
 
   if (!user) {
@@ -151,6 +157,7 @@ export async function getUserPasswordStatusById(id: string) {
   return {
     id: user.id,
     hasPassword: Boolean(user.passwordHash),
+    linkedAccountProviders: user.accounts.map((account) => account.provider),
   } as const;
 }
 

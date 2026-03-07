@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 
 import { buildDefaultBreedCatalogBySpecies } from "@/lib/breed-catalog";
 import { getPasswordSetupCopy } from "@/lib/password-setup";
+import {
+  canManagePassword,
+  getPasswordManagementNoticeMessage,
+  getPasswordManagementUnavailableMessage,
+} from "@/lib/password-management";
 import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-preference-form";
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
 import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
@@ -26,7 +31,14 @@ import {
 import { countUserBookmarkedPosts, countUserPosts } from "@/server/queries/post.queries";
 import { listMyBlockedUsers, listMyMutedUsers } from "@/server/queries/user-relation.queries";
 
-export default async function ProfilePage() {
+type ProfilePageProps = {
+  searchParams?: Promise<{
+    notice?: string;
+  }>;
+};
+
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
@@ -39,7 +51,17 @@ export default async function ProfilePage() {
   }
 
   const passwordStatus = await getUserPasswordStatusById(userId);
-  const passwordSetupCopy = getPasswordSetupCopy(passwordStatus?.hasPassword ?? true);
+  const canShowPasswordSetupLink = canManagePassword({
+    authProvider: session.user?.authProvider,
+    hasPassword: passwordStatus?.hasPassword ?? true,
+    linkedAccountProviders: passwordStatus?.linkedAccountProviders ?? [],
+  });
+  const passwordSetupCopy = canShowPasswordSetupLink
+    ? getPasswordSetupCopy(passwordStatus?.hasPassword ?? true)
+    : null;
+  const passwordManagementNotice = getPasswordManagementNoticeMessage(
+    resolvedSearchParams.notice ?? null,
+  );
 
   const isNicknameMissing = !user.nickname?.trim();
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
@@ -108,6 +130,12 @@ export default async function ProfilePage() {
           </section>
         ) : null}
 
+        {passwordManagementNotice ? (
+          <section className="rounded-xl border border-[#dbe6f6] bg-[#f8fbff] px-4 py-4 text-sm text-[#315b9a]">
+            {passwordManagementNotice}
+          </section>
+        ) : null}
+
         <section className="grid gap-3 md:grid-cols-2">
           <ProfileSummaryLinkCard
             href="/my-posts"
@@ -138,12 +166,18 @@ export default async function ProfilePage() {
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <Link
-              href="/password/setup"
-              className="tp-btn-soft px-3 py-1.5 text-[#315484]"
-            >
-              {passwordSetupCopy.profileLinkLabel}
-            </Link>
+            {passwordSetupCopy ? (
+              <Link
+                href="/password/setup"
+                className="tp-btn-soft px-3 py-1.5 text-[#315484]"
+              >
+                {passwordSetupCopy.profileLinkLabel}
+              </Link>
+            ) : (
+              <p className="text-[11px] text-[#5a7398]">
+                {getPasswordManagementUnavailableMessage()}
+              </p>
+            )}
           </div>
         </section>
 

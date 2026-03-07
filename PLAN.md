@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 232: 소셜 로그인 프로필 비밀번호 버튼 숨김 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 카카오/네이버 로그인 세션의 비밀번호 관리 비노출 정책 추가 | Codex | P1 | `done` | `/profile`에서 현재 로그인 방식이 카카오/네이버인 경우 비밀번호 변경/설정 버튼이 숨겨지고 안내 문구가 노출됨 | `app/src/app/profile/page.tsx`, `app/src/lib/password-management.ts`, `app/src/server/queries/user.queries.ts` |
+| `/password/setup` 직접 접근 가드 및 세션 provider 전달 정리 | Codex | P1 | `done` | JWT/session에 현재 auth provider가 유지되고, 카카오/네이버 세션이 `/password/setup`에 직접 접근하면 `/profile`로 되돌아가며 notice가 표시됨 | `app/src/lib/auth.ts`, `app/src/types/next-auth.d.ts`, `app/src/app/password/setup/page.tsx` |
+
 ### Cycle 231: 회원가입 name 제거 + User.name 컬럼 삭제 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
