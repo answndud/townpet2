@@ -17,6 +17,44 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 214 완료 (품종 사전 기반 프로필 입력 정규화)
+- 완료 내용
+- 품종 사전 fallback/query와 seed 정리:
+  - `app/src/lib/breed-catalog.ts`
+  - `app/src/server/queries/breed-catalog.queries.ts`
+  - `app/src/server/queries/breed-catalog.queries.test.ts`
+  - `app/prisma/seed.ts`
+  - species별 기본 품종 사전을 코드에 내장하고, DB `BreedCatalog`가 비어 있거나 일부 species만 채워져 있어도 query가 fallback으로 응답하도록 정리
+  - seed에서 기본 품종 사전을 `BreedCatalog`로 upsert해 로컬/운영 초기 데이터 품질을 맞춤
+- pet service 품종 정규화 강화:
+  - `app/src/server/services/pet.service.ts`
+  - `app/src/server/services/pet.service.test.ts`
+  - pet create/update가 `breedCode`를 품종 사전으로 검증하고, catalog label을 canonical `labelKo`로 자동 보정하도록 변경
+  - 사전에 없는 `breedCode`는 `breedLabel`도 없는 경우 `INVALID_BREED_CODE` 400으로 fail-fast 처리
+- 프로필 폼 선택형 UX 전환:
+  - `app/src/app/profile/page.tsx`
+  - `app/src/components/profile/pet-profile-manager.tsx`
+  - `/profile` 반려동물 폼이 species별 품종 select를 표시하고 `품종 미상`, `혼종/믹스`, `사전에 없어서 직접 입력` fallback을 제공
+  - raw `breedCode` 직접 타이핑 입력을 제거하고, catalog 품종 선택 시 canonical label과 기본 체급 힌트를 노출
+  - 서버 페이지에서 `BreedCatalog`를 함께 조회해 create/edit 폼 모두 같은 품종 선택 기준을 사용하게 연결
+- 제품 문서 동기화:
+  - `docs/product/품종_개인화_기획서.md`
+  - 품종 입력 기본값을 사전 기반 선택 UI + 직접 입력 fallback으로 갱신
+- 검증 결과
+- `pnpm -C app lint src/lib/breed-catalog.ts src/server/queries/breed-catalog.queries.ts src/server/queries/breed-catalog.queries.test.ts src/server/services/pet.service.ts src/server/services/pet.service.test.ts src/components/profile/pet-profile-manager.tsx src/app/profile/page.tsx prisma/seed.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/queries/breed-catalog.queries.test.ts src/server/services/pet.service.test.ts` 실행 시 전체 Vitest 스위트 `96 files / 460 tests` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 214 착수 (품종 사전 기반 프로필 입력 정규화)
+- 진행 내용
+- 현재 반려동물 프로필은 `breedCode`를 사용자가 직접 타이핑해야 하고, 서버도 사전 검증 없이 그대로 저장해 실제 운영 입력 UX와 데이터 품질이 모두 거침을 확인
+- `BreedCatalog` 모델은 존재하지만 조회/seed/UI 소비가 거의 없어 개인화 신호 정규화에 충분히 활용되지 못하고 있음을 확인
+- 이번 사이클 범위를 `BreedCatalog fallback/query + pet service 품종 검증/자동 라벨 보정 + 프로필 폼 선택형 UX`로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 213 완료 (개인화/광고 반응 지표 계측 정착)
 - 완료 내용
 - 개인화 지표 집계 저장소 추가:

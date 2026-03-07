@@ -6,6 +6,7 @@ import {
   PrismaClient,
   PostReactionType,
 } from "@prisma/client";
+import { DEFAULT_BREED_CATALOG } from "../src/lib/breed-catalog";
 import { hashPassword } from "../src/server/password";
 
 const prisma = new PrismaClient();
@@ -217,6 +218,31 @@ async function main() {
       select: { id: true, slug: true },
     });
     communityIdBySlug.set(seeded.slug, seeded.id);
+  }
+
+  for (const breed of DEFAULT_BREED_CATALOG) {
+    await prisma.breedCatalog.upsert({
+      where: {
+        species_code: {
+          species: breed.species,
+          code: breed.code,
+        },
+      },
+      update: {
+        labelKo: breed.labelKo,
+        aliases: breed.aliases,
+        defaultSize: breed.defaultSize,
+        isActive: true,
+      },
+      create: {
+        species: breed.species,
+        code: breed.code,
+        labelKo: breed.labelKo,
+        aliases: breed.aliases,
+        defaultSize: breed.defaultSize,
+        isActive: true,
+      },
+    });
   }
 
   const defaultCommunityId = communityIdBySlug.get("dogs");

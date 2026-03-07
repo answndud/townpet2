@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
+import { buildDefaultBreedCatalogBySpecies } from "@/lib/breed-catalog";
 import { getPasswordSetupCopy } from "@/lib/password-setup";
 import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-preference-form";
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
@@ -15,6 +16,7 @@ import {
   hasBreedLoungeRoute,
 } from "@/lib/pet-profile";
 import { listAudienceSegmentsByUserId } from "@/server/queries/audience-segment.queries";
+import { listBreedCatalogGroupedBySpecies } from "@/server/queries/breed-catalog.queries";
 import {
   getUserPasswordStatusById,
   getUserWithNeighborhoods,
@@ -46,13 +48,15 @@ export default async function ProfilePage() {
   let mutedUsers = [] as Awaited<ReturnType<typeof listMyMutedUsers>>;
   let pets = [] as Awaited<ReturnType<typeof listPetsByUserId>>;
   let audienceSegments = [] as Awaited<ReturnType<typeof listAudienceSegmentsByUserId>>;
+  let breedCatalogBySpecies = buildDefaultBreedCatalogBySpecies();
 
   if (!isNicknameMissing) {
-    [blockedUsers, mutedUsers, pets, audienceSegments] = await Promise.all([
+    [blockedUsers, mutedUsers, pets, audienceSegments, breedCatalogBySpecies] = await Promise.all([
       listMyBlockedUsers(user.id),
       listMyMutedUsers(user.id),
       listPetsByUserId(user.id),
       listAudienceSegmentsByUserId(user.id),
+      listBreedCatalogGroupedBySpecies(),
     ]);
   }
 
@@ -147,7 +151,10 @@ export default async function ProfilePage() {
               primaryNeighborhoodId={primaryNeighborhood?.neighborhood.id ?? null}
             />
             <ProfileImageUploader initialImageUrl={user.image} />
-            <PetProfileManager pets={pets} />
+            <PetProfileManager
+              pets={pets}
+              breedCatalogBySpecies={breedCatalogBySpecies}
+            />
             <section className="tp-card p-5 sm:p-6">
               <h2 className="text-lg font-semibold text-[#153a6a]">개인화 세그먼트</h2>
               <p className="mt-2 text-xs text-[#5a7398]">
@@ -155,7 +162,7 @@ export default async function ProfilePage() {
               </p>
               {audienceSegments.length === 0 ? (
                 <p className="mt-4 text-sm text-[#5a7398]">
-                  반려동물 프로필에 품종 코드, 체급, 생애단계를 입력하면 맞춤 세그먼트가 생성됩니다.
+                  반려동물 프로필에 품종, 체급, 생애단계를 입력하면 맞춤 세그먼트가 생성됩니다.
                 </p>
               ) : (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -172,7 +179,7 @@ export default async function ProfilePage() {
                       </div>
                       <p className="mt-1 text-xs text-[#5a7398]">
                         {[
-                          segment.breedCode ? `품종 코드 ${segment.breedCode}` : null,
+                          segment.breedCode ? `품종 ${segment.breedCode}` : null,
                           getPetSizeClassLabel(segment.sizeClass),
                           getPetLifeStageLabel(segment.lifeStage),
                         ]

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
+import { findBreedCatalogEntryBySpeciesAndCode } from "@/server/queries/breed-catalog.queries";
 import { createPet, deletePet, updatePet } from "@/server/services/pet.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -22,6 +23,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/server/queries/breed-catalog.queries", () => ({
+  findBreedCatalogEntryBySpeciesAndCode: vi.fn(),
+}));
+
 const mockPrisma = vi.mocked(prisma) as unknown as {
   $transaction: ReturnType<typeof vi.fn>;
   pet: {
@@ -37,6 +42,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
     createMany: ReturnType<typeof vi.fn>;
   };
 };
+const mockFindBreedCatalogEntryBySpeciesAndCode = vi.mocked(
+  findBreedCatalogEntryBySpeciesAndCode,
+);
 
 describe("pet service", () => {
   beforeEach(() => {
@@ -57,6 +65,8 @@ describe("pet service", () => {
     mockPrisma.pet.findMany.mockResolvedValue([]);
     mockPrisma.userAudienceSegment.deleteMany.mockResolvedValue({ count: 0 });
     mockPrisma.userAudienceSegment.createMany.mockResolvedValue({ count: 0 });
+    mockFindBreedCatalogEntryBySpeciesAndCode.mockReset();
+    mockFindBreedCatalogEntryBySpeciesAndCode.mockResolvedValue(null);
   });
 
   it("creates pet with normalized values", async () => {
@@ -70,6 +80,13 @@ describe("pet service", () => {
         lifeStage: "ADULT",
       },
     ]);
+    mockFindBreedCatalogEntryBySpeciesAndCode.mockResolvedValue({
+      species: "DOG",
+      code: "MALTESE",
+      labelKo: "말티즈",
+      aliases: [],
+      defaultSize: "SMALL",
+    });
 
     await createPet({
       userId: "user-1",
@@ -195,6 +212,13 @@ describe("pet service", () => {
         lifeStage: "ADULT",
       },
     ]);
+    mockFindBreedCatalogEntryBySpeciesAndCode.mockResolvedValue({
+      species: "DOG",
+      code: "MALTESE",
+      labelKo: "말티즈",
+      aliases: [],
+      defaultSize: "SMALL",
+    });
     mockPrisma.pet.update.mockResolvedValue({
       id: "clwpet000000000000000001",
     });
@@ -231,6 +255,53 @@ describe("pet service", () => {
         imageUrl: null,
         bio: null,
       },
+    });
+  });
+
+  it("rejects unknown breed code when no manual label is provided", async () => {
+    await expect(
+      createPet({
+        userId: "user-1",
+        input: {
+          name: "콩이",
+          species: "DOG",
+          breedCode: "NOT_REAL_BREED",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_BREED_CODE",
+      status: 400,
+    } satisfies Partial<ServiceError>);
+  });
+
+  it("allows manual breed label when breed code is omitted", async () => {
+    mockPrisma.pet.create.mockResolvedValue({ id: "pet-2" });
+    mockPrisma.pet.findMany.mockResolvedValue([
+      {
+        species: "BIRD",
+        breedCode: null,
+        breedLabel: "희귀 앵무 계열",
+        sizeClass: "UNKNOWN",
+        lifeStage: "UNKNOWN",
+      },
+    ]);
+
+    await createPet({
+      userId: "user-1",
+      input: {
+        name: "루미",
+        species: "BIRD",
+        breedLabel: " 희귀 앵무 계열 ",
+      },
+    });
+
+    expect(mockPrisma.pet.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "user-1",
+        species: "BIRD",
+        breedCode: null,
+        breedLabel: "희귀 앵무 계열",
+      }),
     });
   });
 

@@ -5,6 +5,7 @@ import {
   petDeleteSchema,
   petUpdateSchema,
 } from "@/lib/validations/pet";
+import { findBreedCatalogEntryBySpeciesAndCode } from "@/server/queries/breed-catalog.queries";
 import { syncAudienceSegmentsForUserTx } from "@/server/services/audience-segment.service";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -13,7 +14,7 @@ type PetMutationParams = {
   input: unknown;
 };
 
-function normalizePetData(data: {
+async function normalizePetData(data: {
   name: string;
   species:
     | "DOG"
@@ -34,11 +35,32 @@ function normalizePetData(data: {
   imageUrl?: string;
   bio?: string;
 }) {
+  const breedCode = normalizePetBreedCode(data.breedCode);
+  const manualBreedLabel = data.breedLabel?.trim() ? data.breedLabel.trim() : null;
+
+  let breedLabel = manualBreedLabel;
+  if (breedCode && breedCode !== "UNKNOWN" && breedCode !== "MIXED") {
+    const matchedBreed = await findBreedCatalogEntryBySpeciesAndCode(
+      data.species,
+      breedCode,
+    );
+
+    if (matchedBreed) {
+      breedLabel = matchedBreed.labelKo;
+    } else if (!manualBreedLabel) {
+      throw new ServiceError(
+        "품종 코드가 품종 사전에 없습니다. 목록에서 다시 선택해 주세요.",
+        "INVALID_BREED_CODE",
+        400,
+      );
+    }
+  }
+
   return {
     name: data.name.trim(),
     species: data.species,
-    breedCode: normalizePetBreedCode(data.breedCode),
-    breedLabel: data.breedLabel?.trim() ? data.breedLabel.trim() : null,
+    breedCode,
+    breedLabel,
     sizeClass: data.sizeClass ?? ("UNKNOWN" as const),
     lifeStage: data.lifeStage ?? ("UNKNOWN" as const),
     age: null,
@@ -70,7 +92,7 @@ export async function createPet({ userId, input }: PetMutationParams) {
     const created = await tx.pet.create({
       data: {
         userId,
-        ...normalizePetData(parsed.data),
+        ...(await normalizePetData(parsed.data)),
       },
     });
 
@@ -99,7 +121,7 @@ export async function updatePet({ userId, input }: PetMutationParams) {
 
     const updated = await tx.pet.update({
       where: { id: parsed.data.petId },
-      data: normalizePetData(parsed.data),
+      data: await normalizePetData(parsed.data),
     });
 
     await syncAudienceSegmentsForUserTx(tx, userId);

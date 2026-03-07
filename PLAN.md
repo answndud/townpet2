@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 214: 품종 사전 기반 프로필 입력 정규화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| BreedCatalog fallback/query와 pet service 품종 정규화 연결 | Codex | P1 | `done` | pet create/update가 품종 사전으로 `breedCode`를 검증하고 catalog label을 자동 보정하며 invalid code 실패 테스트가 존재함 | `app/src/lib/breed-catalog.ts`, `app/src/server/queries/breed-catalog.queries.ts`, `app/src/server/services/pet.service.ts`, `app/prisma/seed.ts` |
+| 프로필 폼을 품종 선택형 UX로 전환 | Codex | P1 | `done` | `/profile` 반려동물 폼이 species별 품종 옵션을 표시하고 manual breed code 타이핑 없이 선택/직접입력 흐름을 제공함 | `app/src/app/profile/page.tsx`, `app/src/components/profile/pet-profile-manager.tsx`, `docs/product/품종_개인화_기획서.md` |
+
 ### Cycle 213: 개인화/광고 반응 지표 계측 정착 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
