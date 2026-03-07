@@ -858,10 +858,19 @@ type FeedLikePost = {
   };
 };
 
+type PostInterestLike = Pick<
+  FeedLikePost,
+  "petTypeId" | "type" | "reviewCategory" | "animalTags" | "petType"
+>;
+
 type ViewerPersonalizationContext = {
   petSignals: PetSignal[];
   preferredPetTypeIds: string[];
   preferredInterestLabels: string[];
+  recentEngagementPetTypeIds: string[];
+  recentNegativePetTypeIds: string[];
+  recentEngagementInterestLabels: string[];
+  recentNegativeInterestLabels: string[];
 };
 
 const REVIEW_CATEGORY_INTEREST_LABELS: Partial<Record<ReviewCategory, string[]>> = {
@@ -971,7 +980,7 @@ function calculatePreferredPetTypeBoost(
   return preferredPetTypeIds.includes(postPetTypeId) ? 0.12 : 0;
 }
 
-function collectPostInterestLabels(post: FeedLikePost) {
+function collectPostInterestLabels(post: PostInterestLike) {
   return dedupeInterestLabels([
     ...(post.animalTags ?? []).map((tag) => normalizeInterestLabel(tag)),
     ...((post.petType?.tags ?? []) as string[]).map((tag) => normalizeInterestLabel(tag)),
@@ -1008,6 +1017,42 @@ function calculatePreferredInterestBoost(
   return Math.min(0.09, sharedCount * 0.03);
 }
 
+function calculateRecentEngagementBoost(
+  post: FeedLikePost,
+  viewerContext: ViewerPersonalizationContext,
+) {
+  let boost = 0;
+
+  if (post.petTypeId && viewerContext.recentEngagementPetTypeIds.includes(post.petTypeId)) {
+    boost += 0.05;
+  }
+  if (post.petTypeId && viewerContext.recentNegativePetTypeIds.includes(post.petTypeId)) {
+    boost -= 0.04;
+  }
+
+  const postInterestLabels = collectPostInterestLabels(post);
+  if (postInterestLabels.length === 0) {
+    return boost;
+  }
+
+  const positiveInterests = new Set(viewerContext.recentEngagementInterestLabels);
+  const negativeInterests = new Set(viewerContext.recentNegativeInterestLabels);
+  let likedCount = 0;
+  let dislikedCount = 0;
+  for (const label of postInterestLabels) {
+    if (positiveInterests.has(label)) {
+      likedCount += 1;
+    }
+    if (negativeInterests.has(label)) {
+      dislikedCount += 1;
+    }
+  }
+
+  boost += Math.min(0.06, likedCount * 0.02);
+  boost -= Math.min(0.04, dislikedCount * 0.02);
+  return boost;
+}
+
 function calculateViewerPersonalizationBoost(
   post: FeedLikePost,
   viewerContext: ViewerPersonalizationContext,
@@ -1025,8 +1070,9 @@ function calculateViewerPersonalizationBoost(
     post,
     viewerContext.preferredInterestLabels,
   );
+  const recentEngagementBoost = calculateRecentEngagementBoost(post, viewerContext);
 
-  return petBoost + preferredPetTypeBoost + preferredInterestBoost;
+  return petBoost + preferredPetTypeBoost + preferredInterestBoost + recentEngagementBoost;
 }
 
 function calculateFeedScore(
@@ -1200,6 +1246,52 @@ async function listViewerPetSignals(viewerId: string) {
   );
 }
 
+export async function listViewerRecentEngagementSummaryLabels(viewerId: string) {
+  if (!supportsPostReactionsField()) {
+    return [];
+  }
+
+  const recentReactions = await prisma.postReaction
+    .findMany({
+      where: {
+        userId: viewerId,
+        type: "LIKE",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: {
+        post: {
+          select: {
+            petTypeId: true,
+            type: true,
+            reviewCategory: true,
+            animalTags: true,
+            petType: {
+              select: {
+                tags: true,
+              },
+            },
+          },
+        },
+      },
+    })
+    .catch((error) => {
+      if (
+        isMissingPostReactionTableError(error) ||
+        isUnavailableReactionsIncludeError(error) ||
+        isMissingCommunityBoardSchemaError(error) ||
+        isMissingReviewCategoryColumnError(error)
+      ) {
+        return [];
+      }
+      throw error;
+    });
+
+  return dedupeInterestLabels(
+    recentReactions.flatMap((reaction) => collectPostInterestLabels(reaction.post)),
+  ).slice(0, 3);
+}
+
 async function listViewerPersonalizationContext(
   viewerId: string,
 ): Promise<ViewerPersonalizationContext> {
@@ -1234,6 +1326,43 @@ async function listViewerPersonalizationContext(
             throw error;
           })
       : [];
+  const recentReactions = supportsPostReactionsField()
+    ? await prisma.postReaction
+        .findMany({
+          where: { userId: viewerId },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            type: true,
+            post: {
+              select: {
+                petTypeId: true,
+                type: true,
+                reviewCategory: true,
+                animalTags: true,
+                petType: {
+                  select: {
+                    tags: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+        .catch((error) => {
+          if (
+            isMissingPostReactionTableError(error) ||
+            isUnavailableReactionsIncludeError(error) ||
+            isMissingCommunityBoardSchemaError(error) ||
+            isMissingReviewCategoryColumnError(error)
+          ) {
+            return [];
+          }
+          throw error;
+        })
+    : [];
+  const positiveReactions = recentReactions.filter((reaction) => reaction.type === "LIKE");
+  const negativeReactions = recentReactions.filter((reaction) => reaction.type === "DISLIKE");
 
   return {
     petSignals,
@@ -1242,6 +1371,18 @@ async function listViewerPersonalizationContext(
       preferredCommunities.flatMap((community) =>
         community.tags.map((tag) => normalizeInterestLabel(tag)),
       ),
+    ),
+    recentEngagementPetTypeIds: dedupeInterestLabels(
+      positiveReactions.map((reaction) => reaction.post.petTypeId),
+    ),
+    recentNegativePetTypeIds: dedupeInterestLabels(
+      negativeReactions.map((reaction) => reaction.post.petTypeId),
+    ),
+    recentEngagementInterestLabels: dedupeInterestLabels(
+      positiveReactions.flatMap((reaction) => collectPostInterestLabels(reaction.post)),
+    ),
+    recentNegativeInterestLabels: dedupeInterestLabels(
+      negativeReactions.flatMap((reaction) => collectPostInterestLabels(reaction.post)),
     ),
   };
 }
@@ -1258,7 +1399,11 @@ async function applyPetPersonalization<T extends FeedLikePost>(
   if (
     viewerContext.petSignals.length === 0 &&
     viewerContext.preferredPetTypeIds.length === 0 &&
-    viewerContext.preferredInterestLabels.length === 0
+    viewerContext.preferredInterestLabels.length === 0 &&
+    viewerContext.recentEngagementPetTypeIds.length === 0 &&
+    viewerContext.recentNegativePetTypeIds.length === 0 &&
+    viewerContext.recentEngagementInterestLabels.length === 0 &&
+    viewerContext.recentNegativeInterestLabels.length === 0
   ) {
     return items;
   }

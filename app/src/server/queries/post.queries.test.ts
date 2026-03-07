@@ -34,6 +34,9 @@ vi.mock("@/lib/prisma", () => ({
     community: {
       findMany: vi.fn(),
     },
+    postReaction: {
+      findMany: vi.fn(),
+    },
     pet: {
       findMany: vi.fn(),
     },
@@ -59,6 +62,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   community: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  postReaction: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
   pet: {
     findMany: ReturnType<typeof vi.fn>;
   };
@@ -79,6 +85,8 @@ describe("post queries", () => {
     mockPrisma.userPetTypePreference.findMany.mockResolvedValue([]);
     mockPrisma.community.findMany.mockReset();
     mockPrisma.community.findMany.mockResolvedValue([]);
+    mockPrisma.postReaction.findMany.mockReset();
+    mockPrisma.postReaction.findMany.mockResolvedValue([]);
     mockPrisma.pet.findMany.mockReset();
     mockPrisma.userBlock.findMany.mockReset();
     mockPrisma.userBlock.findMany.mockResolvedValue([]);
@@ -625,6 +633,123 @@ describe("post queries", () => {
     });
 
     expect(mockPrisma.community.findMany).toHaveBeenCalledTimes(1);
+    expect(result.items[0]?.id).toBe("p2");
+    expect(result.nextCursor).toBe("p3");
+  });
+
+  it("applies recent positive reactions as fourth-order personalized feed signal", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        id: "p1",
+        type: PostType.FREE_BOARD,
+        petTypeId: "cat-community",
+        author: { id: "a1" },
+        createdAt: new Date("2026-02-02T00:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+      {
+        id: "p2",
+        type: PostType.WALK_ROUTE,
+        petTypeId: "bird-community",
+        author: { id: "a2" },
+        createdAt: new Date("2026-02-01T23:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+      {
+        id: "p3",
+        type: PostType.FREE_BOARD,
+        petTypeId: "bird-community",
+        author: { id: "a3" },
+        createdAt: new Date("2026-02-01T22:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+    ]);
+    mockPrisma.postReaction.findMany.mockResolvedValue([
+      {
+        type: "LIKE",
+        post: {
+          petTypeId: "bird-community",
+          type: PostType.WALK_ROUTE,
+          reviewCategory: null,
+          animalTags: [],
+          petType: { tags: ["산책"] },
+        },
+      },
+    ]);
+    mockPrisma.pet.findMany.mockResolvedValueOnce([]);
+
+    const result = await listPosts({
+      limit: 2,
+      scope: PostScope.GLOBAL,
+      personalized: true,
+      viewerId: "viewer-1",
+    });
+
+    expect(mockPrisma.postReaction.findMany).toHaveBeenCalledTimes(1);
+    expect(result.items[0]?.id).toBe("p2");
+    expect(result.nextCursor).toBe("p3");
+  });
+
+  it("suppresses posts that match recent negative reactions", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        id: "p1",
+        type: PostType.WALK_ROUTE,
+        petTypeId: "dog-community",
+        author: { id: "a1" },
+        createdAt: new Date("2026-02-02T00:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+      {
+        id: "p2",
+        type: PostType.FREE_BOARD,
+        petTypeId: "cat-community",
+        author: { id: "a2" },
+        createdAt: new Date("2026-02-01T23:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+      {
+        id: "p3",
+        type: PostType.FREE_BOARD,
+        petTypeId: "bird-community",
+        author: { id: "a3" },
+        createdAt: new Date("2026-02-01T22:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+    ]);
+    mockPrisma.postReaction.findMany.mockResolvedValue([
+      {
+        type: "DISLIKE",
+        post: {
+          petTypeId: "dog-community",
+          type: PostType.WALK_ROUTE,
+          reviewCategory: null,
+          animalTags: [],
+          petType: { tags: ["산책"] },
+        },
+      },
+    ]);
+    mockPrisma.pet.findMany.mockResolvedValueOnce([]);
+
+    const result = await listPosts({
+      limit: 2,
+      scope: PostScope.GLOBAL,
+      personalized: true,
+      viewerId: "viewer-1",
+    });
+
     expect(result.items[0]?.id).toBe("p2");
     expect(result.nextCursor).toBe("p3");
   });

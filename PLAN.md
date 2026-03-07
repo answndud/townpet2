@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 219: 최근 반응 기반 4차 개인화 신호 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 최근 좋아요/싫어요 반응을 personalized ranking 4차 가중치로 연결 | Codex | P1 | `done` | 최근 post reaction에서 추출한 커뮤니티/관심 태그 신호가 personalized feed에 약한 4차 boost 또는 suppress로 반영되고 회귀 테스트가 존재함 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/post.queries.test.ts`, `app/prisma/schema.prisma` |
+| 피드 개인화 설명에 최근 반응 신호 노출 | Codex | P2 | `done` | `/feed` 맞춤 추천 설명이 최근 반응 기반 4차 신호를 함께 안내하고 문서가 동기화됨 | `app/src/lib/feed-personalization.ts`, `app/src/lib/feed-personalization.test.ts`, `app/src/app/feed/page.tsx`, `docs/product/품종_개인화_기획서.md` |
+
 ### Cycle 218: 활동 태그/콘텐츠 카테고리 3차 개인화 신호 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

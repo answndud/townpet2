@@ -38,6 +38,7 @@ import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.quer
 import { listCommunityNavItems } from "@/server/queries/community.queries";
 import {
   countBestPosts,
+  listViewerRecentEngagementSummaryLabels,
   listBestPosts,
   listPosts,
 } from "@/server/queries/post.queries";
@@ -484,7 +485,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const viewerUserId = user?.id ?? null;
   const shouldLoadViewerPersonalizationContext =
     Boolean(viewerUserId) && mode === "ALL" && effectiveScope === PostScope.GLOBAL;
-  const [viewerAudienceSegments, viewerPets] =
+  const [viewerAudienceSegments, viewerPets, recentEngagementLabels] =
     shouldLoadViewerPersonalizationContext && viewerUserId
       ? await Promise.all([
           listAudienceSegmentsByUserId(viewerUserId).catch((error) => {
@@ -502,8 +503,17 @@ export default async function Home({ searchParams }: HomePageProps) {
             }
             throw error;
           }),
+          listViewerRecentEngagementSummaryLabels(viewerUserId).catch((error) => {
+            if (
+              isDatabaseUnavailableError(error) ||
+              error instanceof Prisma.PrismaClientKnownRequestError
+            ) {
+              return [];
+            }
+            throw error;
+          }),
         ])
-      : [[], []];
+      : [[], [], []];
   const primaryAudienceSegment = viewerAudienceSegments[0] ?? null;
   const primaryPet = viewerPets[0] ?? null;
   const feedAudienceContext = resolveFeedAudienceContext({
@@ -511,6 +521,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     fallbackPet: primaryPet,
     preferredPetTypeLabels,
     preferredInterestLabels,
+    recentEngagementLabels,
   });
   const personalizedSummary = usePersonalizedFeed
     ? buildFeedPersonalizationSummary(feedAudienceContext)

@@ -36,6 +36,7 @@ export type FeedAudienceContext = {
   confidenceScore: number | null;
   preferredPetTypeLabels: string[];
   preferredInterestLabels: string[];
+  recentEngagementLabels: string[];
 };
 
 function buildFallbackAudienceKey(input: {
@@ -85,6 +86,20 @@ function normalizePreferredInterestLabels(labels?: string[]) {
   ).slice(0, 3);
 }
 
+function normalizeRecentEngagementLabels(labels?: string[]) {
+  if (!Array.isArray(labels)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      labels
+        .map((label) => label.trim())
+        .filter((label) => label.length > 0),
+    ),
+  ).slice(0, 3);
+}
+
 function appendPreferredPetTypeHint(description: string, preferredPetTypeLabels: string[]) {
   if (preferredPetTypeLabels.length === 0) {
     return description;
@@ -117,22 +132,43 @@ function appendPreferredInterestHint(description: string, preferredInterestLabel
   return `${description} 관심 태그와 콘텐츠 카테고리 3차 신호도 함께 반영합니다.`;
 }
 
+function buildRecentEngagementEmphasis(recentEngagementLabels: string[]) {
+  if (recentEngagementLabels.length === 0) {
+    return null;
+  }
+
+  return `최근 반응 ${recentEngagementLabels.join(", ")}`;
+}
+
+function appendRecentEngagementHint(description: string, recentEngagementLabels: string[]) {
+  if (recentEngagementLabels.length === 0) {
+    return description;
+  }
+
+  return `${description} 최근 좋아요/싫어요 반응 4차 신호도 약하게 반영합니다.`;
+}
+
 export function resolveFeedAudienceContext({
   segment,
   fallbackPet,
   preferredPetTypeLabels,
   preferredInterestLabels,
+  recentEngagementLabels,
 }: {
   segment?: AudienceSegmentLike | null;
   fallbackPet?: PetLike | null;
   preferredPetTypeLabels?: string[];
   preferredInterestLabels?: string[];
+  recentEngagementLabels?: string[];
 }): FeedAudienceContext {
   const normalizedPreferredPetTypeLabels = normalizePreferredPetTypeLabels(
     preferredPetTypeLabels,
   );
   const normalizedPreferredInterestLabels = normalizePreferredInterestLabels(
     preferredInterestLabels,
+  );
+  const normalizedRecentEngagementLabels = normalizeRecentEngagementLabels(
+    recentEngagementLabels,
   );
 
   if (segment) {
@@ -154,6 +190,7 @@ export function resolveFeedAudienceContext({
       confidenceScore: segment.confidenceScore,
       preferredPetTypeLabels: normalizedPreferredPetTypeLabels,
       preferredInterestLabels: normalizedPreferredInterestLabels,
+      recentEngagementLabels: normalizedRecentEngagementLabels,
     };
   }
 
@@ -188,6 +225,7 @@ export function resolveFeedAudienceContext({
       confidenceScore: null,
       preferredPetTypeLabels: normalizedPreferredPetTypeLabels,
       preferredInterestLabels: normalizedPreferredInterestLabels,
+      recentEngagementLabels: normalizedRecentEngagementLabels,
     };
   }
 
@@ -200,6 +238,7 @@ export function resolveFeedAudienceContext({
     confidenceScore: null,
     preferredPetTypeLabels: normalizedPreferredPetTypeLabels,
     preferredInterestLabels: normalizedPreferredInterestLabels,
+    recentEngagementLabels: normalizedRecentEngagementLabels,
   };
 }
 
@@ -210,17 +249,23 @@ export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
   const preferredInterestEmphasis = buildPreferredInterestEmphasis(
     context.preferredInterestLabels,
   );
+  const recentEngagementEmphasis = buildRecentEngagementEmphasis(
+    context.recentEngagementLabels,
+  );
 
   if (context.label) {
     if (context.personalizationMode === "fallback") {
       return {
         title: `${context.label} 기준으로 기본 맞춤 추천 중`,
-        description: appendPreferredInterestHint(
-          appendPreferredPetTypeHint(
-            "품종 정보가 구체적이지 않아 같은 종, 체급, 생애단계와 혼종 라벨 신호를 우선 반영합니다.",
-            context.preferredPetTypeLabels,
+        description: appendRecentEngagementHint(
+          appendPreferredInterestHint(
+            appendPreferredPetTypeHint(
+              "품종 정보가 구체적이지 않아 같은 종, 체급, 생애단계와 혼종 라벨 신호를 우선 반영합니다.",
+              context.preferredPetTypeLabels,
+            ),
+            context.preferredInterestLabels,
           ),
-          context.preferredInterestLabels,
+          context.recentEngagementLabels,
         ),
         emphasis: [
           context.confidenceScore !== null
@@ -228,6 +273,7 @@ export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
             : "프로필 fallback 신호",
           preferredPetTypeEmphasis,
           preferredInterestEmphasis,
+          recentEngagementEmphasis,
         ]
           .filter(Boolean)
           .join(" · "),
@@ -236,12 +282,15 @@ export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
 
     return {
       title: `${context.label} 기준으로 맞춤 추천 중`,
-      description: appendPreferredInterestHint(
-        appendPreferredPetTypeHint(
-          "품종/체급 신호가 맞는 글을 조금 더 앞쪽에 보여주되, 일반 탐색 글도 함께 섞어 편향을 낮춥니다.",
-          context.preferredPetTypeLabels,
+      description: appendRecentEngagementHint(
+        appendPreferredInterestHint(
+          appendPreferredPetTypeHint(
+            "품종/체급 신호가 맞는 글을 조금 더 앞쪽에 보여주되, 일반 탐색 글도 함께 섞어 편향을 낮춥니다.",
+            context.preferredPetTypeLabels,
+          ),
+          context.preferredInterestLabels,
         ),
-        context.preferredInterestLabels,
+        context.recentEngagementLabels,
       ),
       emphasis: [
         context.confidenceScore !== null
@@ -249,6 +298,7 @@ export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
           : "프로필 기반 직접 신호",
         preferredPetTypeEmphasis,
         preferredInterestEmphasis,
+        recentEngagementEmphasis,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -257,23 +307,28 @@ export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
 
   if (
     context.preferredPetTypeLabels.length > 0 ||
-    context.preferredInterestLabels.length > 0
+    context.preferredInterestLabels.length > 0 ||
+    context.recentEngagementLabels.length > 0
   ) {
     const fallbackDescription =
       context.preferredPetTypeLabels.length > 0
         ? "반려동물 프로필 신호가 부족해 선택한 커뮤니티 선호를 우선 반영합니다. 프로필을 보강하면 품종/체급 기준 정확도가 더 올라갑니다."
-        : "반려동물 프로필 신호가 부족해 관심 태그와 콘텐츠 카테고리를 우선 반영합니다. 프로필을 보강하면 품종/체급 기준 정확도가 더 올라갑니다.";
+        : context.preferredInterestLabels.length > 0
+          ? "반려동물 프로필 신호가 부족해 관심 태그와 콘텐츠 카테고리를 우선 반영합니다. 프로필을 보강하면 품종/체급 기준 정확도가 더 올라갑니다."
+          : "반려동물 프로필 신호가 부족해 최근 반응한 콘텐츠 주제를 우선 반영합니다. 프로필을 보강하면 품종/체급 기준 정확도가 더 올라갑니다.";
     return {
       title:
         context.preferredPetTypeLabels.length > 0
           ? "선호 커뮤니티 기준으로 기본 맞춤 추천 중"
-          : "관심 태그 기준으로 기본 맞춤 추천 중",
-      description: appendPreferredInterestHint(
-        fallbackDescription,
-        context.preferredInterestLabels,
+          : context.preferredInterestLabels.length > 0
+            ? "관심 태그 기준으로 기본 맞춤 추천 중"
+            : "최근 반응 기준으로 기본 맞춤 추천 중",
+      description: appendRecentEngagementHint(
+        appendPreferredInterestHint(fallbackDescription, context.preferredInterestLabels),
+        context.recentEngagementLabels,
       ),
       emphasis:
-        [preferredPetTypeEmphasis, preferredInterestEmphasis]
+        [preferredPetTypeEmphasis, preferredInterestEmphasis, recentEngagementEmphasis]
           .filter(Boolean)
           .join(" · ") || "선호 커뮤니티 신호",
     };

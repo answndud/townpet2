@@ -17,6 +17,36 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 219 완료 (최근 반응 기반 4차 개인화 신호)
+- 완료 내용
+- recent reaction 4차 랭킹 신호 연결:
+  - `app/src/server/queries/post.queries.ts`
+  - `app/src/server/queries/post.queries.test.ts`
+  - 최근 `PostReaction`의 `LIKE/DISLIKE`에서 커뮤니티/관심 태그 신호를 추출해 personalized feed에 약한 4차 boost 또는 suppress를 추가
+  - 최근 좋아요는 `petTypeId`/관심 태그 기준으로 약한 가산점, 최근 싫어요는 같은 축에서 약한 감점으로 반영되도록 보정
+  - 프로필/선호 커뮤니티 신호가 약한 경우에도 최근 반응한 `산책`, `후기`, `건강` 같은 주제가 피드 정렬에 반영되도록 연결
+- 피드 설명/제품 문서 동기화:
+  - `app/src/lib/feed-personalization.ts`
+  - `app/src/lib/feed-personalization.test.ts`
+  - `app/src/app/feed/page.tsx`
+  - `docs/product/품종_개인화_기획서.md`
+  - `/feed` 맞춤 추천 설명에 `최근 반응` 강조 문구와 4차 신호 설명을 추가하고, 프로필 신호가 부족할 때는 최근 반응 기준 fallback summary도 제공
+  - 제품 문서 구현 상태를 `최근 좋아요/싫어요 반응` 4차 신호까지 반영된 상태로 갱신하고 다음 오픈 이슈를 5차 신호로 조정
+- 검증 결과
+- `pnpm -C app lint src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts src/lib/feed-personalization.ts src/lib/feed-personalization.test.ts src/app/feed/page.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/feed-personalization.test.ts src/server/queries/post.queries.test.ts` 실행 시 전체 Vitest 스위트 `97 files / 479 tests` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 219 착수 (최근 반응 기반 4차 개인화 신호)
+- 진행 내용
+- personalized feed는 현재 프로필, 선호 커뮤니티, 관심 태그까지는 반영하지만, 실제 사용자가 최근에 무엇에 좋아요/싫어요를 눌렀는지 같은 engagement 신호는 아직 사용하지 않고 있음을 확인
+- 별도 click/save user-level 로그는 아직 없지만 `PostReaction`은 이미 저장되고 있어, 이번 사이클은 최근 `LIKE/DISLIKE` 반응에서 커뮤니티/태그 선호를 약한 4차 신호로 추출하는 방향이 현실적이라고 판단
+- 이번 사이클 범위를 `recent reactions -> viewer engagement signal -> personalized ranking` + 피드 설명/제품 문서 동기화로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 218 완료 (활동 태그/콘텐츠 카테고리 3차 개인화 신호)
 - 완료 내용
 - 선호 커뮤니티 태그 3차 랭킹 신호 연결:
