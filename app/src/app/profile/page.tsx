@@ -8,6 +8,7 @@ import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-pr
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
 import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
 import { ProfileInfoForm } from "@/components/profile/profile-info-form";
+import { ProfileSummaryLinkCard } from "@/components/profile/profile-summary-link-card";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
 import {
@@ -108,24 +109,20 @@ export default async function ProfilePage() {
         ) : null}
 
         <section className="grid gap-3 md:grid-cols-2">
-          <div className="tp-card p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">전체</p>
-            <p className="mt-2 text-3xl font-bold text-[#10284a]">{postCount}</p>
-            <p className="text-xs text-[#4f678d]">총 작성글</p>
-          </div>
-          <div className="tp-card p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5b78a1]">북마크</p>
-            <p className="mt-2 text-3xl font-bold text-[#10284a]">{bookmarkedPostCount}</p>
-            <p className="text-xs text-[#4f678d]">북마크한 글</p>
-            <div className="mt-4">
-              <Link
-                href="/bookmarks"
-                className="tp-btn-soft inline-flex px-3 py-1.5 text-xs text-[#315484]"
-              >
-                북마크 보기
-              </Link>
-            </div>
-          </div>
+          <ProfileSummaryLinkCard
+            href="/my-posts"
+            eyebrow="내 작성글"
+            count={postCount}
+            label="작성한 게시글"
+            description="카테고리별로 내가 작성한 글을 모아 확인할 수 있습니다."
+          />
+          <ProfileSummaryLinkCard
+            href="/bookmarks"
+            eyebrow="북마크"
+            count={bookmarkedPostCount}
+            label="북마크한 글"
+            description="다시 보고 싶은 글을 한곳에서 빠르게 확인할 수 있습니다."
+          />
         </section>
 
         <section className="tp-card p-5 sm:p-6">
@@ -141,12 +138,6 @@ export default async function ProfilePage() {
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <Link
-              href="/my-posts"
-              className="tp-btn-soft px-3 py-1.5 text-[#315484]"
-            >
-              내 작성글 보기
-            </Link>
             <Link
               href="/password/setup"
               className="tp-btn-soft px-3 py-1.5 text-[#315484]"

@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 226: 프로필 활동 카드 링크 정렬 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 프로필 상단 활동 요약을 카드 클릭형 진입으로 정리 | Codex | P1 | `done` | `/profile` 상단의 북마크/내 작성글 요약이 별도 `tp-btn-soft` 버튼 없이 카드 전체 클릭으로 `/bookmarks`, `/my-posts`에 진입함 | `app/src/app/profile/page.tsx`, `app/src/components/profile/profile-summary-link-card.tsx` |
+| 계정 정보 카드의 작성글 CTA 제거 및 운영 문서 동기화 | Codex | P2 | `done` | 계정 정보 카드에서는 작성글 링크가 제거되고 운영 문서가 `/my-posts`, `/bookmarks` 진입점을 현재 UI 기준으로 안내함 | `app/src/app/profile/page.tsx`, `docs/개발_운영_가이드.md`, `docs/operations/운영_문서_안내.md`, `PLAN.md`, `PROGRESS.md` |
+
 ### Cycle 225: 북마크 네이밍/진입 경로 정렬 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

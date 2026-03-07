@@ -17,6 +17,34 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 226 완료 (프로필 활동 카드 링크 정렬)
+- 완료 내용
+- 프로필 활동 링크 카드 정리:
+  - `app/src/components/profile/profile-summary-link-card.tsx`
+  - `app/src/app/profile/page.tsx`
+  - 프로필 상단 요약 영역을 `/my-posts`, `/bookmarks`로 이동하는 카드 링크 2개로 정리하고, 기존 `tp-btn-soft inline-flex px-3 py-1.5 text-xs text-[#315484]` 버튼을 제거
+  - 기존 `전체/총 작성글` 카드는 `내 작성글` 진입 카드로 재정리하고, 계정 정보 카드 안의 `내 작성글 보기` 버튼은 제거
+- 테스트/운영 문서 동기화:
+  - `app/src/components/profile/profile-summary-link-card.test.tsx`
+  - `docs/개발_운영_가이드.md`
+  - `docs/operations/운영_문서_안내.md`
+  - 카드가 버튼 스타일 없이 올바른 경로를 렌더하는 회귀 테스트를 추가하고, 운영 문서에는 `/my-posts`, `/bookmarks`를 사용자 활동 확인 화면으로 함께 기록
+- 검증 결과
+- `pnpm -C app lint src/app/profile/page.tsx src/components/profile/profile-summary-link-card.tsx src/components/profile/profile-summary-link-card.test.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/components/profile/profile-summary-link-card.test.tsx` 실행 시 전체 Vitest 스위트 `98 files / 502 tests` 통과
+- `git diff --check` 통과
+- `pnpm -C app docs:refresh:check` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 226 착수 (프로필 활동 카드 링크 정렬)
+- 진행 내용
+- 프로필 상단에서 북마크는 카드 안 버튼으로, 작성글은 계정 정보 카드 안 버튼으로 분리돼 있어 사용자 활동 동선이 일관되지 않음을 확인
+- 이번 사이클 범위를 `북마크/내 작성글 카드 클릭형 통일` + `계정 정보 카드 CTA 제거` + `운영 문서 진입점 정리`로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 225 완료 (북마크 네이밍/진입 경로 정렬)
 - 완료 내용
 - 북마크 네이밍과 경로 정렬:
