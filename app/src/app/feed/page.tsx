@@ -1091,15 +1091,14 @@ export default async function Home({ searchParams }: HomePageProps) {
               mode={mode}
               disableLoadMore={mode !== "ALL"}
               preferGuestDetail={!isAuthenticated}
-              canBookmark={isAuthenticated}
-                query={{
-                  type,
-                  scope: effectiveScope,
-                  petTypeId,
-                  petTypeIds,
-                  reviewCategory,
-                  q: query || undefined,
-                  searchIn: selectedSearchIn,
+              query={{
+                type,
+                scope: effectiveScope,
+                petTypeId,
+                petTypeIds,
+                reviewCategory,
+                q: query || undefined,
+                searchIn: selectedSearchIn,
                 sort: selectedSort,
                 days: periodDays ?? undefined,
                 personalized: usePersonalizedFeed,

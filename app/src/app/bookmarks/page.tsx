@@ -120,7 +120,7 @@ export default async function BookmarksPage({ searchParams }: BookmarksPageProps
             북마크한 게시글
           </h1>
           <p className="mt-2 text-sm text-[#4f678d]">
-            피드나 상세에서 북마크한 글을 한곳에서 모아 확인할 수 있습니다.
+            게시글 상세에서 북마크한 글을 한곳에서 모아 확인할 수 있습니다.
           </p>
         </header>
 
@@ -210,7 +210,7 @@ export default async function BookmarksPage({ searchParams }: BookmarksPageProps
           {posts.length === 0 ? (
             <EmptyState
               title="북마크한 글이 없습니다"
-              description="피드나 상세에서 북마크 버튼을 눌러 나중에 다시 볼 글을 모아보세요."
+              description="게시글 상세에서 북마크 버튼을 눌러 나중에 다시 볼 글을 모아보세요."
               actionHref="/feed"
               actionLabel="피드로 이동"
             />

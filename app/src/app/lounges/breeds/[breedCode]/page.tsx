@@ -414,7 +414,6 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
             initialItems={initialItems}
             initialNextCursor={data.nextCursor}
             mode="ALL"
-            canBookmark={Boolean(viewerId)}
             query={{
               type: query.type,
               scope: PostScope.GLOBAL,

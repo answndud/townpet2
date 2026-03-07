@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFeedMobileStatsLabel, getStableFeedDateLabel } from "@/lib/feed-list-presenter";
+import { buildFeedStatsLabel, getStableFeedDateLabel } from "@/lib/feed-list-presenter";
 
 describe("getStableFeedDateLabel", () => {
   it("formats iso dates with dots for non-hydrated mobile feed rows", () => {
@@ -12,10 +12,10 @@ describe("getStableFeedDateLabel", () => {
   });
 });
 
-describe("buildFeedMobileStatsLabel", () => {
+describe("buildFeedStatsLabel", () => {
   it("uses stable date labels when relative time has not initialized", () => {
     expect(
-      buildFeedMobileStatsLabel({
+      buildFeedStatsLabel({
         createdAt: "2026-03-07T12:00:00.000Z",
         relativeNow: null,
         viewCount: 31,
@@ -26,7 +26,7 @@ describe("buildFeedMobileStatsLabel", () => {
 
   it("omits invalid date fragments instead of rendering empty separators", () => {
     expect(
-      buildFeedMobileStatsLabel({
+      buildFeedStatsLabel({
         createdAt: "bad-date",
         relativeNow: null,
         viewCount: 31,

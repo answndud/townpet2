@@ -15,7 +15,7 @@ type BuildFeedMobileStatsLabelParams = {
   reactionCount: number;
 };
 
-export function buildFeedMobileStatsLabel({
+export function buildFeedStatsLabel({
   createdAt,
   relativeNow,
   viewCount,

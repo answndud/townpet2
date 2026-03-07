@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 229: 피드 카드 메타 우측 정렬 + 피드 북마크 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 피드 카드 메타를 우측 컬럼으로 재배치 | Codex | P1 | `done` | 모바일/피드형 목록에서 작성자, 작성일, 조회, 반응 메타가 제목 아래가 아니라 우측 컬럼에 정렬되어 카드 높이가 더 낮아짐 | `app/src/components/posts/feed-infinite-list.tsx`, `app/src/lib/feed-list-presenter.ts` |
+| 피드 목록 북마크 CTA 제거 및 관련 안내 문구 정리 | Codex | P1 | `done` | `/feed`와 라운지/게스트 피드형 목록에서 북마크 버튼이 사라지고 북마크 목록 안내 문구가 `상세에서 북마크` 기준으로 정리됨 | `app/src/components/posts/feed-infinite-list.tsx`, `app/src/app/feed/page.tsx`, `app/src/components/posts/guest-feed-page-client.tsx`, `app/src/app/lounges/breeds/[breedCode]/page.tsx`, `app/src/app/bookmarks/page.tsx` |
+
 ### Cycle 228: 모바일 피드 카드 밀도 재정리 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

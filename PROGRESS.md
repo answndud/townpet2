@@ -17,6 +17,28 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 229 완료 (피드 카드 메타 우측 정렬 + 피드 북마크 제거)
+- 완료 내용
+- 피드 카드 메타 우측 정렬:
+  - `app/src/components/posts/feed-infinite-list.tsx`
+  - `app/src/lib/feed-list-presenter.ts`
+  - 피드형 목록 카드에서 작성자/작성일/조회/반응 메타를 제목 아래 행이 아니라 우측 컬럼으로 옮겨 모바일 카드 높이를 더 줄였고, 날짜/조회/반응은 공용 `buildFeedStatsLabel`로 한 줄 요약되게 정리
+- 피드 북마크 CTA 제거:
+  - `app/src/components/posts/feed-infinite-list.tsx`
+  - `app/src/app/feed/page.tsx`
+  - `app/src/components/posts/guest-feed-page-client.tsx`
+  - `app/src/app/lounges/breeds/[breedCode]/page.tsx`
+  - 피드/라운지/게스트 피드형 목록에서는 북마크 버튼을 제거하고, 북마크는 게시글 상세에서만 수행하도록 동선을 단순화
+- 사용자 안내 문구 정리:
+  - `app/src/app/bookmarks/page.tsx`
+  - 북마크 목록 상단 설명과 빈 상태 문구를 `피드나 상세` 기준에서 `게시글 상세` 기준으로 수정
+- 검증 결과
+- `pnpm -C app lint src/components/posts/feed-infinite-list.tsx src/lib/feed-list-presenter.ts src/lib/feed-list-presenter.test.ts src/app/feed/page.tsx src/app/bookmarks/page.tsx 'src/app/lounges/breeds/[breedCode]/page.tsx' src/components/posts/guest-feed-page-client.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/feed-list-presenter.test.ts` 실행 시 전체 Vitest 스위트 `99 files / 506 tests` 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 228 완료 (모바일 피드 카드 밀도 재정리)
 - 완료 내용
 - 모바일 카드 밀도 재정리:
