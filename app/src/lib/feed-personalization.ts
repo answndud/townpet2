@@ -12,7 +12,9 @@ type AudienceSegmentLike = {
   species: string | null;
   breedCode: string | null;
   breedLabel?: string | null;
+  sizeClass?: string | null;
   sizeLabel?: string | null;
+  lifeStage?: string | null;
   lifeStageLabel?: string | null;
   confidenceScore: number;
 };
@@ -30,8 +32,28 @@ export type FeedAudienceContext = {
   label: string | null;
   audienceKey: string | null;
   breedCode: string | null;
+  personalizationMode: "breed" | "fallback" | "none";
   confidenceScore: number | null;
 };
+
+function buildFallbackAudienceKey(input: {
+  species: string | null | undefined;
+  sizeClass?: string | null;
+  lifeStage?: string | null;
+}) {
+  if (!input.species) {
+    return null;
+  }
+
+  const parts = [String(input.species)];
+  if (input.sizeClass && input.sizeClass !== "UNKNOWN") {
+    parts.push(String(input.sizeClass));
+  }
+  if (input.lifeStage && input.lifeStage !== "UNKNOWN") {
+    parts.push(String(input.lifeStage));
+  }
+  return parts.join(":");
+}
 
 export function resolveFeedAudienceContext({
   segment,
@@ -42,19 +64,34 @@ export function resolveFeedAudienceContext({
 }): FeedAudienceContext {
   if (segment) {
     const breedCode = normalizePetBreedCode(segment.breedCode);
-    const audienceKey = hasBreedLoungeRoute(breedCode) ? breedCode : segment.species;
+    const hasSpecificBreed = hasBreedLoungeRoute(breedCode);
+    const audienceKey = hasSpecificBreed
+      ? breedCode
+      : buildFallbackAudienceKey({
+          species: segment.species,
+          sizeClass: segment.sizeClass,
+          lifeStage: segment.lifeStage,
+        });
     return {
       source: "segment",
       label: segment.label,
       audienceKey,
       breedCode,
+      personalizationMode: hasSpecificBreed ? "breed" : "fallback",
       confidenceScore: segment.confidenceScore,
     };
   }
 
   if (fallbackPet) {
     const breedCode = normalizePetBreedCode(fallbackPet.breedCode);
-    const audienceKey = hasBreedLoungeRoute(breedCode) ? breedCode : String(fallbackPet.species);
+    const hasSpecificBreed = hasBreedLoungeRoute(breedCode);
+    const audienceKey = hasSpecificBreed
+      ? breedCode
+      : buildFallbackAudienceKey({
+          species: fallbackPet.species,
+          sizeClass: fallbackPet.sizeClass,
+          lifeStage: fallbackPet.lifeStage,
+        });
     const label = [
       getPetSpeciesLabel(fallbackPet.species),
       getPetBreedDisplayLabel({
@@ -72,6 +109,7 @@ export function resolveFeedAudienceContext({
       label: label.length > 0 ? label : null,
       audienceKey,
       breedCode,
+      personalizationMode: hasSpecificBreed ? "breed" : "fallback",
       confidenceScore: null,
     };
   }
@@ -81,12 +119,25 @@ export function resolveFeedAudienceContext({
     label: null,
     audienceKey: null,
     breedCode: null,
+    personalizationMode: "none",
     confidenceScore: null,
   };
 }
 
 export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
   if (context.label) {
+    if (context.personalizationMode === "fallback") {
+      return {
+        title: `${context.label} 기준으로 기본 맞춤 추천 중`,
+        description:
+          "품종 정보가 구체적이지 않아 같은 종, 체급, 생애단계와 혼종 라벨 신호를 우선 반영합니다.",
+        emphasis:
+          context.confidenceScore !== null
+            ? `fallback 세그먼트 신뢰도 ${Math.round(context.confidenceScore * 100)}%`
+            : "프로필 fallback 신호",
+      };
+    }
+
     return {
       title: `${context.label} 기준으로 맞춤 추천 중`,
       description:
@@ -101,13 +152,17 @@ export function buildFeedPersonalizationSummary(context: FeedAudienceContext) {
   return {
     title: "맞춤 추천을 준비 중입니다",
     description:
-      "반려동물 프로필에 품종 코드, 체급, 생애단계를 입력하면 더 정확한 맞춤 추천과 품종 라운지 연결이 활성화됩니다.",
+      "반려동물 프로필에 품종, 체급, 생애단계를 입력하면 더 정확한 맞춤 추천과 품종 라운지 연결이 활성화됩니다.",
     emphasis: "프로필 보강 필요",
   };
 }
 
 export function buildFeedAdConfig(context: FeedAudienceContext) {
-  if (!context.label || !hasBreedLoungeRoute(context.breedCode)) {
+  if (
+    !context.label ||
+    context.personalizationMode !== "breed" ||
+    !hasBreedLoungeRoute(context.breedCode)
+  ) {
     return null;
   }
 

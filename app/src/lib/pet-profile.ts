@@ -258,14 +258,22 @@ export function buildAudienceSegmentsFromPets(
 
   return Array.from(grouped.values())
     .map((segment) => {
+      const hasSpecificBreed = hasBreedLoungeRoute(segment.breedCode);
+      const fallbackBreedCode =
+        segment.breedCode === "MIXED" || segment.breedCode === "UNKNOWN"
+          ? segment.breedCode
+          : null;
       const interestTags = [
         "source:pet-profile",
         "signal:explicit-pet",
         `species:${segment.species}`,
       ];
 
-      if (segment.breedCode) {
+      if (hasSpecificBreed && segment.breedCode) {
         interestTags.push(`breed:${segment.breedCode}`);
+      }
+      if (fallbackBreedCode) {
+        interestTags.push(`breedFallback:${fallbackBreedCode}`);
       }
       if (segment.breedLabel) {
         interestTags.push(`breedLabel:${segment.breedLabel}`);
@@ -281,8 +289,8 @@ export function buildAudienceSegmentsFromPets(
         Math.min(
           0.95,
           0.55 +
-            (segment.breedCode ? 0.18 : 0) +
-            (segment.breedLabel && !segment.breedCode ? 0.08 : 0) +
+            (hasSpecificBreed ? 0.18 : 0) +
+            (segment.breedLabel && !hasSpecificBreed ? 0.08 : 0) +
             (segment.sizeClass !== "UNKNOWN" ? 0.08 : 0) +
             (segment.lifeStage !== "UNKNOWN" ? 0.08 : 0) +
             Math.min(0.06, (segment.count - 1) * 0.03),

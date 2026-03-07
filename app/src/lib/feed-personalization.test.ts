@@ -32,6 +32,7 @@ describe("feed personalization helpers", () => {
       label: "강아지 · 말티즈 · 소형 · 성체",
       audienceKey: "MALTESE",
       breedCode: "MALTESE",
+      personalizationMode: "breed",
       confidenceScore: 0.88,
     });
     expect(buildFeedAdConfig(context)).toMatchObject({
@@ -46,21 +47,50 @@ describe("feed personalization helpers", () => {
         species: "CAT",
         breedCode: "UNKNOWN",
         breedLabel: null,
-        sizeClass: "UNKNOWN",
+        sizeClass: "SMALL",
         lifeStage: "SENIOR",
       },
     });
 
     expect(context).toMatchObject({
       source: "pet",
-      audienceKey: "CAT",
+      audienceKey: "CAT:SMALL:SENIOR",
       breedCode: "UNKNOWN",
-      label: "고양이 · 품종 미상 · 시니어",
+      personalizationMode: "fallback",
+      label: "고양이 · 품종 미상 · 소형 · 시니어",
     });
     expect(buildFeedAdConfig(context)).toBeNull();
     expect(buildFeedPersonalizationSummary(context)).toMatchObject({
-      title: "고양이 · 품종 미상 · 시니어 기준으로 맞춤 추천 중",
-      emphasis: "프로필 기반 직접 신호",
+      title: "고양이 · 품종 미상 · 소형 · 시니어 기준으로 기본 맞춤 추천 중",
+      emphasis: "프로필 fallback 신호",
+    });
+  });
+
+  it("builds fallback audience key for mixed audience segments without breed lounge", () => {
+    const context = resolveFeedAudienceContext({
+      segment: {
+        label: "강아지 · 혼종 · 중형 · 성체",
+        species: "DOG",
+        breedCode: "MIXED",
+        breedLabel: "말티푸",
+        sizeClass: "MEDIUM",
+        sizeLabel: "중형",
+        lifeStage: "ADULT",
+        lifeStageLabel: "성체",
+        confidenceScore: 0.71,
+      },
+    });
+
+    expect(context).toMatchObject({
+      source: "segment",
+      audienceKey: "DOG:MEDIUM:ADULT",
+      breedCode: "MIXED",
+      personalizationMode: "fallback",
+      confidenceScore: 0.71,
+    });
+    expect(buildFeedAdConfig(context)).toBeNull();
+    expect(buildFeedPersonalizationSummary(context)).toMatchObject({
+      emphasis: "fallback 세그먼트 신뢰도 71%",
     });
   });
 

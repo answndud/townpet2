@@ -445,6 +445,73 @@ describe("post queries", () => {
     expect(result.nextCursor).toBe("p3");
   });
 
+  it("does not treat MIXED or UNKNOWN as specific breed match in personalized feed", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        id: "p1",
+        author: { id: "a1" },
+        createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        likeCount: 1,
+        commentCount: 0,
+        viewCount: 1,
+      },
+      {
+        id: "p2",
+        author: { id: "a2" },
+        createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        likeCount: 1,
+        commentCount: 0,
+        viewCount: 1,
+      },
+      {
+        id: "p3",
+        author: { id: "a3" },
+        createdAt: new Date("2026-02-03T00:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+    ]);
+    mockPrisma.userAudienceSegment.findMany.mockResolvedValue([
+      {
+        userId: "viewer-1",
+        species: "DOG",
+        breedCode: "MIXED",
+        interestTags: ["breedFallback:MIXED", "breedLabel:말티푸", "species:DOG"],
+        sizeClass: "SMALL",
+        lifeStage: "ADULT",
+      },
+    ]);
+    mockPrisma.pet.findMany.mockResolvedValueOnce([
+      {
+        userId: "a1",
+        species: "DOG",
+        breedCode: "UNKNOWN",
+        breedLabel: null,
+        sizeClass: "UNKNOWN",
+        lifeStage: "UNKNOWN",
+      },
+      {
+        userId: "a2",
+        species: "DOG",
+        breedCode: "MIXED",
+        breedLabel: "말티푸",
+        sizeClass: "SMALL",
+        lifeStage: "ADULT",
+      },
+    ]);
+
+    const result = await listPosts({
+      limit: 2,
+      scope: PostScope.GLOBAL,
+      personalized: true,
+      viewerId: "viewer-1",
+    });
+
+    expect(result.items[0]?.id).toBe("p2");
+    expect(result.nextCursor).toBe("p3");
+  });
+
   it("builds best feed with likes and recency ordering", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 

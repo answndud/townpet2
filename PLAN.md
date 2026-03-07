@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 216: 혼종/품종 미상 개인화 fallback 고도화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| MIXED/UNKNOWN 세그먼트 신뢰도 및 audience key 보정 | Codex | P1 | `done` | `MIXED`/`UNKNOWN`이 specific breed와 동일한 confidence/target key로 취급되지 않고, 종/체급/생애단계 중심 fallback key와 설명 문구가 반영됨 | `app/src/lib/pet-profile.ts`, `app/src/lib/feed-personalization.ts`, `docs/product/품종_개인화_기획서.md` |
+| personalized feed 점수의 generic breed 오인 매치 제거 | Codex | P1 | `done` | personalized feed가 `MIXED`/`UNKNOWN` 동일 code만으로 +0.45를 주지 않고, breed label/size/lifeStage fallback 기반으로 정렬하며 회귀 테스트가 존재함 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/post.queries.test.ts` |
+
 ### Cycle 215: 품종 사전 운영 관리 경로 정착 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

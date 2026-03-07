@@ -17,6 +17,40 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 216 완료 (혼종/품종 미상 개인화 fallback 고도화)
+- 완료 내용
+- 세그먼트 confidence/audience key 보정:
+  - `app/src/lib/pet-profile.ts`
+  - `app/src/lib/pet-profile.test.ts`
+  - `app/src/lib/feed-personalization.ts`
+  - `app/src/lib/feed-personalization.test.ts`
+  - `MIXED`/`UNKNOWN`이 더 이상 specific breed bonus를 받지 않도록 `breedFallback:*` 태그와 fallback confidence 규칙으로 정리
+  - feed audience context는 specific breed가 없을 때 `species:sizeClass:lifeStage` 형태 fallback key를 사용하고, 요약 문구도 “기본 맞춤 추천” 모드로 분리
+  - generic fallback context에서는 품종 라운지형 광고 CTA를 노출하지 않도록 제한
+- personalized feed generic breed 오인 매치 제거:
+  - `app/src/server/queries/post.queries.ts`
+  - `app/src/server/queries/post.queries.test.ts`
+  - personalized feed 점수에서 `MIXED`/`UNKNOWN` 동일 code만으로 breed match `+0.45`를 주던 규칙을 제거
+  - 대신 specific breed route가 있는 code만 strong breed match로 인정하고, 혼종/미상/수동 라벨은 `breedLabel + sizeClass + lifeStage + species` 조합 fallback으로 점수를 계산
+  - `UserAudienceSegment`의 `interestTags`에서 fallback breed label을 읽어 personalized ranking에도 반영
+- 제품 문서 동기화:
+  - `docs/product/품종_개인화_기획서.md`
+  - 혼종/품종 미상 fallback 전략이 구현 상태에 반영되었음을 기록하고, open issue를 다음 단계 신호(활동 태그/콘텐츠 카테고리)로 갱신
+- 검증 결과
+- `pnpm -C app lint src/lib/pet-profile.ts src/lib/pet-profile.test.ts src/lib/feed-personalization.ts src/lib/feed-personalization.test.ts src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/pet-profile.test.ts src/lib/feed-personalization.test.ts src/server/queries/post.queries.test.ts` 실행 시 전체 Vitest 스위트 `97 files / 471 tests` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 216 착수 (혼종/품종 미상 개인화 fallback 고도화)
+- 진행 내용
+- personalized feed 점수 함수가 현재 `MIXED`/`UNKNOWN`도 같은 `breedCode`면 specific breed와 동일한 `+0.45` boost를 주고 있어, “품종 미상끼리 강한 품종 매치”처럼 취급되는 비현실적인 규칙을 확인
+- `UserAudienceSegment` confidence 계산도 단순히 `breedCode` 존재 여부만 보고 bonus를 주고 있어 `MIXED`/`UNKNOWN` 세그먼트가 과대평가될 수 있음을 확인
+- 이번 사이클 범위를 `generic breed 오인 매치 제거 + 종/체급/생애단계/혼종 라벨 중심 fallback audience key/summary 보정`으로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 215 완료 (품종 사전 운영 관리 경로 정착)
 - 완료 내용
 - BreedCatalog effective merge semantics 보정:

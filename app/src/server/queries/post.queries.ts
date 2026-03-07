@@ -6,6 +6,10 @@ import {
   Prisma,
 } from "@prisma/client";
 
+import {
+  extractAudienceSegmentBreedLabel,
+  hasBreedLoungeRoute,
+} from "@/lib/pet-profile";
 import { prisma } from "@/lib/prisma";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import {
@@ -828,7 +832,9 @@ type PetSignal = {
   userId: string;
   species: string;
   breedCode: string | null;
+  breedLabel: string | null;
   sizeClass: string;
+  lifeStage: string;
 };
 
 type FeedLikePost = {
@@ -847,6 +853,11 @@ function normalizeBreedCode(value: string | null | undefined) {
   return normalized && normalized.length > 0 ? normalized : null;
 }
 
+function normalizeBreedLabel(value: string | null | undefined) {
+  const normalized = value?.trim().replace(/\s+/g, " ").toUpperCase();
+  return normalized && normalized.length > 0 ? normalized : null;
+}
+
 function calculatePersonalizationBoost(
   authorPets: PetSignal[],
   viewerPets: PetSignal[],
@@ -858,19 +869,38 @@ function calculatePersonalizationBoost(
   let best = 0;
   for (const authorPet of authorPets) {
     const authorBreedCode = normalizeBreedCode(authorPet.breedCode);
+    const authorBreedLabel = normalizeBreedLabel(authorPet.breedLabel);
+    const authorHasSpecificBreed = hasBreedLoungeRoute(authorBreedCode);
 
     for (const viewerPet of viewerPets) {
       let score = 0;
       const viewerBreedCode = normalizeBreedCode(viewerPet.breedCode);
+      const viewerBreedLabel = normalizeBreedLabel(viewerPet.breedLabel);
+      const viewerHasSpecificBreed = hasBreedLoungeRoute(viewerBreedCode);
 
-      if (viewerBreedCode && authorBreedCode && viewerBreedCode === authorBreedCode) {
+      if (
+        viewerHasSpecificBreed &&
+        authorHasSpecificBreed &&
+        viewerBreedCode &&
+        authorBreedCode &&
+        viewerBreedCode === authorBreedCode
+      ) {
         score += 0.45;
+      } else if (
+        viewerBreedLabel &&
+        authorBreedLabel &&
+        viewerBreedLabel === authorBreedLabel
+      ) {
+        score += 0.22;
       }
       if (viewerPet.sizeClass !== "UNKNOWN" && authorPet.sizeClass === viewerPet.sizeClass) {
-        score += 0.2;
+        score += 0.16;
+      }
+      if (viewerPet.lifeStage !== "UNKNOWN" && authorPet.lifeStage === viewerPet.lifeStage) {
+        score += 0.12;
       }
       if (authorPet.species === viewerPet.species) {
-        score += 0.1;
+        score += 0.08;
       }
 
       if (score > best) {
@@ -952,13 +982,17 @@ function mapToPetSignal(signal: {
   userId: string;
   species: string;
   breedCode: string | null;
+  breedLabel?: string | null;
   sizeClass: string | null;
+  lifeStage?: string | null;
 }) {
   return {
     userId: signal.userId,
     species: String(signal.species),
     breedCode: normalizeBreedCode(signal.breedCode),
+    breedLabel: normalizeBreedLabel(signal.breedLabel),
     sizeClass: signal.sizeClass ? String(signal.sizeClass) : "UNKNOWN",
+    lifeStage: signal.lifeStage ? String(signal.lifeStage) : "UNKNOWN",
   } satisfies PetSignal;
 }
 
@@ -993,7 +1027,9 @@ async function listViewerPersonalizationSignals(viewerId: string) {
         userId: true,
         species: true,
         breedCode: true,
+        interestTags: true,
         sizeClass: true,
+        lifeStage: true,
       },
       orderBy: [{ confidenceScore: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
       take: 5,
@@ -1011,7 +1047,11 @@ async function listViewerPersonalizationSignals(viewerId: string) {
         userId: signal.userId,
         species: String(signal.species),
         breedCode: signal.breedCode,
+        breedLabel: extractAudienceSegmentBreedLabel(
+          Array.isArray(signal.interestTags) ? signal.interestTags : [],
+        ),
         sizeClass: signal.sizeClass ? String(signal.sizeClass) : null,
+        lifeStage: signal.lifeStage ? String(signal.lifeStage) : null,
       }),
     );
   }
@@ -1022,7 +1062,9 @@ async function listViewerPersonalizationSignals(viewerId: string) {
       userId: true,
       species: true,
       breedCode: true,
+      breedLabel: true,
       sizeClass: true,
+      lifeStage: true,
     },
     take: 5,
     orderBy: { createdAt: "desc" },
@@ -1033,7 +1075,9 @@ async function listViewerPersonalizationSignals(viewerId: string) {
       userId: pet.userId,
       species: String(pet.species),
       breedCode: pet.breedCode,
+      breedLabel: pet.breedLabel,
       sizeClass: String(pet.sizeClass),
+      lifeStage: String(pet.lifeStage),
     }),
   );
 }
@@ -1064,7 +1108,9 @@ async function applyPetPersonalization<T extends FeedLikePost>(
       userId: true,
       species: true,
       breedCode: true,
+      breedLabel: true,
       sizeClass: true,
+      lifeStage: true,
     },
   });
   const authorPetSignals: PetSignal[] = authorPetSignalsRaw.map((pet) =>
@@ -1072,7 +1118,9 @@ async function applyPetPersonalization<T extends FeedLikePost>(
       userId: pet.userId,
       species: String(pet.species),
       breedCode: pet.breedCode,
+      breedLabel: pet.breedLabel,
       sizeClass: String(pet.sizeClass),
+      lifeStage: String(pet.lifeStage),
     }),
   );
 
