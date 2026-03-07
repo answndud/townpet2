@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 210: 인증 감사 로그 retention 정착 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| auth audit retention helper + cleanup script 정리 | Codex | P1 | `done` | 인증 감사 로그 cleanup이 공용 retention helper를 사용하고 cutoff/입력 검증 테스트가 존재함 | `app/src/server/auth-audit-retention.ts`, `app/scripts/cleanup-auth-audits.ts` |
+| auth audit cleanup 운영 workflow/문서 추가 | Codex | P1 | `done` | GitHub Actions로 일일 auth audit cleanup이 실행되고 운영/보안 문서에 180일 보존 기준이 반영됨 | `.github/workflows/auth-audit-cleanup.yml`, `docs/개발_운영_가이드.md`, `docs/security/*` |
+
 ### Cycle 209: 배포 보안 pre-deploy gate 완결 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

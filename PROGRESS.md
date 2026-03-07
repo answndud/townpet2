@@ -17,6 +17,30 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 210 완료 (인증 감사 로그 retention 정착)
+- 완료 내용
+- auth audit retention helper 도입:
+  - `app/src/server/auth-audit-retention.ts`
+  - `app/scripts/cleanup-auth-audits.ts`
+  - 인증 감사 로그 cleanup 로직을 공용 helper로 분리하고 기본 retention을 `180일`로 명시
+  - cleanup script가 cutoff 시각을 함께 출력하도록 보강
+- 운영 workflow 추가:
+  - `.github/workflows/auth-audit-cleanup.yml`
+  - GitHub Actions에서 하루 1회 `DATABASE_URL` 기준 auth audit cleanup을 실행하도록 추가
+- 운영/보안 문서 동기화:
+  - `docs/개발_운영_가이드.md`
+  - `docs/security/보안_계획.md`
+  - `docs/security/보안_진행상황.md`
+  - 인증 감사 로그의 기본 retention 180일과 cleanup workflow를 문서화
+- 회귀 테스트 추가:
+  - `app/src/server/auth-audit-retention.test.ts`
+- 검증 결과
+- `pnpm -C app lint src/server/auth-audit-retention.ts src/server/auth-audit-retention.test.ts scripts/cleanup-auth-audits.ts .github/workflows/auth-audit-cleanup.yml` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/auth-audit-retention.test.ts` 실행 시 전체 Vitest 스위트 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 209 완료 (배포 보안 pre-deploy gate 완결)
 - 완료 내용
 - production build preflight 편입:
