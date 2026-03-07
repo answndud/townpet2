@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 215: 품종 사전 운영 관리 경로 정착 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| BreedCatalog effective merge semantics 보정 | Codex | P1 | `done` | DB override가 일부만 있어도 default catalog가 species 단위로 사라지지 않고, inactive override는 default/custom entry를 명시적으로 숨길 수 있으며 회귀 테스트가 존재함 | `app/src/lib/breed-catalog.ts`, `app/src/server/queries/breed-catalog.queries.ts`, `app/src/server/queries/breed-catalog.queries.test.ts` |
+| moderator용 품종 사전 관리 화면/액션 추가 | Codex | P1 | `done` | `/admin/breeds`에서 품종 사전 entry를 추가/수정/비활성화/삭제할 수 있고 운영 네비게이션/문서가 동기화됨 | `app/src/app/admin/breeds/page.tsx`, `app/src/components/admin/*`, `app/src/server/actions/*`, `app/src/server/services/*`, `docs/product/품종_개인화_기획서.md` |
+
 ### Cycle 214: 품종 사전 기반 프로필 입력 정규화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

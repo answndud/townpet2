@@ -414,6 +414,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <ReportQueueTable reports={reportRows} />
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-[#5a7398]">
+          <Link href="/admin/breeds">품종 사전</Link>
           <Link href="/admin/policies">운영 정책 설정</Link>
           <Link href="/admin/auth-audits">인증 로그</Link>
           <Link href="/admin/personalization">개인화 지표</Link>

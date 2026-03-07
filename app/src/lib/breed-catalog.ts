@@ -12,6 +12,18 @@ export type BreedCatalogEntry = {
   defaultSize: PetSizeClassValue;
 };
 
+export type PersistedBreedCatalogEntry = BreedCatalogEntry & {
+  id: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type EffectiveBreedCatalogEntry = BreedCatalogEntry & {
+  source: "default" | "override" | "custom";
+  persistedId: string | null;
+};
+
 export const BREED_CATALOG_CUSTOM_VALUE = "__CUSTOM__";
 
 export const DEFAULT_BREED_CATALOG: BreedCatalogEntry[] = [
@@ -85,5 +97,46 @@ export function buildDefaultBreedCatalogBySpecies() {
       [species]: listDefaultBreedCatalogBySpecies(species),
     }),
     {} as Record<PetSpeciesValue, BreedCatalogEntry[]>,
+  );
+}
+
+export function mergeBreedCatalogEntries(
+  species: PetSpeciesValue,
+  persistedEntries: PersistedBreedCatalogEntry[],
+) {
+  const defaultEntries = listDefaultBreedCatalogBySpecies(species);
+  const defaultCodeSet = new Set(defaultEntries.map((entry) => entry.code));
+  const merged = new Map<string, EffectiveBreedCatalogEntry>(
+    defaultEntries.map((entry) => [
+      entry.code,
+      {
+        ...entry,
+        source: "default" as const,
+        persistedId: null,
+      },
+    ]),
+  );
+
+  for (const entry of persistedEntries
+    .filter((item) => item.species === species)
+    .sort((left, right) => left.updatedAt.getTime() - right.updatedAt.getTime())) {
+    if (!entry.isActive) {
+      merged.delete(entry.code);
+      continue;
+    }
+
+    merged.set(entry.code, {
+      species: entry.species,
+      code: entry.code,
+      labelKo: entry.labelKo,
+      aliases: entry.aliases,
+      defaultSize: entry.defaultSize,
+      source: defaultCodeSet.has(entry.code) ? "override" : "custom",
+      persistedId: entry.id,
+    });
+  }
+
+  return Array.from(merged.values()).sort((left, right) =>
+    left.labelKo.localeCompare(right.labelKo, "ko"),
   );
 }

@@ -17,6 +17,45 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 215 완료 (품종 사전 운영 관리 경로 정착)
+- 완료 내용
+- BreedCatalog effective merge semantics 보정:
+  - `app/src/lib/breed-catalog.ts`
+  - `app/src/server/queries/breed-catalog.queries.ts`
+  - `app/src/server/queries/breed-catalog.queries.test.ts`
+  - default catalog와 DB override/custom row를 code 단위로 merge하도록 변경해 species별 일부 override만 있어도 기본 목록이 사라지지 않게 수정
+  - inactive DB row는 동일 code의 default/custom entry를 명시적으로 숨기도록 처리하고, `findBreedCatalogEntryBySpeciesAndCode`도 disabled override를 존중하도록 정리
+- moderator breed catalog 운영 경로 추가:
+  - `app/src/lib/validations/breed-catalog.ts`
+  - `app/src/server/services/breed-catalog.service.ts`
+  - `app/src/server/services/breed-catalog.service.test.ts`
+  - `app/src/server/actions/breed-catalog.ts`
+  - `app/src/components/admin/breed-catalog-manager.tsx`
+  - `app/src/app/admin/breeds/page.tsx`
+  - moderator가 `/admin/breeds`에서 effective catalog를 확인하고 DB override/custom entry를 추가/수정/비활성화/삭제할 수 있는 관리 UI와 server action을 추가
+  - 기본 사전 code와 같은 값으로 저장하면 override, 새로운 code면 custom entry가 되도록 운영 모델을 명확히 함
+- 운영 네비게이션/문서 동기화:
+  - `app/src/app/admin/policies/page.tsx`
+  - `app/src/app/admin/personalization/page.tsx`
+  - `app/src/app/admin/auth-audits/page.tsx`
+  - `app/src/app/admin/reports/page.tsx`
+  - `docs/product/품종_개인화_기획서.md`
+  - 기존 admin 페이지 footer에 `품종 사전` 링크를 추가하고, PRD의 `품종 사전 운영 소스` open issue를 닫음
+- 검증 결과
+- `pnpm -C app lint src/lib/breed-catalog.ts src/lib/validations/breed-catalog.ts src/server/queries/breed-catalog.queries.ts src/server/queries/breed-catalog.queries.test.ts src/server/services/breed-catalog.service.ts src/server/services/breed-catalog.service.test.ts src/server/actions/breed-catalog.ts src/components/admin/breed-catalog-manager.tsx src/app/admin/breeds/page.tsx src/app/admin/policies/page.tsx src/app/admin/personalization/page.tsx src/app/admin/auth-audits/page.tsx src/app/admin/reports/page.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/queries/breed-catalog.queries.test.ts src/server/services/breed-catalog.service.test.ts` 실행 시 전체 Vitest 스위트 `97 files / 468 tests` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 215 착수 (품종 사전 운영 관리 경로 정착)
+- 진행 내용
+- `BreedCatalog` query가 현재는 species별 DB row가 1개만 생겨도 default catalog 전체를 대체하는 구조라, 운영자가 일부 override만 추가했을 때 사용자 폼의 품종 목록이 축소될 수 있음을 확인
+- 품종 사전 운영 소스 open issue를 닫기 위해 moderator가 실제로 `BreedCatalog`를 조정할 수 있는 `/admin/breeds` 관리 경로가 필요하다고 판단
+- 이번 사이클 범위를 `effective merge semantics 보정 + moderator breed catalog 관리 화면/액션 + 제품 문서 동기화`로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 214 완료 (품종 사전 기반 프로필 입력 정규화)
 - 완료 내용
 - 품종 사전 fallback/query와 seed 정리:

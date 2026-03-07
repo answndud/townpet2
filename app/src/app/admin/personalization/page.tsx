@@ -265,6 +265,7 @@ export default async function PersonalizationPage({
         </section>
 
         <div className="flex flex-wrap gap-3 text-xs text-[#5a7398]">
+          <Link href="/admin/breeds">품종 사전</Link>
           <Link href="/admin/reports">신고 큐</Link>
           <Link href="/admin/auth-audits">인증 로그</Link>
           <Link href="/admin/policies">정책 설정</Link>

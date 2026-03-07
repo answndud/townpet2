@@ -1,73 +1,114 @@
 import type { PetSpecies } from "@prisma/client";
 
 import {
-  buildDefaultBreedCatalogBySpecies,
   findDefaultBreedCatalogEntry,
-  listDefaultBreedCatalogBySpecies,
+  mergeBreedCatalogEntries,
   type BreedCatalogEntry,
+  type EffectiveBreedCatalogEntry,
+  type PersistedBreedCatalogEntry,
 } from "@/lib/breed-catalog";
 import { prisma } from "@/lib/prisma";
-import type { PetSpeciesValue } from "@/lib/pet-profile";
+import { PET_SPECIES_VALUES, type PetSpeciesValue } from "@/lib/pet-profile";
 
-function toBreedCatalogEntry(input: {
+function toPersistedBreedCatalogEntry(input: {
+  id: string;
   species: PetSpecies | string;
   code: string;
   labelKo: string;
   aliases: string[];
   defaultSize: string;
-}): BreedCatalogEntry {
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): PersistedBreedCatalogEntry {
   return {
+    id: input.id,
     species: input.species as PetSpeciesValue,
     code: input.code.trim().toUpperCase(),
     labelKo: input.labelKo.trim(),
     aliases: input.aliases.map((alias) => alias.trim()).filter((alias) => alias.length > 0),
     defaultSize: input.defaultSize as BreedCatalogEntry["defaultSize"],
+    isActive: input.isActive,
+    createdAt: input.createdAt,
+    updatedAt: input.updatedAt,
   };
 }
 
-export async function listBreedCatalogBySpecies(species: PetSpeciesValue) {
+function toPlainBreedCatalogEntry(
+  input: Pick<BreedCatalogEntry, "species" | "code" | "labelKo" | "aliases" | "defaultSize">,
+): BreedCatalogEntry {
+  return {
+    species: input.species,
+    code: input.code,
+    labelKo: input.labelKo,
+    aliases: input.aliases,
+    defaultSize: input.defaultSize,
+  };
+}
+
+export async function listBreedCatalogBySpecies(
+  species: PetSpeciesValue,
+): Promise<BreedCatalogEntry[]> {
   const items = await prisma.breedCatalog.findMany({
     where: {
       species,
-      isActive: true,
     },
-    orderBy: [{ labelKo: "asc" }, { code: "asc" }],
+    orderBy: [{ updatedAt: "asc" }, { code: "asc" }],
   });
 
-  if (items.length > 0) {
-    return items.map((item) => toBreedCatalogEntry(item));
-  }
-
-  return listDefaultBreedCatalogBySpecies(species);
+  return mergeBreedCatalogEntries(
+    species,
+    items.map((item) => toPersistedBreedCatalogEntry(item)),
+  ).map(toPlainBreedCatalogEntry);
 }
 
-export async function listBreedCatalogGroupedBySpecies() {
+export async function listBreedCatalogGroupedBySpecies(): Promise<
+  Record<PetSpeciesValue, BreedCatalogEntry[]>
+> {
+  const effective = await listEffectiveBreedCatalogGroupedBySpecies();
+  return Object.fromEntries(
+    Object.entries(effective).map(([species, entries]) => [
+      species,
+      entries.map(toPlainBreedCatalogEntry),
+    ]),
+  ) as Record<PetSpeciesValue, BreedCatalogEntry[]>;
+}
+
+export async function listEffectiveBreedCatalogGroupedBySpecies(): Promise<
+  Record<PetSpeciesValue, EffectiveBreedCatalogEntry[]>
+> {
   const items = await prisma.breedCatalog.findMany({
-    where: { isActive: true },
-    orderBy: [{ species: "asc" }, { labelKo: "asc" }, { code: "asc" }],
+    orderBy: [{ species: "asc" }, { updatedAt: "asc" }, { code: "asc" }],
   });
 
-  if (items.length === 0) {
-    return buildDefaultBreedCatalogBySpecies();
-  }
+  const persistedEntries = items.map((item) => toPersistedBreedCatalogEntry(item));
+  return PET_SPECIES_VALUES.reduce(
+    (acc, species) => ({
+      ...acc,
+      [species]: mergeBreedCatalogEntries(species, persistedEntries),
+    }),
+    {} as Record<PetSpeciesValue, EffectiveBreedCatalogEntry[]>,
+  );
+}
 
-  const grouped = buildDefaultBreedCatalogBySpecies();
-  for (const key of Object.keys(grouped) as PetSpeciesValue[]) {
-    grouped[key] = [];
-  }
-
-  for (const item of items) {
-    const species = item.species as PetSpeciesValue;
-    grouped[species].push(toBreedCatalogEntry(item));
-  }
-
-  for (const key of Object.keys(grouped) as PetSpeciesValue[]) {
-    if (grouped[key].length === 0) {
-      grouped[key] = listDefaultBreedCatalogBySpecies(key);
+export async function listBreedCatalogAdminEntries(): Promise<
+  Array<
+    PersistedBreedCatalogEntry & {
+      source: "override" | "custom";
     }
-  }
+  >
+> {
+  const items = await prisma.breedCatalog.findMany({
+    orderBy: [{ species: "asc" }, { code: "asc" }, { updatedAt: "desc" }],
+  });
 
-  return grouped;
+  return items.map((item) => {
+    const entry = toPersistedBreedCatalogEntry(item) as PersistedBreedCatalogEntry;
+    return {
+      ...entry,
+      source: findDefaultBreedCatalogEntry(entry.species, entry.code) ? "override" : "custom",
+    };
+  });
 }
 
 export async function findBreedCatalogEntryBySpeciesAndCode(
@@ -83,13 +124,13 @@ export async function findBreedCatalogEntryBySpeciesAndCode(
     where: {
       species,
       code: normalizedCode,
-      isActive: true,
     },
     orderBy: { updatedAt: "desc" },
   });
 
   if (item) {
-    return toBreedCatalogEntry(item);
+    const entry = toPersistedBreedCatalogEntry(item);
+    return entry.isActive ? toPlainBreedCatalogEntry(entry) : null;
   }
 
   return findDefaultBreedCatalogEntry(species, normalizedCode);

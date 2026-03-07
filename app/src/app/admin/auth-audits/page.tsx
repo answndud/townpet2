@@ -220,6 +220,7 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
         </section>
 
         <div className="flex flex-wrap gap-3 text-xs text-[#5a7398]">
+          <Link href="/admin/breeds">품종 사전</Link>
           <Link href="/admin/reports">신고 큐</Link>
           <Link href="/admin/personalization">개인화 지표</Link>
         </div>
