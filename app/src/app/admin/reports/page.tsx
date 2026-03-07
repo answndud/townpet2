@@ -16,6 +16,7 @@ import {
   isSupportedReportTarget,
 } from "@/lib/report-target";
 import { getCurrentUser } from "@/server/auth";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { listReportAuditsByReportIds } from "@/server/queries/report-audit.queries";
 import { getReportStats, listReports } from "@/server/queries/report.queries";
 import { listRecentSanctions } from "@/server/queries/sanction.queries";
@@ -45,6 +46,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   if (!user) {
     redirect("/login");
   }
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: true,
+    nickname: user.nickname,
+  });
 
   const isModerator =
     user.role === UserRole.ADMIN || user.role === UserRole.MODERATOR;

@@ -5,6 +5,7 @@ import { ReportStatus, UserRole } from "@prisma/client";
 import { ReportActions } from "@/components/admin/report-actions";
 import { getReportTargetLabel, isSupportedReportTarget } from "@/lib/report-target";
 import { getCurrentUser } from "@/server/auth";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { listReportAudits } from "@/server/queries/report-audit.queries";
 import { getReportById } from "@/server/queries/report.queries";
 import { listUsersByIds } from "@/server/queries/user.queries";
@@ -25,6 +26,10 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
   if (!user) {
     redirect("/login");
   }
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: true,
+    nickname: user.nickname,
+  });
 
   const isModerator =
     user.role === UserRole.ADMIN || user.role === UserRole.MODERATOR;

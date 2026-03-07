@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { getPostSignals } from "@/lib/post-presenter";
 import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 import { listUserPostsPage } from "@/server/queries/post.queries";
 
@@ -60,6 +61,10 @@ export default async function MyPostsPage({ searchParams }: MyPostsPageProps) {
   if (!userId) {
     redirect("/login");
   }
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: true,
+    nickname: session.user?.nickname,
+  });
 
   const user = await getUserWithNeighborhoods(userId);
   if (!user) {

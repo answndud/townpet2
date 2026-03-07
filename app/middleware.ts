@@ -2,99 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+import { resolveCspHeaders as resolveSecurityCspHeaders } from "@/lib/security-headers";
+
 const CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const CORS_HEADERS = "Content-Type, Authorization, X-Requested-With, X-Request-Id";
-const CSP_REPORT_ENDPOINT = "/api/security/csp-report";
 const POST_ID_PATTERN = /^c[a-z0-9]{24}$/;
 const SESSION_COOKIE_NAME = "townpet.session-token";
-
-function buildCspScriptSrc(nonce: string, isStrict: boolean) {
-  const strictSources = [`'self'`, `'nonce-${nonce}'`];
-  if (isStrict) {
-    return strictSources.join(" ");
-  }
-
-  return [...strictSources, `'unsafe-inline'`].join(" ");
-}
-
-function buildCspPolicy(params: {
-  scriptSrc: string;
-  connectSrc: string;
-  includeUnsafeEval: boolean;
-}) {
-  const scriptSrc = params.includeUnsafeEval
-    ? `${params.scriptSrc} 'unsafe-eval'`
-    : params.scriptSrc;
-
-  return [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "frame-ancestors 'none'",
-    "object-src 'none'",
-    "img-src 'self' data: blob: https:",
-    `script-src ${scriptSrc}`,
-    "style-src 'self' 'unsafe-inline'",
-    `connect-src ${params.connectSrc}`,
-    `report-uri ${CSP_REPORT_ENDPOINT}`,
-  ].join("; ");
-}
-
-const PROD_CSP_RELAXED = (nonce: string) =>
-  buildCspPolicy({
-    scriptSrc: buildCspScriptSrc(nonce, false),
-    connectSrc: "'self' https:",
-    includeUnsafeEval: false,
-  });
-
-const PROD_CSP_STRICT = (nonce: string) =>
-  buildCspPolicy({
-    scriptSrc: buildCspScriptSrc(nonce, true),
-    connectSrc: "'self' https:",
-    includeUnsafeEval: false,
-  });
-
-const DEV_CSP = (nonce: string) =>
-  buildCspPolicy({
-    scriptSrc: `${buildCspScriptSrc(nonce, false)} http: https:`,
-    connectSrc: "'self' https: http: ws: wss:",
-    includeUnsafeEval: true,
-  });
-
-function isTruthy(value?: string) {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes";
-}
-
-export function resolveCspHeaders(env: {
-  nodeEnv?: string;
-  cspEnforceStrict?: string;
-  nonce: string;
-}) {
-  const isProduction = env.nodeEnv === "production";
-  if (!isProduction) {
-    return {
-      csp: DEV_CSP(env.nonce),
-      cspReportOnly: null,
-    };
-  }
-
-  const isStrictEnforced = isTruthy(env.cspEnforceStrict);
-  if (isStrictEnforced) {
-    return {
-      csp: PROD_CSP_STRICT(env.nonce),
-      cspReportOnly: null,
-    };
-  }
-
-  return {
-    csp: PROD_CSP_RELAXED(env.nonce),
-    cspReportOnly: PROD_CSP_STRICT(env.nonce),
-  };
-}
+export { resolveCspHeaders } from "@/lib/security-headers";
 
 export function isGuestPostDetailPath(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
@@ -159,7 +73,7 @@ function getAllowedCorsOrigins() {
 }
 
 function applySecurityHeaders(headers: Headers, nonce: string) {
-  const cspHeaders = resolveCspHeaders({
+  const cspHeaders = resolveSecurityCspHeaders({
     nodeEnv: process.env.NODE_ENV,
     cspEnforceStrict: process.env.CSP_ENFORCE_STRICT,
     nonce,

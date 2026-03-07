@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+import { buildStaticSecurityHeaders } from "./src/lib/security-headers";
+
+const staticSecurityHeaders = buildStaticSecurityHeaders({
+  nodeEnv: process.env.NODE_ENV,
+  cspEnforceStrict: process.env.CSP_ENFORCE_STRICT,
+});
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -15,6 +22,10 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: staticSecurityHeaders,
+      },
       {
         source: "/api/posts",
         headers: [

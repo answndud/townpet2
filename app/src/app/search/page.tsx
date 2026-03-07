@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listRankedSearchPosts } from "@/server/queries/post.queries";
 import { getPopularSearchTerms } from "@/server/queries/search.queries";
@@ -50,6 +51,10 @@ function toFeedSearchIn(value?: string): FeedSearchIn {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const session = await auth();
   const userId = session?.user?.id;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(userId),
+    nickname: session?.user?.nickname,
+  });
   const user = userId ? await getUserWithNeighborhoods(userId) : null;
   if (!user) {
     redirect("/search/guest");

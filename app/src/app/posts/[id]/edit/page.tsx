@@ -5,6 +5,7 @@ import { NeighborhoodGateNotice } from "@/components/neighborhood/neighborhood-g
 import { PostDetailEditForm } from "@/components/posts/post-detail-edit-form";
 import { auth } from "@/lib/auth";
 import { getGuestPostMeta } from "@/lib/post-guest-meta";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getPostById } from "@/server/queries/post.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
@@ -16,6 +17,10 @@ export default async function PostEditPage({ params }: PostEditPageProps) {
   const resolvedParams = (await params) ?? {};
   const session = await auth();
   const userId = session?.user?.id;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(userId),
+    nickname: session?.user?.nickname,
+  });
   const user = userId ? await getUserWithNeighborhoods(userId) : null;
 
   const post = await getPostById(resolvedParams.id);

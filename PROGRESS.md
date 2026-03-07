@@ -17,6 +17,43 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 207 완료 (middleware incident defense-in-depth)
+- 완료 내용
+- 정적 security header fallback 추가:
+  - `app/src/lib/security-headers.ts`
+  - `app/next.config.ts`
+  - `app/middleware.ts`
+  - CSP/XFO/nosniff/referrer-policy 생성을 공용 helper로 분리하고, `next.config`에 전역 static header fallback을 추가
+  - middleware가 누락돼도 최소 보안 헤더와 relaxed fallback CSP가 남도록 구성
+- 닉네임 가드의 서버 페이지 이관:
+  - `app/src/lib/nickname-guard.ts`
+  - `app/src/server/nickname-guard.ts`
+  - `app/src/app/feed/page.tsx`
+  - `app/src/app/search/page.tsx`
+  - `app/src/app/notifications/page.tsx`
+  - `app/src/app/my-posts/page.tsx`
+  - `app/src/app/posts/new/page.tsx`
+  - `app/src/app/posts/[id]/page.tsx`
+  - `app/src/app/posts/[id]/edit/page.tsx`
+  - `app/src/app/users/[id]/page.tsx`
+  - `app/src/app/password/setup/page.tsx`
+  - `app/src/app/lounges/breeds/[breedCode]/page.tsx`
+  - `app/src/app/lounges/breeds/[breedCode]/groupbuys/new/page.tsx`
+  - `app/src/app/admin/reports/page.tsx`
+  - `app/src/app/admin/reports/[id]/page.tsx`
+  - `app/src/app/admin/auth-audits/page.tsx`
+  - `app/src/app/admin/policies/page.tsx`
+  - 미들웨어 없이도 로그인 사용자의 닉네임이 비어 있으면 주요 서버 페이지에서 `/profile`로 리다이렉트
+- 회귀 테스트 추가:
+  - `app/src/lib/security-headers.test.ts`
+  - `app/src/lib/nickname-guard.test.ts`
+- 검증 결과
+- `pnpm -C app lint next.config.ts middleware.ts src/middleware.test.ts src/lib/security-headers.ts src/lib/security-headers.test.ts src/lib/nickname-guard.ts src/lib/nickname-guard.test.ts src/server/nickname-guard.ts src/app/feed/page.tsx src/app/search/page.tsx src/app/notifications/page.tsx src/app/my-posts/page.tsx src/app/posts/new/page.tsx src/app/posts/[id]/page.tsx src/app/posts/[id]/edit/page.tsx src/app/users/[id]/page.tsx src/app/password/setup/page.tsx src/app/lounges/breeds/[breedCode]/page.tsx src/app/lounges/breeds/[breedCode]/groupbuys/new/page.tsx src/app/admin/reports/page.tsx src/app/admin/reports/[id]/page.tsx src/app/admin/auth-audits/page.tsx src/app/admin/policies/page.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app exec vitest run src/lib/security-headers.test.ts src/lib/nickname-guard.test.ts src/middleware.test.ts src/app/api/viewer-shell/route.test.ts` 통과
+- 이슈/블로커
+- 로컬 워크트리에는 `app/src/lib/env.ts` 별도 수정이 계속 남아 있으며, 이번 cycle 커밋에는 포함하지 않음
+
 ### 2026-03-07: Cycle 201 완료 (신고/제재 운영 현실화)
 - 완료 내용
 - 신고 auto-hide 정책을 고정 임계치에서 가중치 기반으로 전환:

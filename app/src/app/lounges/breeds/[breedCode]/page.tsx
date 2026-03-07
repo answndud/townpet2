@@ -13,6 +13,7 @@ import {
   breedCodeParamSchema,
   breedLoungePostListSchema,
 } from "@/lib/validations/lounge";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listPosts } from "@/server/queries/post.queries";
 
@@ -97,6 +98,10 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
   const query = parsedQuery.success ? parsedQuery.data : {};
   const session = await auth();
   const viewerId = session?.user?.id;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(viewerId),
+    nickname: session?.user?.nickname,
+  });
   const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
 
   const data = await listPosts({

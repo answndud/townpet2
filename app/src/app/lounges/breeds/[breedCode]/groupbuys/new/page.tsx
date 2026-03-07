@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BreedGroupBuyForm } from "@/components/lounges/breed-groupbuy-form";
 import { auth } from "@/lib/auth";
 import { breedCodeParamSchema } from "@/lib/validations/lounge";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 
 type BreedGroupBuyPageProps = {
   params: Promise<{ breedCode?: string }>;
@@ -13,6 +14,10 @@ export default async function BreedGroupBuyNewPage({ params }: BreedGroupBuyPage
   const parsedBreedCode = breedCodeParamSchema.safeParse(resolvedParams.breedCode);
   const breedCode = parsedBreedCode.success ? parsedBreedCode.data : "UNKNOWN";
   const session = await auth();
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(session?.user?.id),
+    nickname: session?.user?.nickname,
+  });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">

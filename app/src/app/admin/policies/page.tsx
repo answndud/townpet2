@@ -8,6 +8,7 @@ import { GuestReadPolicyForm } from "@/components/admin/guest-read-policy-form";
 import { NewUserSafetyPolicyForm } from "@/components/admin/new-user-safety-policy-form";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { getCurrentUser } from "@/server/auth";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import {
   getForbiddenKeywords,
   getGuestPostPolicy,
@@ -20,6 +21,10 @@ export default async function AdminPoliciesPage() {
   if (!user) {
     redirect("/login");
   }
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: true,
+    nickname: user.nickname,
+  });
 
   const isModerator =
     user.role === UserRole.ADMIN || user.role === UserRole.MODERATOR;

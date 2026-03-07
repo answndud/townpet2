@@ -26,6 +26,7 @@ import { postTypeMeta } from "@/lib/post-presenter";
 import { REVIEW_CATEGORY, type ReviewCategory } from "@/lib/review-category";
 import { isLocalRequiredPostType } from "@/lib/post-scope-policy";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listCommunityNavItems } from "@/server/queries/community.queries";
 import {
@@ -194,6 +195,10 @@ export default async function Home({ searchParams }: HomePageProps) {
     cookies(),
   ]);
   const userId = session?.user?.id;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(userId),
+    nickname: session?.user?.nickname,
+  });
   const allPetTypeIds = communities.map((item) => item.id);
   const cookiePetTypeIds = parsePetTypePreferenceCookie(
     cookieStore.get(PET_TYPE_PREFERENCE_COOKIE)?.value,

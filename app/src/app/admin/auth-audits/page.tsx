@@ -4,6 +4,7 @@ import { AuthAuditAction, UserRole } from "@prisma/client";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { getCurrentUser } from "@/server/auth";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { listAuthAuditLogs } from "@/server/queries/auth-audit.queries";
 
 type AuthAuditPageProps = {
@@ -33,6 +34,10 @@ export default async function AuthAuditPage({ searchParams }: AuthAuditPageProps
   if (!user) {
     redirect("/login");
   }
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: true,
+    nickname: user.nickname,
+  });
 
   const isModerator =
     user.role === UserRole.ADMIN || user.role === UserRole.MODERATOR;

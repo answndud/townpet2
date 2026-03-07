@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SetPasswordForm } from "@/components/auth/set-password-form";
 import { auth } from "@/lib/auth";
 import { getPasswordSetupCopy } from "@/lib/password-setup";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getUserPasswordStatusById } from "@/server/queries/user.queries";
 
 export default async function PasswordSetupPage() {
@@ -11,6 +12,10 @@ export default async function PasswordSetupPage() {
   if (!session?.user?.id) {
     redirect("/login");
   }
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: true,
+    nickname: session.user?.nickname,
+  });
 
   const passwordStatus = await getUserPasswordStatusById(session.user.id);
   if (!passwordStatus) {

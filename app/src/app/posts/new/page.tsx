@@ -2,12 +2,17 @@ import Link from "next/link";
 
 import { PostCreateForm } from "@/components/posts/post-create-form";
 import { auth } from "@/lib/auth";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { listCommunities } from "@/server/queries/community.queries";
 import { getUserWithNeighborhoods } from "@/server/queries/user.queries";
 
 export default async function NewPostPage() {
   const session = await auth();
   const userId = session?.user?.id;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(userId),
+    nickname: session?.user?.nickname,
+  });
   const user = userId ? await getUserWithNeighborhoods(userId) : null;
   const primaryNeighborhood = user?.neighborhoods.find((item) => item.isPrimary);
 

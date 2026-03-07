@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getCspNonce } from "@/lib/csp-nonce";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import {
   getPublicUserProfileById,
@@ -116,6 +117,10 @@ export default async function PublicUserProfilePage({
 
   const session = await auth();
   const viewerId = session?.user?.id;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(viewerId),
+    nickname: session?.user?.nickname,
+  });
 
   if (viewerId && viewerId === id) {
     redirect("/profile");

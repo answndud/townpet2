@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 207: middleware incident defense-in-depth (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 정적 security header fallback 추가 | Codex | P1 | `done` | middleware 미실행 상황에서도 `next.config` 정적 헤더로 최소 CSP/XFO/nosniff/referrer-policy가 유지되고 공용 helper 테스트가 존재함 | `app/next.config.ts`, `app/middleware.ts`, `app/src/lib/security-headers.ts` |
+| 닉네임 미설정 사용자 가드의 서버 페이지 이관 | Codex | P1 | `done` | 핵심 authenticated 페이지가 middleware 없이도 `/profile`로 리다이렉트되고 순수 guard helper 테스트가 존재함 | `app/src/lib/nickname-guard.ts`, `app/src/server/nickname-guard.ts`, `app/src/app/**/*.tsx` |
+
 ### Cycle 206: guest 상세 작성자 유형 정합화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

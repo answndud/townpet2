@@ -5,7 +5,8 @@ import {
   parseNotificationFilterKind,
   parseUnreadOnly,
 } from "@/lib/notification-filter";
-import { getCurrentUserId } from "@/server/auth";
+import { auth } from "@/lib/auth";
+import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
 
 type NotificationsPageProps = {
@@ -15,10 +16,15 @@ type NotificationsPageProps = {
 export default async function NotificationsPage({ searchParams }: NotificationsPageProps) {
   const resolvedSearchParamsPromise =
     searchParams ?? Promise.resolve({} as { kind?: string; unreadOnly?: string });
-  const [currentUserId, resolvedSearchParams] = await Promise.all([
-    getCurrentUserId(),
+  const [session, resolvedSearchParams] = await Promise.all([
+    auth(),
     resolvedSearchParamsPromise,
   ]);
+  const currentUserId = session?.user?.id ?? null;
+  redirectToProfileIfNicknameMissing({
+    isAuthenticated: Boolean(currentUserId),
+    nickname: session?.user?.nickname,
+  });
   const kind = parseNotificationFilterKind(resolvedSearchParams.kind);
   const unreadOnly = parseUnreadOnly(resolvedSearchParams.unreadOnly);
 
