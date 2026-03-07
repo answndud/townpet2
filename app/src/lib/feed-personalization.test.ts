@@ -115,25 +115,42 @@ describe("feed personalization helpers", () => {
         confidenceScore: 0.83,
       },
       preferredPetTypeLabels: ["강아지 일상", "강아지 건강"],
+      preferredInterestLabels: ["산책", "건강"],
     });
 
     expect(buildFeedPersonalizationSummary(context)).toMatchObject({
       title: "강아지 · 말티즈 · 소형 · 성체 기준으로 맞춤 추천 중",
-      emphasis: "세그먼트 신뢰도 83% · 선호 커뮤니티 강아지 일상, 강아지 건강",
+      emphasis:
+        "세그먼트 신뢰도 83% · 선호 커뮤니티 강아지 일상, 강아지 건강 · 관심 태그 산책, 건강",
     });
     expect(buildFeedPersonalizationSummary(context).description).toContain(
       "선택한 커뮤니티 선호도 2차 신호로 함께 반영합니다.",
+    );
+    expect(buildFeedPersonalizationSummary(context).description).toContain(
+      "관심 태그와 콘텐츠 카테고리 3차 신호도 함께 반영합니다.",
     );
   });
 
   it("falls back to preferred communities when profile signals are missing", () => {
     const context = resolveFeedAudienceContext({
       preferredPetTypeLabels: ["강아지 일상", "강아지 건강"],
+      preferredInterestLabels: ["산책", "건강"],
     });
 
     expect(buildFeedPersonalizationSummary(context)).toMatchObject({
       title: "선호 커뮤니티 기준으로 기본 맞춤 추천 중",
-      emphasis: "선호 커뮤니티 강아지 일상, 강아지 건강",
+      emphasis: "선호 커뮤니티 강아지 일상, 강아지 건강 · 관심 태그 산책, 건강",
+    });
+  });
+
+  it("falls back to interest-tag summary when only content interests are available", () => {
+    const context = resolveFeedAudienceContext({
+      preferredInterestLabels: ["산책", "건강"],
+    });
+
+    expect(buildFeedPersonalizationSummary(context)).toMatchObject({
+      title: "관심 태그 기준으로 기본 맞춤 추천 중",
+      emphasis: "관심 태그 산책, 건강",
     });
   });
 });

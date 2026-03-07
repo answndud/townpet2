@@ -17,6 +17,37 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 218 완료 (활동 태그/콘텐츠 카테고리 3차 개인화 신호)
+- 완료 내용
+- 선호 커뮤니티 태그 3차 랭킹 신호 연결:
+  - `app/src/server/queries/post.queries.ts`
+  - `app/src/server/queries/post.queries.test.ts`
+  - `app/src/server/queries/community.queries.ts`
+  - preferred community의 `Community.tags`를 viewer 관심 태그로 읽고, post `type`, `reviewCategory`, `petType.tags`, `animalTags`로 구성한 콘텐츠 신호와 매칭해 최대 `+0.09`의 약한 3차 boost를 추가
+  - 프로필/세그먼트 직접 신호가 약한 경우에도 `산책`, `건강`, `사료` 같은 주제성 태그가 personalized feed 정렬에 반영되도록 보정
+  - `listCommunityNavItems`는 nav/feed summary에서도 같은 태그를 재사용할 수 있도록 `tags`를 함께 반환하게 정리
+- 피드 설명/제품 문서 동기화:
+  - `app/src/lib/feed-personalization.ts`
+  - `app/src/lib/feed-personalization.test.ts`
+  - `app/src/app/feed/page.tsx`
+  - `docs/product/품종_개인화_기획서.md`
+  - `/feed` 맞춤 추천 설명에 `관심 태그` 강조 문구와 3차 신호 설명을 추가하고, 프로필 신호가 부족할 때는 관심 태그 기준 fallback summary도 제공
+  - 제품 문서 구현 상태를 `선호 커뮤니티 태그 -> 콘텐츠 카테고리` 3차 신호까지 반영된 상태로 갱신하고 다음 오픈 이슈를 4차 신호로 조정
+- 검증 결과
+- `pnpm -C app lint src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts src/server/queries/community.queries.ts src/lib/feed-personalization.ts src/lib/feed-personalization.test.ts src/app/feed/page.tsx` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/feed-personalization.test.ts src/server/queries/post.queries.test.ts` 실행 시 전체 Vitest 스위트 `97 files / 476 tests` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 218 착수 (활동 태그/콘텐츠 카테고리 3차 개인화 신호)
+- 진행 내용
+- `preferredPetTypes`는 2차 community match까지 연결됐지만, `Community.tags`와 post `type/reviewCategory/petType.tags` 기반의 주제성 신호는 personalized ranking에 아직 반영되지 않고 있음을 확인
+- seed 데이터 기준으로 각 커뮤니티에 `산책`, `건강`, `사료`, `훈련` 같은 태그가 이미 존재하고, post 쪽에도 `reviewCategory`, `animalTags`, `type`이 있어 별도 스키마 추가 없이 3차 신호를 만들 수 있다고 판단
+- 이번 사이클 범위를 `community.tags -> viewer 관심 태그 -> post 콘텐츠 신호 매칭` + 피드 설명/제품 문서 동기화로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 217 완료 (선호 커뮤니티 기반 2차 개인화 신호 연결)
 - 완료 내용
 - preferredPetTypes 2차 랭킹 신호 연결:

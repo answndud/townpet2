@@ -23,6 +23,7 @@ type CommunityNavItem = {
   id: string;
   slug: string;
   labelKo: string;
+  tags?: string[];
 };
 
 function isMissingCommunitySchemaError(error: unknown) {
@@ -160,6 +161,7 @@ export const listCommunityNavItems = cache(
             id: true,
             slug: true,
             labelKo: true,
+            tags: true,
           },
           orderBy: [
             { category: { sortOrder: "asc" } },

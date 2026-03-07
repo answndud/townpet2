@@ -85,6 +85,7 @@ const buildPostListInclude = (
       select: {
         id: true,
         labelKo: true,
+        tags: true,
         category: {
           select: {
             labelKo: true,
@@ -118,6 +119,7 @@ const buildPostListIncludeWithoutReactions = (
       select: {
         id: true,
         labelKo: true,
+        tags: true,
         category: {
           select: {
             labelKo: true,
@@ -845,6 +847,12 @@ type FeedLikePost = {
   commentCount: number;
   viewCount: number;
   petTypeId?: string | null;
+  type?: PostType;
+  reviewCategory?: ReviewCategory | null;
+  animalTags?: string[];
+  petType?: {
+    tags?: string[] | null;
+  } | null;
   author: {
     id: string;
   };
@@ -853,6 +861,26 @@ type FeedLikePost = {
 type ViewerPersonalizationContext = {
   petSignals: PetSignal[];
   preferredPetTypeIds: string[];
+  preferredInterestLabels: string[];
+};
+
+const REVIEW_CATEGORY_INTEREST_LABELS: Partial<Record<ReviewCategory, string[]>> = {
+  FEED: ["사료"],
+  SNACK: ["간식"],
+  TOY: ["장난감"],
+  PLACE: ["장소", "산책"],
+  SUPPLIES: ["용품"],
+  ETC: ["후기"],
+};
+
+const POST_TYPE_INTEREST_LABELS: Partial<Record<PostType, string[]>> = {
+  WALK_ROUTE: ["산책"],
+  HOSPITAL_REVIEW: ["건강", "병원"],
+  PLACE_REVIEW: ["장소"],
+  PRODUCT_REVIEW: ["용품", "후기"],
+  PET_SHOWCASE: ["행동", "일상"],
+  QA_QUESTION: ["질문"],
+  QA_ANSWER: ["질문"],
 };
 
 function normalizeBreedCode(value: string | null | undefined) {
@@ -863,6 +891,19 @@ function normalizeBreedCode(value: string | null | undefined) {
 function normalizeBreedLabel(value: string | null | undefined) {
   const normalized = value?.trim().replace(/\s+/g, " ").toUpperCase();
   return normalized && normalized.length > 0 ? normalized : null;
+}
+
+function normalizeInterestLabel(value: string | null | undefined) {
+  const normalized = value?.trim().replace(/\s+/g, " ").toLowerCase();
+  return normalized && normalized.length > 0 ? normalized : null;
+}
+
+function dedupeInterestLabels(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values.filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
 }
 
 function calculatePersonalizationBoost(
@@ -930,6 +971,43 @@ function calculatePreferredPetTypeBoost(
   return preferredPetTypeIds.includes(postPetTypeId) ? 0.12 : 0;
 }
 
+function collectPostInterestLabels(post: FeedLikePost) {
+  return dedupeInterestLabels([
+    ...(post.animalTags ?? []).map((tag) => normalizeInterestLabel(tag)),
+    ...((post.petType?.tags ?? []) as string[]).map((tag) => normalizeInterestLabel(tag)),
+    ...((post.type ? POST_TYPE_INTEREST_LABELS[post.type] : []) ?? []).map((tag) =>
+      normalizeInterestLabel(tag),
+    ),
+    ...((post.reviewCategory ? REVIEW_CATEGORY_INTEREST_LABELS[post.reviewCategory] : []) ?? []).map(
+      (tag) => normalizeInterestLabel(tag),
+    ),
+  ]);
+}
+
+function calculatePreferredInterestBoost(
+  post: FeedLikePost,
+  preferredInterestLabels: string[],
+) {
+  if (preferredInterestLabels.length === 0) {
+    return 0;
+  }
+
+  const postInterestLabels = collectPostInterestLabels(post);
+  if (postInterestLabels.length === 0) {
+    return 0;
+  }
+
+  const preferredInterestSet = new Set(preferredInterestLabels);
+  let sharedCount = 0;
+  for (const label of postInterestLabels) {
+    if (preferredInterestSet.has(label)) {
+      sharedCount += 1;
+    }
+  }
+
+  return Math.min(0.09, sharedCount * 0.03);
+}
+
 function calculateViewerPersonalizationBoost(
   post: FeedLikePost,
   viewerContext: ViewerPersonalizationContext,
@@ -943,8 +1021,12 @@ function calculateViewerPersonalizationBoost(
     post.petTypeId,
     viewerContext.preferredPetTypeIds,
   );
+  const preferredInterestBoost = calculatePreferredInterestBoost(
+    post,
+    viewerContext.preferredInterestLabels,
+  );
 
-  return petBoost + preferredPetTypeBoost;
+  return petBoost + preferredPetTypeBoost + preferredInterestBoost;
 }
 
 function calculateFeedScore(
@@ -1125,15 +1207,40 @@ async function listViewerPersonalizationContext(
     listViewerPetSignals(viewerId),
     listPreferredPetTypeIdsByUserId(viewerId),
   ]);
+  const normalizedPreferredPetTypeIds = Array.from(
+    new Set(
+      preferredPetTypeIds.filter(
+        (petTypeId): petTypeId is string =>
+          typeof petTypeId === "string" && petTypeId.length > 0,
+      ),
+    ),
+  );
+  const preferredCommunities =
+    normalizedPreferredPetTypeIds.length > 0
+      ? await prisma.community
+          .findMany({
+            where: {
+              id: { in: normalizedPreferredPetTypeIds },
+              isActive: true,
+            },
+            select: {
+              tags: true,
+            },
+          })
+          .catch((error) => {
+            if (isMissingCommunityBoardSchemaError(error)) {
+              return [];
+            }
+            throw error;
+          })
+      : [];
 
   return {
     petSignals,
-    preferredPetTypeIds: Array.from(
-      new Set(
-        preferredPetTypeIds.filter(
-          (petTypeId): petTypeId is string =>
-            typeof petTypeId === "string" && petTypeId.length > 0,
-        ),
+    preferredPetTypeIds: normalizedPreferredPetTypeIds,
+    preferredInterestLabels: dedupeInterestLabels(
+      preferredCommunities.flatMap((community) =>
+        community.tags.map((tag) => normalizeInterestLabel(tag)),
       ),
     ),
   };
@@ -1150,7 +1257,8 @@ async function applyPetPersonalization<T extends FeedLikePost>(
   const viewerContext = await listViewerPersonalizationContext(viewerId);
   if (
     viewerContext.petSignals.length === 0 &&
-    viewerContext.preferredPetTypeIds.length === 0
+    viewerContext.preferredPetTypeIds.length === 0 &&
+    viewerContext.preferredInterestLabels.length === 0
   ) {
     return items;
   }

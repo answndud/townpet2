@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 218: 활동 태그/콘텐츠 카테고리 3차 개인화 신호 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 선호 커뮤니티 태그를 personalized ranking 3차 가중치로 연결 | Codex | P1 | `done` | preferred community의 `tags`와 post `type/reviewCategory/petType.tags` 기반 콘텐츠 신호가 personalized feed에 약한 3차 boost로 반영되고 회귀 테스트가 존재함 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/post.queries.test.ts`, `app/src/server/queries/community.queries.ts` |
+| 피드 개인화 설명에 관심 태그/콘텐츠 카테고리 신호 노출 | Codex | P2 | `done` | `/feed` 맞춤 추천 설명이 선호 커뮤니티뿐 아니라 관심 태그/콘텐츠 카테고리 3차 신호를 함께 안내하고 문서가 동기화됨 | `app/src/lib/feed-personalization.ts`, `app/src/lib/feed-personalization.test.ts`, `app/src/app/feed/page.tsx`, `docs/product/품종_개인화_기획서.md` |
+
 ### Cycle 217: 선호 커뮤니티 기반 2차 개인화 신호 연결 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
