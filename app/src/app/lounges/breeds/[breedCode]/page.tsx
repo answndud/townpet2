@@ -7,6 +7,10 @@ import {
 } from "@/components/posts/feed-infinite-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
+import {
+  buildFeedPersonalizationSummary,
+  resolveFeedAudienceContext,
+} from "@/lib/feed-personalization";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { postTypeMeta } from "@/lib/post-presenter";
 import {
@@ -14,6 +18,7 @@ import {
   breedLoungePostListSchema,
 } from "@/lib/validations/lounge";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
+import { listAudienceSegmentsByUserId } from "@/server/queries/audience-segment.queries";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listPosts } from "@/server/queries/post.queries";
 
@@ -50,6 +55,7 @@ function toHref(params: {
   sort?: "LATEST" | "LIKE" | "COMMENT";
   days?: 3 | 7 | 30;
   type?: PostType;
+  personalized?: boolean;
 }) {
   const search = new URLSearchParams();
   if (params.q?.trim()) {
@@ -63,6 +69,9 @@ function toHref(params: {
   }
   if (params.type) {
     search.set("type", params.type);
+  }
+  if (params.personalized) {
+    search.set("personalized", "1");
   }
   const serialized = search.toString();
   return serialized
@@ -103,6 +112,13 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
     nickname: session?.user?.nickname,
   });
   const loginRequiredTypes = await getGuestReadLoginRequiredPostTypes();
+  const audienceSegments = viewerId ? await listAudienceSegmentsByUserId(viewerId).catch(() => []) : [];
+  const loungeAudienceContext = resolveFeedAudienceContext({
+    segment: audienceSegments[0] ?? null,
+  });
+  const loungePersonalizedSummary = query.personalized
+    ? buildFeedPersonalizationSummary(loungeAudienceContext)
+    : null;
 
   const data = await listPosts({
     limit: FEED_PAGE_SIZE,
@@ -175,6 +191,7 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
     query.sort ?? "LATEST",
     query.days ?? "ALL_TIME",
     query.type ?? "ALL",
+    query.personalized ? "PERSONALIZED" : "DEFAULT",
   ].join("|");
 
   return (
@@ -203,6 +220,9 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
 
       <section className="tp-card mt-3 p-3 sm:p-4">
         <form className="flex flex-wrap gap-2" method="GET">
+          {query.personalized ? (
+            <input type="hidden" name="personalized" value="1" />
+          ) : null}
           <input
             name="q"
             defaultValue={query.q ?? ""}
@@ -235,6 +255,7 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
                   sort: sort as "LATEST" | "LIKE" | "COMMENT",
                   days: query.days,
                   type: query.type,
+                  personalized: query.personalized,
                 })}
                 className={`border px-2.5 py-1 text-xs font-semibold ${
                   selected
@@ -249,8 +270,58 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1.5">
+          {viewerId ? (
+            <>
+              <Link
+                href={toHref({
+                  breedCode,
+                  q: query.q,
+                  sort: query.sort,
+                  days: query.days,
+                  type: query.type,
+                  personalized: false,
+                })}
+                className={`border px-2.5 py-1 text-xs font-semibold ${
+                  !query.personalized
+                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                    : "border-[#b9cbeb] bg-white text-[#2f548f]"
+                }`}
+              >
+                일반 정렬
+              </Link>
+              <Link
+                href={toHref({
+                  breedCode,
+                  q: query.q,
+                  sort: query.sort,
+                  days: query.days,
+                  type: query.type,
+                  personalized: true,
+                })}
+                className={`border px-2.5 py-1 text-xs font-semibold ${
+                  query.personalized
+                    ? "border-[#3567b5] bg-[#3567b5] text-white"
+                    : "border-[#b9cbeb] bg-white text-[#2f548f]"
+                }`}
+              >
+                맞춤 정렬
+              </Link>
+              <span className="inline-flex items-center rounded border border-[#d8e4f5] bg-[#f7fbff] px-2.5 py-1 text-[11px] text-[#55749e]">
+                {loungeAudienceContext.label ?? "프로필 보강 필요"}
+              </span>
+            </>
+          ) : null}
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-1.5">
           <Link
-            href={toHref({ breedCode, q: query.q, sort: query.sort, type: query.type })}
+            href={toHref({
+              breedCode,
+              q: query.q,
+              sort: query.sort,
+              type: query.type,
+              personalized: query.personalized,
+            })}
             className={`border px-2.5 py-1 text-xs font-semibold ${
               !query.days
                 ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -268,6 +339,7 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
                 sort: query.sort,
                 days: day as 3 | 7 | 30,
                 type: query.type,
+                personalized: query.personalized,
               })}
               className={`border px-2.5 py-1 text-xs font-semibold ${
                 query.days === day
@@ -282,7 +354,13 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
 
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Link
-            href={toHref({ breedCode, q: query.q, sort: query.sort, days: query.days })}
+            href={toHref({
+              breedCode,
+              q: query.q,
+              sort: query.sort,
+              days: query.days,
+              personalized: query.personalized,
+            })}
             className={`border px-2.5 py-1 text-xs font-semibold ${
               !query.type
                 ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -294,7 +372,14 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
           {LOUNGE_TYPES.map((type) => (
             <Link
               key={`type-${type}`}
-              href={toHref({ breedCode, q: query.q, sort: query.sort, days: query.days, type })}
+              href={toHref({
+                breedCode,
+                q: query.q,
+                sort: query.sort,
+                days: query.days,
+                type,
+                personalized: query.personalized,
+              })}
               className={`border px-2.5 py-1 text-xs font-semibold ${
                 query.type === type
                   ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -305,6 +390,13 @@ export default async function BreedLoungePage({ params, searchParams }: BreedLou
             </Link>
           ))}
         </div>
+
+        {viewerId && query.personalized ? (
+          <div className="mt-3 rounded-lg border border-[#dce8f8] bg-[#f7fbff] px-3 py-2 text-xs text-[#55749e]">
+            <p className="font-semibold text-[#1f3f71]">{loungePersonalizedSummary?.title}</p>
+            <p className="mt-1 leading-5">{loungePersonalizedSummary?.description}</p>
+          </div>
+        ) : null}
       </section>
 
       <section className="tp-card mt-3 overflow-hidden">

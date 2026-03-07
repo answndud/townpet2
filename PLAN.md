@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 212: 맞춤 추천 모드 노출 및 세그먼트 소비 고도화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 피드/라운지에 맞춤 추천 토글과 세그먼트 설명 노출 | Codex | P1 | `done` | `/feed`와 품종 라운지에서 `personalized=1`을 켜는 명시적 UI가 생기고, 맞춤 추천 사용 시 현재 적용 세그먼트 설명이 노출됨 | `app/src/app/feed/page.tsx`, `app/src/app/lounges/breeds/[breedCode]/page.tsx`, `app/src/components/posts/feed-infinite-list.tsx` |
+| UserAudienceSegment를 피드 개인화/광고 audience key에 연결 | Codex | P1 | `done` | 피드 개인화와 광고 audience key가 `UserAudienceSegment`를 우선 사용하고 pet fallback만 보조로 남으며 회귀 테스트가 존재함 | `app/src/server/queries/post.queries.ts`, `app/src/server/queries/post.queries.test.ts`, `app/src/server/queries/audience-segment.queries.ts` |
+
 ### Cycle 211: 프로필 기반 개인화 신호 활성화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

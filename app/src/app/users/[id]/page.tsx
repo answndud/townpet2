@@ -10,6 +10,7 @@ import {
   getPetLifeStageLabel,
   getPetSizeClassLabel,
   getPetSpeciesLabel,
+  hasBreedLoungeRoute,
 } from "@/lib/pet-profile";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
@@ -218,10 +219,7 @@ export default async function PublicUserProfilePage({
                 });
                 const sizeLabel = getPetSizeClassLabel(pet.sizeClass);
                 const lifeStageLabel = getPetLifeStageLabel(pet.lifeStage);
-                const hasBreedLounge =
-                  Boolean(pet.breedCode) &&
-                  pet.breedCode !== "UNKNOWN" &&
-                  pet.breedCode !== "MIXED";
+                const hasBreedLounge = hasBreedLoungeRoute(pet.breedCode);
 
                 return (
                   <article key={pet.id} className="border border-[#dbe5f3] bg-[#f8fbff] p-3">

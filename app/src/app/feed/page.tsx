@@ -14,6 +14,11 @@ import {
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
+import {
+  buildFeedAdConfig,
+  buildFeedPersonalizationSummary,
+  resolveFeedAudienceContext,
+} from "@/lib/feed-personalization";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { isCommonBoardPostType } from "@/lib/community-board";
 import { isLoginRequiredPostType } from "@/lib/post-access";
@@ -27,6 +32,7 @@ import { REVIEW_CATEGORY, type ReviewCategory } from "@/lib/review-category";
 import { isLocalRequiredPostType } from "@/lib/post-scope-policy";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
+import { listAudienceSegmentsByUserId } from "@/server/queries/audience-segment.queries";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { listCommunityNavItems } from "@/server/queries/community.queries";
 import {
@@ -167,6 +173,23 @@ function toFeedDensity(value?: string): FeedDensity {
 
 function isDatabaseUnavailableError(error: unknown) {
   return error instanceof Prisma.PrismaClientInitializationError;
+}
+
+function isMissingAudienceSegmentQueryError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code !== "P2021" && error.code !== "P2022") {
+    return false;
+  }
+
+  const tableName = String(error.meta?.table ?? "");
+  const columnName = String(error.meta?.column ?? "");
+  return (
+    tableName.includes("UserAudienceSegment") ||
+    columnName.includes("UserAudienceSegment")
+  );
 }
 
 const getGuestFeedContext = unstable_cache(
@@ -443,33 +466,43 @@ export default async function Home({ searchParams }: HomePageProps) {
     mode === "BEST" ? resolvedPage : "CURSOR",
   ].join("|");
   const viewerUserId = user?.id ?? null;
-  const shouldLoadViewerPetsForAd =
+  const shouldLoadViewerPersonalizationContext =
     Boolean(viewerUserId) && mode === "ALL" && effectiveScope === PostScope.GLOBAL;
-  const viewerPets = shouldLoadViewerPetsForAd && viewerUserId
-    ? await listPetsByUserId(viewerUserId, { limit: 1, cacheTtlMs: 60_000 }).catch((error) => {
-        if (isDatabaseUnavailableError(error)) {
-          return [];
-        }
-        throw error;
-      })
-    : [];
+  const [viewerAudienceSegments, viewerPets] =
+    shouldLoadViewerPersonalizationContext && viewerUserId
+      ? await Promise.all([
+          listAudienceSegmentsByUserId(viewerUserId).catch((error) => {
+            if (
+              isDatabaseUnavailableError(error) ||
+              isMissingAudienceSegmentQueryError(error)
+            ) {
+              return [];
+            }
+            throw error;
+          }),
+          listPetsByUserId(viewerUserId, { limit: 1, cacheTtlMs: 60_000 }).catch((error) => {
+            if (isDatabaseUnavailableError(error)) {
+              return [];
+            }
+            throw error;
+          }),
+        ])
+      : [[], []];
+  const primaryAudienceSegment = viewerAudienceSegments[0] ?? null;
   const primaryPet = viewerPets[0] ?? null;
-  const adAudienceKey = primaryPet?.breedCode?.trim()
-    ? primaryPet.breedCode.trim().toUpperCase()
-    : primaryPet?.species ?? null;
+  const feedAudienceContext = resolveFeedAudienceContext({
+    segment: primaryAudienceSegment,
+    fallbackPet: primaryPet,
+  });
+  const personalizedSummary = usePersonalizedFeed
+    ? buildFeedPersonalizationSummary(feedAudienceContext)
+    : null;
   const adConfig =
-    mode === "ALL" && effectiveScope === PostScope.GLOBAL && adAudienceKey
-      ? {
-          audienceKey: adAudienceKey,
-          headline: `${primaryPet?.breedLabel?.trim() || adAudienceKey} 보호자를 위한 맞춤 공동구매`,
-          description:
-            "품종/체급에 맞춘 사료·간식·위생용품 공동구매 모집 글을 확인해 보세요. 광고는 세션/일 빈도 캡 정책으로 제한됩니다.",
-          ctaLabel: "맞춤 공동구매 보기",
-          ctaHref: `/lounges/breeds/${adAudienceKey}`,
-          sessionCap: 3,
-          dailyCap: 8,
-        }
+    mode === "ALL" && effectiveScope === PostScope.GLOBAL
+      ? buildFeedAdConfig(feedAudienceContext) ?? undefined
       : undefined;
+  const showPersonalizedToggle =
+    isAuthenticated && mode === "ALL" && effectiveScope === PostScope.GLOBAL;
   const initialFeedItems: FeedPostItem[] = items.map((post) => ({
     id: post.id,
     type: post.type,
@@ -672,6 +705,65 @@ export default async function Home({ searchParams }: HomePageProps) {
               로그인하기
             </Link>
           </div>
+        ) : null}
+
+        {showPersonalizedToggle ? (
+          <section className="tp-card overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e2ebf8] bg-[#f8fbff] px-3 py-2 text-xs text-[#4c6f9e] sm:px-5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 font-semibold text-[#4b6b9b]">추천 방식</span>
+                <Link
+                  href={makeHref({ nextPersonalized: "0", nextPage: 1 })}
+                  className={`rounded-md border px-2 py-0.5 font-medium transition ${
+                    !usePersonalizedFeed
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
+                  }`}
+                >
+                  일반 추천
+                </Link>
+                <Link
+                  href={makeHref({ nextPersonalized: "1", nextPage: 1 })}
+                  className={`rounded-md border px-2 py-0.5 font-medium transition ${
+                    usePersonalizedFeed
+                      ? "border-[#3567b5] bg-[#3567b5] text-white"
+                      : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
+                  }`}
+                >
+                  맞춤 추천
+                </Link>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#5a7398]">
+                <span className="font-semibold text-[#4b6b9b]">현재 기준</span>
+                <span className="rounded border border-[#d2e0f3] bg-white px-1.5 py-0.5">
+                  {feedAudienceContext.label ?? "프로필 보강 필요"}
+                </span>
+              </div>
+            </div>
+            {usePersonalizedFeed ? (
+              <div className="bg-white px-3 py-3 sm:px-5">
+                <p className="text-sm font-semibold text-[#153a6a]">
+                  {personalizedSummary?.title}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[#5a7398]">
+                  {personalizedSummary?.description}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="rounded-full border border-[#c8daf5] bg-[#f3f8ff] px-2 py-0.5 font-semibold text-[#2f5da4]">
+                    {personalizedSummary?.emphasis}
+                  </span>
+                  {!feedAudienceContext.label ? (
+                    <Link
+                      href="/profile"
+                      className="font-semibold text-[#2f5da4] hover:text-[#244b86]"
+                    >
+                      반려동물 프로필 보강하기
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         <section id="feed-list" className="tp-card animate-fade-up overflow-hidden">

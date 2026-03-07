@@ -25,6 +25,9 @@ vi.mock("@/lib/prisma", () => ({
     post: {
       findMany: vi.fn(),
     },
+    userAudienceSegment: {
+      findMany: vi.fn(),
+    },
     pet: {
       findMany: vi.fn(),
     },
@@ -41,6 +44,9 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   post: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  userAudienceSegment: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
   pet: {
     findMany: ReturnType<typeof vi.fn>;
   };
@@ -55,6 +61,8 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 describe("post queries", () => {
   beforeEach(() => {
     mockPrisma.post.findMany.mockReset();
+    mockPrisma.userAudienceSegment.findMany.mockReset();
+    mockPrisma.userAudienceSegment.findMany.mockResolvedValue([]);
     mockPrisma.pet.findMany.mockReset();
     mockPrisma.userBlock.findMany.mockReset();
     mockPrisma.userBlock.findMany.mockResolvedValue([]);
@@ -345,6 +353,67 @@ describe("post queries", () => {
         viewCount: 0,
       },
     ]);
+    mockPrisma.userAudienceSegment.findMany.mockResolvedValue([
+      {
+        userId: "viewer-1",
+        species: "DOG",
+        breedCode: "MALTESE",
+        sizeClass: "SMALL",
+      },
+    ]);
+    mockPrisma.pet.findMany
+      .mockResolvedValueOnce([
+        {
+          userId: "a2",
+          species: "DOG",
+          breedCode: "MALTESE",
+          sizeClass: "SMALL",
+        },
+      ]);
+
+    const result = await listPosts({
+      limit: 2,
+      scope: PostScope.GLOBAL,
+      personalized: true,
+      viewerId: "viewer-1",
+    });
+
+    expect(mockPrisma.userAudienceSegment.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.pet.findMany).toHaveBeenCalledTimes(1);
+    expect(result.items[0]?.id).toBe("p2");
+    expect(result.nextCursor).toBe("p3");
+  });
+
+  it("falls back to pet profiles when audience segments are unavailable", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        id: "p1",
+        author: { id: "a1" },
+        createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        likeCount: 1,
+        commentCount: 0,
+        viewCount: 3,
+      },
+      {
+        id: "p2",
+        author: { id: "a2" },
+        createdAt: new Date("2026-02-02T00:00:00.000Z"),
+        likeCount: 2,
+        commentCount: 1,
+        viewCount: 10,
+      },
+      {
+        id: "p3",
+        author: { id: "a3" },
+        createdAt: new Date("2026-02-03T00:00:00.000Z"),
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+    ]);
+    mockPrisma.userAudienceSegment.findMany.mockRejectedValueOnce(
+      new Error('The table `public.UserAudienceSegment` does not exist'),
+    );
     mockPrisma.pet.findMany
       .mockResolvedValueOnce([
         {
@@ -370,6 +439,7 @@ describe("post queries", () => {
       viewerId: "viewer-1",
     });
 
+    expect(mockPrisma.userAudienceSegment.findMany).toHaveBeenCalledTimes(1);
     expect(mockPrisma.pet.findMany).toHaveBeenCalledTimes(2);
     expect(result.items[0]?.id).toBe("p2");
     expect(result.nextCursor).toBe("p3");

@@ -948,12 +948,72 @@ function interleaveForDiversity<T>(personalized: T[], explore: T[], personalized
   return result.slice(0, total);
 }
 
-async function applyPetPersonalization<T extends FeedLikePost>(
-  items: T[],
-  viewerId: string,
-) {
-  if (items.length < 2) {
-    return items;
+function mapToPetSignal(signal: {
+  userId: string;
+  species: string;
+  breedCode: string | null;
+  sizeClass: string | null;
+}) {
+  return {
+    userId: signal.userId,
+    species: String(signal.species),
+    breedCode: normalizeBreedCode(signal.breedCode),
+    sizeClass: signal.sizeClass ? String(signal.sizeClass) : "UNKNOWN",
+  } satisfies PetSignal;
+}
+
+function isMissingAudienceSegmentSchemaError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code !== "P2021" && error.code !== "P2022") {
+      return false;
+    }
+
+    const tableName = String(error.meta?.table ?? "");
+    const columnName = String(error.meta?.column ?? "");
+    return (
+      tableName.includes("UserAudienceSegment") ||
+      columnName.includes("UserAudienceSegment")
+    );
+  }
+
+  return (
+    error instanceof Error &&
+    error.message.includes("UserAudienceSegment") &&
+    (error.message.includes("does not exist") ||
+      error.message.includes("Unknown field") ||
+      error.message.includes("Unknown arg"))
+  );
+}
+
+async function listViewerPersonalizationSignals(viewerId: string) {
+  const viewerAudienceSignalsRaw = await prisma.userAudienceSegment
+    .findMany({
+      where: { userId: viewerId },
+      select: {
+        userId: true,
+        species: true,
+        breedCode: true,
+        sizeClass: true,
+      },
+      orderBy: [{ confidenceScore: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 5,
+    })
+    .catch((error) => {
+      if (!isMissingAudienceSegmentSchemaError(error)) {
+        throw error;
+      }
+      return [];
+    });
+
+  if (viewerAudienceSignalsRaw.length > 0) {
+    return viewerAudienceSignalsRaw.map((signal) =>
+      mapToPetSignal({
+        userId: signal.userId,
+        species: String(signal.species),
+        breedCode: signal.breedCode,
+        sizeClass: signal.sizeClass ? String(signal.sizeClass) : null,
+      }),
+    );
   }
 
   const viewerPetsRaw = await prisma.pet.findMany({
@@ -967,12 +1027,26 @@ async function applyPetPersonalization<T extends FeedLikePost>(
     take: 5,
     orderBy: { createdAt: "desc" },
   });
-  const viewerPets: PetSignal[] = viewerPetsRaw.map((pet) => ({
-    userId: pet.userId,
-    species: String(pet.species),
-    breedCode: normalizeBreedCode(pet.breedCode),
-    sizeClass: String(pet.sizeClass),
-  }));
+
+  return viewerPetsRaw.map((pet) =>
+    mapToPetSignal({
+      userId: pet.userId,
+      species: String(pet.species),
+      breedCode: pet.breedCode,
+      sizeClass: String(pet.sizeClass),
+    }),
+  );
+}
+
+async function applyPetPersonalization<T extends FeedLikePost>(
+  items: T[],
+  viewerId: string,
+) {
+  if (items.length < 2) {
+    return items;
+  }
+
+  const viewerPets = await listViewerPersonalizationSignals(viewerId);
   if (viewerPets.length === 0) {
     return items;
   }
@@ -993,12 +1067,14 @@ async function applyPetPersonalization<T extends FeedLikePost>(
       sizeClass: true,
     },
   });
-  const authorPetSignals: PetSignal[] = authorPetSignalsRaw.map((pet) => ({
-    userId: pet.userId,
-    species: String(pet.species),
-    breedCode: normalizeBreedCode(pet.breedCode),
-    sizeClass: String(pet.sizeClass),
-  }));
+  const authorPetSignals: PetSignal[] = authorPetSignalsRaw.map((pet) =>
+    mapToPetSignal({
+      userId: pet.userId,
+      species: String(pet.species),
+      breedCode: pet.breedCode,
+      sizeClass: String(pet.sizeClass),
+    }),
+  );
 
   const authorPetByUserId = new Map<string, PetSignal[]>();
   for (const pet of authorPetSignals) {

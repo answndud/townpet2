@@ -17,6 +17,41 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 212 완료 (맞춤 추천 모드 노출 및 세그먼트 소비 고도화)
+- 완료 내용
+- `/feed` 맞춤 추천 노출 정리:
+  - `app/src/app/feed/page.tsx`
+  - 로그인 사용자의 글로벌 전체 피드에서 `일반 추천/맞춤 추천` 토글을 명시적으로 노출
+  - 현재 적용 중인 세그먼트/프로필 기준을 chip으로 보여주고, 맞춤 추천 활성화 시 설명 배너와 프로필 보강 CTA를 제공
+- 품종 라운지 personalized UX 정리:
+  - `app/src/app/lounges/breeds/[breedCode]/page.tsx`
+  - 품종 라운지에서도 `일반 정렬/맞춤 정렬` 토글을 제공하고, 검색/기간/타입 필터와 함께 `personalized=1` 상태를 유지
+  - 맞춤 정렬 사용 시 현재 기준 설명 배너를 함께 노출
+- 개인화 helper/광고 audience key 정리:
+  - `app/src/lib/feed-personalization.ts`
+  - `app/src/lib/feed-personalization.test.ts`
+  - `UserAudienceSegment` 또는 pet fallback을 하나의 `FeedAudienceContext`로 정규화하고, 요약 문구/광고 설정을 공용 helper로 생성
+  - 유효한 품종 라운지가 없는 경우 광고는 숨기되, audience key는 종 레벨로 유지하도록 보정
+- 개인화 신호 소비 경로 전환:
+  - `app/src/server/queries/post.queries.ts`
+  - `app/src/server/queries/post.queries.test.ts`
+  - 피드 personalized ranking이 `UserAudienceSegment`를 우선 읽고, schema/모델 부재나 빈 결과일 때만 pet fallback을 사용하도록 변경
+  - 세그먼트 우선 경로와 fallback 경로 회귀 테스트를 추가
+- 품종 라운지 링크 규칙 공용화:
+  - `app/src/lib/pet-profile.ts`
+  - `app/src/components/profile/pet-profile-manager.tsx`
+  - `app/src/app/profile/page.tsx`
+  - `app/src/app/users/[id]/page.tsx`
+  - `UNKNOWN`/`MIXED`를 품종 라운지 링크에서 제외하는 규칙을 helper로 통일
+- 제품 문서 동기화:
+  - `docs/product/품종_개인화_기획서.md`
+- 검증 결과
+- `pnpm -C app lint src/lib/feed-personalization.ts src/lib/feed-personalization.test.ts src/lib/pet-profile.ts src/app/feed/page.tsx 'src/app/lounges/breeds/[breedCode]/page.tsx' src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts src/components/profile/pet-profile-manager.tsx src/app/profile/page.tsx 'src/app/users/[id]/page.tsx'` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/feed-personalization.test.ts src/server/queries/post.queries.test.ts` 실행 시 전체 Vitest 스위트 `92 files / 447 tests` 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 211 완료 (프로필 기반 개인화 신호 활성화)
 - 완료 내용
 - 반려동물 프로필 입력 확장:

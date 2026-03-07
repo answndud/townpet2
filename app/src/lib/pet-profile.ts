@@ -116,6 +116,11 @@ export function normalizePetBreedCode(value: string | null | undefined) {
   return normalized && normalized.length > 0 ? normalized : null;
 }
 
+export function hasBreedLoungeRoute(value: string | null | undefined) {
+  const breedCode = normalizePetBreedCode(value);
+  return Boolean(breedCode) && breedCode !== "UNKNOWN" && breedCode !== "MIXED";
+}
+
 export function getPetSpeciesLabel(value: string | null | undefined) {
   return SPECIES_LABELS[normalizePetSpecies(value)];
 }

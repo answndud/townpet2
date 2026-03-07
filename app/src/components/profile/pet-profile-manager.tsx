@@ -11,6 +11,7 @@ import {
   getPetBreedDisplayLabel,
   getPetLifeStageLabel,
   getPetSizeClassLabel,
+  hasBreedLoungeRoute,
   type PetLifeStageValue,
   type PetSizeClassValue,
   type PetSpeciesValue,
@@ -326,10 +327,7 @@ export function PetProfileManager({ pets }: PetProfileManagerProps) {
                 });
                 const sizeLabel = getPetSizeClassLabel(pet.sizeClass);
                 const lifeStageLabel = getPetLifeStageLabel(pet.lifeStage);
-                const hasBreedLounge =
-                  Boolean(pet.breedCode) &&
-                  pet.breedCode !== "UNKNOWN" &&
-                  pet.breedCode !== "MIXED";
+                const hasBreedLounge = hasBreedLoungeRoute(pet.breedCode);
 
                 return (
                   <div key={pet.id} className="rounded-lg border border-[#c9d8ef] bg-white p-3 text-xs">

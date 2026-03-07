@@ -9,7 +9,11 @@ import { ProfileImageUploader } from "@/components/profile/profile-image-uploade
 import { ProfileInfoForm } from "@/components/profile/profile-info-form";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
-import { getPetLifeStageLabel, getPetSizeClassLabel } from "@/lib/pet-profile";
+import {
+  getPetLifeStageLabel,
+  getPetSizeClassLabel,
+  hasBreedLoungeRoute,
+} from "@/lib/pet-profile";
 import { listAudienceSegmentsByUserId } from "@/server/queries/audience-segment.queries";
 import {
   getUserPasswordStatusById,
@@ -175,9 +179,7 @@ export default async function ProfilePage() {
                           .filter(Boolean)
                           .join(" · ") || "반려동물 프로필 기반 직접 신호"}
                       </p>
-                      {segment.breedCode &&
-                      segment.breedCode !== "UNKNOWN" &&
-                      segment.breedCode !== "MIXED" ? (
+                      {hasBreedLoungeRoute(segment.breedCode) ? (
                         <Link
                           href={`/lounges/breeds/${segment.breedCode}`}
                           className="tp-btn-soft mt-3 inline-flex px-3 py-1.5 text-xs font-semibold text-[#204f8a]"
