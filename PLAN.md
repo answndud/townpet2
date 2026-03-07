@@ -49,11 +49,11 @@
 | 읽음 처리와 보관/삭제 의미 분리 | Codex | P1 | `pending` | 읽음은 inbox에서 유지되고 archive/delete가 분리되어 3일 자동 삭제 의존이 제거됨 | `app/src/server/queries/notification.queries.ts`, `app/scripts/cleanup-notifications.ts`, `.github/workflows/notification-cleanup.yml` |
 | 운영/CS용 durable notification history 기준 수립 | Codex | P2 | `pending` | 알림 보존 기간과 지원용 이력 정책이 문서화되고 최소 1개 운영 확인 경로가 제공됨 | `docs/개발_운영_가이드.md`, `docs/operations/*` |
 
-### Cycle 203: 검색 로그 privacy/retention hardening
+### Cycle 203: 검색 로그 privacy/retention hardening (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| 검색 로그 fire-and-forget/PII 필터링 보강 | Codex | P1 | `pending` | 검색어 기록이 서버리스 환경에서도 유실되지 않도록 보강되고 이메일/전화번호 등 민감 패턴은 통계 저장에서 제외됨 | `app/src/app/api/search/log/route.ts`, `app/src/server/queries/search.queries.ts` |
-| 검색 통계 retention/cleanup 운영 경로 추가 | Codex | P2 | `pending` | `SearchTermStat` 보존 기간과 정리 작업이 운영 스크립트/문서로 고정되고 회귀 테스트가 존재함 | `app/scripts/*`, `.github/workflows/*`, `docs/operations/검색 통계 전환 가이드.md` |
+| 검색 로그 fire-and-forget/PII 필터링 보강 | Codex | P1 | `done` | 검색어 기록이 서버리스 환경에서도 유실되지 않도록 보강되고 이메일/전화번호 등 민감 패턴은 통계 저장에서 제외됨 | `app/src/app/api/search/log/route.ts`, `app/src/server/queries/search.queries.ts` |
+| 검색 통계 retention/cleanup 운영 경로 추가 | Codex | P2 | `done` | `SearchTermStat` 보존 기간과 정리 작업이 운영 스크립트/문서로 고정되고 회귀 테스트가 존재함 | `app/scripts/*`, `.github/workflows/*`, `docs/operations/검색 통계 전환 가이드.md` |
 
 ### Cycle 202: 운영 보호장치 fail-open 제거 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

@@ -32,6 +32,7 @@
     "db:rehearse:guest-legacy-cleanup": "tsx scripts/rehearse-guest-legacy-cleanup.ts",
     "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
     "db:cleanup:notifications": "tsx scripts/cleanup-notifications.ts",
+    "db:cleanup:search-terms": "tsx scripts/cleanup-search-terms.ts",
     "db:cleanup:legacy-search-setting": "tsx scripts/cleanup-legacy-site-setting.ts",
     "docs:refresh": "node ../scripts/refresh-docs-index.mjs",
     "docs:refresh:check": "node ../scripts/refresh-docs-index.mjs --check",

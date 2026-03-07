@@ -17,6 +17,37 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 203 완료 (검색 로그 privacy/retention hardening)
+- 완료 내용
+- 검색 로그 저장 보강:
+  - `app/src/lib/search-term-privacy.ts`
+  - `app/src/app/api/search/log/route.ts`
+  - `app/src/server/queries/search.queries.ts`
+  - 검색 로그 API가 더 이상 fire-and-forget으로 통계를 날리지 않고 응답 전에 `recordSearchTerm`을 await
+  - `recordSearchTerm`는 `recorded=true`, `recorded=false(SENSITIVE_TERM/INVALID_TERM)`, `SCHEMA_SYNC_REQUIRED`를 명시적으로 구분
+  - 이메일/전화번호/오픈카카오/메신저 링크/카카오톡 ID 패턴은 SearchTermStat 저장과 인기 검색어 읽기에서 제외
+- SearchTermStat retention/cleanup 경로 추가:
+  - `app/src/server/search-term-stat-retention.ts`
+  - `app/scripts/cleanup-search-terms.ts`
+  - `app/package.json`
+  - `.github/workflows/search-term-cleanup.yml`
+  - `updatedAt` 기준 90일 retention cleanup helper/script/workflow를 추가
+- 운영 문서 동기화:
+  - `docs/operations/검색 통계 전환 가이드.md`
+  - `docs/개발_운영_가이드.md`
+  - 검색 로그 privacy 필터, cleanup 명령, workflow/retention 기준을 운영 문서에 반영
+- 회귀 테스트 추가/보강:
+  - `app/src/lib/search-term-privacy.test.ts`
+  - `app/src/app/api/search/log/route.test.ts`
+  - `app/src/server/queries/search.queries.test.ts`
+  - `app/src/server/search-term-stat-retention.test.ts`
+- 검증 결과
+- `pnpm -C app lint src/lib/search-term-privacy.ts src/lib/search-term-privacy.test.ts src/app/api/search/log/route.ts src/app/api/search/log/route.test.ts src/server/queries/search.queries.ts src/server/queries/search.queries.test.ts src/server/search-term-stat-retention.ts src/server/search-term-stat-retention.test.ts scripts/cleanup-search-terms.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app exec vitest run src/lib/search-term-privacy.test.ts src/app/api/search/log/route.test.ts src/server/queries/search.queries.test.ts src/server/search-term-stat-retention.test.ts` 통과
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 202 완료 (운영 보호장치 fail-open 제거)
 - 완료 내용
 - moderation/policy control plane fail-closed 전환:

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -32,6 +33,7 @@ describe("search queries", () => {
     mockPrisma.searchTermStat?.findMany.mockResolvedValue([
       { termDisplay: "산책" },
       { termDisplay: "  병원 후기 " },
+      { termDisplay: "test@example.com" },
       { termDisplay: "x" },
     ]);
 
@@ -45,7 +47,7 @@ describe("search queries", () => {
 
     const result = await recordSearchTerm("산책");
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, recorded: true });
     expect(mockPrisma.searchTermStat?.upsert).toHaveBeenCalledTimes(1);
     const args = mockPrisma.searchTermStat?.upsert.mock.calls[0][0];
     expect(args.where.termNormalized).toBe("산책");
@@ -66,7 +68,31 @@ describe("search queries", () => {
   it("rejects too short search term", async () => {
     const result = await recordSearchTerm("a");
 
-    expect(result).toEqual({ ok: false, reason: "INVALID_TERM" });
+    expect(result).toEqual({ ok: true, recorded: false, reason: "INVALID_TERM" });
     expect(mockPrisma.searchTermStat?.upsert).not.toHaveBeenCalled();
+  });
+
+  it("skips sensitive terms instead of storing them", async () => {
+    const result = await recordSearchTerm("010-1234-5678");
+
+    expect(result).toEqual({
+      ok: true,
+      recorded: false,
+      reason: "SENSITIVE_TERM",
+    });
+    expect(mockPrisma.searchTermStat?.upsert).not.toHaveBeenCalled();
+  });
+
+  it("returns schema sync required when table exists in client but DB is missing", async () => {
+    mockPrisma.searchTermStat?.upsert.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("missing table", {
+        code: "P2021",
+        clientVersion: "test",
+      }),
+    );
+
+    const result = await recordSearchTerm("산책");
+
+    expect(result).toEqual({ ok: false, reason: "SCHEMA_SYNC_REQUIRED" });
   });
 });

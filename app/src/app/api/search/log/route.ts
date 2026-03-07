@@ -43,14 +43,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    void recordSearchTerm(parsed.data.q).catch(async (recordError) => {
-      await monitorUnhandledError(recordError, {
-        route: "POST /api/search/log:record",
-        request,
-      });
-    });
+    const result = await recordSearchTerm(parsed.data.q);
+    if (!result.ok) {
+      throw new ServiceError(
+        "검색 통계 저장소 동기화가 필요합니다. prisma generate 및 migrate deploy 후 다시 시도해 주세요.",
+        "SCHEMA_SYNC_REQUIRED",
+        503,
+      );
+    }
 
-    return jsonOk({ recorded: true });
+    return jsonOk({
+      recorded: result.recorded,
+      skippedReason: result.recorded ? null : result.reason,
+    });
   } catch (error) {
     if (error instanceof ServiceError) {
       return jsonError(error.status, {

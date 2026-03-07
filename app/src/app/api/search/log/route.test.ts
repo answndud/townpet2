@@ -31,7 +31,7 @@ describe("POST /api/search/log contract", () => {
 
     mockGetCurrentUserId.mockResolvedValue(null);
     mockGetClientIp.mockReturnValue("127.0.0.1");
-    mockRecordSearchTerm.mockResolvedValue({ ok: true });
+    mockRecordSearchTerm.mockResolvedValue({ ok: true, recorded: true });
     mockEnforceRateLimit.mockResolvedValue();
   });
 
@@ -61,8 +61,16 @@ describe("POST /api/search/log contract", () => {
     }) as NextRequest;
 
     const response = await POST(request);
+    const payload = await response.json();
 
     expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      ok: true,
+      data: {
+        recorded: true,
+        skippedReason: null,
+      },
+    });
     expect(mockEnforceRateLimit).toHaveBeenCalledWith({
       key: "search-log:user:user-1",
       limit: 30,
@@ -80,8 +88,16 @@ describe("POST /api/search/log contract", () => {
     }) as NextRequest;
 
     const response = await POST(request);
+    const payload = await response.json();
 
     expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      ok: true,
+      data: {
+        recorded: true,
+        skippedReason: null,
+      },
+    });
     expect(mockEnforceRateLimit).toHaveBeenCalledWith({
       key: "search-log:ip:127.0.0.1",
       limit: 30,
@@ -128,5 +144,53 @@ describe("POST /api/search/log contract", () => {
       error: { code: "RATE_LIMITED" },
     });
     expect(mockMonitorUnhandledError).not.toHaveBeenCalled();
+  });
+
+  it("returns recorded=false when term is intentionally skipped", async () => {
+    mockRecordSearchTerm.mockResolvedValue({
+      ok: true,
+      recorded: false,
+      reason: "SENSITIVE_TERM",
+    });
+    const request = new Request("http://localhost/api/search/log", {
+      method: "POST",
+      body: JSON.stringify({ q: "test@example.com" }),
+      headers: { "content-type": "application/json" },
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      ok: true,
+      data: {
+        recorded: false,
+        skippedReason: "SENSITIVE_TERM",
+      },
+    });
+  });
+
+  it("surfaces schema sync required from recordSearchTerm", async () => {
+    mockRecordSearchTerm.mockResolvedValue({
+      ok: false,
+      reason: "SCHEMA_SYNC_REQUIRED",
+    });
+    const request = new Request("http://localhost/api/search/log", {
+      method: "POST",
+      body: JSON.stringify({ q: "강아지 산책" }),
+      headers: { "content-type": "application/json" },
+    }) as NextRequest;
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: {
+        code: "SCHEMA_SYNC_REQUIRED",
+      },
+    });
   });
 });
