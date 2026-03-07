@@ -96,7 +96,6 @@ describe("authorizeCredentialsLogin", () => {
     mockPrisma.user.findUnique.mockResolvedValue({
       id: "user-1",
       email: "user@test.dev",
-      name: "User",
       nickname: "tester",
       image: null,
       passwordHash: "stored-hash",
@@ -173,7 +172,6 @@ describe("authorizeCredentialsLogin", () => {
     mockPrisma.user.findUnique.mockResolvedValue({
       id: "user-1",
       email: "user@test.dev",
-      name: "User",
       nickname: "tester",
       image: null,
       passwordHash: "stored-hash",

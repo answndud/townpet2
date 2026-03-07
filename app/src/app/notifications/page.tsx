@@ -70,7 +70,6 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
       ? {
           id: item.actor.id,
           nickname: item.actor.nickname,
-          name: item.actor.name,
           image: item.actor.image,
         }
       : null,

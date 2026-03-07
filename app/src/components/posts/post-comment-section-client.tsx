@@ -21,7 +21,7 @@ type CommentItem = {
   guestIpLabel?: string | null;
   isGuestAuthor?: boolean;
   reactions?: Array<{ type: "LIKE" | "DISLIKE" }>;
-  author: { id: string; name: string | null; nickname: string | null; email?: string | null };
+  author: { id: string; nickname: string | null; email?: string | null };
 };
 
 type CommentResponse = {

@@ -82,7 +82,7 @@ const buildPostListInclude = (
   includeGuestAuthor = supportsPostGuestAuthorField(),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, nickname: true, image: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -116,7 +116,7 @@ const buildPostListIncludeWithoutReactions = (
   includeGuestAuthor = supportsPostGuestAuthorField(),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, nickname: true, image: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -199,7 +199,7 @@ type PostDetailExtras = {
 
 const buildPostDetailBaseInclude = (includeGuestAuthor = supportsPostGuestAuthorField()) =>
   ({
-    author: { select: { id: true, name: true, nickname: true } },
+    author: { select: { id: true, nickname: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -215,7 +215,7 @@ const buildPostDetailBaseIncludeWithoutReactions = (
   includeGuestAuthor = supportsPostGuestAuthorField(),
 ) =>
   ({
-    author: { select: { id: true, name: true, nickname: true } },
+    author: { select: { id: true, nickname: true } },
     ...(includeGuestAuthor
       ? { guestAuthor: { select: { id: true, displayName: true, ipDisplay: true, ipLabel: true } } }
       : {}),
@@ -307,7 +307,7 @@ const LEGACY_POST_BASE_SELECT = {
 } as const;
 
 const LEGACY_POST_RELATION_SELECT = {
-  author: { select: { id: true, name: true, nickname: true } },
+  author: { select: { id: true, nickname: true } },
   neighborhood: {
     select: { id: true, name: true, city: true },
   },
@@ -348,7 +348,7 @@ const LEGACY_POST_RELATION_SELECT = {
 const buildLegacyPostListSelect = (viewerId?: string) =>
   ({
     ...LEGACY_POST_BASE_SELECT,
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, nickname: true, image: true } },
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -366,7 +366,7 @@ const buildLegacyPostListSelect = (viewerId?: string) =>
 const buildLegacyPostListSelectWithoutReactions = () =>
   ({
     ...LEGACY_POST_BASE_SELECT,
-    author: { select: { id: true, name: true, nickname: true, image: true } },
+    author: { select: { id: true, nickname: true, image: true } },
     neighborhood: {
       select: { id: true, name: true, city: true, district: true },
     },
@@ -750,10 +750,7 @@ function buildPostSearchWhere(
   };
   const authorFilter = {
     author: {
-      OR: [
-        { nickname: { contains: trimmedQuery, mode: "insensitive" as const } },
-        { name: { contains: trimmedQuery, mode: "insensitive" as const } },
-      ],
+      nickname: { contains: trimmedQuery, mode: "insensitive" as const },
     },
   };
 
@@ -3517,7 +3514,6 @@ export async function listUserBookmarkedPostsPage({
             author: {
               select: {
                 id: true,
-                name: true,
                 nickname: true,
               },
             },
@@ -3647,10 +3643,6 @@ function buildRankedSearchMatchSql(
   const authorNicknameSimilaritySql = useTrigram
     ? Prisma.sql`OR similarity(COALESCE(u."nickname", ''), ${query}) >= ${SEARCH_SIMILARITY_THRESHOLD}`
     : Prisma.sql``;
-  const authorNameSimilaritySql = useTrigram
-    ? Prisma.sql`OR similarity(COALESCE(u."name", ''), ${query}) >= ${SEARCH_SIMILARITY_THRESHOLD}`
-    : Prisma.sql``;
-
   const titleMatch = Prisma.sql`(
     p."title" ILIKE ${pattern}
     OR REPLACE(COALESCE(p."title", ''), ' ', '') ILIKE ${compactPattern}
@@ -3668,10 +3660,8 @@ function buildRankedSearchMatchSql(
 
   const authorMatch = Prisma.sql`(
     COALESCE(u."nickname", '') ILIKE ${pattern}
-    OR COALESCE(u."name", '') ILIKE ${pattern}
-    OR to_tsvector('simple', CONCAT_WS(' ', COALESCE(u."nickname", ''), COALESCE(u."name", ''))) @@ websearch_to_tsquery('simple', ${query})
+    OR to_tsvector('simple', COALESCE(u."nickname", '')) @@ websearch_to_tsquery('simple', ${query})
     ${authorNicknameSimilaritySql}
-    ${authorNameSimilaritySql}
   )`;
 
   if (searchIn === "TITLE") {
@@ -3744,8 +3734,7 @@ export async function listRankedSearchPosts({
     ? Prisma.sql`+ GREATEST(
           similarity(COALESCE(p."title", ''), ${trimmedQuery}),
           similarity(COALESCE(p."content", ''), ${trimmedQuery}),
-          similarity(COALESCE(u."nickname", ''), ${trimmedQuery}),
-          similarity(COALESCE(u."name", ''), ${trimmedQuery})
+          similarity(COALESCE(u."nickname", ''), ${trimmedQuery})
         ) * 4.0`
     : Prisma.sql``;
 
@@ -3760,7 +3749,6 @@ export async function listRankedSearchPosts({
           ts_rank_cd(
             setweight(to_tsvector('simple', COALESCE(p."title", '')), 'A') ||
             setweight(to_tsvector('simple', COALESCE(u."nickname", '')), 'A') ||
-            setweight(to_tsvector('simple', COALESCE(u."name", '')), 'A') ||
             setweight(to_tsvector('simple', COALESCE(p."content", '')), 'B'),
             websearch_to_tsquery('simple', ${trimmedQuery})
           ) * 9.0
@@ -3772,9 +3760,7 @@ export async function listRankedSearchPosts({
               ELSE 0
             END
           + CASE
-              WHEN COALESCE(u."nickname", '') ILIKE ${likePattern}
-                OR COALESCE(u."name", '') ILIKE ${likePattern}
-              THEN 1.0
+              WHEN COALESCE(u."nickname", '') ILIKE ${likePattern} THEN 1.0
               ELSE 0
             END
           + GREATEST(
@@ -3949,7 +3935,6 @@ export async function listPostSearchSuggestions({
         author: {
           select: {
             nickname: true,
-            name: true,
           },
         },
       },
@@ -3996,12 +3981,10 @@ export async function listPostSearchSuggestions({
   for (const row of rows) {
     if (resolvedSearchIn === "AUTHOR") {
       addSuggestion(row.author.nickname);
-      addSuggestion(row.author.name);
     } else {
       addSuggestion(row.title);
       if (resolvedSearchIn === "ALL") {
         addSuggestion(row.author.nickname);
-        addSuggestion(row.author.name);
       }
     }
 

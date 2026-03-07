@@ -270,10 +270,7 @@ describe("post queries", () => {
 
     const args = mockPrisma.post.findMany.mock.calls[0][0];
     expect(args.where.author).toEqual({
-      OR: [
-        { nickname: { contains: "alex", mode: "insensitive" } },
-        { name: { contains: "alex", mode: "insensitive" } },
-      ],
+      nickname: { contains: "alex", mode: "insensitive" },
     });
     expect(args.where.OR).toBeUndefined();
   });
@@ -1257,11 +1254,11 @@ describe("post queries", () => {
     mockPrisma.post.findMany.mockResolvedValue([
       {
         title: "강남 산책 코스 추천",
-        author: { nickname: "강남견주", name: "Alex" },
+        author: { nickname: "강남견주" },
       },
       {
         title: "주말 산책 후기",
-        author: { nickname: "산책러버", name: "Kim" },
+        author: { nickname: "산책러버" },
       },
     ]);
 

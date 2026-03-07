@@ -17,7 +17,7 @@ export async function listReportAuditsByReportIds(reportIds: string[]) {
     where: { reportId: { in: reportIds } },
     orderBy: { createdAt: "desc" },
     include: {
-      resolver: { select: { id: true, email: true, nickname: true, name: true } },
+      resolver: { select: { id: true, email: true, nickname: true } },
     },
   });
 }
@@ -44,7 +44,6 @@ export async function listReportAudits({ reportId, query, order }: ReportAuditLi
                   OR: [
                     { nickname: { contains: trimmedQuery, mode: "insensitive" } },
                     { email: { contains: trimmedQuery, mode: "insensitive" } },
-                    { name: { contains: trimmedQuery, mode: "insensitive" } },
                   ],
                 },
               },
@@ -54,7 +53,7 @@ export async function listReportAudits({ reportId, query, order }: ReportAuditLi
     },
     orderBy: { createdAt: order ?? "desc" },
     include: {
-      resolver: { select: { id: true, email: true, nickname: true, name: true } },
+      resolver: { select: { id: true, email: true, nickname: true } },
     },
   });
 }

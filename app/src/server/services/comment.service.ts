@@ -256,7 +256,7 @@ export async function createComment({
         guestAuthorId: guestMeta?.guestAuthorId,
       },
       include: {
-        author: { select: { id: true, name: true, nickname: true } },
+        author: { select: { id: true, nickname: true } },
       },
     });
 
@@ -409,7 +409,7 @@ export async function updateComment({
       where: { id: commentId },
       data: { content: safeContent },
       include: {
-        author: { select: { id: true, name: true, nickname: true } },
+        author: { select: { id: true, nickname: true } },
       },
     });
   });
@@ -596,7 +596,7 @@ export async function updateGuestComment({
       content: parsed.data.content,
     },
     include: {
-      author: { select: { id: true, name: true, nickname: true } },
+      author: { select: { id: true, nickname: true } },
     },
   });
 }

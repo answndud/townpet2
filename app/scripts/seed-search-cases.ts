@@ -4,7 +4,6 @@ const prisma = new PrismaClient();
 
 const SEARCH_CASE_AUTHOR = {
   email: "search.case@townpet.dev",
-  name: "Alex Kangnam",
   nickname: "강남견주",
 };
 
@@ -154,13 +153,11 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email: SEARCH_CASE_AUTHOR.email },
     update: {
-      name: SEARCH_CASE_AUTHOR.name,
       nickname: SEARCH_CASE_AUTHOR.nickname,
       emailVerified: new Date(),
     },
     create: {
       email: SEARCH_CASE_AUTHOR.email,
-      name: SEARCH_CASE_AUTHOR.name,
       nickname: SEARCH_CASE_AUTHOR.nickname,
       emailVerified: new Date(),
     },

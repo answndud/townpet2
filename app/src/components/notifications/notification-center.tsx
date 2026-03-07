@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { NotificationFilterKind } from "@/lib/notification-filter";
 import { emitNotificationUnreadSync } from "@/lib/notification-unread-sync";
 import { buildNotificationListHref } from "@/lib/notification-filter";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import {
   archiveNotificationAction,
   markAllNotificationsReadAction,
@@ -23,7 +24,6 @@ type NotificationCenterItem = {
   actor: {
     id: string;
     nickname: string | null;
-    name: string | null;
     image: string | null;
   } | null;
 };
@@ -403,7 +403,7 @@ export function NotificationCenter({
           <div className="divide-y divide-[#e1e9f5]">
             {items.map((notification) => {
               const actorLabel =
-                notification.actor?.nickname ?? notification.actor?.name ?? "사용자";
+                resolveUserDisplayName(notification.actor?.nickname, "사용자");
               const isPending = pendingMap[notification.id] ?? false;
 
               return (

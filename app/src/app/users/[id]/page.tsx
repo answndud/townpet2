@@ -18,6 +18,7 @@ import {
 } from "@/lib/pet-profile";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
 import {
@@ -81,7 +82,7 @@ export async function generateMetadata({
     };
   }
 
-  const displayName = profile.nickname ?? profile.name ?? "익명 사용자";
+  const displayName = resolveUserDisplayName(profile.nickname, "익명 사용자");
   const description = profile.bio?.trim()
     ? buildBioExcerpt(profile.bio)
     : `${displayName}님의 TownPet 활동 프로필`;
@@ -140,6 +141,7 @@ export default async function PublicUserProfilePage({
   if (!profile) {
     notFound();
   }
+  const displayName = resolveUserDisplayName(profile.nickname, "익명 사용자");
 
   const relationState = await getUserRelationState(viewerId, profile.id);
   const resolvedTab = resolvePublicProfileTab(tab, {
@@ -176,7 +178,7 @@ export default async function PublicUserProfilePage({
   const profileJsonLd = {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: profile.nickname ?? profile.name ?? "익명 사용자",
+    name: displayName,
     description: profile.bio ?? undefined,
     image: profile.image ? toAbsoluteUrl(profile.image) : undefined,
     url: toAbsoluteUrl(`/users/${profile.id}`),
@@ -193,7 +195,7 @@ export default async function PublicUserProfilePage({
         <header className="tp-hero p-5 sm:p-6">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#3f5f90]">공개 프로필</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#10284a] sm:text-3xl">
-            {profile.nickname ?? profile.name ?? "익명 사용자"}
+            {displayName}
           </h1>
           <p className="mt-2 text-sm text-[#4f678d]">
             가입일 {profile.createdAt.toLocaleDateString("ko-KR")}
@@ -410,7 +412,7 @@ export default async function PublicUserProfilePage({
                     <p className="mt-1 text-xs text-[#5a7398]">
                       {reaction.type === "LIKE" ? "좋아요" : "싫어요"} ·{" "}
                       {formatRelativeDate(reaction.createdAt)} · 작성자{" "}
-                      {reaction.post.author.nickname ?? reaction.post.author.name ?? "익명"}
+                      {resolveUserDisplayName(reaction.post.author.nickname)}
                     </p>
                   </article>
                 ))

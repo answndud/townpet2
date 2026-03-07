@@ -586,7 +586,6 @@ export default async function Home({ searchParams }: HomePageProps) {
     createdAt: post.createdAt.toISOString(),
     author: {
       id: post.author.id,
-      name: post.author.name,
       nickname: post.author.nickname,
       image: post.author.image,
     },

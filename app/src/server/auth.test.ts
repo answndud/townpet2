@@ -66,7 +66,6 @@ describe("auth helpers", () => {
     mockGetUserById.mockResolvedValue({
       id: "user-1",
       email: "user@townpet.dev",
-      name: null,
       nickname: null,
       bio: null,
       image: null,
@@ -116,7 +115,6 @@ describe("auth helpers", () => {
     mockGetUserByEmail.mockResolvedValue({
       id: "demo-1",
       email: demoEmail,
-      name: "Demo",
       nickname: "demo",
       bio: null,
       image: null,
@@ -135,7 +133,6 @@ describe("auth helpers", () => {
     mockGetUserByEmail.mockResolvedValue({
       id: "demo-id-only",
       email: demoEmail,
-      name: "Demo",
       nickname: "demo",
       bio: null,
       image: null,
@@ -237,7 +234,6 @@ describe("auth helpers", () => {
     mockGetUserById.mockResolvedValue({
       id: "admin-1",
       email: "admin@townpet.dev",
-      name: "Admin",
       nickname: "admin",
       bio: null,
       image: null,
@@ -254,7 +250,6 @@ describe("auth helpers", () => {
     mockGetUserById.mockResolvedValue({
       id: "user-2",
       email: "user2@townpet.dev",
-      name: "User",
       nickname: "user",
       bio: null,
       image: null,
@@ -269,7 +264,6 @@ describe("auth helpers", () => {
     mockGetUserById.mockResolvedValue({
       id: "user-3",
       email: "user3@townpet.dev",
-      name: "User3",
       nickname: "user3",
       bio: null,
       image: null,

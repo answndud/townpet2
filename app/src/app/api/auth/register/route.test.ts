@@ -134,7 +134,6 @@ describe("POST /api/auth/register contract", () => {
         email: "user@townpet.dev",
         password: "Townpet!2026",
         nickname: "townpet_user",
-        name: "user",
       }),
       headers: { "content-type": "application/json" },
     }) as NextRequest;
@@ -166,7 +165,6 @@ describe("POST /api/auth/register contract", () => {
         email: "user@townpet.dev",
         password: "Townpet!2026",
         nickname: "townpet_user",
-        name: "user",
       }),
       headers: { "content-type": "application/json" },
     }) as NextRequest;
@@ -200,7 +198,6 @@ describe("POST /api/auth/register contract", () => {
         email: "user@townpet.dev",
         password: "Townpet!2026",
         nickname: "townpet_user",
-        name: "user",
       }),
       headers: { "content-type": "application/json" },
     }) as NextRequest;
@@ -225,7 +222,6 @@ describe("POST /api/auth/register contract", () => {
     mockRegisterUser.mockResolvedValue({
       id: "u1",
       email: "user@townpet.dev",
-      name: "user",
       nickname: null,
     });
     mockRequestEmailVerification.mockResolvedValue({ token: "verify-token" });
@@ -235,7 +231,6 @@ describe("POST /api/auth/register contract", () => {
         email: "user@townpet.dev",
         password: "Townpet!2026",
         nickname: "townpet_user",
-        name: "user",
       }),
       headers: { "content-type": "application/json" },
     }) as NextRequest;
@@ -262,7 +257,6 @@ describe("POST /api/auth/register contract", () => {
     mockRegisterUser.mockResolvedValue({
       id: "u1",
       email: "user@townpet.dev",
-      name: "user",
       nickname: null,
     });
     mockRequestEmailVerification.mockResolvedValue({ token: "verify-token" });
@@ -275,7 +269,6 @@ describe("POST /api/auth/register contract", () => {
         email: "user@townpet.dev",
         password: "Townpet!2026",
         nickname: "townpet_user",
-        name: "user",
       }),
       headers: { "content-type": "application/json" },
     }) as NextRequest;

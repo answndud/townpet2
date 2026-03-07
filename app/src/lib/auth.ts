@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Kakao from "next-auth/providers/kakao";
 import Naver from "next-auth/providers/naver";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import type { Adapter, AdapterUser } from "next-auth/adapters";
 import type { Provider } from "next-auth/providers";
 
 import { assertRuntimeEnv, isSocialDevLoginEnabled, runtimeEnv } from "@/lib/env";
@@ -39,7 +40,26 @@ function resolveSocialDevEmail(provider: SocialDevProvider, requestedEmail?: str
     .toLowerCase();
 }
 
+function stripUserName<T extends { name?: string | null }>(value: T): Omit<T, "name"> {
+  const { name, ...rest } = value;
+  void name;
+  return rest;
+}
+
 assertRuntimeEnv();
+
+const baseAdapter = PrismaAdapter(prisma);
+type AdapterUpdateUser = Partial<AdapterUser> & Pick<AdapterUser, "id">;
+
+const adapter: Adapter = {
+  ...baseAdapter,
+  async createUser(user: AdapterUser) {
+    return baseAdapter.createUser!(stripUserName(user));
+  },
+  async updateUser(user: AdapterUpdateUser) {
+    return baseAdapter.updateUser!(stripUserName(user));
+  },
+};
 
 const providers: Provider[] = [
   Credentials({
@@ -83,7 +103,6 @@ if (socialDevLoginEnabled) {
           select: {
             id: true,
             email: true,
-            name: true,
             nickname: true,
             image: true,
             emailVerified: true,
@@ -102,7 +121,6 @@ if (socialDevLoginEnabled) {
           return {
             id: existingUser.id,
             email: existingUser.email,
-            name: existingUser.name,
             nickname: existingUser.nickname,
             image: existingUser.image,
             sessionVersion: existingUser.sessionVersion,
@@ -112,13 +130,11 @@ if (socialDevLoginEnabled) {
         const createdUser = await prisma.user.create({
           data: {
             email,
-            name: providerRaw === "kakao" ? "Kakao Dev User" : "Naver Dev User",
             emailVerified: new Date(),
           },
           select: {
             id: true,
             email: true,
-            name: true,
             nickname: true,
             image: true,
             sessionVersion: true,
@@ -128,7 +144,6 @@ if (socialDevLoginEnabled) {
         return {
           id: createdUser.id,
           email: createdUser.email,
-          name: createdUser.name,
           nickname: createdUser.nickname,
           image: createdUser.image,
           sessionVersion: createdUser.sessionVersion,
@@ -160,7 +175,7 @@ if (runtimeEnv.isNaverConfigured) {
 
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  adapter: PrismaAdapter(prisma),
+  adapter,
   session: { strategy: "jwt" },
   cookies: {
     sessionToken: {

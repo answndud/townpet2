@@ -21,6 +21,7 @@ import {
 import {
   buildFeedStatsLabel,
 } from "@/lib/feed-list-presenter";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import type { ReviewCategory } from "@/lib/review-category";
 
 type FeedMode = "ALL" | "BEST";
@@ -44,7 +45,6 @@ export type FeedPostItem = {
   createdAt: string;
   author: {
     id: string;
-    name: string | null;
     nickname: string | null;
     image?: string | null;
   };
@@ -627,7 +627,7 @@ export function FeedInfiniteList({
           });
           const authorLabel = post.guestDisplayName
             ? `${post.guestDisplayName}${post.guestIpDisplay ? ` (${post.guestIpLabel ?? "아이피"} ${post.guestIpDisplay})` : ""}`
-            : post.author.nickname ?? post.author.name ?? "익명";
+            : resolveUserDisplayName(post.author.nickname);
           const authorNode = post.guestDisplayName ? (
             <span className="block truncate">{authorLabel}</span>
           ) : (

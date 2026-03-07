@@ -9,6 +9,7 @@ import { HighlightText } from "@/components/content/highlight-text";
 import { FeedSearchForm } from "@/components/posts/feed-search-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
+import { resolveUserDisplayName } from "@/lib/user-display";
 
 type FeedSearchIn = "ALL" | "TITLE" | "CONTENT" | "AUTHOR";
 
@@ -21,7 +22,6 @@ type GuestSearchPostItem = {
   createdAt: string;
   author: {
     id: string;
-    name: string | null;
     nickname: string | null;
   };
 };
@@ -230,7 +230,7 @@ export function GuestSearchPageClient() {
                     <span>•</span>
                     <span>{formatRelativeDate(post.createdAt)}</span>
                     <span>•</span>
-                    <span>{post.author.nickname ?? post.author.name ?? "익명"}</span>
+                    <span>{resolveUserDisplayName(post.author.nickname)}</span>
                   </div>
                   <Link href={`/posts/${post.id}/guest`} className="mt-2 block">
                     <h2 className="text-base font-semibold text-[#12315c] sm:text-lg">

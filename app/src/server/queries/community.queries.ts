@@ -227,7 +227,6 @@ export async function listCommonBoardPosts({
           select: {
             id: true,
             nickname: true,
-            name: true,
           },
         },
         neighborhood: {

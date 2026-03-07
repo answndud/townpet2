@@ -43,7 +43,6 @@ export async function listAuthAuditLogs({
                   OR: [
                     { email: { contains: trimmedQuery, mode: "insensitive" } },
                     { nickname: { contains: trimmedQuery, mode: "insensitive" } },
-                    { name: { contains: trimmedQuery, mode: "insensitive" } },
                   ],
                 },
               },
@@ -54,7 +53,7 @@ export async function listAuthAuditLogs({
     orderBy: { createdAt: "desc" },
     take: safeLimit,
     include: {
-      user: { select: { id: true, email: true, nickname: true, name: true } },
+      user: { select: { id: true, email: true, nickname: true } },
     },
   });
 }

@@ -61,14 +61,12 @@ test.describe("image upload flow", () => {
         emailVerified: new Date(),
         passwordHash,
         nickname: "e2e-upload",
-        name: "E2E Upload",
       },
       create: {
         email: TEST_EMAIL,
         emailVerified: new Date(),
         passwordHash,
         nickname: "e2e-upload",
-        name: "E2E Upload",
       },
       select: { id: true },
     });

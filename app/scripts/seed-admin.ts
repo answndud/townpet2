@@ -21,7 +21,6 @@ async function main() {
     },
     create: {
       email,
-      name: "TownPet Admin",
       nickname: "townpet-admin",
       role: UserRole.ADMIN,
       passwordHash,

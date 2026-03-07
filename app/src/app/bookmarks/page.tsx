@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { getPostSignals } from "@/lib/post-presenter";
 import { PRIMARY_POST_TYPES, SECONDARY_POST_TYPES } from "@/lib/post-type-groups";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { listUserBookmarkedPostsPage } from "@/server/queries/post.queries";
@@ -264,7 +265,7 @@ export default async function BookmarksPage({ searchParams }: BookmarksPageProps
 
                     <div className="text-xs text-[#4f678d] md:text-right">
                       <p className="font-semibold text-[#1f3f71]">
-                        {post.author.nickname ?? post.author.name ?? "익명"}
+                        {resolveUserDisplayName(post.author.nickname)}
                       </p>
                       <p className="mt-1">북마크 {formatRelativeDate(post.bookmarkedAt)}</p>
                       <p className="mt-1 text-[11px] text-[#6a84ab]">

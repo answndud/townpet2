@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
           ? {
               id: item.actor.id,
               nickname: item.actor.nickname,
-              name: item.actor.name,
               image: item.actor.image,
             }
           : null,

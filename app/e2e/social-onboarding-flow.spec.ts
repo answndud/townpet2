@@ -38,7 +38,6 @@ async function resetOnboardingState(email: string) {
     },
     create: {
       email,
-      name: "E2E Social User",
       emailVerified: new Date(),
     },
     select: { id: true },

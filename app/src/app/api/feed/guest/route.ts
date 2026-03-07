@@ -103,7 +103,6 @@ function serializeFeedItems(items: Array<Record<string, unknown>>) {
         : String(post.createdAt),
     author: {
       id: (post.author as { id: string }).id,
-      name: ((post.author as { name?: string | null }).name ?? null) as string | null,
       nickname: ((post.author as { nickname?: string | null }).nickname ?? null) as string | null,
       image: ((post.author as { image?: string | null }).image ?? null) as string | null,
     },

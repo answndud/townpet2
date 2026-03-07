@@ -19,6 +19,7 @@ import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
+import { resolveUserDisplayName } from "@/lib/user-display";
 
 type RelationState = {
   isBlockedByMe: boolean;
@@ -54,7 +55,7 @@ type PostDetailItem = {
   dislikeCount?: number | null;
   commentCount?: number | null;
   isBookmarked?: boolean | null;
-  author: { id: string; name: string | null; nickname: string | null; image?: string | null };
+  author: { id: string; nickname: string | null; image?: string | null };
   guestAuthor?: { displayName?: string | null; ipDisplay?: string | null; ipLabel?: string | null } | null;
   guestAuthorId?: string | null;
   guestDisplayName?: string | null;
@@ -337,7 +338,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const guestPostMeta = getGuestPostMeta(post);
   const displayAuthorName = guestPostMeta.guestAuthorName
     ? guestPostMeta.guestAuthorName
-    : post.author.nickname ?? post.author.name ?? "익명";
+    : resolveUserDisplayName(post.author.nickname);
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SocialMediaPosting",

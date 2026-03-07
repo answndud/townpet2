@@ -43,7 +43,6 @@ function isUnavailablePreferredPetTypesError(error: unknown) {
 const USER_BASE_SELECT = {
   id: true,
   email: true,
-  name: true,
   nickname: true,
   bio: true,
   image: true,
@@ -159,7 +158,6 @@ export async function getUserWithNeighborhoods(id: string) {
   const baseSelect = {
     id: true,
     email: true,
-    name: true,
     nickname: true,
     nicknameUpdatedAt: true,
     bio: true,
@@ -245,7 +243,7 @@ export async function listUsersByIds(ids: string[]) {
 
   return prisma.user.findMany({
     where: { id: { in: ids } },
-    select: { id: true, email: true, name: true, nickname: true },
+    select: { id: true, email: true, nickname: true },
   });
 }
 
@@ -254,7 +252,6 @@ export async function getPublicUserProfileById(id: string) {
     where: { id },
     select: {
       id: true,
-      name: true,
       nickname: true,
       bio: true,
       image: true,
@@ -471,7 +468,6 @@ export async function listPublicUserReactions({
               select: {
                 id: true,
                 nickname: true,
-                name: true,
               },
             },
           },

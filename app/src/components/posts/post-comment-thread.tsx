@@ -9,6 +9,7 @@ import { CommentReactionControls } from "@/components/posts/comment-reaction-con
 import { LinkifiedContent } from "@/components/content/linkified-content";
 import { getGuestFingerprint } from "@/lib/guest-client";
 import { getGuestWriteHeaders } from "@/lib/guest-step-up.client";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import {
   createCommentAction,
   deleteCommentAction,
@@ -31,7 +32,7 @@ type CommentItem = {
   guestIpDisplay?: string | null;
   guestIpLabel?: string | null;
   isGuestAuthor?: boolean;
-  author: { id: string; name: string | null; nickname: string | null };
+  author: { id: string; nickname: string | null };
 };
 
 type PostCommentThreadProps = {
@@ -345,7 +346,7 @@ export function PostCommentThread({
     );
     const guestAuthorName = comment.guestDisplayName?.trim()
       ? comment.guestDisplayName
-      : comment.author.nickname ?? comment.author.name ?? "익명";
+      : resolveUserDisplayName(comment.author.nickname);
     const guestIpDisplay = comment.guestIpDisplay?.trim()
       ? comment.guestIpDisplay
       : `0.${comment.author.id.slice(-3)}`;
@@ -356,7 +357,7 @@ export function PostCommentThread({
     const canReply = canComment && comment.status === "ACTIVE";
     const displayName = isGuestComment
       ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
-      : comment.author.nickname ?? comment.author.name ?? "익명";
+      : resolveUserDisplayName(comment.author.nickname);
     const avatarText = displayName.slice(0, 1).toUpperCase();
     const actionLinkClass =
       "text-[12px] font-medium text-[#4a668f] transition hover:text-[#2f5da4] hover:underline disabled:cursor-not-allowed disabled:opacity-50";

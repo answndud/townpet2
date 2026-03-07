@@ -19,7 +19,6 @@ async function resetUserNeighborhoodState() {
     },
     create: {
       email: testEmail,
-      name: "E2E Global First User",
       nickname: `gf-${Date.now().toString().slice(-6)}`,
       emailVerified: new Date(),
       passwordHash,

@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { auth } from "@/lib/auth";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { formatRelativeDate, postTypeMeta } from "@/lib/post-presenter";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import { postListSchema, toPostListInput } from "@/lib/validations/post";
 import { redirectToProfileIfNicknameMissing } from "@/server/nickname-guard";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
@@ -226,7 +227,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                         </span>
                       ) : (
                         <Link href={`/users/${post.author.id}`} className="hover:text-[#2f5da4]">
-                          {post.author.nickname ?? post.author.name ?? "익명"}
+                          {resolveUserDisplayName(post.author.nickname)}
                         </Link>
                       )}{" "}
                       ·{" "}

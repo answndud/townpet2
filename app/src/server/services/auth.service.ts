@@ -47,14 +47,12 @@ export async function registerUser({ input }: RegisterUserParams) {
     return await prisma.user.create({
       data: {
         email: parsed.data.email,
-        name: parsed.data.name ?? null,
         nickname: parsed.data.nickname,
         passwordHash,
       },
       select: {
         id: true,
         email: true,
-        name: true,
         nickname: true,
       },
     });

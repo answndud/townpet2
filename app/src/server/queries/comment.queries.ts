@@ -26,7 +26,7 @@ const buildCommentSelect = (
   updatedAt: true,
   authorId: true,
   guestAuthorId: true,
-  author: { select: { id: true, name: true, nickname: true, email: true } },
+  author: { select: { id: true, nickname: true, email: true } },
   ...(includeGuestAuthor
     ? {
         guestAuthor: {
@@ -125,7 +125,7 @@ export async function listCommentsByIds(commentIds: string[]) {
       id: true,
       postId: true,
       content: true,
-      author: { select: { id: true, name: true, nickname: true } },
+      author: { select: { id: true, nickname: true } },
     },
   });
 }

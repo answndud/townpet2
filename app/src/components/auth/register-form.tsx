@@ -27,7 +27,6 @@ export function RegisterForm({
   const [success, setSuccess] = useState(false);
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
-  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const router = useRouter();
@@ -52,7 +51,6 @@ export function RegisterForm({
           email,
           password,
           nickname,
-          name: name || undefined,
         }),
       });
 
@@ -94,16 +92,6 @@ export function RegisterForm({
           minLength={2}
           maxLength={20}
           required
-        />
-      </label>
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">
-        이름(선택)
-        <input
-          autoComplete="name"
-          className="tp-input-soft min-h-11 px-3 py-2 text-sm placeholder:text-[#6887b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f66ba]/40"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="표시 이름"
         />
       </label>
       <label className="flex flex-col gap-2 text-sm font-medium text-[#274b7a]">

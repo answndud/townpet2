@@ -17,6 +17,53 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 231 완료 (회원가입 name 제거 + User.name 컬럼 삭제)
+- 완료 내용
+- 회원가입/UI/인증 정리:
+  - `app/src/components/auth/register-form.tsx`
+  - `app/src/lib/validations/auth.ts`
+  - `app/src/server/services/auth.service.ts`
+  - `app/src/app/api/auth/register/route.test.ts`
+  - 이메일 회원가입에서 `name` 입력을 제거하고 `email + nickname + password`만 받도록 정리
+  - credentials 로그인과 social dev 로그인도 `name` 없이 동작하도록 정리
+- User.name 컬럼 및 adapter/query/display 정리:
+  - `app/prisma/schema.prisma`
+  - `app/prisma/migrations/20260307103000_drop_user_name_column/migration.sql`
+  - `app/src/lib/auth.ts`
+  - `app/src/lib/user-display.ts`
+  - `app/src/server/queries/*.ts`
+  - `app/src/server/services/*.ts`
+  - `app/src/app/**/*.tsx`
+  - `app/src/components/**/*.tsx`
+  - Auth.js Prisma adapter wrapper에서 OAuth provider `name`을 `createUser/updateUser` 전에 strip 하도록 보강
+  - 공개 프로필, 알림, 검색, 피드, 북마크, 댓글/상세 작성자 표시는 `nickname` 중심 fallback으로 통일
+  - author search와 suggestion도 더 이상 `User.name`을 검색 대상으로 쓰지 않게 조정
+- seed/e2e/support 정리:
+  - `app/prisma/seed.ts`
+  - `app/scripts/seed-admin.ts`
+  - `app/scripts/seed-reports.ts`
+  - `app/scripts/seed-search-cases.ts`
+  - `app/scripts/seed-users.ts`
+  - `app/e2e/*.spec.ts`
+  - seed/e2e user create/upsert에서 `name` 필드를 제거해 Prisma schema와 정합화
+- 검증 결과
+- `pnpm -C app exec prisma format` 통과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app lint` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test` 실행 시 전체 Vitest 스위트 `100 files / 512 tests` 통과
+- `pnpm -C app exec prisma migrate deploy` 통과
+- `pnpm -C app exec prisma migrate status` 결과 `Database schema is up to date!`
+- 이슈/블로커
+- 운영 DB에도 `20260307103000_drop_user_name_column` migration 적용이 추가로 필요
+
+### 2026-03-07: Cycle 231 착수 (회원가입 name 제거 + User.name 컬럼 삭제)
+- 진행 내용
+- 이메일 회원가입 폼에서 `name`이 실제 사용자 표시/운영 로직에 거의 쓰이지 않고, 현재 표시 우선순위가 대부분 `nickname` 중심이라는 점을 재확인
+- 이번 사이클 범위를 `회원가입 name 제거 + User.name DB 컬럼 삭제 + OAuth/Auth.js adapter 정리 + 공개 프로필/알림/검색 fallback 제거`로 확정
+- 이슈/블로커
+- Auth.js Prisma adapter가 기본적으로 provider `name`을 `createUser`/`updateUser`에 그대로 넘기므로, `User.name` 컬럼 제거와 함께 adapter wrapper로 `name` strip 처리가 필요
+
 ### 2026-03-07: Cycle 230 완료 (공개 프로필 로그인 게이트 + 공개 범위 설정)
 - 완료 내용
 - 비회원 공개 프로필 로그인 게이트:

@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 231: 회원가입 name 제거 + User.name 컬럼 삭제 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 이메일 회원가입에서 이름 입력 제거 | Codex | P1 | `done` | `/register` 폼과 validation/service/API가 `email + nickname + password`만 사용하고 관련 회귀 테스트가 존재함 | `app/src/components/auth/register-form.tsx`, `app/src/lib/validations/auth.ts`, `app/src/server/services/auth.service.ts`, `app/src/app/api/auth/register/route.test.ts` |
+| User.name 컬럼 및 fallback/search 의존성 제거 | Codex | P1 | `done` | `User.name`이 Prisma schema/adapter/query/UI/search에서 제거되고 OAuth/Auth.js 흐름과 공개 프로필/알림/검색이 nickname 중심으로 동작함 | `app/prisma/schema.prisma`, `app/src/lib/auth.ts`, `app/src/server/**/*.ts`, `app/src/app/**/*.tsx` |
+
 ### Cycle 230: 공개 프로필 로그인 게이트 + 공개 범위 설정 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

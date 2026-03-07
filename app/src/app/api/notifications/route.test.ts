@@ -100,7 +100,6 @@ describe("GET /api/notifications contract", () => {
           actor: {
             id: "actor-1",
             nickname: "petlover",
-            name: "Pet Lover",
             image: "https://example.com/a.png",
           },
         },

@@ -7,6 +7,7 @@ import {
   emitNotificationUnreadSync,
   subscribeNotificationUnreadSync,
 } from "@/lib/notification-unread-sync";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import {
   archiveNotificationAction,
   markAllNotificationsReadAction,
@@ -30,7 +31,6 @@ type NotificationPreviewItem = {
   actor: {
     id: string;
     nickname: string | null;
-    name: string | null;
     image: string | null;
   } | null;
 };
@@ -371,7 +371,7 @@ export function NotificationBell({ unreadCount }: NotificationBellProps) {
 
             {!isLoading && !loadError
               ? filteredItems.map((item) => {
-                  const actorName = item.actor?.nickname ?? item.actor?.name ?? "사용자";
+                  const actorName = resolveUserDisplayName(item.actor?.nickname, "사용자");
                   return (
                     <div
                       key={item.id}

@@ -20,7 +20,6 @@ const neighborhoodKey = (city: string, district: string, name: string) =>
 
 type SeedUser = {
   email: string;
-  name: string;
   nickname?: string | null;
   role: UserRole;
   verified: boolean;
@@ -33,7 +32,6 @@ type SeedUser = {
 const seedUsers: SeedUser[] = [
   {
     email: "admin.platform@townpet.dev",
-    name: "Platform Admin",
     nickname: "platform-admin",
     role: UserRole.ADMIN,
     verified: true,
@@ -44,7 +42,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "admin.ops@townpet.dev",
-    name: "Ops Admin",
     nickname: "ops-admin",
     role: UserRole.ADMIN,
     verified: true,
@@ -54,7 +51,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "mod.trust@townpet.dev",
-    name: "Trust Moderator",
     nickname: "trust-mod",
     role: UserRole.MODERATOR,
     verified: true,
@@ -65,7 +61,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "mod.local@townpet.dev",
-    name: "Local Moderator",
     nickname: "local-mod",
     role: UserRole.MODERATOR,
     verified: true,
@@ -75,7 +70,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "mod.content@townpet.dev",
-    name: "Content Moderator",
     nickname: "content-mod",
     role: UserRole.MODERATOR,
     verified: true,
@@ -85,7 +79,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "power.reviewer@townpet.dev",
-    name: "Power Reviewer",
     nickname: "review-pro",
     role: UserRole.USER,
     verified: true,
@@ -96,7 +89,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "hospital.geek@townpet.dev",
-    name: "Hospital Geek",
     nickname: "vet-notes",
     role: UserRole.USER,
     verified: true,
@@ -106,7 +98,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "place.hunter@townpet.dev",
-    name: "Place Hunter",
     nickname: "pet-place-hunter",
     role: UserRole.USER,
     verified: true,
@@ -116,7 +107,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "route.runner@townpet.dev",
-    name: "Route Runner",
     nickname: "walk-route-runner",
     role: UserRole.USER,
     verified: true,
@@ -126,7 +116,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "qa.helper@townpet.dev",
-    name: "QA Helper",
     nickname: "qa-helper",
     role: UserRole.USER,
     verified: true,
@@ -136,7 +125,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "lostfound.alert@townpet.dev",
-    name: "Lost and Found Watcher",
     nickname: "lostfound-watch",
     role: UserRole.USER,
     verified: true,
@@ -146,7 +134,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "newbie.day1@townpet.dev",
-    name: "Newbie Day1",
     nickname: "newbie-day1",
     role: UserRole.USER,
     verified: false,
@@ -155,7 +142,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "newbie.week1@townpet.dev",
-    name: "Newbie Week1",
     nickname: "newbie-week1",
     role: UserRole.USER,
     verified: true,
@@ -165,7 +151,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "quiet.reader@townpet.dev",
-    name: "Quiet Reader",
     nickname: null,
     role: UserRole.USER,
     verified: true,
@@ -175,7 +160,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "cat.parent@townpet.dev",
-    name: "Cat Parent",
     nickname: "cat-mom",
     role: UserRole.USER,
     verified: true,
@@ -185,7 +169,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "dog.parent@townpet.dev",
-    name: "Dog Parent",
     nickname: "dog-dad",
     role: UserRole.USER,
     verified: true,
@@ -195,7 +178,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "multi.pet.family@townpet.dev",
-    name: "Multi Pet Family",
     nickname: "family-pack",
     role: UserRole.USER,
     verified: true,
@@ -206,7 +188,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "weekend.meetup@townpet.dev",
-    name: "Weekend Meetup Host",
     nickname: "weekend-meetup",
     role: UserRole.USER,
     verified: true,
@@ -216,7 +197,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "market.scout@townpet.dev",
-    name: "Market Scout",
     nickname: "market-scout",
     role: UserRole.USER,
     verified: true,
@@ -226,7 +206,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "care.requester@townpet.dev",
-    name: "Care Requester",
     nickname: "care-requester",
     role: UserRole.USER,
     verified: true,
@@ -236,7 +215,6 @@ const seedUsers: SeedUser[] = [
   },
   {
     email: "care.helper@townpet.dev",
-    name: "Care Helper",
     nickname: "care-helper",
     role: UserRole.USER,
     verified: true,
@@ -277,7 +255,6 @@ async function main() {
     const account = await prisma.user.upsert({
       where: { email: user.email },
       update: {
-        name: user.name,
         nickname: user.nickname ?? null,
         role: user.role,
         emailVerified: user.verified ? new Date() : null,
@@ -286,7 +263,6 @@ async function main() {
       },
       create: {
         email: user.email,
-        name: user.name,
         nickname: user.nickname ?? null,
         role: user.role,
         passwordHash: user.withPassword ? passwordHash : null,

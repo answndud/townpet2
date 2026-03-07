@@ -570,7 +570,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
           : {}),
       },
       include: {
-        author: { select: { id: true, name: true, nickname: true } },
+        author: { select: { id: true, nickname: true } },
         neighborhood: {
           select: { id: true, name: true, city: true, district: true },
         },
@@ -614,7 +614,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
           : {}),
       },
       include: {
-        author: { select: { id: true, name: true, nickname: true } },
+        author: { select: { id: true, nickname: true } },
         neighborhood: {
           select: { id: true, name: true, city: true, district: true },
         },
@@ -669,7 +669,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
           : {}),
       },
       include: {
-        author: { select: { id: true, name: true, nickname: true } },
+        author: { select: { id: true, nickname: true } },
         neighborhood: {
           select: { id: true, name: true, city: true, district: true },
         },
@@ -717,7 +717,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       ...commonCreateData,
     },
     include: {
-      author: { select: { id: true, name: true, nickname: true } },
+      author: { select: { id: true, nickname: true } },
       neighborhood: {
         select: { id: true, name: true, city: true, district: true },
       },
@@ -854,7 +854,7 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
         : {}),
     },
     include: {
-      author: { select: { id: true, name: true, nickname: true } },
+      author: { select: { id: true, nickname: true } },
       neighborhood: {
         select: { id: true, name: true, city: true, district: true },
       },
@@ -1093,7 +1093,7 @@ export async function updateGuestPost({
         : {}),
     },
     include: {
-      author: { select: { id: true, name: true, nickname: true } },
+      author: { select: { id: true, nickname: true } },
       neighborhood: {
         select: { id: true, name: true, city: true, district: true },
       },

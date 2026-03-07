@@ -23,13 +23,13 @@ type SeedReportInput = {
 
 async function ensureUser(
   email: string,
-  name: string,
+  nickname: string,
   role: UserRole = UserRole.USER,
 ) {
   return prisma.user.upsert({
     where: { email },
-    update: { name, role },
-    create: { email, name, role },
+    update: { nickname, role },
+    create: { email, nickname, role },
   });
 }
 

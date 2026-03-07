@@ -42,7 +42,6 @@ type NotificationListItem = Prisma.NotificationGetPayload<{
       select: {
         id: true;
         nickname: true;
-        name: true;
         image: true;
       };
     };
@@ -158,7 +157,6 @@ export async function listNotificationsByUser({
             select: {
               id: true,
               nickname: true,
-              name: true,
               image: true,
             },
           },

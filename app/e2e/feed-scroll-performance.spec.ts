@@ -34,13 +34,11 @@ async function seedPerformancePosts() {
   const user = await prisma.user.upsert({
     where: { email: PERF_AUTHOR_EMAIL },
     update: {
-      name: "Feed Perf Runner",
       nickname: "feed-perf-runner",
       emailVerified: new Date(),
     },
     create: {
       email: PERF_AUTHOR_EMAIL,
-      name: "Feed Perf Runner",
       nickname: "feed-perf-runner",
       emailVerified: new Date(),
     },

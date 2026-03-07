@@ -83,7 +83,6 @@ async function handleFailedLogin(params: {
 function toAuthorizedUser(user: {
   id: string;
   email: string;
-  name: string | null;
   nickname: string | null;
   image: string | null;
   sessionVersion: number;
@@ -91,7 +90,6 @@ function toAuthorizedUser(user: {
   return {
     id: user.id,
     email: user.email,
-    name: user.name,
     nickname: user.nickname,
     image: user.image,
     sessionVersion: user.sessionVersion,
@@ -151,7 +149,6 @@ export async function authorizeCredentialsLogin(
     select: {
       id: true,
       email: true,
-      name: true,
       nickname: true,
       image: true,
       passwordHash: true,

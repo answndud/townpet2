@@ -18,6 +18,7 @@ import { getGuestPostMeta } from "@/lib/post-guest-meta";
 import { canGuestReadPost } from "@/lib/post-access";
 import { formatRelativeDate } from "@/lib/post-presenter";
 import { toAbsoluteUrl } from "@/lib/site-url";
+import { resolveUserDisplayName } from "@/lib/user-display";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
 import { getPostById, getPostMetadataById } from "@/server/queries/post.queries";
 import { assertPostReadable } from "@/server/services/post-read-access.service";
@@ -226,7 +227,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
   const guestPostMeta = getGuestPostMeta(post);
   const displayAuthorName = guestPostMeta.guestAuthorName
     ? guestPostMeta.guestAuthorName
-    : post.author.nickname ?? post.author.name ?? "익명";
+    : resolveUserDisplayName(post.author.nickname);
   const postUrl = toAbsoluteUrl(`/posts/${post.id}`);
   const meta = typeMeta[post.type];
   const createdAt = ensureDate(post.createdAt) ?? new Date();
