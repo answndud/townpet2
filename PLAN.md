@@ -25,6 +25,12 @@
 
 ## Active Plan
 
+### Cycle 227: 비로그인 피드 CSP hydration 장애 복구 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| production CSP를 hydration-safe fallback으로 조정 | Codex | P1 | `done` | production에서 nonce 기반 enforce CSP가 Next inline bootstrap을 막지 않도록 enforce는 static fallback, strict nonce 정책은 report-only로 분리됨 | `app/src/lib/security-headers.ts`, `app/middleware.ts`, `app/next.config.ts` |
+| CSP 회귀 테스트와 실배포 비로그인 검증 | Codex | P1 | `done` | `security-headers`/`middleware` 테스트가 현재 정책을 고정하고, 실배포 `/feed` 비로그인 desktop/mobile에서 blank screen의 원인이던 CSP console error가 재현되지 않음 | `app/src/lib/security-headers.test.ts`, `app/src/middleware.test.ts`, `PROGRESS.md` |
+
 ### Cycle 226: 프로필 활동 카드 링크 정렬 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

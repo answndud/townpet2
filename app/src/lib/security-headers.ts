@@ -12,15 +12,6 @@ type ResolveCspHeadersParams = {
 
 type StaticSecurityHeadersParams = Omit<ResolveCspHeadersParams, "nonce">;
 
-function isTruthy(value?: string) {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes";
-}
-
 function buildCspPolicy(params: CspPolicyParams) {
   const scriptSrc = params.includeUnsafeEval
     ? `${params.scriptSrc} 'unsafe-eval'`
@@ -46,6 +37,14 @@ function buildNonceScriptSrc(nonce: string, isStrict: boolean) {
   }
 
   return [...strictSources, `'unsafe-inline'`].join(" ");
+}
+
+function buildStrictNonceReportOnlyPolicy(nonce: string) {
+  return buildCspPolicy({
+    scriptSrc: buildNonceScriptSrc(nonce, true),
+    connectSrc: "'self' https:",
+    includeUnsafeEval: false,
+  });
 }
 
 function buildStaticScriptSrc(isDevelopment: boolean) {
@@ -81,28 +80,20 @@ export function resolveCspHeaders(params: ResolveCspHeadersParams) {
     };
   }
 
-  if (isTruthy(params.cspEnforceStrict)) {
-    return {
-      csp: buildCspPolicy({
-        scriptSrc: buildNonceScriptSrc(nonce, true),
-        connectSrc: "'self' https:",
-        includeUnsafeEval: false,
-      }),
-      cspReportOnly: null,
-    };
-  }
+  // Next.js app router still emits framework inline bootstrap scripts without nonce
+  // on this stack. Browsers ignore 'unsafe-inline' whenever nonce/hash sources are
+  // present, so enforcing a nonce-based script-src breaks hydration and yields a
+  // blank shell. Keep the enforced CSP on the static fallback and use the strict
+  // nonce policy in report-only until nonce propagation is end-to-end.
+  const staticProductionCsp = buildStaticSecurityHeaders({
+    nodeEnv: params.nodeEnv,
+    cspEnforceStrict: params.cspEnforceStrict,
+  }).find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+  const strictReportOnlyCsp = buildStrictNonceReportOnlyPolicy(nonce);
 
   return {
-    csp: buildCspPolicy({
-      scriptSrc: buildNonceScriptSrc(nonce, false),
-      connectSrc: "'self' https:",
-      includeUnsafeEval: false,
-    }),
-    cspReportOnly: buildCspPolicy({
-      scriptSrc: buildNonceScriptSrc(nonce, true),
-      connectSrc: "'self' https:",
-      includeUnsafeEval: false,
-    }),
+    csp: staticProductionCsp,
+    cspReportOnly: strictReportOnlyCsp,
   };
 }
 

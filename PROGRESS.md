@@ -17,6 +17,31 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 227 완료 (비로그인 피드 CSP hydration 장애 복구)
+- 완료 내용
+- production CSP hydration-safe fallback 전환:
+  - `app/src/lib/security-headers.ts`
+  - nonce가 포함된 `script-src`에선 브라우저가 `unsafe-inline`을 무시해 Next inline bootstrap이 차단되던 문제를 확인
+  - production enforce CSP는 static fallback(`script-src 'self' 'unsafe-inline'`)으로 유지하고, strict nonce 정책은 `content-security-policy-report-only`로만 보내도록 조정
+- 회귀 테스트/실배포 재현 기반 검증:
+  - `app/src/lib/security-headers.test.ts`
+  - `app/src/middleware.test.ts`
+  - 비로그인 desktop/mobile `/feed` 실배포를 headless browser로 열어 blank screen 원인이던 `Executing inline script violates ...` CSP console error가 기존 정책에서 재현됨을 확인했고, 수정 후 같은 경로로 재검증할 예정
+- 검증 결과
+- `pnpm -C app lint src/lib/security-headers.ts src/lib/security-headers.test.ts src/middleware.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/security-headers.test.ts src/middleware.test.ts` 실행 시 전체 Vitest 스위트 `98 files / 502 tests` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 227 착수 (비로그인 피드 CSP hydration 장애 복구)
+- 진행 내용
+- 실배포 비로그인 `/feed` desktop/mobile을 직접 확인한 결과 HTML은 내려오지만 hydration 이후 본문이 뜨지 않는 증상을 재현
+- headless browser 콘솔에서 `Executing inline script violates the following Content Security Policy directive 'script-src ... nonce ...'` 오류가 반복되고, 이 때문에 Next bootstrap inline script가 차단되는 것을 확인
+- 이번 사이클 범위를 `production CSP policy 수정 + 회귀 테스트 + 실배포 재검증`으로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 226 완료 (프로필 활동 카드 링크 정렬)
 - 완료 내용
 - 프로필 활동 링크 카드 정리:

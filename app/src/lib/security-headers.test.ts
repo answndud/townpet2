@@ -3,26 +3,25 @@ import { describe, expect, it } from "vitest";
 import { buildStaticSecurityHeaders, resolveCspHeaders } from "@/lib/security-headers";
 
 describe("resolveCspHeaders", () => {
-  it("uses report-only strict CSP in production by default", () => {
+  it("uses static fallback CSP with strict report-only policy in production", () => {
     const result = resolveCspHeaders({ nodeEnv: "production", nonce: "nonce-a" });
 
-    expect(result.csp).toContain("script-src 'self' 'nonce-nonce-a' 'unsafe-inline'");
+    expect(result.csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(result.csp).not.toContain("'nonce-nonce-a'");
     expect(result.cspReportOnly).toContain("script-src 'self' 'nonce-nonce-a'");
-    expect(result.csp).not.toContain("script-src 'self' 'nonce-nonce-a' https:");
     expect(result.cspReportOnly).not.toContain("script-src 'self' 'unsafe-inline'");
   });
 
-  it("enforces strict CSP when CSP_ENFORCE_STRICT is enabled", () => {
+  it("keeps production hydration-safe CSP even when CSP_ENFORCE_STRICT is enabled", () => {
     const result = resolveCspHeaders({
       nodeEnv: "production",
       cspEnforceStrict: "1",
       nonce: "nonce-b",
     });
 
-    expect(result.csp).toContain("script-src 'self' 'nonce-nonce-b'");
-    expect(result.csp).not.toContain("script-src 'self' 'unsafe-inline'");
-    expect(result.csp).not.toContain("script-src 'self' 'nonce-nonce-b' https:");
-    expect(result.cspReportOnly).toBeNull();
+    expect(result.csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(result.csp).not.toContain("'nonce-nonce-b'");
+    expect(result.cspReportOnly).toContain("script-src 'self' 'nonce-nonce-b'");
   });
 
   it("keeps development CSP without report-only", () => {
