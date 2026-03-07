@@ -17,6 +17,37 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-07: Cycle 224 완료 (운영 문서 drift sync)
+- 완료 내용
+- production env/email/upload 기준선 문서 동기화:
+  - `docs/개발_운영_가이드.md`
+  - `docs/operations/Resend_Vercel_이메일_설정_가이드.md`
+  - `docs/operations/Vercel_OAuth_초기설정_가이드.md`
+  - production에서 `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`이 필수라는 점과 `password reset/email verification` 메일의 fail-fast 동작을 현재 코드 기준으로 정정
+  - `welcome email`만 best-effort 성격이라는 점과, 실제 배포는 strict security env preflight로 먼저 차단된다는 점을 함께 기록
+- migration/Neon 운영 절차 보강:
+  - `docs/개발_운영_가이드.md`
+  - 로컬 준비 절차를 `db:migrate` 중심으로 재정리
+  - `P3005` baseline 절차를 현재 `build:vercel` 동작과 맞추고, `P3009` failed migration 복구(`원인 데이터 정리 -> migrate resolve --rolled-back -> migrate deploy -> migrate status`) 절차를 추가
+  - Neon SQL Editor에서 `_prisma_migrations`와 `ReportReason` enum을 확인하는 실전 쿼리를 문서화
+- 사이클 종료 루틴/운영 화면/targeted test 문서화:
+  - `docs/operations/에이전트_운영_가이드.md`
+  - `docs/operations/운영_문서_안내.md`
+  - `docs/제품_기술_개요.md`
+  - `commit -> push -> quality-gate -> ops:check:health -> worktree clean` 종료 루틴과 changed-file 기준 lint/typecheck/vitest/playwright 실행법, `/admin/personalization`, `/admin/breeds`, `/saved` 진입점을 운영 문서에 반영
+  - `scripts/refresh-docs-index.mjs` 출력 경로를 현재 문서 구조(`docs/archive/operations/문서 동기화 리포트.md`)와 맞춰 `docs:refresh`/`docs:refresh:check`가 다시 동작하도록 정리
+- 검증 결과
+- `git diff --check` 통과
+- 이슈/블로커
+- 없음
+
+### 2026-03-07: Cycle 224 착수 (운영 문서 drift sync)
+- 진행 내용
+- 최근 사이클에서 실제 운영 기준으로 정착된 env/migration/test/cycle close 절차와 `docs/` 사이에 drift가 남아 있음을 재점검
+- 이번 사이클 범위를 `production env drift 정리 + migration/Neon 절차 보강 + cycle close/test/admin screen 문서화`로 확정
+- 이슈/블로커
+- 없음
+
 ### 2026-03-07: Cycle 223 완료 (개인화 튜닝 정책 설정화)
 - 완료 내용
 - 개인화 튜닝 정책 저장소/검증 경로 추가:

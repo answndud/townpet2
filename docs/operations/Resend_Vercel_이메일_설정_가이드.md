@@ -17,7 +17,9 @@
 - 인증 메일 발송: `app/src/server/email.ts`
 
 중요 조건:
-- `RESEND_API_KEY`가 없으면 메일 전송을 건너뜁니다(가입은 되지만 메일 미발송).
+- production 배포는 `RESEND_API_KEY`가 없으면 strict security env preflight와 runtime env 검증에서 실패합니다.
+- 비밀번호 재설정/이메일 인증 메일은 production에서 설정 누락 또는 전송 실패 시 `503`으로 fail-fast 합니다.
+- `welcome email`만 best-effort 전송입니다.
 - `APP_BASE_URL`이 올바르지 않으면 메일 링크가 잘못된 도메인으로 생성됩니다.
 
 ---
@@ -172,6 +174,7 @@ Vercel 문서: https://vercel.com/docs/environment-variables
 - 인증 전: 로그인 불가(이메일 미인증)
 - 인증 후: 로그인 가능
 - DB: `User.emailVerified`가 null -> timestamp로 변경
+- production에서 `RESEND_API_KEY` 누락 또는 Resend 전송 실패가 있으면 비밀번호 재설정/이메일 인증 요청은 `503`으로 종료
 
 ### 8-3. 문제 발생 시 점검 순서
 1. `RESEND_API_KEY`가 Production에 설정됐는지
@@ -191,7 +194,8 @@ Vercel 문서: https://vercel.com/docs/environment-variables
 - From 도메인 불일치
 
 해결:
-- Vercel env + Resend domain 상태 먼저 확인
+- production이면 배포가 먼저 실패하거나 인증/재설정 API가 `503`을 반환해야 정상입니다.
+- welcome email만 누락될 때는 경고 로그만 남을 수 있으므로 Vercel env + Resend domain 상태를 함께 확인하세요.
 
 ### 9-2. 링크가 localhost로 감
 원인:
@@ -230,6 +234,7 @@ Vercel 문서: https://vercel.com/docs/environment-variables
 - [ ] `APP_BASE_URL`(Production) 설정
 - [ ] 재배포 완료
 - [ ] 회원가입 -> 메일 수신 -> 인증 -> 로그인까지 1회 실검증 완료
+- [ ] 비밀번호 재설정 요청 -> 메일 수신 -> reset 완료까지 1회 실검증 완료
 - [ ] 키/도메인 운영자 계정 2FA 활성화
 
 ---

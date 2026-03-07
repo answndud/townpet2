@@ -13,7 +13,7 @@
 
 ## 범위 원칙
 - 우선순위: `서비스 안정성 -> 커뮤니티 핵심 기능 -> 재방문/유입 -> 운영 자동화`
-- Phase 2 보류: 마켓/케어/채팅/결제/공동구매/카카오맵은 Phase 1 완료 후 착수
+- Phase 2 보류: 마켓/케어/결제/공동구매/카카오맵은 Phase 1 완료 후 착수
 
 ## 현재 우선순위
 1. 운영 안정화: 무료 주간 10분 루틴 정착(health/log/manual smoke)
@@ -24,6 +24,13 @@
 6. 보안 하드닝 트랙 분리 운영: `docs/security/*` 백로그/리스크/진행 로그 상시 동기화
 
 ## Active Plan
+
+### Cycle 224: 운영 문서 drift sync (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| production env/email/upload 운영 문서 기준선 동기화 | Codex | P1 | `done` | `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `UPSTASH_REDIS_REST_*`의 production 필수 여부와 메일 fail-fast 동작이 운영 문서와 모순되지 않음 | `docs/개발_운영_가이드.md`, `docs/operations/Resend_Vercel_이메일_설정_가이드.md`, `docs/operations/Vercel_OAuth_초기설정_가이드.md` |
+| migration 장애 복구 + Neon 검증 절차 문서화 | Codex | P1 | `done` | `P3005`, `P3009`, `_prisma_migrations`, enum 확인 절차를 운영자가 `docs/`만 보고 재현할 수 있음 | `docs/개발_운영_가이드.md` |
+| 사이클 종료 루틴/targeted test/운영 화면 안내 보강 | Codex | P2 | `done` | cycle close 루틴, changed-file 기준 검증 명령, `/admin/*` 및 `/saved` 운영 화면 안내가 `docs/operations`와 공용 기술 문서에 반영됨 | `docs/operations/에이전트_운영_가이드.md`, `docs/operations/운영_문서_안내.md`, `docs/제품_기술_개요.md` |
 
 ### Cycle 223: 개인화 튜닝 정책 설정화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

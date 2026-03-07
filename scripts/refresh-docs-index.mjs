@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 
 const args = new Set(process.argv.slice(2));
 const checkMode = args.has("--check");
@@ -7,7 +7,7 @@ const checkMode = args.has("--check");
 const repoRoot = resolve(new URL("..", import.meta.url).pathname);
 const docsDir = join(repoRoot, "docs");
 const appDir = join(repoRoot, "app");
-const reportPath = join(docsDir, "ops", "docs-sync-report.md");
+const reportPath = join(docsDir, "archive", "operations", "문서 동기화 리포트.md");
 
 function walk(dir, predicate) {
   const results = [];
@@ -96,5 +96,6 @@ if (checkMode) {
   process.exit(0);
 }
 
+mkdirSync(dirname(reportPath), { recursive: true });
 writeFileSync(reportPath, nextContent, "utf8");
 console.log(`Updated ${toRel(reportPath)}`);

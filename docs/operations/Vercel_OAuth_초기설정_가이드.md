@@ -50,16 +50,17 @@ Vercel 프로젝트 -> `Settings` -> `Environment Variables`에서 입력:
 - `CSP_ENFORCE_STRICT=1`
 - `GUEST_HASH_PEPPER`
 - `HEALTH_INTERNAL_TOKEN`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `RESEND_API_KEY`
+- `BLOB_READ_WRITE_TOKEN`
 
 OAuth 연결 전 임시로 비워도 되는 값:
 - `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`
 - `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
 
 선택(운영 고도화):
-- `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 - `SENTRY_DSN`
-- `RESEND_API_KEY`
-- `BLOB_READ_WRITE_TOKEN`
 - `DIRECT_URL` (현재 runtime 필수는 아니지만 migration/debug 용도로 둘 수 있음)
 
 현재 사용자가 공유한 Vercel 키:
@@ -96,6 +97,10 @@ OAuth 연결 전 임시로 비워도 되는 값:
 생성 팁:
 - `AUTH_SECRET`는 32바이트 이상 랜덤 문자열 권장
 - 예: `openssl rand -base64 32`
+
+중요:
+- production 배포는 `build:vercel` 시작 시 strict security env preflight를 먼저 실행합니다.
+- `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `UPSTASH_REDIS_REST_URL/TOKEN`이 빠지면 빌드 초반에 실패합니다.
 
 ---
 
@@ -250,7 +255,12 @@ Sentry 검증 실패
 - 앱 관리자 화면:
   - `/admin/reports` 신고/제재
   - `/admin/auth-audits` 인증 감사로그
-  - `/admin/policies` 정책값
+  - `/admin/policies` 정책값/개인화 튜닝
+  - `/admin/personalization` 개인화 CTR/이벤트 지표
+  - `/admin/breeds` 품종 사전 관리
+- 사용자 지원 시 확인하는 화면:
+  - `/saved` 저장한 글
+  - `/profile` 반려동물/세그먼트 설정
 - DB(Neon): 회원/게시글/이미지 원본 데이터 조회 및 SQL 관리
 
 중요:
