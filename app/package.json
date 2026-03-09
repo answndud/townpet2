@@ -25,6 +25,7 @@
     "db:sync:neighborhoods": "tsx scripts/sync-neighborhoods.ts",
     "db:seed:reports": "tsx scripts/seed-reports.ts",
     "db:seed:admin": "tsx scripts/seed-admin.ts",
+    "db:seed:adoption-demo": "tsx scripts/seed-adoption-demo.ts",
     "db:seed:users": "tsx scripts/seed-users.ts",
     "db:seed:search-cases": "tsx scripts/seed-search-cases.ts",
     "db:seed:passwords": "tsx scripts/seed-passwords.ts",

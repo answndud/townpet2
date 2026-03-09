@@ -21,11 +21,15 @@ import { buildGuestIpMeta } from "@/lib/guest-ip-display";
 import { isGuestPostTypeBlocked, isGuestScopeAllowed } from "@/lib/guest-post-policy";
 import { evaluateNewUserPostWritePolicy } from "@/lib/post-write-policy";
 import {
+  type AdoptionListingInput,
   type HospitalReviewInput,
+  type VolunteerRecruitmentInput,
+  adoptionListingSchema,
   hospitalReviewSchema,
   placeReviewSchema,
   postCreateSchema,
   postUpdateSchema,
+  volunteerRecruitmentSchema,
   walkRouteSchema,
 } from "@/lib/validations/post";
 import {
@@ -90,6 +94,19 @@ const hasAnyValue = (data: Record<string, unknown>) =>
   Object.values(data).some((value) => hasValue(value));
 
 const HOSPITAL_REVIEW_TEXT_FIELDS = ["hospitalName", "treatmentType"] as const;
+const ADOPTION_LISTING_TEXT_FIELDS = [
+  "shelterName",
+  "region",
+  "animalType",
+  "breed",
+  "ageLabel",
+  "sizeLabel",
+] as const;
+const VOLUNTEER_RECRUITMENT_TEXT_FIELDS = [
+  "shelterName",
+  "region",
+  "volunteerType",
+] as const;
 
 const normalizeImageUrls = (imageUrls: string[] | undefined) =>
   Array.from(
@@ -162,6 +179,44 @@ function moderateHospitalReviewStructuredFields(params: {
   }
 
   return moderatedReview;
+}
+
+function moderateStructuredTextFields<
+  T extends Record<string, unknown>,
+  K extends keyof T & string,
+>(params: {
+  data: T;
+  fields: readonly K[];
+  role: UserRole;
+  accountCreatedAt: Date;
+  blockWindowHours: number;
+}) {
+  const moderatedData = { ...params.data };
+
+  for (const field of params.fields) {
+    const rawValue = moderatedData[field];
+    if (typeof rawValue !== "string" || rawValue.trim().length === 0) {
+      continue;
+    }
+
+    const contactPolicy = moderateContactContent({
+      text: rawValue,
+      role: params.role,
+      accountCreatedAt: params.accountCreatedAt,
+      blockWindowHours: params.blockWindowHours,
+    });
+    if (contactPolicy.blocked) {
+      throw new ServiceError(
+        contactPolicy.message ?? "연락처가 포함된 내용은 현재 계정으로 작성할 수 없습니다.",
+        "CONTACT_RESTRICTED_FOR_NEW_USER",
+        403,
+      );
+    }
+
+    moderatedData[field] = contactPolicy.sanitizedText as T[K];
+  }
+
+  return moderatedData;
 }
 
 function stripImageTokensForGuestPolicy(value: string) {
@@ -372,13 +427,17 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
   const normalizedAnimalTags = normalizeAnimalTags(animalTags);
   const mappedBoard = resolveBoardByPostType(postData.type);
   const effectiveScope =
-    postData.type === PostType.HOSPITAL_REVIEW
+    postData.type === PostType.HOSPITAL_REVIEW ||
+    postData.type === PostType.ADOPTION_LISTING ||
+    postData.type === PostType.SHELTER_VOLUNTEER
       ? PostScope.GLOBAL
       : postData.type === PostType.MEETUP
       ? PostScope.LOCAL
       : postData.scope;
   const rawInput = input as Record<string, unknown>;
   let hospitalReviewInput: HospitalReviewInput | null = null;
+  let adoptionListingInput: AdoptionListingInput | null = null;
+  let volunteerRecruitmentInput: VolunteerRecruitmentInput | null = null;
   if (postData.type === PostType.HOSPITAL_REVIEW) {
     const reviewInput = hospitalReviewSchema.safeParse(rawInput.hospitalReview ?? {});
     if (!reviewInput.success) {
@@ -386,6 +445,24 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     }
 
     hospitalReviewInput = reviewInput.data;
+  }
+  if (postData.type === PostType.ADOPTION_LISTING) {
+    const listingInput = adoptionListingSchema.safeParse(rawInput.adoptionListing ?? {});
+    if (!listingInput.success) {
+      throw new ServiceError("입양 게시글 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
+    }
+
+    adoptionListingInput = listingInput.data;
+  }
+  if (postData.type === PostType.SHELTER_VOLUNTEER) {
+    const recruitmentInput = volunteerRecruitmentSchema.safeParse(
+      rawInput.volunteerRecruitment ?? {},
+    );
+    if (!recruitmentInput.success) {
+      throw new ServiceError("봉사 모집 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
+    }
+
+    volunteerRecruitmentInput = recruitmentInput.data;
   }
   const [forbiddenKeywords, newUserSafetyPolicy, guestPostPolicy] = await Promise.all([
     getForbiddenKeywords(),
@@ -398,6 +475,15 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       postData.content,
       hospitalReviewInput?.hospitalName,
       hospitalReviewInput?.treatmentType,
+      adoptionListingInput?.shelterName,
+      adoptionListingInput?.region,
+      adoptionListingInput?.animalType,
+      adoptionListingInput?.breed,
+      adoptionListingInput?.ageLabel,
+      adoptionListingInput?.sizeLabel,
+      volunteerRecruitmentInput?.shelterName,
+      volunteerRecruitmentInput?.region,
+      volunteerRecruitmentInput?.volunteerType,
     ]),
     forbiddenKeywords,
   );
@@ -475,6 +561,24 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
       });
     }
+    if (adoptionListingInput) {
+      adoptionListingInput = moderateStructuredTextFields({
+        data: adoptionListingInput,
+        fields: ADOPTION_LISTING_TEXT_FIELDS,
+        role: author.role,
+        accountCreatedAt: author.createdAt,
+        blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
+      });
+    }
+    if (volunteerRecruitmentInput) {
+      volunteerRecruitmentInput = moderateStructuredTextFields({
+        data: volunteerRecruitmentInput,
+        fields: VOLUNTEER_RECRUITMENT_TEXT_FIELDS,
+        role: author.role,
+        accountCreatedAt: author.createdAt,
+        blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
+      });
+    }
     resolvedAuthorId = author.id;
   } else {
     if (!guestIdentity) {
@@ -517,6 +621,15 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       stripImageTokensForGuestPolicy(postData.content),
       hospitalReviewInput?.hospitalName,
       hospitalReviewInput?.treatmentType,
+      adoptionListingInput?.shelterName,
+      adoptionListingInput?.region,
+      adoptionListingInput?.animalType,
+      adoptionListingInput?.breed,
+      adoptionListingInput?.ageLabel,
+      adoptionListingInput?.sizeLabel,
+      volunteerRecruitmentInput?.shelterName,
+      volunteerRecruitmentInput?.region,
+      volunteerRecruitmentInput?.volunteerType,
     ]);
 
     if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(guestPolicyText)) {
@@ -779,6 +892,94 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     return created;
   }
 
+  if (postData.type === "ADOPTION_LISTING") {
+    const listingInput = adoptionListingInput ?? {};
+    const shouldCreateListing = hasAnyValue(listingInput);
+
+    const created = await prisma.post.create({
+      data: {
+        ...commonCreateData,
+        ...(shouldCreateListing
+          ? {
+              adoptionListing: {
+                create: {
+                  ...listingInput,
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        author: { select: { id: true, nickname: true } },
+        neighborhood: {
+          select: { id: true, name: true, city: true, district: true },
+        },
+        adoptionListing: {
+          select: {
+            shelterName: true,
+            region: true,
+            animalType: true,
+            breed: true,
+            ageLabel: true,
+            sex: true,
+            isNeutered: true,
+            isVaccinated: true,
+            sizeLabel: true,
+            status: true,
+          },
+        },
+        images: {
+          select: { id: true, url: true, order: true },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+    notifyPostCacheChange();
+    return created;
+  }
+
+  if (postData.type === "SHELTER_VOLUNTEER") {
+    const recruitmentInput = volunteerRecruitmentInput ?? {};
+    const shouldCreateRecruitment = hasAnyValue(recruitmentInput);
+
+    const created = await prisma.post.create({
+      data: {
+        ...commonCreateData,
+        ...(shouldCreateRecruitment
+          ? {
+              volunteerRecruitment: {
+                create: {
+                  ...recruitmentInput,
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        author: { select: { id: true, nickname: true } },
+        neighborhood: {
+          select: { id: true, name: true, city: true, district: true },
+        },
+        volunteerRecruitment: {
+          select: {
+            shelterName: true,
+            region: true,
+            volunteerDate: true,
+            volunteerType: true,
+            capacity: true,
+            status: true,
+          },
+        },
+        images: {
+          select: { id: true, url: true, order: true },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+    notifyPostCacheChange();
+    return created;
+  }
+
   const created = await prisma.post.create({
     data: {
       ...commonCreateData,
@@ -815,6 +1016,30 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
           hasRestroom: true,
           hasParkingLot: true,
           safetyTags: true,
+        },
+      },
+      adoptionListing: {
+        select: {
+          shelterName: true,
+          region: true,
+          animalType: true,
+          breed: true,
+          ageLabel: true,
+          sex: true,
+          isNeutered: true,
+          isVaccinated: true,
+          sizeLabel: true,
+          status: true,
+        },
+      },
+      volunteerRecruitment: {
+        select: {
+          shelterName: true,
+          region: true,
+          volunteerDate: true,
+          volunteerType: true,
+          capacity: true,
+          status: true,
         },
       },
       images: {
@@ -952,6 +1177,30 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
           hasRestroom: true,
           hasParkingLot: true,
           safetyTags: true,
+        },
+      },
+      adoptionListing: {
+        select: {
+          shelterName: true,
+          region: true,
+          animalType: true,
+          breed: true,
+          ageLabel: true,
+          sex: true,
+          isNeutered: true,
+          isVaccinated: true,
+          sizeLabel: true,
+          status: true,
+        },
+      },
+      volunteerRecruitment: {
+        select: {
+          shelterName: true,
+          region: true,
+          volunteerDate: true,
+          volunteerType: true,
+          capacity: true,
+          status: true,
         },
       },
       images: {

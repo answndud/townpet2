@@ -21,7 +21,10 @@ import {
 } from "@/lib/feed-personalization";
 import { toFeedAudienceSourceValue } from "@/lib/feed-personalization-metrics";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
-import { isCommonBoardPostType } from "@/lib/community-board";
+import {
+  getDedicatedBoardPathByPostType,
+  isCommonBoardPostType,
+} from "@/lib/community-board";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import {
   PET_TYPE_PREFERENCE_COOKIE,
@@ -294,6 +297,22 @@ export default async function Home({ searchParams }: HomePageProps) {
   });
   const listInput = parsedParams.success ? toPostListInput(parsedParams.data) : null;
   const requestedType = listInput?.type;
+  const dedicatedBoardPath = getDedicatedBoardPathByPostType(requestedType);
+  if (dedicatedBoardPath) {
+    const params = new URLSearchParams();
+    const requestedQuery =
+      typeof resolvedParams.q === "string" ? resolvedParams.q.trim() : "";
+    const requestedPage =
+      typeof resolvedParams.page === "string" ? resolvedParams.page.trim() : "";
+    if (requestedQuery.length > 0) {
+      params.set("q", requestedQuery);
+    }
+    if (requestedPage.length > 0 && requestedPage !== "1") {
+      params.set("page", requestedPage);
+    }
+    const serialized = params.toString();
+    redirect(serialized ? `${dedicatedBoardPath}?${serialized}` : dedicatedBoardPath);
+  }
   const requestedReviewCategory = listInput?.reviewCategory;
   const isLegacyReviewType =
     requestedType === PostType.PLACE_REVIEW || requestedType === PostType.PRODUCT_REVIEW;

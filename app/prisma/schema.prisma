@@ -300,6 +300,8 @@ model Post {
   walkRoute                 WalkRoute?
   meetup                    Meetup?
   marketListing             MarketListing?
+  adoptionListing           AdoptionListing?
+  volunteerRecruitment      VolunteerRecruitment?
   lostFoundAlert            LostFoundAlert?
   qaQuestion                QaQuestion?
   createdAt                 DateTime                      @default(now())
@@ -418,6 +420,8 @@ enum PostType {
   WALK_ROUTE
   MEETUP
   MARKET_LISTING
+  ADOPTION_LISTING
+  SHELTER_VOLUNTEER
   LOST_FOUND
   QA_QUESTION
   QA_ANSWER
@@ -442,6 +446,8 @@ enum CommonBoardType {
   HOSPITAL
   LOST_FOUND
   MARKET
+  ADOPTION
+  VOLUNTEER
 }
 
 enum PostStatus {
@@ -513,6 +519,54 @@ enum MarketStatus {
   AVAILABLE
   RESERVED
   SOLD
+  CANCELLED
+}
+
+model AdoptionListing {
+  id           String         @id @default(cuid())
+  postId       String         @unique
+  post         Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  shelterName  String?
+  region       String?
+  animalType   String?
+  breed        String?
+  ageLabel     String?
+  sex          AnimalSex?
+  isNeutered   Boolean?
+  isVaccinated Boolean?
+  sizeLabel    String?
+  status       AdoptionStatus @default(OPEN)
+}
+
+enum AnimalSex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum AdoptionStatus {
+  OPEN
+  RESERVED
+  ADOPTED
+  CLOSED
+}
+
+model VolunteerRecruitment {
+  id            String                     @id @default(cuid())
+  postId        String                     @unique
+  post          Post                       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  shelterName   String?
+  region        String?
+  volunteerDate DateTime?
+  volunteerType String?
+  capacity      Int?
+  status        VolunteerRecruitmentStatus @default(OPEN)
+}
+
+enum VolunteerRecruitmentStatus {
+  OPEN
+  FULL
+  CLOSED
   CANCELLED
 }
 

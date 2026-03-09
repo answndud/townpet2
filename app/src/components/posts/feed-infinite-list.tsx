@@ -65,6 +65,18 @@ export type FeedPostItem = {
   images: Array<{
     id: string;
   }>;
+  adoptionListing?: {
+    shelterName?: string | null;
+    region?: string | null;
+    animalType?: string | null;
+    status?: string | null;
+  } | null;
+  volunteerRecruitment?: {
+    shelterName?: string | null;
+    region?: string | null;
+    volunteerDate?: string | Date | null;
+    status?: string | null;
+  } | null;
   isBookmarked?: boolean | null;
   reactions?: Array<{
     type: FeedReactionType;
@@ -132,6 +144,20 @@ const MAX_READ_POSTS = 500;
 const AD_DAILY_STORAGE_KEY = "feed:ad-impressions:daily:v1";
 const AD_SESSION_STORAGE_KEY = "feed:ad-impressions:session:v1";
 
+const adoptionStatusLabel: Record<string, string> = {
+  OPEN: "입양 가능",
+  RESERVED: "상담 중",
+  ADOPTED: "입양 완료",
+  CLOSED: "마감",
+};
+
+const volunteerStatusLabel: Record<string, string> = {
+  OPEN: "모집 중",
+  FULL: "정원 마감",
+  CLOSED: "종료",
+  CANCELLED: "취소",
+};
+
 type StoredReadPost = {
   id: string;
   ts: number;
@@ -143,6 +169,22 @@ function parseErrorMessage(error: unknown) {
   }
 
   return "게시글을 더 불러오지 못했습니다.";
+}
+
+function formatListDate(value: string | Date | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+  });
 }
 
 function parseReadPosts(raw: string | null): StoredReadPost[] {
@@ -618,13 +660,37 @@ export function FeedInfiniteList({
               ? post.petType.labelKo
               : `${post.petType.categoryLabelKo} · ${post.petType.labelKo}`
             : null;
-          const previewContent = post.content.replace(/\s+/g, " ").trim();
           const statsLabel = buildFeedStatsLabel({
             createdAt: post.createdAt,
             relativeNow,
             viewCount: post.viewCount,
             reactionCount: post.likeCount + post.dislikeCount,
           });
+          const adoptionSummary = post.adoptionListing
+            ? [
+                post.adoptionListing.shelterName,
+                post.adoptionListing.region,
+                post.adoptionListing.animalType,
+                post.adoptionListing.status
+                  ? (adoptionStatusLabel[post.adoptionListing.status] ?? post.adoptionListing.status)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : null;
+          const volunteerSummary = post.volunteerRecruitment
+            ? [
+                post.volunteerRecruitment.shelterName,
+                post.volunteerRecruitment.region,
+                formatListDate(post.volunteerRecruitment.volunteerDate),
+                post.volunteerRecruitment.status
+                  ? (volunteerStatusLabel[post.volunteerRecruitment.status] ??
+                    post.volunteerRecruitment.status)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : null;
           const authorLabel = post.guestDisplayName
             ? `${post.guestDisplayName}${post.guestIpDisplay ? ` (${post.guestIpLabel ?? "아이피"} ${post.guestIpDisplay})` : ""}`
             : resolveUserDisplayName(post.author.nickname);
@@ -702,8 +768,10 @@ export function FeedInfiniteList({
                       <span className="shrink-0 text-[#2f5da4]">[{post.commentCount}]</span>
                     ) : null}
                   </Link>
-                  {previewContent ? (
-                    <p className="mt-px hidden truncate text-[11px] text-[#6b83a6] sm:block">{previewContent}</p>
+                  {adoptionSummary || volunteerSummary ? (
+                    <p className="mt-px hidden truncate text-[11px] text-[#6b83a6] sm:block">
+                      {adoptionSummary ?? volunteerSummary}
+                    </p>
                   ) : null}
                   {locationLabel || petTypeLabel ? (
                     <p className="hidden truncate text-[11px] text-[#6a82a6] sm:block">

@@ -1,4 +1,4 @@
-import { CommonBoardType, PostStatus, Prisma } from "@prisma/client";
+import { CommonBoardType, PostStatus, PostType, Prisma } from "@prisma/client";
 import { cache } from "react";
 
 import { prisma } from "@/lib/prisma";
@@ -24,6 +24,41 @@ type CommunityNavItem = {
   slug: string;
   labelKo: string;
   tags?: string[];
+};
+
+export type AdoptionBoardPostItem = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: Date;
+  commentCount: number;
+  likeCount: number;
+  viewCount: number;
+  author: {
+    id: string;
+    nickname: string | null;
+  };
+  images: Array<{
+    id: string;
+    url: string;
+    order: number;
+  }>;
+  adoptionListing: {
+    shelterName: string | null;
+    region: string | null;
+    animalType: string | null;
+    breed: string | null;
+    ageLabel: string | null;
+    sex: string | null;
+    sizeLabel: string | null;
+    status: string | null;
+    isNeutered: boolean | null;
+    isVaccinated: boolean | null;
+  } | null;
+};
+
+type AdoptionBoardWhereOptions = {
+  q?: string;
 };
 
 function isMissingCommunitySchemaError(error: unknown) {
@@ -56,6 +91,80 @@ function isMissingCommonBoardPostColumnError(error: unknown) {
     columnName.includes("Post.commonBoardType") ||
     columnName.includes("Post.animalTags")
   );
+}
+
+function isMissingAdoptionBoardSchemaError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code !== "P2021" && error.code !== "P2022") {
+    return false;
+  }
+
+  const tableName = String(error.meta?.table ?? "");
+  const columnName = String(error.meta?.column ?? "");
+
+  return (
+    tableName.includes("AdoptionListing") ||
+    tableName.includes("PostImage") ||
+    columnName.includes("AdoptionListing") ||
+    columnName.includes("PostImage")
+  );
+}
+
+function buildAdoptionBoardWhere({ q }: AdoptionBoardWhereOptions): Prisma.PostWhereInput {
+  const trimmedQ = q?.trim();
+
+  return {
+    status: PostStatus.ACTIVE,
+    boardScope: "COMMON",
+    commonBoardType: CommonBoardType.ADOPTION,
+    type: PostType.ADOPTION_LISTING,
+    ...(trimmedQ
+      ? {
+          OR: [
+            { title: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
+            { content: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
+            {
+              adoptionListing: {
+                is: {
+                  shelterName: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive },
+                },
+              },
+            },
+            {
+              adoptionListing: {
+                is: {
+                  region: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive },
+                },
+              },
+            },
+            {
+              adoptionListing: {
+                is: {
+                  animalType: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive },
+                },
+              },
+            },
+            {
+              adoptionListing: {
+                is: {
+                  breed: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive },
+                },
+              },
+            },
+            {
+              adoptionListing: {
+                is: {
+                  ageLabel: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
 }
 
 export async function listCommunities({
@@ -237,6 +346,22 @@ export async function listCommonBoardPosts({
             district: true,
           },
         },
+        adoptionListing: {
+          select: {
+            shelterName: true,
+            region: true,
+            animalType: true,
+            status: true,
+          },
+        },
+        volunteerRecruitment: {
+          select: {
+            shelterName: true,
+            region: true,
+            volunteerDate: true,
+            status: true,
+          },
+        },
       },
       orderBy: [{ createdAt: "desc" }],
       take: safeLimit + 1,
@@ -262,4 +387,83 @@ export async function listCommonBoardPosts({
   }
 
   return { items, nextCursor };
+}
+
+export async function countAdoptionBoardPosts({ q }: { q?: string }) {
+  return prisma.post
+    .count({
+      where: buildAdoptionBoardWhere({ q }),
+    })
+    .catch((error) => {
+      if (isMissingCommonBoardPostColumnError(error) || isMissingAdoptionBoardSchemaError(error)) {
+        return 0;
+      }
+
+      throw error;
+    });
+}
+
+export async function listAdoptionBoardPostsPage({
+  page,
+  limit,
+  q,
+}: {
+  page: number;
+  limit: number;
+  q?: string;
+}) {
+  const safeLimit = Math.min(Math.max(limit, 1), 48);
+  const safePage = Math.max(page, 1);
+
+  return prisma.post
+    .findMany({
+      where: buildAdoptionBoardWhere({ q }),
+      orderBy: [{ createdAt: "desc" }],
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        createdAt: true,
+        commentCount: true,
+        likeCount: true,
+        viewCount: true,
+        author: {
+          select: {
+            id: true,
+            nickname: true,
+          },
+        },
+        images: {
+          select: {
+            id: true,
+            url: true,
+            order: true,
+          },
+          orderBy: { order: "asc" },
+        },
+        adoptionListing: {
+          select: {
+            shelterName: true,
+            region: true,
+            animalType: true,
+            breed: true,
+            ageLabel: true,
+            sex: true,
+            sizeLabel: true,
+            status: true,
+            isNeutered: true,
+            isVaccinated: true,
+          },
+        },
+      },
+    })
+    .catch((error): AdoptionBoardPostItem[] | Promise<never> => {
+      if (isMissingCommonBoardPostColumnError(error) || isMissingAdoptionBoardSchemaError(error)) {
+        return [];
+      }
+
+      throw error;
+    });
 }

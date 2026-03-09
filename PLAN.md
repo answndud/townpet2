@@ -26,6 +26,35 @@
 
 ## Active Plan
 
+### Cycle 250: 입양 보드 헤더 설명 문구 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 입양 게시판 헤더의 보조 설명 문구 제거 | Codex | P3 | `done` | `/boards/adoption` 상단에서 사용자에게 불필요한 설명 문구가 제거되고 핵심 수치/검색만 남는다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/boards/adoption/page.tsx` |
+
+### Cycle 249: 입양 게시판 카드형 전용 보드 구현 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 전용 `/boards/adoption` grid view 보드 추가 | Codex | P1 | `done` | 현재 `/feed?type=ADOPTION_LISTING` 행형 목록 대신 전용 `/boards/adoption` 카드형 보드가 동작하고, 피드에서는 입양 타입 진입 시 해당 경로로 이동한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/feed/page.tsx`, `app/src/components/navigation/feed-hover-menu.tsx`, `app/src/app/boards/adoption/page.tsx`, `app/src/app/boards/adoption/loading.tsx` |
+| 3x4 카드 레이아웃 + 페이지네이션 + 전용 쿼리 구현 | Codex | P1 | `done` | 데스크톱 3열, 12개/페이지 기준의 카드 레이아웃과 입양 전용 summary 쿼리/페이지네이션이 연결된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/boards/adoption-board-grid.tsx`, `app/src/server/queries/community.queries.ts` |
+| 로컬 확인용 demo seed 추가 및 실행 검증 | Codex | P1 | `done` | 로컬 DB에 4개 입양 demo post를 주입하는 스크립트가 추가되고 실제 실행/개수 확인이 완료된다 | `PLAN.md`, `PROGRESS.md`, `app/scripts/seed-adoption-demo.ts`, `app/package.json` |
+
+### Cycle 248: 유기동물 입양 / 보호소 봉사 모집 게시판 MVP 구현 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| Prisma/Zod/서비스에 입양·봉사 구조화 게시글 타입 추가 | Codex | P1 | `done` | `ADOPTION_LISTING`, `SHELTER_VOLUNTEER`와 전용 서브모델/검증/생성 정책/마이그레이션이 연결되고 guest/new-user 정책이 적용된다 | `PLAN.md`, `PROGRESS.md`, `app/prisma/schema.prisma`, `app/prisma/migrations/20260309193000_add_adoption_and_volunteer_posts/migration.sql`, `app/src/lib/validations/post.ts`, `app/src/server/services/post.service.ts`, `app/src/lib/guest-post-policy.ts`, `app/src/lib/new-user-safety-policy.ts` |
+| 작성 폼·상세·목록·공용 보드 route까지 새 게시판 연결 | Codex | P1 | `done` | 글쓰기 폼, 피드/상세 요약, 북마크/내 글 라벨, 공용 보드 API가 입양/봉사 게시판을 실제 노출한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-create-form.tsx`, `app/src/components/posts/feed-infinite-list.tsx`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/guest/page.tsx`, `app/src/server/queries/post.queries.ts`, `app/src/server/queries/community.queries.ts`, `app/src/app/api/boards/[board]/posts/route.ts`, `app/src/app/my-posts/page.tsx`, `app/src/app/bookmarks/page.tsx` |
+| 회귀 테스트와 검증 로그 정리 | Codex | P1 | `done` | validation/service/route 테스트와 typecheck가 통과하고, 구조화 boolean 파싱 버그까지 회귀로 고정된다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/validations/post.test.ts`, `app/src/server/services/post-create-policy.test.ts`, `app/src/app/api/boards/[board]/posts/route.test.ts` |
+
+### Cycle 247: 루트 html hydration mismatch 완화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 루트 `<html>` 태그에 hydration warning suppress 적용 | Codex | P2 | `done` | 브라우저 확장 프로그램이 `html` 속성을 주입하는 경우에도 루트 hydration mismatch 경고가 완화된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/layout.tsx` |
+
+### Cycle 246: 피드 목록 본문 미리보기 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 피드 목록 카드에서 본문 미리보기 숨김 | Codex | P2 | `done` | 피드 목록 카드에서 게시글 본문 한 줄 미리보기가 제거되고 제목/메타만 노출된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/feed-infinite-list.tsx` |
+
 ### Cycle 245: 로컬 dev 서버 Turbopack panic 우회 기본화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

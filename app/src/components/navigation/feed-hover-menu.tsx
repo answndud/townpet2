@@ -10,7 +10,8 @@ import {
   parsePetTypePreferenceCookie,
   serializePetTypePreferenceCookie,
 } from "@/lib/pet-type-preference-cookie";
-import { postTypeMeta } from "@/lib/post-presenter";
+import { getDedicatedBoardPathByPostType } from "@/lib/community-board";
+import { getPostTypeMeta } from "@/lib/post-presenter";
 import { groupPetTypeCommunities } from "@/lib/pet-type-taxonomy";
 import { PRIMARY_POST_TYPES } from "@/lib/post-type-groups";
 import { updatePreferredPetTypesAction } from "@/server/actions/user";
@@ -35,6 +36,10 @@ function buildFeedHref(params: Record<string, string | null | undefined>) {
   }
   const query = search.toString();
   return query ? `/feed?${query}` : "/feed";
+}
+
+function buildBoardListingHref(type: PostType) {
+  return getDedicatedBoardPathByPostType(type) ?? buildFeedHref({ type, page: "1" });
 }
 
 export function FeedHoverMenu({
@@ -162,10 +167,10 @@ export function FeedHoverMenu({
             {boardPostTypes.map((value) => (
               <Link
                 key={`mobile-nav-type-${value}`}
-                href={buildFeedHref({ type: value, page: "1" })}
+                href={buildBoardListingHref(value)}
                 className="inline-flex rounded-sm border border-[#c9daf4] bg-white px-2 py-1 text-[10px] font-medium text-[#315b9a] hover:bg-[#f5f9ff]"
               >
-                {postTypeMeta[value].label}
+                {getPostTypeMeta(value).label}
               </Link>
             ))}
           </div>
@@ -267,11 +272,11 @@ export function FeedHoverMenu({
               {boardPostTypes.map((value) => (
                 <Link
                   key={`nav-type-${value}`}
-                  href={buildFeedHref({ type: value, page: "1" })}
+                  href={buildBoardListingHref(value)}
                   className="block px-3 py-1.5 text-xs text-[#315b9a] transition hover:bg-[#f5f9ff]"
                   onClick={() => setOpenMenu(null)}
                 >
-                  {postTypeMeta[value].label}
+                  {getPostTypeMeta(value).label}
                 </Link>
               ))}
             </div>

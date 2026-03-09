@@ -85,6 +85,26 @@ type PostCreateFormState = {
     hasParkingLot: string;
     safetyTags: string;
   };
+  adoptionListing: {
+    shelterName: string;
+    region: string;
+    animalType: string;
+    breed: string;
+    ageLabel: string;
+    sex: string;
+    isNeutered: string;
+    isVaccinated: string;
+    sizeLabel: string;
+    status: string;
+  };
+  volunteerRecruitment: {
+    shelterName: string;
+    region: string;
+    volunteerDate: string;
+    volunteerType: string;
+    capacity: string;
+    status: string;
+  };
   imageUrls: string[];
   guestDisplayName: string;
   guestPassword: string;
@@ -97,12 +117,18 @@ const postTypeOptions = [
   { value: PostType.LOST_FOUND, label: "실종/목격 제보" },
   { value: PostType.MEETUP, label: "동네모임" },
   { value: PostType.MARKET_LISTING, label: "중고/공동구매" },
+  { value: PostType.ADOPTION_LISTING, label: "유기동물 입양" },
+  { value: PostType.SHELTER_VOLUNTEER, label: "보호소 봉사 모집" },
   { value: PostType.PRODUCT_REVIEW, label: "리뷰" },
   { value: PostType.PET_SHOWCASE, label: "반려동물 자랑" },
 ];
 
 function resolveScopeByPostType(type: PostType, scope: PostScope) {
-  if (type === PostType.HOSPITAL_REVIEW) {
+  if (
+    type === PostType.HOSPITAL_REVIEW ||
+    type === PostType.ADOPTION_LISTING ||
+    type === PostType.SHELTER_VOLUNTEER
+  ) {
     return PostScope.GLOBAL;
   }
   if (type === PostType.MEETUP) {
@@ -142,7 +168,9 @@ function isDraftFormState(value: unknown): value is PostCreateFormState {
     (typeof candidate.guestPassword === "string" || candidate.guestPassword === undefined) &&
     !!candidate.hospitalReview &&
     !!candidate.placeReview &&
-    !!candidate.walkRoute
+    !!candidate.walkRoute &&
+    !!candidate.adoptionListing &&
+    !!candidate.volunteerRecruitment
   );
 }
 
@@ -192,6 +220,26 @@ export function PostCreateForm({
       hasRestroom: "false",
       hasParkingLot: "false",
       safetyTags: "",
+    },
+    adoptionListing: {
+      shelterName: "",
+      region: "",
+      animalType: "",
+      breed: "",
+      ageLabel: "",
+      sex: "",
+      isNeutered: "",
+      isVaccinated: "",
+      sizeLabel: "",
+      status: "OPEN",
+    },
+    volunteerRecruitment: {
+      shelterName: "",
+      region: "",
+      volunteerDate: "",
+      volunteerType: "",
+      capacity: "",
+      status: "OPEN",
     },
     imageUrls: [],
     guestDisplayName: "",
@@ -488,6 +536,8 @@ export function PostCreateForm({
     formState.type === PostType.PLACE_REVIEW ||
     (formState.type === PostType.PRODUCT_REVIEW && formState.reviewCategory === REVIEW_CATEGORY.PLACE);
   const showWalkRoute = formState.type === PostType.WALK_ROUTE;
+  const showAdoptionListing = formState.type === PostType.ADOPTION_LISTING;
+  const showVolunteerRecruitment = formState.type === PostType.SHELTER_VOLUNTEER;
 
   useEffect(() => {
     if (formState.scope !== resolvedScope) {
@@ -532,6 +582,28 @@ export function PostCreateForm({
       formState.walkRoute.hasStreetLights === "true" ||
       formState.walkRoute.hasRestroom === "true" ||
       formState.walkRoute.hasParkingLot === "true");
+
+  const hasAdoptionListing =
+    showAdoptionListing &&
+    (formState.adoptionListing.shelterName.trim().length > 0 ||
+      formState.adoptionListing.region.trim().length > 0 ||
+      formState.adoptionListing.animalType.trim().length > 0 ||
+      formState.adoptionListing.breed.trim().length > 0 ||
+      formState.adoptionListing.ageLabel.trim().length > 0 ||
+      formState.adoptionListing.sex.trim().length > 0 ||
+      formState.adoptionListing.isNeutered.trim().length > 0 ||
+      formState.adoptionListing.isVaccinated.trim().length > 0 ||
+      formState.adoptionListing.sizeLabel.trim().length > 0 ||
+      formState.adoptionListing.status.trim().length > 0);
+
+  const hasVolunteerRecruitment =
+    showVolunteerRecruitment &&
+    (formState.volunteerRecruitment.shelterName.trim().length > 0 ||
+      formState.volunteerRecruitment.region.trim().length > 0 ||
+      formState.volunteerRecruitment.volunteerDate.trim().length > 0 ||
+      formState.volunteerRecruitment.volunteerType.trim().length > 0 ||
+      formState.volunteerRecruitment.capacity.trim().length > 0 ||
+      formState.volunteerRecruitment.status.trim().length > 0);
 
   const syncEditorToFormState = () => {
     const element = contentRef.current;
@@ -726,6 +798,23 @@ export function PostCreateForm({
                 .filter(Boolean),
             }
           : undefined,
+        adoptionListing: hasAdoptionListing
+          ? {
+              ...formState.adoptionListing,
+              sex: formState.adoptionListing.sex || undefined,
+              isNeutered: formState.adoptionListing.isNeutered || undefined,
+              isVaccinated: formState.adoptionListing.isVaccinated || undefined,
+              status: formState.adoptionListing.status || undefined,
+            }
+          : undefined,
+        volunteerRecruitment: hasVolunteerRecruitment
+          ? {
+              ...formState.volunteerRecruitment,
+              volunteerDate: formState.volunteerRecruitment.volunteerDate || undefined,
+              capacity: formState.volunteerRecruitment.capacity || undefined,
+              status: formState.volunteerRecruitment.status || undefined,
+            }
+          : undefined,
       };
 
       const result = isAuthenticated
@@ -811,6 +900,28 @@ export function PostCreateForm({
           duration: "",
           difficulty: "",
           safetyTags: "",
+        },
+        adoptionListing: {
+          ...prev.adoptionListing,
+          shelterName: "",
+          region: "",
+          animalType: "",
+          breed: "",
+          ageLabel: "",
+          sex: "",
+          isNeutered: "",
+          isVaccinated: "",
+          sizeLabel: "",
+          status: "OPEN",
+        },
+        volunteerRecruitment: {
+          ...prev.volunteerRecruitment,
+          shelterName: "",
+          region: "",
+          volunteerDate: "",
+          volunteerType: "",
+          capacity: "",
+          status: "OPEN",
         },
         imageUrls: [],
         guestDisplayName: "",
@@ -1591,13 +1702,329 @@ export function PostCreateForm({
         </div>
       ) : null}
 
+      {showAdoptionListing ? (
+        <div className="grid gap-4 border border-[#f0dfb8] bg-[#fffaf0] p-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            보호소명
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.shelterName}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    shelterName: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 서울시 동물보호센터"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            지역
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.region}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    region: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 서울 마포구"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            동물 종류
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.animalType}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    animalType: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 강아지"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            품종
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.breed}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    breed: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 믹스견"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            나이/추정 개월수
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.ageLabel}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    ageLabel: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 2살 추정"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            성별
+            <select
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.sex}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    sex: event.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="">선택 안함</option>
+              <option value="MALE">수컷</option>
+              <option value="FEMALE">암컷</option>
+              <option value="UNKNOWN">미상</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            중성화
+            <select
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.isNeutered}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    isNeutered: event.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="">선택 안함</option>
+              <option value="true">완료</option>
+              <option value="false">미완료</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            예방접종
+            <select
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.isVaccinated}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    isVaccinated: event.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="">선택 안함</option>
+              <option value="true">완료</option>
+              <option value="false">미완료</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            체형/크기
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.sizeLabel}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    sizeLabel: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 중형견"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#7a5a16]">
+            진행 상태
+            <select
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.adoptionListing.status}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  adoptionListing: {
+                    ...prev.adoptionListing,
+                    status: event.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="OPEN">입양 가능</option>
+              <option value="RESERVED">상담 중</option>
+              <option value="ADOPTED">입양 완료</option>
+              <option value="CLOSED">마감</option>
+            </select>
+          </label>
+        </div>
+      ) : null}
+
+      {showVolunteerRecruitment ? (
+        <div className="grid gap-4 border border-[#d6e7b3] bg-[#f8fff0] p-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#49681d]">
+            보호소명
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.volunteerRecruitment.shelterName}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  volunteerRecruitment: {
+                    ...prev.volunteerRecruitment,
+                    shelterName: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 마포 유기동물 보호소"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#49681d]">
+            지역
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.volunteerRecruitment.region}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  volunteerRecruitment: {
+                    ...prev.volunteerRecruitment,
+                    region: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 서울 마포구"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#49681d]">
+            봉사 일정
+            <input
+              type="datetime-local"
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.volunteerRecruitment.volunteerDate}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  volunteerRecruitment: {
+                    ...prev.volunteerRecruitment,
+                    volunteerDate: event.target.value,
+                  },
+                }))
+              }
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#49681d]">
+            봉사 유형
+            <input
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.volunteerRecruitment.volunteerType}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  volunteerRecruitment: {
+                    ...prev.volunteerRecruitment,
+                    volunteerType: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 산책, 청소, 사진 촬영"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#49681d]">
+            모집 인원
+            <input
+              type="number"
+              min={1}
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.volunteerRecruitment.capacity}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  volunteerRecruitment: {
+                    ...prev.volunteerRecruitment,
+                    capacity: event.target.value,
+                  },
+                }))
+              }
+              placeholder="예: 10"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-[#49681d]">
+            모집 상태
+            <select
+              className="tp-input-soft px-3 py-2 text-sm"
+              value={formState.volunteerRecruitment.status}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  volunteerRecruitment: {
+                    ...prev.volunteerRecruitment,
+                    status: event.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="OPEN">모집 중</option>
+              <option value="FULL">정원 마감</option>
+              <option value="CLOSED">모집 종료</option>
+              <option value="CANCELLED">취소</option>
+            </select>
+          </label>
+        </div>
+      ) : null}
+
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#dbe6f6] pt-3">
         <p className="text-xs text-[#5d769d]">
           {isAuthenticated
             ? canUseLocalScope
-              ? "병원후기는 온동네로 고정되고, 동네모임은 동네 범위로만 등록됩니다."
+              ? "병원후기·유기동물 입양·보호소 봉사 모집은 온동네로 고정되고, 동네모임은 동네 범위로만 등록됩니다."
               : "대표 동네를 설정해야 동네모임을 작성할 수 있습니다."
             : "비회원 글은 전체로만 등록되며 외부 링크/연락처/고위험 카테고리는 제한됩니다."}
         </p>

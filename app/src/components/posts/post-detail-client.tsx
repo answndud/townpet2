@@ -87,6 +87,26 @@ type PostDetailItem = {
     hasParkingLot?: boolean | null;
     safetyTags?: string[] | null;
   } | null;
+  adoptionListing?: {
+    shelterName?: string | null;
+    region?: string | null;
+    animalType?: string | null;
+    breed?: string | null;
+    ageLabel?: string | null;
+    sex?: string | null;
+    isNeutered?: boolean | null;
+    isVaccinated?: boolean | null;
+    sizeLabel?: string | null;
+    status?: string | null;
+  } | null;
+  volunteerRecruitment?: {
+    shelterName?: string | null;
+    region?: string | null;
+    volunteerDate?: string | Date | null;
+    volunteerType?: string | null;
+    capacity?: number | null;
+    status?: string | null;
+  } | null;
   renderedContentHtml?: string | null;
   renderedContentText?: string | null;
 };
@@ -111,6 +131,14 @@ const typeMeta: Record<PostType, { label: string; chipClass: string }> = {
   MARKET_LISTING: {
     label: "중고/공동구매",
     chipClass: "border-slate-300 bg-slate-100 text-slate-700",
+  },
+  ADOPTION_LISTING: {
+    label: "유기동물 입양",
+    chipClass: "border-amber-200 bg-amber-50 text-amber-700",
+  },
+  SHELTER_VOLUNTEER: {
+    label: "보호소 봉사 모집",
+    chipClass: "border-lime-200 bg-lime-50 text-lime-700",
   },
   LOST_FOUND: {
     label: "실종/목격 제보",
@@ -159,6 +187,26 @@ const renderBooleanValue = (
   trueLabel: string,
   falseLabel: string,
 ) => (value === null || value === undefined ? emptyValue : value ? trueLabel : falseLabel);
+
+const adoptionStatusLabel: Record<string, string> = {
+  OPEN: "입양 가능",
+  RESERVED: "상담 중",
+  ADOPTED: "입양 완료",
+  CLOSED: "마감",
+};
+
+const animalSexLabel: Record<string, string> = {
+  MALE: "수컷",
+  FEMALE: "암컷",
+  UNKNOWN: "미상",
+};
+
+const volunteerStatusLabel: Record<string, string> = {
+  OPEN: "모집 중",
+  FULL: "정원 마감",
+  CLOSED: "모집 종료",
+  CANCELLED: "취소",
+};
 
 function ensureDate(value: unknown) {
   if (value instanceof Date) return value;
@@ -644,6 +692,113 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                     ? post.walkRoute.safetyTags.join(", ")
                     : "없음"}
                 </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {post.adoptionListing ? (
+          <section className="tp-card p-5 sm:p-6">
+            <h2 className="text-lg font-semibold text-[#163462]">유기동물 입양 정보</h2>
+            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">보호소</p>
+                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.shelterName)}</p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">지역</p>
+                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.region)}</p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">상태</p>
+                <p className="mt-1 font-medium text-[#5f4712]">
+                  {renderTextValue(
+                    post.adoptionListing.status
+                      ? (adoptionStatusLabel[post.adoptionListing.status] ?? post.adoptionListing.status)
+                      : null,
+                  )}
+                </p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">동물 종류</p>
+                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.animalType)}</p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">품종</p>
+                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.breed)}</p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">나이</p>
+                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.ageLabel)}</p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">성별</p>
+                <p className="mt-1 font-medium text-[#5f4712]">
+                  {renderTextValue(
+                    post.adoptionListing.sex
+                      ? (animalSexLabel[post.adoptionListing.sex] ?? post.adoptionListing.sex)
+                      : null,
+                  )}
+                </p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">중성화</p>
+                <p className="mt-1 font-medium text-[#5f4712]">
+                  {renderBooleanValue(post.adoptionListing.isNeutered, "완료", "미완료")}
+                </p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">예방접종</p>
+                <p className="mt-1 font-medium text-[#5f4712]">
+                  {renderBooleanValue(post.adoptionListing.isVaccinated, "완료", "미완료")}
+                </p>
+              </div>
+              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3 md:col-span-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">체형/크기</p>
+                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.sizeLabel)}</p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {post.volunteerRecruitment ? (
+          <section className="tp-card p-5 sm:p-6">
+            <h2 className="text-lg font-semibold text-[#163462]">보호소 봉사 모집 정보</h2>
+            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
+              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">보호소</p>
+                <p className="mt-1 font-medium text-[#365412]">{renderTextValue(post.volunteerRecruitment.shelterName)}</p>
+              </div>
+              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">지역</p>
+                <p className="mt-1 font-medium text-[#365412]">{renderTextValue(post.volunteerRecruitment.region)}</p>
+              </div>
+              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">모집 상태</p>
+                <p className="mt-1 font-medium text-[#365412]">
+                  {renderTextValue(
+                    post.volunteerRecruitment.status
+                      ? (volunteerStatusLabel[post.volunteerRecruitment.status] ??
+                        post.volunteerRecruitment.status)
+                      : null,
+                  )}
+                </p>
+              </div>
+              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">봉사 일정</p>
+                <p className="mt-1 font-medium text-[#365412]">
+                  {post.volunteerRecruitment.volunteerDate
+                    ? new Date(post.volunteerRecruitment.volunteerDate).toLocaleString("ko-KR")
+                    : emptyValue}
+                </p>
+              </div>
+              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">봉사 유형</p>
+                <p className="mt-1 font-medium text-[#365412]">{renderTextValue(post.volunteerRecruitment.volunteerType)}</p>
+              </div>
+              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">모집 인원</p>
+                <p className="mt-1 font-medium text-[#365412]">{renderNumberValue(post.volunteerRecruitment.capacity, "명")}</p>
               </div>
             </div>
           </section>

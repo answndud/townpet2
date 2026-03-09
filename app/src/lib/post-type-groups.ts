@@ -9,6 +9,8 @@ export const PRIMARY_POST_TYPES: PostType[] = [
   PostType.LOST_FOUND,
   PostType.MEETUP,
   PostType.MARKET_LISTING,
+  PostType.ADOPTION_LISTING,
+  PostType.SHELTER_VOLUNTEER,
 ];
 
 export const SECONDARY_POST_TYPES: PostType[] = [
@@ -35,6 +37,8 @@ const POST_TYPE_GROUPS: ReadonlyArray<ReadonlyArray<PostType>> = [
   [PostType.WALK_ROUTE],
   [PostType.MEETUP],
   [PostType.MARKET_LISTING],
+  [PostType.ADOPTION_LISTING],
+  [PostType.SHELTER_VOLUNTEER],
   [PostType.LOST_FOUND],
   [PostType.PET_SHOWCASE],
 ];

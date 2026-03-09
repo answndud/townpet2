@@ -8,7 +8,13 @@ import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 
-const commonBoardRouteParamSchema = z.enum(["hospital", "lost-found", "market"]);
+const commonBoardRouteParamSchema = z.enum([
+  "hospital",
+  "lost-found",
+  "market",
+  "adoption",
+  "volunteer",
+]);
 
 const commonBoardQuerySchema = z.object({
   cursor: z.string().cuid().optional(),
@@ -24,6 +30,8 @@ const commonBoardTypeByRoute: Record<
   hospital: CommonBoardType.HOSPITAL,
   "lost-found": CommonBoardType.LOST_FOUND,
   market: CommonBoardType.MARKET,
+  adoption: CommonBoardType.ADOPTION,
+  volunteer: CommonBoardType.VOLUNTEER,
 };
 
 export async function GET(

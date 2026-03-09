@@ -110,6 +110,22 @@ const buildPostListInclude = (
     images: {
       select: { id: true },
     },
+    adoptionListing: {
+      select: {
+        shelterName: true,
+        region: true,
+        animalType: true,
+        status: true,
+      },
+    },
+    volunteerRecruitment: {
+      select: {
+        shelterName: true,
+        region: true,
+        volunteerDate: true,
+        status: true,
+      },
+    },
   }) as const;
 
 const buildPostListIncludeWithoutReactions = (
@@ -137,6 +153,22 @@ const buildPostListIncludeWithoutReactions = (
     },
     images: {
       select: { id: true },
+    },
+    adoptionListing: {
+      select: {
+        shelterName: true,
+        region: true,
+        animalType: true,
+        status: true,
+      },
+    },
+    volunteerRecruitment: {
+      select: {
+        shelterName: true,
+        region: true,
+        volunteerDate: true,
+        status: true,
+      },
     },
   }) as const;
 
@@ -170,6 +202,28 @@ const WALK_ROUTE_SELECT = {
   safetyTags: true,
 } as const;
 
+const ADOPTION_LISTING_SELECT = {
+  shelterName: true,
+  region: true,
+  animalType: true,
+  breed: true,
+  ageLabel: true,
+  sex: true,
+  isNeutered: true,
+  isVaccinated: true,
+  sizeLabel: true,
+  status: true,
+} as const;
+
+const VOLUNTEER_RECRUITMENT_SELECT = {
+  shelterName: true,
+  region: true,
+  volunteerDate: true,
+  volunteerType: true,
+  capacity: true,
+  status: true,
+} as const;
+
 type PostDetailExtras = {
   hospitalReview: {
     hospitalName: string | null;
@@ -194,6 +248,26 @@ type PostDetailExtras = {
     hasRestroom: boolean | null;
     hasParkingLot: boolean | null;
     safetyTags: string[] | null;
+  } | null;
+  adoptionListing: {
+    shelterName: string | null;
+    region: string | null;
+    animalType: string | null;
+    breed: string | null;
+    ageLabel: string | null;
+    sex: string | null;
+    isNeutered: boolean | null;
+    isVaccinated: boolean | null;
+    sizeLabel: string | null;
+    status: string | null;
+  } | null;
+  volunteerRecruitment: {
+    shelterName: string | null;
+    region: string | null;
+    volunteerDate: Date | null;
+    volunteerType: string | null;
+    capacity: number | null;
+    status: string | null;
   } | null;
 };
 
@@ -237,6 +311,8 @@ async function attachPostDetailExtras<T extends { id: string; type: PostType }>(
   const needsHospital = post.type === PostType.HOSPITAL_REVIEW;
   const needsPlace = post.type === PostType.PLACE_REVIEW;
   const needsWalk = post.type === PostType.WALK_ROUTE;
+  const needsAdoption = post.type === PostType.ADOPTION_LISTING;
+  const needsVolunteer = post.type === PostType.SHELTER_VOLUNTEER;
   const tasks: Array<Promise<void>> = [];
   const target = post as T & PostDetailExtras;
 
@@ -280,6 +356,34 @@ async function attachPostDetailExtras<T extends { id: string; type: PostType }>(
     }
   } else if (target.walkRoute === undefined) {
     target.walkRoute = null;
+  }
+
+  if (needsAdoption) {
+    if (target.adoptionListing === undefined) {
+      tasks.push(
+        prisma.adoptionListing
+          .findUnique({ where: { postId: post.id }, select: ADOPTION_LISTING_SELECT })
+          .then((listing) => {
+            target.adoptionListing = listing;
+          }),
+      );
+    }
+  } else if (target.adoptionListing === undefined) {
+    target.adoptionListing = null;
+  }
+
+  if (needsVolunteer) {
+    if (target.volunteerRecruitment === undefined) {
+      tasks.push(
+        prisma.volunteerRecruitment
+          .findUnique({ where: { postId: post.id }, select: VOLUNTEER_RECRUITMENT_SELECT })
+          .then((recruitment) => {
+            target.volunteerRecruitment = recruitment;
+          }),
+      );
+    }
+  } else if (target.volunteerRecruitment === undefined) {
+    target.volunteerRecruitment = null;
   }
 
   if (tasks.length > 0) {
@@ -1055,6 +1159,8 @@ const POST_TYPE_INTEREST_LABELS: Partial<Record<PostType, string[]>> = {
   HOSPITAL_REVIEW: ["건강", "병원"],
   PLACE_REVIEW: ["장소"],
   PRODUCT_REVIEW: ["용품", "후기"],
+  ADOPTION_LISTING: ["입양", "보호소"],
+  SHELTER_VOLUNTEER: ["봉사", "보호소"],
   PET_SHOWCASE: ["행동", "일상"],
   QA_QUESTION: ["질문"],
   QA_ANSWER: ["질문"],

@@ -1,12 +1,22 @@
 import { PostType } from "@prisma/client";
 
 export type PostSignal = "image" | "twitter" | "instagram" | "link";
+export type PostTypeMeta = {
+  label: string;
+  chipClass: string;
+  icon: string;
+};
 
 const URL_REGEX = /https?:\/\/[^\s)]+/gi;
+const FALLBACK_POST_TYPE_META: PostTypeMeta = {
+  label: "게시글",
+  chipClass: "border-zinc-300 bg-zinc-100 text-zinc-700",
+  icon: "P",
+};
 
 export const postTypeMeta: Record<
   PostType,
-  { label: string; chipClass: string; icon: string }
+  PostTypeMeta
 > = {
   HOSPITAL_REVIEW: {
     label: "병원후기",
@@ -32,6 +42,16 @@ export const postTypeMeta: Record<
     label: "중고/공동구매",
     chipClass: "border-slate-300 bg-slate-100 text-slate-700",
     icon: "K",
+  },
+  ADOPTION_LISTING: {
+    label: "유기동물 입양",
+    chipClass: "border-amber-200 bg-amber-50 text-amber-700",
+    icon: "A",
+  },
+  SHELTER_VOLUNTEER: {
+    label: "보호소 봉사 모집",
+    chipClass: "border-lime-200 bg-lime-50 text-lime-700",
+    icon: "V",
   },
   LOST_FOUND: {
     label: "실종/목격 제보",
@@ -74,6 +94,15 @@ export const postTypeMeta: Record<
     icon: "S",
   },
 };
+
+export function getPostTypeMeta(type?: string | null): PostTypeMeta {
+  if (!type) {
+    return FALLBACK_POST_TYPE_META;
+  }
+
+  const meta = (postTypeMeta as Partial<Record<string, PostTypeMeta>>)[type];
+  return meta ?? FALLBACK_POST_TYPE_META;
+}
 
 export function formatRelativeDate(
   date: Date | string | number,

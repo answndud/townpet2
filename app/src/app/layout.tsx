@@ -55,7 +55,7 @@ export default async function RootLayout({
   const communities = await listCommunityNavItems(50).catch(() => []);
 
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${spaceGrotesk.variable} ${plexMono.variable} app-shell-bg min-h-screen text-[#10284a] antialiased`}

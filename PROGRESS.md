@@ -17,6 +17,81 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-09: Cycle 250 완료 (입양 보드 헤더 설명 문구 제거)
+- 완료 내용
+  - `app/src/app/boards/adoption/page.tsx`의 헤더 설명 문구를 제거해 사용자가 보는 영역에는 제목, 검색, 개수 메타만 남기도록 정리했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/boards/adoption/page.tsx` 통과
+  - `git diff --check` 통과
+- 이슈/블로커
+  - 없음
+
+### 2026-03-09: Cycle 249 완료 (입양 게시판 카드형 전용 보드 구현)
+- 완료 내용
+  - `app/src/app/boards/adoption/page.tsx`와 `app/src/app/boards/adoption/loading.tsx`를 추가해 입양 게시판 전용 페이지를 만들고, 데스크톱 3열 기준 카드형 레이아웃으로 분리했다.
+  - `app/src/components/boards/adoption-board-grid.tsx`에서 대표 이미지, 제목, 보호소명, 지역, 동물 정보, 상태, 기본 메타를 카드형으로 렌더링하도록 구성했다.
+  - `app/src/server/queries/community.queries.ts`에 입양 전용 목록/카운트 쿼리를 추가해 12개/페이지 SSR 렌더링과 검색(`q`)을 지원하도록 했다.
+  - `app/src/lib/community-board.ts`에 전용 보드 경로 helper를 추가했고, `app/src/components/navigation/feed-hover-menu.tsx`에서 `유기동물 입양` 클릭 시 `/feed?type=ADOPTION_LISTING` 대신 `/boards/adoption`으로 진입하도록 바꿨다.
+  - `app/src/app/feed/page.tsx`에서도 `type=ADOPTION_LISTING` 요청은 전용 보드로 리다이렉트하도록 처리해 입구를 하나로 정리했다.
+  - `app/scripts/seed-adoption-demo.ts`와 `app/package.json`의 `db:seed:adoption-demo` 스크립트를 추가해 로컬 확인용 입양 demo post 4개를 독립적으로 넣을 수 있게 했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/community-board.ts src/lib/community-board.test.ts src/components/navigation/feed-hover-menu.tsx src/server/queries/community.queries.ts src/components/boards/adoption-board-grid.tsx 'src/app/boards/adoption/page.tsx' 'src/app/boards/adoption/loading.tsx' scripts/seed-adoption-demo.ts` 통과
+  - `pnpm -C app typecheck` 통과
+  - `pnpm -C app test -- src/lib/community-board.test.ts src/lib/post-presenter.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite가 실행됐고 `106 files / 542 tests` 통과
+  - `pnpm -C app db:seed:adoption-demo` 실행 결과 `4 created`
+  - prisma 직접 조회 결과 `ADOPTION_LISTING` 게시글 4건 확인
+  - `git diff --check` 통과
+- 이슈/블로커
+  - 현재 전용 카드형 보드는 입양 게시판만 적용했고, 봉사 모집 게시판은 아직 기존 list view를 유지한다.
+  - 전용 필터(상태/지역/동물종)와 관리자 큐레이션/상단 고정 기능은 아직 범위 밖이다.
+  - 사용자가 별도 요청하기 전까지 이번 변경도 로컬 상태로 유지하고 push하지 않는다.
+
+### 2026-03-09: Cycle 248 완료 (유기동물 입양 / 보호소 봉사 모집 게시판 MVP 구현)
+- 완료 내용
+  - `app/prisma/schema.prisma`에 `PostType.ADOPTION_LISTING`, `PostType.SHELTER_VOLUNTEER`, `CommonBoardType.ADOPTION`, `CommonBoardType.VOLUNTEER`를 추가하고 `AdoptionListing`, `VolunteerRecruitment` 전용 모델을 연결했다.
+  - `app/prisma/migrations/20260309193000_add_adoption_and_volunteer_posts/migration.sql`를 추가해 enum 확장과 신규 테이블 생성 경로를 저장소 기준으로 확정했다.
+  - `app/src/lib/validations/post.ts`에 입양/봉사 구조화 스키마를 추가하고, 기존 `optionalBoolean`을 `"true" / "false"` 문자열을 올바르게 boolean으로 파싱하도록 수정해 새 필드와 기존 구조화 폼의 boolean 저장 오류를 같이 막았다.
+  - `app/src/server/services/post.service.ts`에서 두 새 타입을 공용 보드/글로벌 범위로 고정하고, 구조화 payload 검증, 금칙어 검사, 연락처 moderation, relation 생성까지 실제 저장 경로를 연결했다.
+  - `app/src/components/posts/post-create-form.tsx`에 입양/봉사 전용 입력 UI를 추가했고, `app/src/server/queries/post.queries.ts`, `app/src/components/posts/feed-infinite-list.tsx`, `app/src/components/posts/post-detail-client.tsx`, `app/src/app/posts/[id]/guest/page.tsx`에 목록/상세 요약 렌더링을 붙였다.
+  - `app/src/server/queries/community.queries.ts`와 `app/src/app/api/boards/[board]/posts/route.ts`를 확장해 `/api/boards/adoption/posts`, `/api/boards/volunteer/posts` 공용 보드 경로가 동작하도록 했다.
+  - `app/src/app/my-posts/page.tsx`, `app/src/app/bookmarks/page.tsx`의 타입 라벨도 새 게시판에 맞게 보강했다.
+- 정책 메모
+  - 입양/봉사 게시판은 현재 코드 기준으로 guest write 차단, new-user restricted type 적용, 글로벌 공용 보드 고정이다.
+  - 이번 MVP에는 입양 신청, 봉사 신청/승인, 보호소 기관 인증 워크플로우는 포함하지 않았다.
+- 검증 결과
+  - `pnpm -C app exec prisma format` 통과
+  - `pnpm -C app exec prisma generate` 통과
+  - `pnpm -C app lint ...`로 관련 변경 파일 lint 통과
+  - `pnpm -C app typecheck` 통과
+  - `pnpm -C app test -- src/lib/validations/post.test.ts src/server/services/post-create-policy.test.ts 'src/app/api/boards/[board]/posts/route.test.ts'` 실행 시 현재 환경에서는 Vitest 전체 suite가 실행됐고 `104 files / 538 tests` 통과
+  - `pnpm -C app db:push` 통과로 로컬 PostgreSQL 스키마 동기화 확인
+  - `git diff --check` 통과
+- 이슈/블로커
+  - 전용 게시판 페이지 UI나 입양/봉사 신청 워크플로우는 아직 없다. 현재 범위는 구조화 게시/목록/상세/공용 보드 API까지의 MVP다.
+  - `pnpm -C app db:migrate`는 이번 변경과 별개로 기존 migration chain(`20260306133000_expand_auth_audit_for_login_events`)이 shadow DB에서 `AuthAuditAction` 타입을 찾지 못해 실패한다. 로컬 실행 확인은 `db:push`로 우회했다.
+  - 사용자가 별도 요청하기 전까지 이번 변경은 로컬 상태로 유지하고 push하지 않는다.
+
+### 2026-03-09: Cycle 247 완료 (루트 html hydration mismatch 완화)
+- 완료 내용
+  - `app/src/app/layout.tsx`의 루트 `<html lang="ko">`에 `suppressHydrationWarning`를 추가했다.
+  - 콘솔 에러에 표시된 `style={{--vsc-domain:"\"localhost\""}}`는 앱 코드가 아니라 브라우저 확장 프로그램이 `html` 태그에 주입한 속성 흔적으로 판단했다.
+  - 기존에는 `body`에만 `suppressHydrationWarning`가 있어 루트 `html` 속성 mismatch는 그대로 경고가 났고, 이번 변경으로 그 케이스를 완화했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/layout.tsx` 통과
+  - `git diff --check` 통과
+- 이슈/블로커
+  - 근본 원인은 브라우저 확장 프로그램 또는 클라이언트 환경 주입 가능성이 높다. 이번 수정은 앱 쪽에서 해당 경고를 흡수하는 완화책이다.
+
+### 2026-03-09: Cycle 246 완료 (피드 목록 본문 미리보기 제거)
+- 완료 내용
+  - `app/src/components/posts/feed-infinite-list.tsx`에서 피드 목록 카드의 본문 미리보기(`post.content` 기반 한 줄 텍스트)를 제거했다.
+  - 목록에는 제목, 카테고리 칩, 댓글 수, 위치/커뮤니티 메타, 작성자/통계만 남고 본문 내용은 더 이상 노출되지 않는다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/feed-infinite-list.tsx` 통과
+  - `git diff --check` 통과
+- 이슈/블로커
+  - 없음
+
 ### 2026-03-09: Cycle 245 완료 (로컬 dev 서버 Turbopack panic 우회 기본화)
 - 완료 내용
   - 사용자가 제공한 Turbopack panic 로그(`/var/folders/.../next-panic-c6c4fc16c13a63921d0607cc21895c56.log`)를 확인한 결과, `/feed/page`와 `/page` HMR 재빌드 중 `Next.js package not found`로 Turbopack이 반복 실패하고 있었다.

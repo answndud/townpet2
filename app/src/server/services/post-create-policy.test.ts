@@ -222,6 +222,41 @@ describe("createPost new-user restriction", () => {
     expect(mockPrisma.post.create).not.toHaveBeenCalled();
   });
 
+  it("blocks forbidden keywords in adoption listing structured fields", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+    mockPrisma.siteSetting.findUnique.mockImplementation(async ({ where }) => {
+      if (where.key === FORBIDDEN_KEYWORDS_POLICY_KEY) {
+        return { value: ["불법"] };
+      }
+      return null;
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "입양 공고",
+          content: "본문",
+          type: PostType.ADOPTION_LISTING,
+          scope: PostScope.GLOBAL,
+          imageUrls: [],
+          adoptionListing: {
+            shelterName: "불법 보호소",
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN_KEYWORD_DETECTED",
+      status: 400,
+    });
+
+    expect(mockPrisma.post.create).not.toHaveBeenCalled();
+  });
+
   it("blocks new users when contact info is included in hospital review structured fields", async () => {
     const now = new Date();
     mockPrisma.user.findUnique.mockResolvedValue({
@@ -283,6 +318,42 @@ describe("createPost new-user restriction", () => {
           hospitalReview: {
             create: expect.objectContaining({
               treatmentType: "문의는 010-****-5678",
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("masks contact info in volunteer structured fields for older users", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "봉사 모집",
+          content: "본문",
+          type: PostType.SHELTER_VOLUNTEER,
+          scope: PostScope.GLOBAL,
+          imageUrls: [],
+          volunteerRecruitment: {
+            volunteerType: "문의 010-1234-5678",
+          },
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          volunteerRecruitment: {
+            create: expect.objectContaining({
+              volunteerType: "문의 010-****-5678",
             }),
           },
         }),
@@ -465,6 +536,90 @@ describe("createPost new-user restriction", () => {
         },
       }),
     ).resolves.toBeTruthy();
+  });
+
+  it("allows adoption common board without animal tags and stores structured relation", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "입양 공고",
+          content: "내용",
+          type: PostType.ADOPTION_LISTING,
+          scope: PostScope.GLOBAL,
+          adoptionListing: {
+            shelterName: "강동 보호소",
+            animalType: "강아지",
+            status: "OPEN",
+          },
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          boardScope: "COMMON",
+          commonBoardType: "ADOPTION",
+          petTypeId: null,
+          adoptionListing: {
+            create: expect.objectContaining({
+              shelterName: "강동 보호소",
+              animalType: "강아지",
+              status: "OPEN",
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("allows volunteer common board without animal tags and stores structured relation", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "봉사 모집",
+          content: "내용",
+          type: PostType.SHELTER_VOLUNTEER,
+          scope: PostScope.GLOBAL,
+          volunteerRecruitment: {
+            shelterName: "송파 보호소",
+            volunteerType: "청소",
+            status: "OPEN",
+          },
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          boardScope: "COMMON",
+          commonBoardType: "VOLUNTEER",
+          petTypeId: null,
+          volunteerRecruitment: {
+            create: expect.objectContaining({
+              shelterName: "송파 보호소",
+              volunteerType: "청소",
+              status: "OPEN",
+            }),
+          },
+        }),
+      }),
+    );
   });
 
   it("forces fixed scope by post type", async () => {

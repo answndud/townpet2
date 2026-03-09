@@ -2,11 +2,13 @@ import { PostScope, PostType } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import {
+  adoptionListingSchema,
   hospitalReviewSchema,
   placeReviewSchema,
   postCreateSchema,
   postListSchema,
   toPostListInput,
+  volunteerRecruitmentSchema,
   walkRouteSchema,
 } from "@/lib/validations/post";
 
@@ -53,6 +55,36 @@ describe("post validations", () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.difficulty).toBeUndefined();
+  });
+
+  it("parses adoption listing enums and false booleans correctly", () => {
+    const result = adoptionListingSchema.safeParse({
+      shelterName: "강동 보호소",
+      sex: "FEMALE",
+      isNeutered: "false",
+      isVaccinated: "true",
+      status: "OPEN",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.sex).toBe("FEMALE");
+    expect(result.data?.isNeutered).toBe(false);
+    expect(result.data?.isVaccinated).toBe(true);
+    expect(result.data?.status).toBe("OPEN");
+  });
+
+  it("parses volunteer recruitment date and capacity", () => {
+    const result = volunteerRecruitmentSchema.safeParse({
+      shelterName: "송파 보호소",
+      volunteerDate: "2026-03-20T09:00",
+      capacity: "12",
+      status: "FULL",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.volunteerDate).toBeInstanceOf(Date);
+    expect(result.data?.capacity).toBe(12);
+    expect(result.data?.status).toBe("FULL");
   });
 
   it("accepts petType in list filters", () => {
@@ -150,6 +182,28 @@ describe("post validations", () => {
       title: "공동구매",
       content: "내용",
       type: PostType.MARKET_LISTING,
+      scope: PostScope.GLOBAL,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("allows adoption-listing posts without animal tags", () => {
+    const result = postCreateSchema.safeParse({
+      title: "입양 공고",
+      content: "내용",
+      type: PostType.ADOPTION_LISTING,
+      scope: PostScope.GLOBAL,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("allows shelter-volunteer posts without animal tags", () => {
+    const result = postCreateSchema.safeParse({
+      title: "봉사 모집",
+      content: "내용",
+      type: PostType.SHELTER_VOLUNTEER,
       scope: PostScope.GLOBAL,
     });
 

@@ -60,6 +60,21 @@ describe("GET /api/boards/[board]/posts contract", () => {
     );
   });
 
+  it("supports adoption board routes", async () => {
+    const request = new Request("http://localhost/api/boards/adoption/posts?limit=7") as NextRequest;
+
+    const response = await GET(request, {
+      params: Promise.resolve({ board: "adoption" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(mockListCommonBoardPosts).toHaveBeenCalledWith(
+      expect.objectContaining({ commonBoardType: "ADOPTION", limit: 7 }),
+    );
+  });
+
   it("returns 500 and monitors unexpected errors", async () => {
     const request = new Request("http://localhost/api/boards/hospital/posts") as NextRequest;
     mockListCommonBoardPosts.mockRejectedValue(new Error("boom"));

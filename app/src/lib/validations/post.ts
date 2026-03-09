@@ -1,4 +1,10 @@
-import { PostScope, PostType } from "@prisma/client";
+import {
+  AdoptionStatus,
+  AnimalSex,
+  PostScope,
+  PostType,
+  VolunteerRecruitmentStatus,
+} from "@prisma/client";
 import { z } from "zod";
 
 import {
@@ -49,10 +55,40 @@ const optionalBoolean = z.preprocess(
     if (value === "" || value === null || value === undefined) {
       return undefined;
     }
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true") {
+        return true;
+      }
+      if (normalized === "false") {
+        return false;
+      }
+    }
     return value;
   },
   z.coerce.boolean().optional(),
 );
+
+const optionalDate = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return undefined;
+    }
+    return value;
+  },
+  z.coerce.date().optional(),
+);
+
+const optionalNativeEnum = <T extends Record<string, string | number>>(enumObject: T) =>
+  z.preprocess(
+    (value) => {
+      if (value === "" || value === null || value === undefined) {
+        return undefined;
+      }
+      return value;
+    },
+    z.nativeEnum(enumObject).optional(),
+  );
 
 const imageUrlSchema = z
   .string()
@@ -169,6 +205,28 @@ export const walkRouteSchema = z.object({
   safetyTags: z.array(z.string().min(1)).optional(),
 });
 
+export const adoptionListingSchema = z.object({
+  shelterName: optionalTrimmedString,
+  region: optionalTrimmedString,
+  animalType: optionalTrimmedString,
+  breed: optionalTrimmedString,
+  ageLabel: optionalTrimmedString,
+  sex: optionalNativeEnum(AnimalSex),
+  isNeutered: optionalBoolean,
+  isVaccinated: optionalBoolean,
+  sizeLabel: optionalTrimmedString,
+  status: optionalNativeEnum(AdoptionStatus),
+});
+
+export const volunteerRecruitmentSchema = z.object({
+  shelterName: optionalTrimmedString,
+  region: optionalTrimmedString,
+  volunteerDate: optionalDate,
+  volunteerType: optionalTrimmedString,
+  capacity: optionalInt({ min: 1, max: 999 }),
+  status: optionalNativeEnum(VolunteerRecruitmentStatus),
+});
+
 export const postListSchema = z.object({
   cursor: z.string().cuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -225,6 +283,8 @@ export type PostListInput = Omit<PostListSchemaInput, "petType" | "review"> & {
 export type HospitalReviewInput = z.infer<typeof hospitalReviewSchema>;
 export type PlaceReviewInput = z.infer<typeof placeReviewSchema>;
 export type WalkRouteInput = z.infer<typeof walkRouteSchema>;
+export type AdoptionListingInput = z.infer<typeof adoptionListingSchema>;
+export type VolunteerRecruitmentInput = z.infer<typeof volunteerRecruitmentSchema>;
 export type PostUpdateInput = z.infer<typeof postUpdateSchema>;
 
 // Normalize parsed list input to product-facing naming.
