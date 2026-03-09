@@ -17,6 +17,19 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-09: Cycle 241 완료 (병원후기 구조화 moderation 하드닝)
+- 완료 내용
+  - `app/src/server/services/post.service.ts`에서 `HOSPITAL_REVIEW` 구조화 입력을 생성 초기에 파싱하도록 정리하고, `hospitalName`, `treatmentType`를 게시글 `title/content`와 함께 금칙어 검사 대상으로 포함.
+  - 동일 구조화 필드에 연락처 moderation도 적용해 신규 회원은 연락처 포함 시 차단되고, 제한 기간이 지난 회원은 저장 전 마스킹된 값이 persisted 되도록 보강.
+  - guest write 정책 텍스트에도 병원후기 구조화 문자열을 합쳐 두어, 향후 guest 병원후기가 정책상 허용되더라도 링크/연락처 제한이 동일하게 적용되도록 정리.
+  - repo 내 live 문서/코드 문자열을 재감사한 결과, 즉시 수정이 필요한 `실종/목격 구조화`, `비회원 실종/목격 제보`, `보호소/입양` 과장 copy는 현재 live 영역에서 확인되지 않았고 archive/spec/history 성격 문서만 남아 있어 이번 턴에는 문구 수정 없이 결론만 기록.
+- 검증 결과
+  - `pnpm -C app lint src/server/services/post.service.ts src/server/services/post-create-policy.test.ts` 통과
+  - `pnpm -C app typecheck` 통과
+  - `pnpm -C app test -- src/server/services/post-create-policy.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite가 돌아갔고 `104 files / 529 tests` 통과
+- 이슈/블로커
+  - 현재 저장소 기준 live copy 수정은 불필요했지만, archive/spec 문서는 미래 기획 흔적이므로 구현 완료 전 대외 문구 source로 재사용하면 안 됨
+
 ### 2026-03-09: Cycle 240 완료 (external naming cutover 실배포 검증)
 - 완료 내용
   - 실배포 `https://townpet.vercel.app/` 루트 응답과 `/api/health`를 직접 조회해 새 운영 URL cutover가 정상인지 확인

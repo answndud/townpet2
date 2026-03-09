@@ -4,6 +4,7 @@ import {
   PostScope,
   PostStatus,
   PostType,
+  UserRole,
 } from "@prisma/client";
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "crypto";
 
@@ -20,6 +21,7 @@ import { buildGuestIpMeta } from "@/lib/guest-ip-display";
 import { isGuestPostTypeBlocked, isGuestScopeAllowed } from "@/lib/guest-post-policy";
 import { evaluateNewUserPostWritePolicy } from "@/lib/post-write-policy";
 import {
+  type HospitalReviewInput,
   hospitalReviewSchema,
   placeReviewSchema,
   postCreateSchema,
@@ -87,6 +89,8 @@ const hasValue = (value: unknown) => {
 const hasAnyValue = (data: Record<string, unknown>) =>
   Object.values(data).some((value) => hasValue(value));
 
+const HOSPITAL_REVIEW_TEXT_FIELDS = ["hospitalName", "treatmentType"] as const;
+
 const normalizeImageUrls = (imageUrls: string[] | undefined) =>
   Array.from(
     new Set(
@@ -118,6 +122,47 @@ const buildImageCreateInput = (imageUrls: string[]) =>
     url,
     order: index,
   }));
+
+function buildModerationText(parts: Array<string | null | undefined>) {
+  return parts
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter((part) => part.length > 0)
+    .join("\n");
+}
+
+function moderateHospitalReviewStructuredFields(params: {
+  review: HospitalReviewInput;
+  role: UserRole;
+  accountCreatedAt: Date;
+  blockWindowHours: number;
+}) {
+  const moderatedReview = { ...params.review };
+
+  for (const field of HOSPITAL_REVIEW_TEXT_FIELDS) {
+    const rawValue = moderatedReview[field];
+    if (!rawValue) {
+      continue;
+    }
+
+    const contactPolicy = moderateContactContent({
+      text: rawValue,
+      role: params.role,
+      accountCreatedAt: params.accountCreatedAt,
+      blockWindowHours: params.blockWindowHours,
+    });
+    if (contactPolicy.blocked) {
+      throw new ServiceError(
+        contactPolicy.message ?? "연락처가 포함된 내용은 현재 계정으로 작성할 수 없습니다.",
+        "CONTACT_RESTRICTED_FOR_NEW_USER",
+        403,
+      );
+    }
+
+    moderatedReview[field] = contactPolicy.sanitizedText;
+  }
+
+  return moderatedReview;
+}
 
 function stripImageTokensForGuestPolicy(value: string) {
   return value.replace(GUEST_IMAGE_MARKDOWN_PATTERN, " ").replace(/\s+/g, " ").trim();
@@ -330,16 +375,30 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     postData.type === PostType.HOSPITAL_REVIEW
       ? PostScope.GLOBAL
       : postData.type === PostType.MEETUP
-        ? PostScope.LOCAL
-        : postData.scope;
+      ? PostScope.LOCAL
+      : postData.scope;
   const rawInput = input as Record<string, unknown>;
+  let hospitalReviewInput: HospitalReviewInput | null = null;
+  if (postData.type === PostType.HOSPITAL_REVIEW) {
+    const reviewInput = hospitalReviewSchema.safeParse(rawInput.hospitalReview ?? {});
+    if (!reviewInput.success) {
+      throw new ServiceError("병원 리뷰 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
+    }
+
+    hospitalReviewInput = reviewInput.data;
+  }
   const [forbiddenKeywords, newUserSafetyPolicy, guestPostPolicy] = await Promise.all([
     getForbiddenKeywords(),
     getNewUserSafetyPolicy(),
     getGuestPostPolicy(),
   ]);
   const matchedForbiddenKeywords = findMatchedForbiddenKeywords(
-    `${postData.title}\n${postData.content}`,
+    buildModerationText([
+      postData.title,
+      postData.content,
+      hospitalReviewInput?.hospitalName,
+      hospitalReviewInput?.treatmentType,
+    ]),
     forbiddenKeywords,
   );
   if (matchedForbiddenKeywords.length > 0) {
@@ -408,6 +467,14 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       );
     }
     postData.content = contactPolicy.sanitizedText;
+    if (hospitalReviewInput) {
+      hospitalReviewInput = moderateHospitalReviewStructuredFields({
+        review: hospitalReviewInput,
+        role: author.role,
+        accountCreatedAt: author.createdAt,
+        blockWindowHours: newUserSafetyPolicy.contactBlockWindowHours,
+      });
+    }
     resolvedAuthorId = author.id;
   } else {
     if (!guestIdentity) {
@@ -446,7 +513,11 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       );
     }
 
-    const guestPolicyText = stripImageTokensForGuestPolicy(postData.content);
+    const guestPolicyText = buildModerationText([
+      stripImageTokensForGuestPolicy(postData.content),
+      hospitalReviewInput?.hospitalName,
+      hospitalReviewInput?.treatmentType,
+    ]);
 
     if (!guestPostPolicy.allowLinks && GUEST_LINK_PATTERN.test(guestPolicyText)) {
       await registerGuestViolation({
@@ -549,12 +620,8 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
   };
 
   if (postData.type === "HOSPITAL_REVIEW") {
-    const reviewInput = hospitalReviewSchema.safeParse(rawInput.hospitalReview ?? {});
-    if (!reviewInput.success) {
-      throw new ServiceError("병원 리뷰 입력값이 올바르지 않습니다.", "INVALID_REVIEW", 400);
-    }
-
-    const shouldCreateReview = hasAnyValue(reviewInput.data);
+    const reviewInput = hospitalReviewInput ?? {};
+    const shouldCreateReview = hasAnyValue(reviewInput);
 
     const created = await prisma.post.create({
       data: {
@@ -563,7 +630,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
           ? {
               hospitalReview: {
                 create: {
-                  ...reviewInput.data,
+                  ...reviewInput,
                 },
               },
             }

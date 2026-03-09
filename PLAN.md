@@ -26,6 +26,12 @@
 
 ## Active Plan
 
+### Cycle 241: 병원후기 구조화 moderation 하드닝 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 병원후기 구조화 필드에 금칙어/연락처 정책 적용 | Codex | P0 | `done` | `hospitalName`, `treatmentType`가 게시글 본문과 동일하게 금칙어/연락처 정책 적용을 받고, 회귀 테스트가 추가된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/services/post.service.ts`, `app/src/server/services/post-create-policy.test.ts` |
+| 실종/목격 구조화/비회원 제보 과장 claim 저장소 내 live copy 감사 | Codex | P1 | `done` | live 문서/코드에서 실제 구현 범위를 넘는 구조화/비회원 제보 claims 존재 여부를 확인하고 필요한 수정 또는 `no live change` 결론을 `PROGRESS.md`에 남긴다 | `PLAN.md`, `PROGRESS.md`, `docs/**`, `app/src/**` |
+
 ### Cycle 240: external naming cutover 실배포 검증 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

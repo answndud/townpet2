@@ -1,6 +1,7 @@
 import { PostScope, PostType, UserRole } from "@prisma/client";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
+import { FORBIDDEN_KEYWORDS_POLICY_KEY } from "@/lib/forbidden-keyword-policy";
 import { prisma } from "@/lib/prisma";
 import { createPost } from "@/server/services/post.service";
 import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
@@ -183,6 +184,110 @@ describe("createPost new-user restriction", () => {
     });
 
     expect(mockPrisma.post.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks forbidden keywords in hospital review structured fields", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+    mockPrisma.siteSetting.findUnique.mockImplementation(async ({ where }) => {
+      if (where.key === FORBIDDEN_KEYWORDS_POLICY_KEY) {
+        return { value: ["불법"] };
+      }
+      return null;
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "병원 후기",
+          content: "본문",
+          type: PostType.HOSPITAL_REVIEW,
+          scope: PostScope.GLOBAL,
+          animalTags: ["강아지"],
+          imageUrls: [],
+          hospitalReview: {
+            hospitalName: "불법 동물병원",
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN_KEYWORD_DETECTED",
+      status: 400,
+    });
+
+    expect(mockPrisma.post.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks new users when contact info is included in hospital review structured fields", async () => {
+    const now = new Date();
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(now.getTime() - 3 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "병원 후기",
+          content: "본문",
+          type: PostType.HOSPITAL_REVIEW,
+          scope: PostScope.GLOBAL,
+          animalTags: ["강아지"],
+          imageUrls: [],
+          hospitalReview: {
+            treatmentType: "문의는 010-1234-5678",
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "CONTACT_RESTRICTED_FOR_NEW_USER",
+      status: 403,
+    });
+
+    expect(mockPrisma.post.create).not.toHaveBeenCalled();
+  });
+
+  it("masks contact info in hospital review structured fields for older users", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.USER,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "병원 후기",
+          content: "본문",
+          type: PostType.HOSPITAL_REVIEW,
+          scope: PostScope.GLOBAL,
+          animalTags: ["강아지"],
+          imageUrls: [],
+          hospitalReview: {
+            treatmentType: "문의는 010-1234-5678",
+          },
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          hospitalReview: {
+            create: expect.objectContaining({
+              treatmentType: "문의는 010-****-5678",
+            }),
+          },
+        }),
+      }),
+    );
   });
 
   it("blocks sanctioned users before creating a post", async () => {
