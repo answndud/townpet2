@@ -368,7 +368,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
                       loginHref={loginHref}
                       compact
                     />
-                    <PostShareControls url={postUrl} title={post.title} compact />
+                    <PostShareControls url={postUrl} compact />
                   </div>
                 </div>
               </div>

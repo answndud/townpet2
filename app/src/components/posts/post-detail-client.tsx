@@ -606,7 +606,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                       loginHref={loginHref}
                       compact
                     />
-                    <PostShareControls url={postUrl} title={post.title} compact />
+                    <PostShareControls url={postUrl} compact />
                   </div>
                 </div>
               </div>

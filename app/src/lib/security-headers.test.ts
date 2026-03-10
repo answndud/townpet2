@@ -6,9 +6,9 @@ describe("resolveCspHeaders", () => {
   it("uses static fallback CSP with strict report-only policy in production", () => {
     const result = resolveCspHeaders({ nodeEnv: "production", nonce: "nonce-a" });
 
-    expect(result.csp).toContain("script-src 'self' 'unsafe-inline' https://developers.kakao.com https://t1.kakaocdn.net");
+    expect(result.csp).toContain("script-src 'self' 'unsafe-inline'");
     expect(result.csp).not.toContain("'nonce-nonce-a'");
-    expect(result.cspReportOnly).toContain("script-src 'self' 'nonce-nonce-a' https://developers.kakao.com https://t1.kakaocdn.net");
+    expect(result.cspReportOnly).toContain("script-src 'self' 'nonce-nonce-a'");
     expect(result.cspReportOnly).not.toContain("script-src 'self' 'unsafe-inline'");
   });
 
@@ -19,9 +19,9 @@ describe("resolveCspHeaders", () => {
       nonce: "nonce-b",
     });
 
-    expect(result.csp).toContain("script-src 'self' 'unsafe-inline' https://developers.kakao.com https://t1.kakaocdn.net");
+    expect(result.csp).toContain("script-src 'self' 'unsafe-inline'");
     expect(result.csp).not.toContain("'nonce-nonce-b'");
-    expect(result.cspReportOnly).toContain("script-src 'self' 'nonce-nonce-b' https://developers.kakao.com https://t1.kakaocdn.net");
+    expect(result.cspReportOnly).toContain("script-src 'self' 'nonce-nonce-b'");
   });
 
   it("keeps development CSP without report-only", () => {
@@ -49,7 +49,7 @@ describe("buildStaticSecurityHeaders", () => {
     );
     expect(hsts?.value).toBe("max-age=31536000");
     expect(permissionsPolicy?.value).toBe("camera=(), geolocation=(), microphone=()");
-    expect(csp?.value).toContain("script-src 'self' 'unsafe-inline' https://developers.kakao.com https://t1.kakaocdn.net");
+    expect(csp?.value).toContain("script-src 'self' 'unsafe-inline'");
     expect(csp?.value).not.toContain("'unsafe-eval'");
   });
 

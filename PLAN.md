@@ -26,6 +26,11 @@
 
 ## Active Plan
 
+### Cycle 286: 게시글 공유 UI 링크 복사 전용 단순화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 공유를 즉시 링크 복사만 수행하는 단일 버튼으로 축소 | Codex | P2 | `done` | 게시글 상세의 `공유` 버튼은 더 이상 메뉴/X/Kakao/새 탭 항목을 노출하지 않고 클릭 즉시 현재 URL만 복사하며, 관련 Kakao share 코드/CSP/env/doc 잔재가 제거되고 복사 성공·실패 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-share-controls.tsx`, `app/src/lib/post-share.ts`, `docs/operations/**` |
+
 ### Cycle 285: 데이터 정합성 운영 repair + 알림 invalid target 정리 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

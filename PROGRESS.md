@@ -17,6 +17,20 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-10: Cycle 286 완료 (게시글 공유 UI 링크 복사 전용 단순화)
+- 완료 내용
+  - `app/src/components/posts/post-share-controls.tsx`를 단일 `공유` 버튼으로 축소해 클릭 즉시 현재 URL만 복사하도록 바꿨다. 기존 드롭다운 메뉴, `X 공유`, `카카오 공유`, `새 탭에서 열기` UI는 제거했다.
+  - `app/src/lib/post-share.ts`를 추가해 clipboard success/failure 처리를 공용 helper로 분리했고, `app/src/lib/post-share.test.ts`로 복사 성공/실패 회귀를 고정했다.
+  - 더 이상 사용하지 않는 `app/src/lib/kakao-share.ts`, `app/src/lib/kakao-share.test.ts`를 삭제하고, Kakao share 때문에 열어두었던 CSP allowlist와 production env/doc 항목을 함께 제거했다.
+  - 게시글 상세/guest 상세의 `PostShareControls` 호출부는 더 이상 `title` prop을 넘기지 않도록 정리했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-share-controls.tsx src/lib/post-share.ts src/lib/post-share.test.ts src/lib/security-headers.ts src/lib/security-headers.test.ts 'src/app/posts/[id]/guest/page.tsx' src/components/posts/post-detail-client.tsx` 통과
+  - `pnpm -C app test -- src/lib/post-share.test.ts src/lib/security-headers.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `130 files / 653 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 단순화로 Kakao share 전용 public env(`NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`)와 Kakao JS SDK 도메인 설정은 더 이상 앱 요구사항이 아니다. Kakao 로그인용 `KAKAO_CLIENT_ID/SECRET`은 그대로 유지한다.
+
 ### 2026-03-10: Cycle 282 완료 (카카오 게시글 공유 SDK 정렬)
 - 완료 내용
   - `app/src/components/posts/post-share-controls.tsx`는 더 이상 `sharer.kakao.com` raw 링크를 열지 않고, `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY` 기반의 공식 `Kakao.Share.sendDefault()` 경로를 사용하도록 바뀌었다.

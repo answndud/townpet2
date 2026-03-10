@@ -14,7 +14,6 @@ type StaticSecurityHeadersParams = Omit<ResolveCspHeadersParams, "nonce">;
 
 const PERMISSIONS_POLICY = "camera=(), geolocation=(), microphone=()";
 const HSTS_HEADER_VALUE = "max-age=31536000";
-const KAKAO_SCRIPT_SOURCES = ["https://developers.kakao.com", "https://t1.kakaocdn.net"];
 
 function buildCspPolicy(params: CspPolicyParams) {
   const scriptSrc = params.includeUnsafeEval
@@ -35,7 +34,7 @@ function buildCspPolicy(params: CspPolicyParams) {
 }
 
 function buildNonceScriptSrc(nonce: string, isStrict: boolean) {
-  const strictSources = [`'self'`, `'nonce-${nonce}'`, ...KAKAO_SCRIPT_SOURCES];
+  const strictSources = [`'self'`, `'nonce-${nonce}'`];
   if (isStrict) {
     return strictSources.join(" ");
   }
@@ -57,7 +56,7 @@ function buildStaticScriptSrc(isDevelopment: boolean) {
   }
 
   // Fallback for middleware incidents: weaker than nonce CSP, but safer than no CSP.
-  return `'self' 'unsafe-inline' ${KAKAO_SCRIPT_SOURCES.join(' ')}`;
+  return `'self' 'unsafe-inline'`;
 }
 
 export function resolveCspHeaders(params: ResolveCspHeadersParams) {
