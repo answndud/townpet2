@@ -17,6 +17,32 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-10: Cycle 294 완료 (피드 목록 메타 밀도 미세 조정)
+- 완료 내용
+  - `app/src/components/posts/feed-infinite-list.tsx`는 모바일에서 목록 카드 메타 영역을 제목 아래 별도 줄로 더 분리하고, 작성자/시간 블록과 칩 블록 사이 간격을 늘려 답답함을 줄였다.
+  - 같은 파일은 데스크톱/태블릿에서 우측 메타 컬럼 폭을 약간 넓히고, 제목 line-height와 메타 간격을 미세 조정해 현재 디자인을 유지하면서도 더 정돈되게 보이도록 다듬었다.
+  - `app/src/components/posts/feed-post-meta-badges.tsx`는 `className`을 받아 모바일/데스크톱 정렬을 다르게 줄 수 있게 확장했고, 정렬 class 회귀를 `feed-post-meta-badges.test.tsx`에 추가했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/feed-infinite-list.tsx src/components/posts/feed-post-meta-badges.tsx src/components/posts/feed-post-meta-badges.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/feed-post-meta-badges.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `132 files / 666 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 턴은 사용자가 좋아한 현재 디자인을 유지한 상태에서 spacing과 responsive 배치만 미세 조정한 것이다. 칩을 더 약한 텍스트 라벨로 바꾸는 2안은 아직 적용하지 않았다.
+
+### 2026-03-10: Cycle 293 완료 (피드 목록 게시판 칩 메타 줄 이동)
+- 완료 내용
+  - `app/src/components/posts/feed-infinite-list.tsx`에서 게시판 칩과 `HIDDEN` badge를 제목 위 독립 줄에서 제거하고, 우측 작성자/시간 메타 영역 상단으로 이동시켰다.
+  - 새 `app/src/components/posts/feed-post-meta-badges.tsx` 컴포넌트는 게시판 칩과 `숨김` badge를 한곳에서 렌더링해 피드/게스트 피드 목록 모두에 같은 배치를 적용한다.
+  - 이번 조정으로 제목 위에 칩이 붙어 보이던 시각적 겹침을 줄이고, 제목은 제목 자체에 더 집중되도록 위계를 분리했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/feed-infinite-list.tsx src/components/posts/feed-post-meta-badges.tsx src/components/posts/feed-post-meta-badges.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/feed-post-meta-badges.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `132 files / 665 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 턴은 사용자가 고른 1안만 반영했다. 칩 자체를 pill이 아닌 작은 텍스트 라벨로 더 가볍게 바꾸는 2안은 후속 선택지로 남겨뒀다.
+
 ### 2026-03-10: Cycle 292 완료 (모바일 헤더 상단 액션 정렬)
 - 완료 내용
   - `app/src/components/navigation/app-shell-header.tsx`에 모바일 전용 상단 quick action 영역을 추가해 `내 프로필`과 `로그인`(인증 시 `로그아웃`)을 TownPet 로고와 같은 행으로 이동시켰다.

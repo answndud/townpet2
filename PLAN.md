@@ -26,6 +26,16 @@
 
 ## Active Plan
 
+### Cycle 294: 피드 목록 메타 밀도 미세 조정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 현재 피드 목록 디자인을 유지하면서 모바일/데스크톱 메타 배치 간격 정리 | Codex | P2 | `done` | 피드 목록은 현재 칩-메타 디자인을 유지하되, 모바일에서는 제목 아래 메타 줄이 자연스럽게 분리되고 데스크톱에서는 우측 메타 영역 간격이 정돈되며, 배지 정렬 class 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/feed-infinite-list.tsx`, `app/src/components/posts/feed-post-meta-badges.tsx`, `app/src/components/posts/feed-post-meta-badges.test.tsx` |
+
+### Cycle 293: 피드 목록 게시판 칩 메타 줄 이동 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 피드 목록의 게시판 칩을 제목 위에서 작성자/시간 메타 영역으로 이동 | Codex | P2 | `done` | 데스크톱/모바일 피드 목록에서 게시판 칩이 제목 위 독립 줄에서 제거되고 우측 작성자/시간 메타 영역으로 이동해 제목과의 겹침이 줄어들며, `HIDDEN` badge 포함 렌더링 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/feed-infinite-list.tsx`, `app/src/components/posts/feed-post-meta-badges.tsx`, `app/src/components/posts/feed-post-meta-badges.test.tsx` |
+
 ### Cycle 292: 모바일 헤더 상단 액션 정렬 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

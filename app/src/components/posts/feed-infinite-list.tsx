@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PostType } from "@prisma/client";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { FeedPostMetaBadges } from "@/components/posts/feed-post-meta-badges";
 import { PostSignalIcons } from "@/components/posts/post-signal-icons";
 import type {
   FeedAudienceSourceValue,
@@ -572,24 +573,11 @@ export function FeedInfiniteList({
               ) : null}
               <article
                 data-testid="feed-post-item"
-                className={`grid grid-cols-[minmax(0,1fr)_106px] gap-x-3 gap-y-0.5 px-3 py-1.5 transition hover:bg-[#f8fbff] sm:grid-cols-[minmax(0,1fr)_132px] sm:px-4 sm:py-2 md:grid-cols-[minmax(0,1fr)_188px] md:items-center ${
+                className={`grid grid-cols-1 gap-x-3 gap-y-1.5 px-3 py-2 transition hover:bg-[#f8fbff] sm:grid-cols-[minmax(0,1fr)_140px] sm:gap-y-0.5 sm:px-4 sm:py-2 md:grid-cols-[minmax(0,1fr)_196px] md:items-center ${
                   post.status === "HIDDEN" ? "bg-[#fff5f5]" : ""
                 }`}
               >
                 <div className="min-w-0">
-                  <div className="mb-px flex flex-wrap items-center gap-1 text-[11px]">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${meta.chipClass}`}
-                    >
-                      {meta.label}
-                    </span>
-                    {post.status === "HIDDEN" ? (
-                      <span className="rounded-md border border-rose-300 bg-rose-50 px-1.5 py-0.5 text-[10px] text-rose-700">
-                        숨김
-                      </span>
-                    ) : null}
-                  </div>
-
                   <Link
                     href={
                       preferGuestDetail ? `/posts/${post.id}/guest` : `/posts/${post.id}`
@@ -607,7 +595,7 @@ export function FeedInfiniteList({
                       });
                     }}
                   >
-                    <span className="overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                    <span className="overflow-hidden leading-[1.32] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                       {post.title}
                     </span>
                     <PostSignalIcons signals={signals} />
@@ -627,9 +615,17 @@ export function FeedInfiniteList({
                   ) : null}
                 </div>
 
-                <div className="min-w-0 self-center text-right text-[10px] text-[#4f678d] sm:text-[11px]">
-                  <p className="font-semibold text-[#1f3f71]">{authorNode}</p>
-                  <p className="break-keep text-[#5a759c]">{statsLabel}</p>
+                <div className="min-w-0 flex items-start justify-between gap-3 border-t border-[#edf2fa] pt-1.5 text-[10px] text-[#4f678d] sm:self-center sm:block sm:border-t-0 sm:pt-0 sm:text-right sm:text-[11px]">
+                  <FeedPostMetaBadges
+                    label={meta.label}
+                    chipClass={meta.chipClass}
+                    status={post.status}
+                    className="justify-start sm:mb-1 sm:justify-end"
+                  />
+                  <div className="min-w-0 text-right">
+                    <p className="font-semibold text-[#1f3f71]">{authorNode}</p>
+                    <p className="mt-0.5 break-keep text-[#5a759c]">{statsLabel}</p>
+                  </div>
                 </div>
               </article>
             </div>
