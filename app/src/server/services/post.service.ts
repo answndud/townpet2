@@ -19,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { detectContactSignals, moderateContactContent } from "@/lib/contact-policy";
 import { buildGuestIpMeta } from "@/lib/guest-ip-display";
 import { isGuestPostTypeBlocked, isGuestScopeAllowed } from "@/lib/guest-post-policy";
+import { getUploadProxyPath } from "@/lib/upload-url";
 import {
   evaluateAdminOnlyPostWritePolicy,
   evaluateNewUserPostWritePolicy,
@@ -59,6 +60,10 @@ import { getOrCreateGuestSystemUserId } from "@/server/services/guest-author.ser
 import { notifyReactionOnPost } from "@/server/services/notification.service";
 import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
+import {
+  attachUploadUrls,
+  releaseUploadUrlsIfUnreferenced,
+} from "@/server/upload-asset.service";
 
 type CreatePostParams = {
   authorId?: string;
@@ -115,7 +120,10 @@ const normalizeImageUrls = (imageUrls: string[] | undefined) =>
   Array.from(
     new Set(
       (imageUrls ?? [])
-        .map((url) => url.trim())
+        .map((url) => {
+          const trimmed = url.trim();
+          return trimmed ? getUploadProxyPath(trimmed) ?? trimmed : "";
+        })
         .filter((url) => url.length > 0),
     ),
   ).slice(0, MAX_POST_IMAGES);
@@ -136,6 +144,19 @@ const notifyPostCacheChange = () => {
   void bumpPostDetailCacheVersion().catch(() => undefined);
   void bumpPostCommentsCacheVersion().catch(() => undefined);
 };
+
+async function finalizeUploadUrlChanges(params: {
+  attachedUrls?: string[];
+  releasedUrls?: string[];
+}) {
+  if (params.attachedUrls && params.attachedUrls.length > 0) {
+    await attachUploadUrls(params.attachedUrls);
+  }
+
+  if (params.releasedUrls && params.releasedUrls.length > 0) {
+    void releaseUploadUrlsIfUnreferenced(params.releasedUrls).catch(() => undefined);
+  }
+}
 
 const buildImageCreateInput = (imageUrls: string[]) =>
   imageUrls.map((url, index) => ({
@@ -791,6 +812,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    await finalizeUploadUrlChanges({ attachedUrls: normalizedImageUrls });
     notifyPostCacheChange();
     return created;
   }
@@ -844,6 +866,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    await finalizeUploadUrlChanges({ attachedUrls: normalizedImageUrls });
     notifyPostCacheChange();
     return created;
   }
@@ -911,6 +934,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    await finalizeUploadUrlChanges({ attachedUrls: normalizedImageUrls });
     notifyPostCacheChange();
     return created;
   }
@@ -957,6 +981,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    await finalizeUploadUrlChanges({ attachedUrls: normalizedImageUrls });
     notifyPostCacheChange();
     return created;
   }
@@ -999,6 +1024,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
         },
       },
     });
+    await finalizeUploadUrlChanges({ attachedUrls: normalizedImageUrls });
     notifyPostCacheChange();
     return created;
   }
@@ -1071,6 +1097,7 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
       },
     },
   });
+  await finalizeUploadUrlChanges({ attachedUrls: normalizedImageUrls });
   notifyPostCacheChange();
   return created;
 }
@@ -1142,7 +1169,16 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
 
   const existing = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true, status: true, authorId: true, type: true },
+    select: {
+      id: true,
+      status: true,
+      authorId: true,
+      type: true,
+      images: {
+        select: { url: true },
+        orderBy: { order: "asc" },
+      },
+    },
   });
 
   if (!existing || existing.status === PostStatus.DELETED) {
@@ -1244,6 +1280,13 @@ export async function updatePost({ postId, authorId, input }: UpdatePostParams) 
       },
     },
   });
+  if (imageUrls) {
+    const previousImageUrls = (existing.images ?? []).map((image) => image.url);
+    await finalizeUploadUrlChanges({
+      attachedUrls: normalizedImageUrls,
+      releasedUrls: previousImageUrls.filter((url) => !normalizedImageUrls.includes(url)),
+    });
+  }
   notifyPostCacheChange();
   return updated;
 }
@@ -1258,7 +1301,14 @@ export async function deletePost({ postId, authorId }: DeletePostParams) {
 
   const existing = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true, status: true, authorId: true },
+    select: {
+      id: true,
+      status: true,
+      authorId: true,
+      images: {
+        select: { url: true },
+      },
+    },
   });
 
   if (!existing || existing.status === PostStatus.DELETED) {
@@ -1273,6 +1323,9 @@ export async function deletePost({ postId, authorId }: DeletePostParams) {
     where: { id: postId },
     data: { status: PostStatus.DELETED },
     select: { id: true, status: true },
+  });
+  await finalizeUploadUrlChanges({
+    releasedUrls: (existing.images ?? []).map((image) => image.url),
   });
   notifyPostCacheChange();
   return deleted;
@@ -1305,6 +1358,10 @@ export async function updateGuestPost({
       id: true,
       status: true,
       guestAuthorId: true,
+      images: {
+        select: { url: true },
+        orderBy: { order: "asc" },
+      },
       guestAuthor: {
         select: {
           passwordHash: true,
@@ -1483,6 +1540,13 @@ export async function updateGuestPost({
       },
     },
   });
+  if (imageUrls) {
+    const previousImageUrls = (existing.images ?? []).map((image) => image.url);
+    await finalizeUploadUrlChanges({
+      attachedUrls: normalizedImageUrls,
+      releasedUrls: previousImageUrls.filter((url) => !normalizedImageUrls.includes(url)),
+    });
+  }
   notifyPostCacheChange();
   return updated;
 }
@@ -1508,6 +1572,9 @@ export async function deleteGuestPost({
       id: true,
       status: true,
       guestAuthorId: true,
+      images: {
+        select: { url: true },
+      },
       guestAuthor: {
         select: {
           passwordHash: true,
@@ -1562,6 +1629,9 @@ export async function deleteGuestPost({
     where: { id: postId },
     data: { status: PostStatus.DELETED },
     select: { id: true, status: true },
+  });
+  await finalizeUploadUrlChanges({
+    releasedUrls: (existing.images ?? []).map((image) => image.url),
   });
   notifyPostCacheChange();
   return deleted;

@@ -26,6 +26,20 @@
 
 ## Active Plan
 
+### Cycle 278: 서버 이미지 파이프라인 정규화 + 썸네일 파생본 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 서버 업로드에 autorotate/HEIC·AVIF 처리/포맷 정규화 추가 | Codex | P0 | `done` | 서버 업로드가 JPEG/PNG/WEBP/HEIC/HEIF/AVIF를 받아 autorotate + resize 후 저장하고, 브라우저 HEIC decode 실패에 덜 의존하는 경로로 바뀐다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/upload.ts`, `app/src/components/ui/image-upload-field.tsx`, 관련 테스트 |
+| 썸네일 파생본과 업로드 메타(width/height/thumb) 추적 추가 | Codex | P1 | `done` | `UploadAsset`가 width/height/thumbnail 메타를 추적하고, 업로드 저장 시 main + thumb 파생본이 함께 생성되며 cleanup/release가 둘 다 정리한다 | `PLAN.md`, `PROGRESS.md`, `app/prisma/schema.prisma`, `app/prisma/migrations/**`, `app/src/server/upload-asset.service.ts`, `app/src/server/upload-asset.service.test.ts`, `app/src/server/upload.test.ts` |
+| 로컬 업로드 경로 hotlink 억제 헤더와 문서 기준선 정리 | Codex | P2 | `done` | `/uploads/*`에 CORP/cache header가 적용되고, 기술/운영 문서가 더 이상 direct blob upload를 현재 구조로 설명하지 않는다 | `PLAN.md`, `PROGRESS.md`, `app/next.config.ts`, `docs/제품_기술_개요.md`, `docs/business/내부_개발_운영_개요.md`, `docs/security/보안_진행상황.md` |
+
+### Cycle 277: 업로드 자산 추적 + 서버 검증 업로드 경로 일원화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| UploadAsset 추적 모델과 attach/release/cleanup 흐름 추가 | Codex | P0 | `done` | 업로드 파일이 `TEMPORARY -> ATTACHED/DELETED` 상태로 추적되고, 게시글/프로필/반려동물 저장·삭제 시 finalize/release가 연결되며 임시 업로드 cleanup 스크립트가 제공된다 | `PLAN.md`, `PROGRESS.md`, `app/prisma/schema.prisma`, `app/prisma/migrations/**`, `app/src/server/upload-asset.service.ts`, `app/src/server/services/post.service.ts`, `app/src/server/services/user.service.ts`, `app/src/server/services/pet.service.ts`, `app/scripts/cleanup-upload-assets.ts` |
+| direct blob upload 비활성화 + profile/pet trusted upload 정책 통일 | Codex | P0 | `done` | 기본 업로드 경로가 서버 검증 `/api/upload`로 통일되고, direct client token route는 비활성화되며, 프로필/반려동물 이미지도 게시글과 같은 trusted upload URL 정책을 사용한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/api/upload/client/route.ts`, `app/src/app/api/upload/route.ts`, `app/src/components/ui/image-upload-field.tsx`, `app/src/lib/validations/user.ts`, `app/src/lib/validations/pet.ts`, 관련 테스트 |
+| 업로드/이미지 회귀 테스트와 운영 cleanup 문서 정리 | Codex | P1 | `done` | upload/upload-asset/profile/pet 검증 테스트가 추가되고 lint/typecheck/prisma validate가 통과하며, 운영 가이드에 temporary upload cleanup 경로가 기록된다 | `PLAN.md`, `PROGRESS.md`, `docs/개발_운영_가이드.md`, `docs/security/보안_진행상황.md`, `app/src/server/upload.test.ts`, `app/src/server/upload-asset.service.test.ts`, `app/src/lib/validations/*.test.ts`, `app/src/app/api/upload/*.test.ts` |
+
 ### Cycle 276: 멘션/댓글 반응/싫어요 알림 규칙 확장 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
@@ -1745,3 +1759,10 @@
 |---|---|---|---|---|---|
 | `ALL` 피드의 의미 없는 `page` 쿼리 제거 | Codex | P1 | `done` | 전체 피드에서 `page` 파라미터가 들어오면 정규화 redirect로 제거되고, `BEST`에서도 `page=1`은 남지 않음 | `app/src/app/feed/page.tsx`, `app/src/lib/feed.ts` |
 | 피드 페이지 파라미터 정규화 테스트 추가 | Codex | P1 | `done` | `ALL/BEST/page=1/invalid` 케이스를 검증하는 unit test가 추가되고 통과함 | `app/src/lib/feed.test.ts` |
+
+### Cycle 279: 업로드 URL 앱 프록시화 + 레거시 미디어 백필 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 업로드 URL canonical proxy 경로 도입 | Codex | P0 | `done` | 신규 업로드 응답과 게시글/프로필/반려동물 저장 경로가 raw blob/local URL 대신 `/media/uploads/...` canonical 경로를 저장하고, trusted URL 검증이 proxy 경로를 허용함 | `app/src/lib/upload-url.ts`, `app/src/server/upload.ts`, `app/src/server/services/post.service.ts`, `app/src/server/services/user.service.ts`, `app/src/server/services/pet.service.ts` |
+| 앱 경유 미디어 proxy route 추가 | Codex | P0 | `done` | `/media/[...path]` route가 local 파일과 blob source를 서버 경유로 제공하고, cache/CORP 헤더가 적용됨 | `app/src/app/media/[...path]/route.ts`, `app/next.config.ts` |
+| 레거시 raw upload reference backfill 스크립트 추가 | Codex | P1 | `done` | 기존 `postImage/user.image/pet.imageUrl/post.content`의 raw upload URL을 proxy 경로로 바꾸고 upload asset row를 보강하는 운영 스크립트가 추가됨 | `app/scripts/backfill-upload-media-proxy.ts`, `app/package.json`, `docs/개발_운영_가이드.md` |

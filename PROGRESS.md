@@ -17,6 +17,44 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-10: Cycle 278 완료 (서버 이미지 파이프라인 정규화 + 썸네일 파생본 추가)
+- 완료 내용
+- `app/src/server/upload.ts`는 `sharp` 기반 서버 이미지 파이프라인으로 바뀌었다. JPEG/PNG/WEBP/HEIC/HEIF/AVIF는 서버에서 autorotate + resize 후 WebP로 정규화해 저장하고, GIF만 원본 애니메이션 보존을 위해 그대로 유지한다.
+- 같은 파일은 main 이미지 외에 thumbnail 파생본도 함께 생성하고, 업로드 응답에 `thumbnailUrl`, `width`, `height` 메타를 포함하도록 확장했다.
+- `app/src/components/ui/image-upload-field.tsx`는 HEIC/HEIF/AVIF를 브라우저에서 억지로 decode하지 않고 서버 업로드 경로를 더 신뢰하도록 조정했다. 작은 파일은 원본을 그대로 보내고, 큰 JPEG/PNG/WEBP만 선택적으로 브라우저 전처리를 수행한다.
+- `app/prisma/schema.prisma`, `app/prisma/migrations/20260310163000_add_upload_asset_tracking/migration.sql`, `app/src/server/upload-asset.service.ts`는 `UploadAsset.thumbnailUrl`, `thumbnailStorageKey`, `width`, `height`를 추적하도록 확장됐고, release/cleanup 시 main + thumb를 함께 지우도록 바뀌었다.
+- `app/next.config.ts`는 `/uploads/:path*`에 `Cache-Control: public, max-age=31536000, immutable`과 `Cross-Origin-Resource-Policy: same-site`를 추가해 로컬 업로드 경로의 기본 hotlink 억제 헤더를 적용했다.
+- `docs/제품_기술_개요.md`, `docs/business/내부_개발_운영_개요.md`는 더 이상 현재 구조를 `Vercel Blob direct upload token flow`로 설명하지 않도록 수정했다.
+- 검증 결과
+- `pnpm -C app exec prisma format` 통과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app lint src/server/upload.ts src/server/upload.test.ts src/server/upload-asset.service.ts src/server/upload-asset.service.test.ts src/components/ui/image-upload-field.tsx next.config.ts` 통과
+- `pnpm -C app test -- src/server/upload.test.ts src/server/upload-asset.service.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `124 files / 630 tests` 통과
+- `pnpm -C app typecheck` 통과
+- 메모
+- 로컬 `/uploads/*`는 CORP 헤더로 같은 사이트 바깥 임베딩 억제를 시작했지만, Vercel Blob public URL 자체를 완전히 app proxy로 전환한 것은 아니다. current architecture에서 public original 직접 노출 리스크는 `서버 리사이즈/포맷 정규화 + thumb 파생본`으로 줄였고, 완전한 signed/proxy media 전환은 별도 아키텍처 작업으로 남는다.
+
+### 2026-03-10: Cycle 277 완료 (업로드 자산 추적 + 서버 검증 업로드 경로 일원화)
+- 완료 내용
+- `app/prisma/schema.prisma`와 `app/prisma/migrations/20260310163000_add_upload_asset_tracking/migration.sql`에 `UploadAsset`, `UploadStorageProvider`, `UploadAssetStatus`를 추가해 업로드 파일을 `TEMPORARY/ATTACHED/DELETED` 상태로 추적하도록 확장했다.
+- `app/src/server/upload-asset.service.ts`를 추가해 trusted upload URL 등록, attach finalize, unreferenced release, temporary upload cleanup을 공용 서비스로 분리했고, `app/scripts/cleanup-upload-assets.ts` 및 `pnpm db:cleanup:upload-assets`로 운영 cleanup 경로를 만들었다.
+- `app/src/server/upload.ts`는 서버 업로드 성공 후 `registerUploadAsset()`를 호출하고, 등록 실패 시 local/blob 파일을 롤백하도록 보강했다. JPEG는 서버 저장 전 EXIF segment를 제거하고, 업로드는 계속 magic bytes 검증을 통과한 파일만 저장한다.
+- `app/src/app/api/upload/client/route.ts`는 더 이상 direct blob token을 발급하지 않고 `DIRECT_UPLOAD_DISABLED` 410을 반환한다. 브라우저 업로더 `app/src/components/ui/image-upload-field.tsx`는 `/api/upload` 단일 경로만 사용하며, JPEG/HEIC/HEIF/AVIF는 브라우저가 decode 가능한 경우 canvas 변환 후 서버 업로드하도록 정리했다.
+- `app/src/lib/validations/user.ts`, `app/src/lib/validations/pet.ts`는 프로필/반려동물 이미지도 게시글과 같은 trusted upload URL만 허용하도록 바뀌었고, `app/src/server/services/user.service.ts`, `app/src/server/services/pet.service.ts`, `app/src/server/services/post.service.ts`는 저장/삭제 시 attach/release finalize를 연결했다.
+- `app/src/server/upload.test.ts`, `app/src/server/upload-asset.service.test.ts`, `app/src/lib/upload-url.test.ts`, `app/src/lib/validations/user.test.ts`, `app/src/lib/validations/pet.test.ts`, `app/src/app/api/upload/route.test.ts`, `app/src/server/services/user.service.test.ts`, `app/src/server/services/pet.service.test.ts`에 업로드 검증/cleanup/정책 회귀 테스트를 추가했다.
+- `docs/개발_운영_가이드.md`에는 temporary upload cleanup 실행 경로를 추가했다.
+- 검증 결과
+- `pnpm -C app exec prisma format` 통과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app exec prisma validate` 통과
+- `pnpm -C app lint src/app/api/upload/route.ts src/app/api/upload/route.test.ts src/app/api/upload/client/route.ts src/app/api/upload/client/route.test.ts src/components/ui/image-upload-field.tsx src/lib/upload-url.ts src/lib/upload-url.test.ts src/lib/validations/user.ts src/lib/validations/user.test.ts src/lib/validations/pet.ts src/lib/validations/pet.test.ts src/server/upload.ts src/server/upload.test.ts src/server/upload-asset.service.ts src/server/upload-asset.service.test.ts src/server/services/user.service.ts src/server/services/user.service.test.ts src/server/services/pet.service.ts src/server/services/pet.service.test.ts src/server/services/post.service.ts scripts/cleanup-upload-assets.ts` 통과
+- `pnpm -C app test -- src/app/api/upload/route.test.ts src/app/api/upload/client/route.test.ts src/lib/upload-url.test.ts src/lib/validations/user.test.ts src/lib/validations/pet.test.ts src/server/upload.test.ts src/server/upload-asset.service.test.ts src/server/services/user.service.test.ts src/server/services/pet.service.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `124 files / 630 tests` 통과
+- `pnpm -C app typecheck` 통과
+- `git diff --check` 통과
+- 메모
+- 이번 턴으로 direct client upload MIME 신뢰 문제, orphan upload 추적 부재, profile/pet 임의 외부 URL 허용 문제는 코드상 정리됐다.
+- HEIC/AVIF는 브라우저가 canvas decode 가능한 경우에 한해 자동 변환 후 업로드되는 방식이라, 서버 native decode/thumbnail/orientation 파이프라인까지 완료된 상태는 아니다.
+
 ### 2026-03-10: Cycle 276 완료 (멘션/댓글 반응/싫어요 알림 규칙 확장)
 - 완료 내용
 - `app/prisma/schema.prisma`와 `app/prisma/migrations/20260310152000_expand_notification_types_for_mentions_and_comment_reactions/migration.sql`에 `MENTION_IN_COMMENT`, `REACTION_ON_COMMENT` 알림 타입을 추가해 댓글 멘션/댓글 반응 알림을 enum 차원에서 지원하도록 확장했다.
@@ -7435,6 +7473,24 @@
 - `pnpm -C app typecheck` 통과
 - 메모
 - 현재 `/feed`의 numbered pagination은 여전히 `BEST` 모드 전용이고, 전체 피드는 무한스크롤 설계다.
+- 푸시는 하지 않았다. 현재 변경은 로컬 워크트리에만 있다.
+
+### 2026-03-10: Cycle 279 업로드 URL 앱 프록시화 + 레거시 미디어 백필
+- 완료 내용
+- `app/src/lib/upload-url.ts`에 `/media/uploads/...` canonical proxy 경로를 추가하고, trusted upload 검증이 local/blob/raw/proxy를 모두 해석하도록 확장했다.
+- `app/src/server/upload.ts`는 실제 저장은 기존 source(local/blob)에 하되, 클라이언트/DB 저장용 응답은 이제 `/media/uploads/...`로 반환한다.
+- `app/src/server/services/post.service.ts`, `app/src/server/services/user.service.ts`, `app/src/server/services/pet.service.ts`는 trusted upload 입력을 저장 전에 proxy 경로로 canonicalize 하도록 바꿨다.
+- `app/src/server/upload-asset.service.ts`는 attach/release를 `storageKey` 기준으로 처리하고, raw/proxy/local 혼합 참조를 같이 계산하도록 정리했다.
+- `app/src/app/media/[...path]/route.ts`를 추가해 local 파일과 blob source를 앱 경유로 제공하도록 했고, `app/next.config.ts`에 `/media/:path*` cache/CORP 헤더를 추가했다.
+- `app/scripts/backfill-upload-media-proxy.ts`, `pnpm -C app db:backfill:upload-media-proxy`를 추가해 기존 `postImage`, `user.image`, `pet.imageUrl`, `post.content`의 raw upload URL을 proxy 경로로 올리고 `UploadAsset` row를 backfill 할 수 있게 했다.
+- 검증 결과
+- `pnpm -C app lint src/lib/upload-url.ts src/lib/upload-url.test.ts src/server/upload.ts src/server/upload.test.ts src/server/upload-asset.service.ts src/server/upload-asset.service.test.ts src/server/services/user.service.ts src/server/services/user.service.test.ts src/server/services/pet.service.ts src/server/services/pet.service.test.ts 'src/app/media/[...path]/route.ts' 'src/app/media/[...path]/route.test.ts' scripts/backfill-upload-media-proxy.ts next.config.ts` 통과
+- `pnpm -C app test -- src/server/upload.test.ts src/server/upload-asset.service.test.ts 'src/app/media/[...path]/route.test.ts' src/server/services/user.service.test.ts src/server/services/pet.service.test.ts src/lib/upload-url.test.ts src/lib/validations/user.test.ts src/lib/validations/pet.test.ts` 실행 시 현재 환경에서 전체 Vitest가 확장 실행되어 `125 files / 637 tests`가 통과했다.
+- `pnpm -C app typecheck` 통과
+- `git diff --check` 통과
+- 메모
+- 신규 업로드와 저장 플로우는 이제 raw blob URL을 직접 저장하지 않는다.
+- 기존 blob/local raw reference를 완전히 proxy 경로로 정리하려면 운영 DB에서 `pnpm -C app db:backfill:upload-media-proxy`를 한 번 실행하는 것이 권장된다.
 - 푸시는 하지 않았다. 현재 변경은 로컬 워크트리에만 있다.
 
 ### 2026-03-07: Cycle 205 비회원 abuse defense 현실화

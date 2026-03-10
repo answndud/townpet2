@@ -10,6 +10,7 @@ import { enforceRateLimit } from "@/server/rate-limit";
 import { jsonError, jsonOk } from "@/server/response";
 import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
+import { cleanupTemporaryUploadAssets } from "@/server/upload-asset.service";
 import { saveUploadedImage } from "@/server/upload";
 
 export async function POST(request: NextRequest) {
@@ -52,7 +53,9 @@ export async function POST(request: NextRequest) {
 
     const uploaded = await saveUploadedImage(file, {
       maxSizeBytes: userId ? undefined : GUEST_MAX_IMAGE_BYTES,
+      ownerUserId: userId ?? null,
     });
+    void cleanupTemporaryUploadAssets({ limit: 5 }).catch(() => undefined);
     return jsonOk(uploaded, { status: 201 });
   } catch (error) {
     if (error instanceof ServiceError) {

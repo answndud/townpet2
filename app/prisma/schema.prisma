@@ -46,6 +46,7 @@ model User {
   preferredPetTypes         UserPetTypePreference[]
   notifications             Notification[]                @relation("NotificationRecipient")
   actions                   Notification[]                @relation("NotificationActor")
+  uploadAssets              UploadAsset[]
   createdAt                 DateTime                      @default(now())
   updatedAt                 DateTime                      @updatedAt
   accounts                  Account[]
@@ -680,6 +681,40 @@ model PostImage {
   url    String
   order  Int    @default(0)
   post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model UploadAsset {
+  id                  String                @id @default(cuid())
+  url                 String                @unique
+  storageKey          String                @unique
+  thumbnailUrl        String?               @unique
+  thumbnailStorageKey String?               @unique
+  storageProvider     UploadStorageProvider
+  mimeType            String
+  size                Int
+  width               Int?
+  height              Int?
+  status              UploadAssetStatus     @default(TEMPORARY)
+  ownerUserId         String?
+  ownerUser           User?                 @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  attachedAt          DateTime?
+  deletedAt           DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([status, createdAt(sort: Asc)])
+  @@index([ownerUserId, status, createdAt(sort: Desc)])
+}
+
+enum UploadStorageProvider {
+  LOCAL
+  BLOB
+}
+
+enum UploadAssetStatus {
+  TEMPORARY
+  ATTACHED
+  DELETED
 }
 
 model Report {

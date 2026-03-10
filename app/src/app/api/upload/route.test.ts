@@ -10,6 +10,7 @@ import { enforceRateLimit } from "@/server/rate-limit";
 import { assertGuestStepUp } from "@/server/guest-step-up";
 import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
+import { cleanupTemporaryUploadAssets } from "@/server/upload-asset.service";
 import { saveUploadedImage } from "@/server/upload";
 
 vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
@@ -22,6 +23,9 @@ vi.mock("@/server/services/sanction.service", () => ({
   assertUserInteractionAllowed: vi.fn(),
 }));
 vi.mock("@/server/upload", () => ({ saveUploadedImage: vi.fn() }));
+vi.mock("@/server/upload-asset.service", () => ({
+  cleanupTemporaryUploadAssets: vi.fn(),
+}));
 
 const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
@@ -30,6 +34,7 @@ const mockGetClientIp = vi.mocked(getClientIp);
 const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
 const mockAssertGuestStepUp = vi.mocked(assertGuestStepUp);
 const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
+const mockCleanupTemporaryUploadAssets = vi.mocked(cleanupTemporaryUploadAssets);
 const mockSaveUploadedImage = vi.mocked(saveUploadedImage);
 
 describe("POST /api/upload contract", () => {
@@ -41,6 +46,7 @@ describe("POST /api/upload contract", () => {
     mockEnforceRateLimit.mockReset();
     mockAssertGuestStepUp.mockReset();
     mockAssertUserInteractionAllowed.mockReset();
+    mockCleanupTemporaryUploadAssets.mockReset();
     mockSaveUploadedImage.mockReset();
 
     mockGetCurrentUserId.mockResolvedValue(null);
@@ -54,7 +60,13 @@ describe("POST /api/upload contract", () => {
       riskLevel: "NORMAL",
     } as never);
     mockAssertUserInteractionAllowed.mockResolvedValue();
-    mockSaveUploadedImage.mockResolvedValue({ url: "https://cdn.test/image.png" } as never);
+    mockCleanupTemporaryUploadAssets.mockResolvedValue({
+      cutoff: new Date("2026-03-10T00:00:00.000Z"),
+      scannedCount: 0,
+      deletedCount: 0,
+      skippedCount: 0,
+    } as never);
+    mockSaveUploadedImage.mockResolvedValue({ url: "/media/uploads/image.webp" } as never);
   });
 
   it("returns INVALID_FILE when file is missing", async () => {
@@ -90,6 +102,11 @@ describe("POST /api/upload contract", () => {
       limit: 20,
       windowMs: 60_000,
     });
+    expect(mockSaveUploadedImage).toHaveBeenCalledWith(expect.any(File), {
+      maxSizeBytes: undefined,
+      ownerUserId: "user-1",
+    });
+    expect(mockCleanupTemporaryUploadAssets).toHaveBeenCalledWith({ limit: 5 });
   });
 
   it("returns guest step-up errors for unauthenticated uploads", async () => {

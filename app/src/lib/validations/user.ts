@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isTrustedUploadUrl } from "@/lib/upload-url";
+
 export const profileUpdateSchema = z.object({
   nickname: z
     .string()
@@ -80,13 +82,7 @@ export const profileImageUpdateSchema = z.object({
     .string()
     .min(1)
     .max(2048)
-    .refine(
-      (value) =>
-        value.startsWith("/uploads/") ||
-        value.startsWith("https://") ||
-        value.startsWith("http://"),
-      "프로필 이미지 URL 형식이 올바르지 않습니다.",
-    ),
+    .refine((value) => isTrustedUploadUrl(value), "허용된 업로드 이미지 URL만 사용할 수 있습니다."),
 });
 
 export const preferredPetTypesSchema = z

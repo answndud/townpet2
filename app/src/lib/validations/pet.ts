@@ -1,6 +1,8 @@
 import { PetLifeStage, PetSizeClass, PetSpecies } from "@prisma/client";
 import { z } from "zod";
 
+import { isTrustedUploadUrl } from "@/lib/upload-url";
+
 const optionalTrimmedString = z.preprocess(
   (value) => {
     if (typeof value !== "string") {
@@ -44,12 +46,8 @@ export const petCreateSchema = z.object({
     .trim()
     .max(2048)
     .refine(
-      (value) =>
-        value.length === 0 ||
-        value.startsWith("/uploads/") ||
-        value.startsWith("https://") ||
-        value.startsWith("http://"),
-      "반려동물 이미지 URL 형식이 올바르지 않습니다.",
+      (value) => value.length === 0 || isTrustedUploadUrl(value),
+      "허용된 업로드 이미지 URL만 사용할 수 있습니다.",
     )
     .optional(),
   bio: z.string().trim().max(240).optional(),

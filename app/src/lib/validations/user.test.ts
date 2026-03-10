@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   neighborhoodSelectSchema,
+  profileImageUpdateSchema,
   profileUpdateSchema,
 } from "@/lib/validations/user";
 
@@ -86,6 +87,30 @@ describe("user validations", () => {
     const result = neighborhoodSelectSchema.safeParse({
       neighborhoodIds: ["ckc7k5qsj0000u0t8qv6d1d7k"],
       primaryNeighborhoodId: "ckc7k5qsj0000u0t8qv6d1d7l",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts trusted uploaded profile image urls", () => {
+    const result = profileImageUpdateSchema.safeParse({
+      imageUrl: "/uploads/avatar.png",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts proxied uploaded profile image urls", () => {
+    const result = profileImageUpdateSchema.safeParse({
+      imageUrl: "/media/uploads/avatar.webp",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects external profile image urls", () => {
+    const result = profileImageUpdateSchema.safeParse({
+      imageUrl: "https://example.com/avatar.png",
     });
 
     expect(result.success).toBe(false);

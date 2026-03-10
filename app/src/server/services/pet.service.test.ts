@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { findBreedCatalogEntryBySpeciesAndCode } from "@/server/queries/breed-catalog.queries";
 import { createPet, deletePet, updatePet } from "@/server/services/pet.service";
 import { ServiceError } from "@/server/services/service-error";
+import {
+  attachUploadUrls,
+  releaseUploadUrlsIfUnreferenced,
+} from "@/server/upload-asset.service";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -26,6 +30,10 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/server/queries/breed-catalog.queries", () => ({
   findBreedCatalogEntryBySpeciesAndCode: vi.fn(),
 }));
+vi.mock("@/server/upload-asset.service", () => ({
+  attachUploadUrls: vi.fn(),
+  releaseUploadUrlsIfUnreferenced: vi.fn(),
+}));
 
 const mockPrisma = vi.mocked(prisma) as unknown as {
   $transaction: ReturnType<typeof vi.fn>;
@@ -45,6 +53,8 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
 const mockFindBreedCatalogEntryBySpeciesAndCode = vi.mocked(
   findBreedCatalogEntryBySpeciesAndCode,
 );
+const mockAttachUploadUrls = vi.mocked(attachUploadUrls);
+const mockReleaseUploadUrlsIfUnreferenced = vi.mocked(releaseUploadUrlsIfUnreferenced);
 
 describe("pet service", () => {
   beforeEach(() => {
@@ -57,6 +67,8 @@ describe("pet service", () => {
     mockPrisma.pet.delete.mockReset();
     mockPrisma.userAudienceSegment.deleteMany.mockReset();
     mockPrisma.userAudienceSegment.createMany.mockReset();
+    mockAttachUploadUrls.mockReset();
+    mockReleaseUploadUrlsIfUnreferenced.mockReset();
 
     mockPrisma.$transaction.mockImplementation(async (callback: (tx: typeof mockPrisma) => unknown) =>
       callback(mockPrisma),
@@ -65,12 +77,17 @@ describe("pet service", () => {
     mockPrisma.pet.findMany.mockResolvedValue([]);
     mockPrisma.userAudienceSegment.deleteMany.mockResolvedValue({ count: 0 });
     mockPrisma.userAudienceSegment.createMany.mockResolvedValue({ count: 0 });
+    mockAttachUploadUrls.mockResolvedValue(1 as never);
+    mockReleaseUploadUrlsIfUnreferenced.mockResolvedValue({
+      deletedUrls: [],
+      skippedUrls: [],
+    } as never);
     mockFindBreedCatalogEntryBySpeciesAndCode.mockReset();
     mockFindBreedCatalogEntryBySpeciesAndCode.mockResolvedValue(null);
   });
 
   it("creates pet with normalized values", async () => {
-    mockPrisma.pet.create.mockResolvedValue({ id: "pet-1" });
+    mockPrisma.pet.create.mockResolvedValue({ id: "pet-1", imageUrl: "/media/uploads/pet.jpg" });
     mockPrisma.pet.findMany.mockResolvedValue([
       {
         species: "DOG",
@@ -99,7 +116,7 @@ describe("pet service", () => {
         lifeStage: "ADULT",
         weightKg: "4.3",
         birthYear: "2021",
-        imageUrl: " https://img.example.com/pet.jpg ",
+        imageUrl: " /uploads/pet.jpg ",
         bio: "  사람 좋아해요 ",
       },
     });
@@ -116,10 +133,11 @@ describe("pet service", () => {
         age: null,
         weightKg: 4.3,
         birthYear: 2021,
-        imageUrl: "https://img.example.com/pet.jpg",
+        imageUrl: "/media/uploads/pet.jpg",
         bio: "사람 좋아해요",
       },
     });
+    expect(mockAttachUploadUrls).toHaveBeenCalledWith(["/media/uploads/pet.jpg"]);
     expect(mockPrisma.userAudienceSegment.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });
@@ -199,10 +217,14 @@ describe("pet service", () => {
   });
 
   it("updates pet when owner matches", async () => {
-    mockPrisma.pet.findUnique.mockResolvedValue({
-      id: "clwpet000000000000000001",
-      userId: "user-1",
-    });
+    mockPrisma.pet.findUnique
+      .mockResolvedValueOnce({
+        imageUrl: "/uploads/before.jpg",
+      })
+      .mockResolvedValueOnce({
+        id: "clwpet000000000000000001",
+        userId: "user-1",
+      });
     mockPrisma.pet.findMany.mockResolvedValue([
       {
         species: "DOG",
@@ -221,6 +243,7 @@ describe("pet service", () => {
     });
     mockPrisma.pet.update.mockResolvedValue({
       id: "clwpet000000000000000001",
+      imageUrl: null,
     });
 
     await updatePet({
@@ -256,6 +279,7 @@ describe("pet service", () => {
         bio: null,
       },
     });
+    expect(mockReleaseUploadUrlsIfUnreferenced).toHaveBeenCalledWith(["/uploads/before.jpg"]);
   });
 
   it("rejects unknown breed code when no manual label is provided", async () => {

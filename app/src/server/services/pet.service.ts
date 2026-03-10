@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { normalizePetBreedCode } from "@/lib/pet-profile";
+import { getUploadProxyPath } from "@/lib/upload-url";
 import {
   petCreateSchema,
   petDeleteSchema,
@@ -8,6 +9,10 @@ import {
 import { findBreedCatalogEntryBySpeciesAndCode } from "@/server/queries/breed-catalog.queries";
 import { syncAudienceSegmentsForUserTx } from "@/server/services/audience-segment.service";
 import { ServiceError } from "@/server/services/service-error";
+import {
+  attachUploadUrls,
+  releaseUploadUrlsIfUnreferenced,
+} from "@/server/upload-asset.service";
 
 type PetMutationParams = {
   userId: string;
@@ -66,7 +71,9 @@ async function normalizePetData(data: {
     age: null,
     weightKg: data.weightKg ?? null,
     birthYear: data.birthYear ?? null,
-    imageUrl: data.imageUrl?.trim() ? data.imageUrl.trim() : null,
+    imageUrl: data.imageUrl?.trim()
+      ? getUploadProxyPath(data.imageUrl.trim()) ?? data.imageUrl.trim()
+      : null,
     bio: data.bio?.trim() ? data.bio.trim() : null,
   };
 }
@@ -77,7 +84,7 @@ export async function createPet({ userId, input }: PetMutationParams) {
     throw new ServiceError("반려동물 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const currentCount = await tx.pet.count({
       where: { userId },
     });
@@ -99,6 +106,12 @@ export async function createPet({ userId, input }: PetMutationParams) {
     await syncAudienceSegmentsForUserTx(tx, userId);
     return created;
   });
+
+  if (created.imageUrl) {
+    await attachUploadUrls([created.imageUrl]);
+  }
+
+  return created;
 }
 
 export async function updatePet({ userId, input }: PetMutationParams) {
@@ -107,7 +120,12 @@ export async function updatePet({ userId, input }: PetMutationParams) {
     throw new ServiceError("반려동물 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const previousPet = await prisma.pet.findUnique({
+    where: { id: parsed.data.petId },
+    select: { imageUrl: true },
+  });
+
+  const updated = await prisma.$transaction(async (tx) => {
     const existing = await tx.pet.findUnique({
       where: { id: parsed.data.petId },
       select: { id: true, userId: true },
@@ -127,6 +145,15 @@ export async function updatePet({ userId, input }: PetMutationParams) {
     await syncAudienceSegmentsForUserTx(tx, userId);
     return updated;
   });
+
+  if (updated.imageUrl) {
+    await attachUploadUrls([updated.imageUrl]);
+  }
+  if (previousPet?.imageUrl && previousPet.imageUrl !== updated.imageUrl) {
+    void releaseUploadUrlsIfUnreferenced([previousPet.imageUrl]).catch(() => undefined);
+  }
+
+  return updated;
 }
 
 export async function deletePet({ userId, input }: PetMutationParams) {
@@ -135,7 +162,12 @@ export async function deletePet({ userId, input }: PetMutationParams) {
     throw new ServiceError("삭제 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const existingPet = await prisma.pet.findUnique({
+    where: { id: parsed.data.petId },
+    select: { imageUrl: true },
+  });
+
+  const deleted = await prisma.$transaction(async (tx) => {
     const existing = await tx.pet.findUnique({
       where: { id: parsed.data.petId },
       select: { id: true, userId: true },
@@ -155,4 +187,10 @@ export async function deletePet({ userId, input }: PetMutationParams) {
     await syncAudienceSegmentsForUserTx(tx, userId);
     return deleted;
   });
+
+  if (existingPet?.imageUrl) {
+    void releaseUploadUrlsIfUnreferenced([existingPet.imageUrl]).catch(() => undefined);
+  }
+
+  return deleted;
 }

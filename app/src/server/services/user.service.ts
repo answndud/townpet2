@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getUploadProxyPath } from "@/lib/upload-url";
 import {
   getNeighborhoodCityVariants,
   normalizeNeighborhoodCity,
@@ -10,6 +11,10 @@ import {
   profileImageUpdateSchema,
   profileUpdateSchema,
 } from "@/lib/validations/user";
+import {
+  attachUploadUrls,
+  releaseUploadUrlsIfUnreferenced,
+} from "@/server/upload-asset.service";
 import { ServiceError } from "@/server/services/service-error";
 
 type UpdateProfileParams = {
@@ -231,11 +236,28 @@ export async function updateProfileImage({ userId, input }: UpdateProfileImagePa
     throw new ServiceError("프로필 이미지 입력이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  return prisma.user.update({
+  const canonicalImageUrl = getUploadProxyPath(parsed.data.imageUrl) ?? parsed.data.imageUrl.trim();
+
+  const existing = await prisma.user.findUnique({
     where: { id: userId },
-    data: { image: parsed.data.imageUrl },
     select: { id: true, image: true },
   });
+  if (!existing) {
+    throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { image: canonicalImageUrl },
+    select: { id: true, image: true },
+  });
+
+  await attachUploadUrls([canonicalImageUrl]);
+  if (existing.image && existing.image !== canonicalImageUrl) {
+    void releaseUploadUrlsIfUnreferenced([existing.image]).catch(() => undefined);
+  }
+
+  return updated;
 }
 
 type UpdatePreferredPetTypesParams = {

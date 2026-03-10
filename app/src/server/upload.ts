@@ -1,9 +1,12 @@
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
+import sharp from "sharp";
 
 import { runtimeEnv } from "@/lib/env";
+import { getUploadProxyPath } from "@/lib/upload-url";
+import { registerUploadAsset } from "@/server/upload-asset.service";
 import { ServiceError } from "@/server/services/service-error";
 
 const ALLOWED_MIME_TYPES = new Map<string, string>([
@@ -11,62 +14,42 @@ const ALLOWED_MIME_TYPES = new Map<string, string>([
   ["image/png", "png"],
   ["image/webp", "webp"],
   ["image/gif", "gif"],
+  ["image/heic", "heic"],
+  ["image/heif", "heif"],
+  ["image/avif", "avif"],
 ]);
 
-const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
-const EXIF_STRIP_MIN_BYTES = 1 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_BYTES = 12 * 1024 * 1024;
+const MAX_PROCESSED_IMAGE_SIDE = 2048;
+const MAX_THUMBNAIL_SIDE = 480;
+const MAX_SHARP_INPUT_PIXELS = 36_000_000;
 
 type SaveUploadedImageOptions = {
   maxSizeBytes?: number;
+  ownerUserId?: string | null;
 };
 
-function stripJpegExif(buffer: Buffer) {
-  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
-    return buffer;
-  }
+type ProcessedImageAsset = {
+  buffer: Buffer;
+  mimeType: string;
+  extension: string;
+  width?: number;
+  height?: number;
+};
 
-  const chunks: Buffer[] = [buffer.subarray(0, 2)];
-  let index = 2;
+type ProcessedUploadPayload = {
+  main: ProcessedImageAsset;
+  thumbnail: ProcessedImageAsset | null;
+};
 
-  while (index < buffer.length) {
-    if (buffer[index] !== 0xff || index + 1 >= buffer.length) {
-      chunks.push(buffer.subarray(index));
-      break;
-    }
-
-    const marker = buffer[index + 1];
-    if (marker === 0xda) {
-      chunks.push(buffer.subarray(index));
-      break;
-    }
-
-    if (marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) {
-      chunks.push(buffer.subarray(index, index + 2));
-      index += 2;
-      continue;
-    }
-
-    if (index + 3 >= buffer.length) {
-      chunks.push(buffer.subarray(index));
-      break;
-    }
-
-    const segmentLength = buffer.readUInt16BE(index + 2);
-    const endIndex = index + 2 + segmentLength;
-    if (endIndex > buffer.length) {
-      chunks.push(buffer.subarray(index));
-      break;
-    }
-
-    // APP1(0xE1) segment usually contains EXIF metadata.
-    if (marker !== 0xe1) {
-      chunks.push(buffer.subarray(index, endIndex));
-    }
-    index = endIndex;
-  }
-
-  return Buffer.concat(chunks);
-}
+type StoredUploadResult = {
+  url: string;
+  size: number;
+  mimeType: string;
+  thumbnailUrl?: string | null;
+  width?: number;
+  height?: number;
+};
 
 function getFileExtension(mimeType: string) {
   const extension = ALLOWED_MIME_TYPES.get(mimeType);
@@ -114,6 +97,28 @@ function hasWebpSignature(buffer: Buffer) {
   );
 }
 
+function hasIsoBmffBrand(
+  buffer: Buffer,
+  supportedBrands: string[],
+) {
+  if (buffer.length < 12) {
+    return false;
+  }
+
+  if (buffer.toString("ascii", 4, 8) !== "ftyp") {
+    return false;
+  }
+
+  const brands = new Set<string>();
+  brands.add(buffer.toString("ascii", 8, 12));
+
+  for (let index = 16; index + 4 <= Math.min(buffer.length, 32); index += 4) {
+    brands.add(buffer.toString("ascii", index, index + 4));
+  }
+
+  return supportedBrands.some((brand) => brands.has(brand));
+}
+
 function validateImageSignature(mimeType: string, buffer: Buffer) {
   const isValid =
     mimeType === "image/jpeg"
@@ -124,15 +129,248 @@ function validateImageSignature(mimeType: string, buffer: Buffer) {
           ? hasGifSignature(buffer)
           : mimeType === "image/webp"
             ? hasWebpSignature(buffer)
-            : true;
+            : mimeType === "image/avif"
+              ? hasIsoBmffBrand(buffer, ["avif", "avis", "mif1"])
+              : mimeType === "image/heic" || mimeType === "image/heif"
+                ? hasIsoBmffBrand(buffer, [
+                    "heic",
+                    "heix",
+                    "hevc",
+                    "hevx",
+                    "mif1",
+                    "msf1",
+                  ])
+                : true;
 
   if (!isValid) {
     throw new ServiceError("이미지 파일 형식이 올바르지 않습니다.", "IMAGE_SIGNATURE_MISMATCH", 400);
   }
 }
 
+async function processRasterImage(
+  rawBuffer: Buffer,
+): Promise<ProcessedUploadPayload> {
+  try {
+    const main = await sharp(rawBuffer, {
+      failOn: "error",
+      limitInputPixels: MAX_SHARP_INPUT_PIXELS,
+    })
+      .rotate()
+      .resize({
+        width: MAX_PROCESSED_IMAGE_SIDE,
+        height: MAX_PROCESSED_IMAGE_SIDE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 86, effort: 4 })
+      .toBuffer({ resolveWithObject: true });
+
+    const thumbnail = await sharp(rawBuffer, {
+      failOn: "error",
+      limitInputPixels: MAX_SHARP_INPUT_PIXELS,
+    })
+      .rotate()
+      .resize({
+        width: MAX_THUMBNAIL_SIDE,
+        height: MAX_THUMBNAIL_SIDE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 78, effort: 4 })
+      .toBuffer({ resolveWithObject: true });
+
+    return {
+      main: {
+        buffer: main.data,
+        mimeType: "image/webp",
+        extension: "webp",
+        width: main.info.width,
+        height: main.info.height,
+      },
+      thumbnail: {
+        buffer: thumbnail.data,
+        mimeType: "image/webp",
+        extension: "webp",
+        width: thumbnail.info.width,
+        height: thumbnail.info.height,
+      },
+    };
+  } catch {
+    throw new ServiceError(
+      "이미지를 처리하지 못했습니다. 다른 형식으로 저장한 뒤 다시 시도해 주세요.",
+      "IMAGE_PROCESSING_FAILED",
+      400,
+    );
+  }
+}
+
+async function processUploadedImage(file: File, rawBuffer: Buffer) {
+  if (file.type === "image/gif") {
+    return {
+      main: {
+        buffer: rawBuffer,
+        mimeType: file.type,
+        extension: getFileExtension(file.type),
+      },
+      thumbnail: null,
+    } satisfies ProcessedUploadPayload;
+  }
+
+  return processRasterImage(rawBuffer);
+}
+
+async function registerStoredUploadAsset(params: {
+  url: string;
+  mimeType: string;
+  size: number;
+  ownerUserId?: string | null;
+  thumbnailUrl?: string | null;
+  width?: number;
+  height?: number;
+}) {
+  await registerUploadAsset({
+    url: params.url,
+    mimeType: params.mimeType,
+    size: params.size,
+    ownerUserId: params.ownerUserId ?? null,
+    thumbnailUrl: params.thumbnailUrl ?? null,
+    width: params.width,
+    height: params.height,
+  });
+}
+
+function buildClientFacingUploadResult(result: StoredUploadResult) {
+  return {
+    ...result,
+    url: getUploadProxyPath(result.url) ?? result.url,
+    thumbnailUrl: result.thumbnailUrl ? getUploadProxyPath(result.thumbnailUrl) ?? result.thumbnailUrl : null,
+  } satisfies StoredUploadResult;
+}
+
+async function saveHostedUpload(params: {
+  filenameBase: string;
+  processed: ProcessedUploadPayload;
+  ownerUserId?: string | null;
+}) {
+  if (!runtimeEnv.blobReadWriteToken) {
+    throw new Error("blob token missing");
+  }
+
+  const mainFilename = `${params.filenameBase}.${params.processed.main.extension}`;
+  const thumbnailFilename = params.processed.thumbnail
+    ? `${params.filenameBase}.thumb.${params.processed.thumbnail.extension}`
+    : null;
+
+  const [blob, thumbnailBlob] = await Promise.all([
+    put(`uploads/${mainFilename}`, params.processed.main.buffer, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: params.processed.main.mimeType,
+      token: runtimeEnv.blobReadWriteToken,
+    }),
+    thumbnailFilename && params.processed.thumbnail
+      ? put(`uploads/${thumbnailFilename}`, params.processed.thumbnail.buffer, {
+          access: "public",
+          addRandomSuffix: false,
+          contentType: params.processed.thumbnail.mimeType,
+          token: runtimeEnv.blobReadWriteToken,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  try {
+    await registerStoredUploadAsset({
+      url: blob.url,
+      mimeType: params.processed.main.mimeType,
+      size: params.processed.main.buffer.byteLength,
+      ownerUserId: params.ownerUserId ?? null,
+      thumbnailUrl: thumbnailBlob?.url ?? null,
+      width: params.processed.main.width,
+      height: params.processed.main.height,
+    });
+  } catch (error) {
+    try {
+      await del(blob.url, { token: runtimeEnv.blobReadWriteToken });
+      if (thumbnailBlob?.url) {
+        await del(thumbnailBlob.url, { token: runtimeEnv.blobReadWriteToken });
+      }
+    } catch {
+      // Ignore rollback failure and surface the original registration error.
+    }
+    throw error;
+  }
+
+  return buildClientFacingUploadResult({
+    url: blob.url,
+    size: params.processed.main.buffer.byteLength,
+    mimeType: params.processed.main.mimeType,
+    thumbnailUrl: thumbnailBlob?.url ?? null,
+    width: params.processed.main.width,
+    height: params.processed.main.height,
+  } satisfies StoredUploadResult);
+}
+
+async function saveLocalUpload(params: {
+  filenameBase: string;
+  processed: ProcessedUploadPayload;
+  ownerUserId?: string | null;
+}) {
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  await mkdir(uploadsDir, { recursive: true });
+
+  const mainFilename = `${params.filenameBase}.${params.processed.main.extension}`;
+  const mainAbsolutePath = path.join(uploadsDir, mainFilename);
+
+  const thumbnailFilename = params.processed.thumbnail
+    ? `${params.filenameBase}.thumb.${params.processed.thumbnail.extension}`
+    : null;
+  const thumbnailAbsolutePath = thumbnailFilename
+    ? path.join(uploadsDir, thumbnailFilename)
+    : null;
+
+  await writeFile(mainAbsolutePath, params.processed.main.buffer);
+  if (thumbnailAbsolutePath && params.processed.thumbnail) {
+    await writeFile(thumbnailAbsolutePath, params.processed.thumbnail.buffer);
+  }
+
+  const url = `/uploads/${mainFilename}`;
+  const thumbnailUrl = thumbnailFilename ? `/uploads/${thumbnailFilename}` : null;
+
+  try {
+    await registerStoredUploadAsset({
+      url,
+      mimeType: params.processed.main.mimeType,
+      size: params.processed.main.buffer.byteLength,
+      ownerUserId: params.ownerUserId ?? null,
+      thumbnailUrl,
+      width: params.processed.main.width,
+      height: params.processed.main.height,
+    });
+  } catch (error) {
+    try {
+      await unlink(mainAbsolutePath);
+      if (thumbnailAbsolutePath) {
+        await unlink(thumbnailAbsolutePath).catch(() => undefined);
+      }
+    } catch {
+      // Ignore rollback failure and surface the original registration error.
+    }
+    throw error;
+  }
+
+  return buildClientFacingUploadResult({
+    url,
+    size: params.processed.main.buffer.byteLength,
+    mimeType: params.processed.main.mimeType,
+    thumbnailUrl,
+    width: params.processed.main.width,
+    height: params.processed.main.height,
+  } satisfies StoredUploadResult);
+}
+
 export async function saveUploadedImage(file: File, options?: SaveUploadedImageOptions) {
-  const extension = getFileExtension(file.type);
+  getFileExtension(file.type);
+
   const arrayBuffer = await file.arrayBuffer();
   const rawBuffer = Buffer.from(arrayBuffer);
   const maxSizeBytes = options?.maxSizeBytes ?? MAX_UPLOAD_SIZE_BYTES;
@@ -151,27 +389,16 @@ export async function saveUploadedImage(file: File, options?: SaveUploadedImageO
 
   validateImageSignature(file.type, rawBuffer);
 
-  const outputBuffer =
-    file.type === "image/jpeg" && rawBuffer.byteLength >= EXIF_STRIP_MIN_BYTES
-      ? stripJpegExif(rawBuffer)
-      : rawBuffer;
-
-  const filename = `${Date.now()}-${randomUUID()}.${extension}`;
+  const processed = await processUploadedImage(file, rawBuffer);
+  const filenameBase = `${Date.now()}-${randomUUID()}`;
   const isHostedRuntime = runtimeEnv.isProduction || process.env.VERCEL === "1";
 
   if (runtimeEnv.blobReadWriteToken) {
-    const blob = await put(`uploads/${filename}`, outputBuffer, {
-      access: "public",
-      addRandomSuffix: false,
-      contentType: file.type,
-      token: runtimeEnv.blobReadWriteToken,
+    return saveHostedUpload({
+      filenameBase,
+      processed,
+      ownerUserId: options?.ownerUserId ?? null,
     });
-
-    return {
-      url: blob.url,
-      size: outputBuffer.byteLength,
-      mimeType: file.type,
-    };
   }
 
   if (isHostedRuntime) {
@@ -182,14 +409,9 @@ export async function saveUploadedImage(file: File, options?: SaveUploadedImageO
     );
   }
 
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadsDir, { recursive: true });
-  const absolutePath = path.join(uploadsDir, filename);
-  await writeFile(absolutePath, outputBuffer);
-
-  return {
-    url: `/uploads/${filename}`,
-    size: outputBuffer.byteLength,
-    mimeType: file.type,
-  };
+  return saveLocalUpload({
+    filenameBase,
+    processed,
+    ownerUserId: options?.ownerUserId ?? null,
+  });
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { upload } from "@vercel/blob/client";
 
 import {
   getGuestWriteHeaders,
@@ -15,6 +14,9 @@ type UploadResponse = {
     url: string;
     size: number;
     mimeType: string;
+    thumbnailUrl?: string | null;
+    width?: number;
+    height?: number;
   };
   error?: {
     code: string;
@@ -37,7 +39,17 @@ type FailedUploadItem = {
 };
 
 const MAX_CLIENT_IMAGE_SIDE = 1920;
+const MAX_CLIENT_PREPROCESS_BYTES = 4 * 1024 * 1024;
 const MAX_PARALLEL_UPLOADS = 3;
+const ACCEPTED_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+];
 
 function formatUploadError(error: unknown) {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -68,7 +80,13 @@ async function compressImageForUpload(file: File) {
   if (typeof window === "undefined") {
     return file;
   }
-  if (file.type === "image/gif" || file.size < 300 * 1024) {
+  if (
+    file.type === "image/gif" ||
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    file.type === "image/avif" ||
+    file.size <= MAX_CLIENT_PREPROCESS_BYTES
+  ) {
     return file;
   }
 
@@ -96,17 +114,45 @@ async function compressImageForUpload(file: File) {
     }
 
     context.drawImage(image, 0, 0, targetWidth, targetHeight);
+    const preferredOutputType = file.type === "image/png" ? "image/png" : "image/webp";
     const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/webp", 0.82);
+      canvas.toBlob(
+        resolve,
+        preferredOutputType,
+        preferredOutputType === "image/webp" ? 0.9 : undefined,
+      );
     });
 
-    if (!blob || blob.size >= file.size) {
+    const fallbackBlob = !blob
+      ? await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob(resolve, "image/jpeg", 0.9);
+        })
+      : null;
+
+    const outputBlob = blob ?? fallbackBlob;
+
+    if (!outputBlob) {
+      throw new Error("이미지 변환에 실패했습니다.");
+    }
+
+    const shouldKeepConverted =
+      targetWidth !== image.width ||
+      targetHeight !== image.height ||
+      outputBlob.size < file.size;
+
+    if (!shouldKeepConverted) {
       return file;
     }
 
     const baseName = normalizeFileName(file.name.replace(/\.[^.]+$/, ""));
-    return new File([blob], `${baseName || "image"}.webp`, {
-      type: "image/webp",
+    const outputExtension =
+      outputBlob.type === "image/png"
+        ? "png"
+        : outputBlob.type === "image/jpeg"
+          ? "jpg"
+          : "webp";
+    return new File([outputBlob], `${baseName || "image"}.${outputExtension}`, {
+      type: outputBlob.type,
       lastModified: Date.now(),
     });
   } finally {
@@ -172,35 +218,22 @@ export function ImageUploadField({
       ? await getGuestWriteHeaders(guestWriteScope)
       : undefined;
 
-    try {
-      const preparedFile = await compressImageForUpload(file);
-      const safeName = normalizeFileName(preparedFile.name);
-      const pathname = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+    const preparedFile = await compressImageForUpload(file);
+    const formData = new FormData();
+    formData.append("file", preparedFile);
 
-      const result = await upload(pathname, preparedFile, {
-        access: "public",
-        handleUploadUrl: "/api/upload/client",
-        headers: guestHeaders,
-      });
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      headers: guestHeaders,
+      body: formData,
+    });
 
-      return result.url;
-    } catch {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        headers: guestHeaders,
-        body: formData,
-      });
-
-      const payload = (await response.json()) as UploadResponse;
-      if (!response.ok || !payload.ok || !payload.data?.url) {
-        throw new Error(payload.error?.message ?? "이미지 업로드에 실패했습니다.");
-      }
-
-      return payload.data.url;
+    const payload = (await response.json()) as UploadResponse;
+    if (!response.ok || !payload.ok || !payload.data?.url) {
+      throw new Error(payload.error?.message ?? "이미지 업로드에 실패했습니다.");
     }
+
+    return payload.data.url;
   };
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -394,7 +427,7 @@ export function ImageUploadField({
           data-testid="image-upload-input"
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept={ACCEPTED_IMAGE_MIME_TYPES.join(",")}
           multiple
           onClick={(event) => {
             event.currentTarget.value = "";
@@ -404,7 +437,7 @@ export function ImageUploadField({
           className="w-full text-xs text-[#355988] file:mr-3 file:rounded-md file:border file:border-[#3567b5] file:bg-[#3567b5] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white file:transition hover:file:bg-[#2f5da4]"
         />
         <p className="mt-2 text-xs text-[#5d789f]">
-          JPG/PNG/WEBP/GIF, 파일당 최대 5MB
+          JPG/PNG/WEBP/GIF/HEIC/AVIF, 파일당 최대 12MB(비회원 5MB). 업로드 후 서버에서 회전/최적화됩니다.
         </p>
         {remainCount <= 0 ? (
           <p className="mt-1 text-xs text-[#5d789f]">현재 첨부 한도에 도달했습니다. 기존 이미지를 삭제한 뒤 다시 선택해 주세요.</p>
