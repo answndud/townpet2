@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
   confirmPasswordReset,
+  invalidateUserSessions,
   setPasswordForUser,
 } from "@/server/services/auth.service";
 import { hashPassword, hashToken, verifyPassword } from "@/server/password";
@@ -11,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     passwordResetToken: {
       findFirst: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@/server/password", () => ({
 const mockPrisma = vi.mocked(prisma) as unknown as {
   user: {
     findUnique: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   passwordResetToken: {
     findFirst: ReturnType<typeof vi.fn>;
@@ -42,6 +45,7 @@ const mockVerifyPassword = vi.mocked(verifyPassword);
 describe("auth service session invalidation", () => {
   beforeEach(() => {
     mockPrisma.user.findUnique.mockReset();
+    mockPrisma.user.update.mockReset();
     mockPrisma.passwordResetToken.findFirst.mockReset();
     mockPrisma.$transaction.mockReset();
     mockHashPassword.mockReset();
@@ -149,5 +153,19 @@ describe("auth service session invalidation", () => {
     expect(updateResetToken).toHaveBeenCalled();
     expect(deleteResetTokens).toHaveBeenCalled();
     expect(createAuditLog).toHaveBeenCalled();
+  });
+
+  it("increments session version when revoking active sessions", async () => {
+    mockPrisma.user.update.mockResolvedValue({ id: "user-1" });
+
+    await invalidateUserSessions({ userId: "user-1" });
+
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: {
+        sessionVersion: { increment: 1 },
+      },
+      select: { id: true },
+    });
   });
 });

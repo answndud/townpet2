@@ -10,10 +10,13 @@ import {
   getPasswordManagementNoticeMessage,
   getPasswordManagementUnavailableMessage,
 } from "@/lib/password-management";
+import { isSocialDevLoginEnabled } from "@/lib/env";
+import { getSocialAccountNoticeMessage } from "@/lib/social-auth";
 import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-preference-form";
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
 import { ProfileImageUploader } from "@/components/profile/profile-image-uploader";
 import { ProfileInfoForm } from "@/components/profile/profile-info-form";
+import { ProfileSocialAccountConnections } from "@/components/profile/profile-social-account-connections";
 import { ProfileSummaryLinkCard } from "@/components/profile/profile-summary-link-card";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { auth } from "@/lib/auth";
@@ -75,6 +78,20 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const passwordManagementNotice = getPasswordManagementNoticeMessage(
     resolvedSearchParams.notice ?? null,
   );
+  const socialAccountNotice = getSocialAccountNoticeMessage(
+    resolvedSearchParams.notice ?? null,
+  );
+  const accountNotice = passwordManagementNotice ?? socialAccountNotice;
+  const isLocalPreview = process.env.NODE_ENV !== "production";
+  const socialDevEnabled = isSocialDevLoginEnabled();
+  const kakaoEnabledByEnv = Boolean(
+    process.env.KAKAO_CLIENT_ID && process.env.KAKAO_CLIENT_SECRET,
+  );
+  const naverEnabledByEnv = Boolean(
+    process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET,
+  );
+  const kakaoEnabled = kakaoEnabledByEnv || (isLocalPreview && socialDevEnabled);
+  const naverEnabled = naverEnabledByEnv || (isLocalPreview && socialDevEnabled);
 
   const isNicknameMissing = !user.nickname?.trim();
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
@@ -156,9 +173,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </section>
         ) : null}
 
-        {passwordManagementNotice ? (
+        {accountNotice ? (
           <section className="rounded-xl border border-[#dbe6f6] bg-[#f8fbff] px-4 py-4 text-sm text-[#315b9a]">
-            {passwordManagementNotice}
+            {accountNotice}
           </section>
         ) : null}
 
@@ -206,6 +223,17 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             )}
           </div>
         </section>
+
+        <ProfileSocialAccountConnections
+          authProvider={session.user?.authProvider}
+          hasPassword={passwordStatus?.hasPassword ?? false}
+          linkedAccountProviders={passwordStatus?.linkedAccountProviders ?? []}
+          kakaoEnabled={kakaoEnabled}
+          kakaoDevMode={isLocalPreview && !kakaoEnabledByEnv && socialDevEnabled}
+          naverEnabled={naverEnabled}
+          naverDevMode={isLocalPreview && !naverEnabledByEnv && socialDevEnabled}
+          socialDevEnabled={socialDevEnabled}
+        />
 
         <ProfileInfoForm
           initialNickname={user.nickname}

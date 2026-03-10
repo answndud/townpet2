@@ -1,5 +1,6 @@
 import { Prisma, UserRole } from "@prisma/client";
 
+import { normalizeAuthEmail } from "@/lib/auth-email";
 import { prisma } from "@/lib/prisma";
 
 let userPreferredPetTypesSupport: boolean | null = null;
@@ -62,9 +63,18 @@ type UserRoleSummary = {
   role: UserRole;
 };
 
+function buildInsensitiveEmailWhere(email: string) {
+  return {
+    email: {
+      equals: normalizeAuthEmail(email),
+      mode: Prisma.QueryMode.insensitive,
+    },
+  } as const;
+}
+
 export async function getUserRoleByEmail(email: string): Promise<UserRoleSummary | null> {
-  return prisma.user.findUnique({
-    where: { email },
+  return prisma.user.findFirst({
+    where: buildInsensitiveEmailWhere(email),
     select: { id: true, role: true },
   });
 }
@@ -78,15 +88,15 @@ export async function getUserRoleById(id: string): Promise<UserRoleSummary | nul
 
 export async function getUserByEmail(email: string) {
   if (!supportsUserPreferredPetTypes()) {
-    return prisma.user.findUnique({
-      where: { email },
+    return prisma.user.findFirst({
+      where: buildInsensitiveEmailWhere(email),
       select: USER_BASE_SELECT,
     });
   }
 
   return prisma.user
-    .findUnique({
-      where: { email },
+    .findFirst({
+      where: buildInsensitiveEmailWhere(email),
       select: {
         ...USER_BASE_SELECT,
         preferredPetTypes: {
@@ -100,11 +110,21 @@ export async function getUserByEmail(email: string) {
         throw error;
       }
       userPreferredPetTypesSupport = false;
-      return prisma.user.findUnique({
-        where: { email },
+      return prisma.user.findFirst({
+        where: buildInsensitiveEmailWhere(email),
         select: USER_BASE_SELECT,
       });
     });
+}
+
+export async function findUserByEmailInsensitive<TSelect extends Prisma.UserSelect>(
+  email: string,
+  select: TSelect,
+) {
+  return prisma.user.findFirst({
+    where: buildInsensitiveEmailWhere(email),
+    select,
+  }) as Promise<Prisma.UserGetPayload<{ select: TSelect }> | null>;
 }
 
 export async function getUserById(id: string) {
@@ -157,7 +177,7 @@ export async function getUserPasswordStatusById(id: string) {
   return {
     id: user.id,
     hasPassword: Boolean(user.passwordHash),
-    linkedAccountProviders: user.accounts.map((account) => account.provider),
+    linkedAccountProviders: [...new Set(user.accounts.map((account) => account.provider))],
   } as const;
 }
 

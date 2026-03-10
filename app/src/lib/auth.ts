@@ -6,13 +6,17 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Adapter, AdapterUser } from "next-auth/adapters";
 import type { Provider } from "next-auth/providers";
 
+import { normalizeAuthEmail } from "@/lib/auth-email";
 import { assertRuntimeEnv, isSocialDevLoginEnabled, runtimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { normalizeSocialAuthProvider } from "@/lib/social-auth";
 import {
   applyUserSessionStateToToken,
   syncSessionVersionToken,
 } from "@/lib/session-version";
 import { authorizeCredentialsLogin } from "@/server/auth-credentials";
+import { findUserByEmailInsensitive } from "@/server/queries/user.queries";
+import { getActiveInteractionSanction } from "@/server/services/sanction.service";
 
 const isProd = process.env.NODE_ENV === "production";
 const socialDevLoginEnabled = isSocialDevLoginEnabled();
@@ -46,6 +50,27 @@ function stripUserName<T extends { name?: string | null }>(value: T): Omit<T, "n
   return rest;
 }
 
+function normalizeAdapterUserEmail<T extends { email?: string | null }>(value: T): T {
+  if (typeof value.email !== "string" || value.email.length === 0) {
+    return value;
+  }
+
+  return {
+    ...value,
+    email: normalizeAuthEmail(value.email),
+  };
+}
+
+function invalidateAuthToken<
+  TToken extends { id?: string; nickname?: string | null; image?: string | null; sessionInvalidated?: boolean },
+>(token: TToken) {
+  token.id = undefined;
+  token.nickname = null;
+  token.image = null;
+  token.sessionInvalidated = true;
+  return token;
+}
+
 assertRuntimeEnv();
 
 const baseAdapter = PrismaAdapter(prisma);
@@ -54,10 +79,30 @@ type AdapterUpdateUser = Partial<AdapterUser> & Pick<AdapterUser, "id">;
 const adapter: Adapter = {
   ...baseAdapter,
   async createUser(user: AdapterUser) {
-    return baseAdapter.createUser!(stripUserName(user));
+    return baseAdapter.createUser!(stripUserName(normalizeAdapterUserEmail(user)));
   },
   async updateUser(user: AdapterUpdateUser) {
-    return baseAdapter.updateUser!(stripUserName(user));
+    return baseAdapter.updateUser!(stripUserName(normalizeAdapterUserEmail(user)));
+  },
+  async getUserByEmail(email) {
+    const user = await findUserByEmailInsensitive(email, {
+      id: true,
+      email: true,
+      emailVerified: true,
+      image: true,
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      image: user.image,
+      name: null,
+    };
   },
 };
 
@@ -98,16 +143,13 @@ if (socialDevLoginEnabled) {
           return null;
         }
 
-        const existingUser = await prisma.user.findUnique({
-          where: { email },
-          select: {
-            id: true,
-            email: true,
-            nickname: true,
-            image: true,
-            emailVerified: true,
-            sessionVersion: true,
-          },
+        const existingUser = await findUserByEmailInsensitive(email, {
+          id: true,
+          email: true,
+          nickname: true,
+          image: true,
+          emailVerified: true,
+          sessionVersion: true,
         });
 
         if (existingUser) {
@@ -190,12 +232,49 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   },
   providers,
   callbacks: {
-    signIn({ user, account }) {
+    async signIn({ user, account }) {
       if (account?.provider === "kakao" && !user.email) {
         return "/login?error=KAKAO_EMAIL_REQUIRED";
       }
       if (account?.provider === "naver" && !user.email) {
         return "/login?error=NAVER_EMAIL_REQUIRED";
+      }
+
+      const socialProvider = normalizeSocialAuthProvider(account?.provider);
+      if (
+        socialProvider &&
+        typeof user.id === "string" &&
+        user.id.length > 0 &&
+        typeof account?.providerAccountId === "string" &&
+        account.providerAccountId.length > 0
+      ) {
+        const existingLinkedAccount = await prisma.account.findFirst({
+          where: {
+            userId: user.id,
+            provider: socialProvider,
+          },
+          select: {
+            providerAccountId: true,
+          },
+        });
+
+        if (
+          existingLinkedAccount &&
+          existingLinkedAccount.providerAccountId !== account.providerAccountId
+        ) {
+          return "/login?error=OAuthAccountNotLinked";
+        }
+      }
+
+      if (typeof user.id === "string" && user.id.length > 0) {
+        const activeSanction = await getActiveInteractionSanction(user.id);
+        if (activeSanction) {
+          return `/login?error=${encodeURIComponent(
+            activeSanction.level === "PERMANENT_BAN"
+              ? "ACCOUNT_PERMANENTLY_BANNED"
+              : "ACCOUNT_SUSPENDED",
+          )}`;
+        }
       }
 
       return true;
@@ -243,16 +322,23 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           select: { sessionVersion: true, nickname: true, image: true },
         });
 
-        token.image = currentUser?.image ?? null;
+        if (!currentUser) {
+          return invalidateAuthToken(token);
+        }
+
+        const activeSanction = await getActiveInteractionSanction(token.id);
+        if (activeSanction) {
+          return invalidateAuthToken(token);
+        }
+
+        token.image = currentUser.image ?? null;
 
         return syncSessionVersionToken(
           token,
-          currentUser
-            ? {
-                sessionVersion: currentUser.sessionVersion,
-                nickname: currentUser.nickname,
-              }
-            : null,
+          {
+            sessionVersion: currentUser.sessionVersion,
+            nickname: currentUser.nickname,
+          },
         );
       }
 

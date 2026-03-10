@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 
+import { normalizeAuthEmail } from "@/lib/auth-email";
 import { prisma } from "@/lib/prisma";
 import {
   emailVerificationConfirmSchema,
@@ -9,7 +10,9 @@ import {
   passwordResetRequestSchema,
   passwordSetupSchema,
   registerSchema,
+  socialAccountLinkSchema,
 } from "@/lib/validations/auth";
+import { findUserByEmailInsensitive } from "@/server/queries/user.queries";
 import { hashPassword, hashToken, verifyPassword } from "@/server/password";
 import { ServiceError } from "@/server/services/service-error";
 
@@ -23,10 +26,8 @@ export async function registerUser({ input }: RegisterUserParams) {
     throw new ServiceError("회원가입 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-    select: { id: true },
-  });
+  const email = normalizeAuthEmail(parsed.data.email);
+  const existing = await findUserByEmailInsensitive(email, { id: true });
 
   if (existing) {
     throw new ServiceError("이미 사용 중인 이메일입니다.", "EMAIL_TAKEN", 409);
@@ -46,7 +47,7 @@ export async function registerUser({ input }: RegisterUserParams) {
   try {
     return await prisma.user.create({
       data: {
-        email: parsed.data.email,
+        email,
         nickname: parsed.data.nickname,
         passwordHash,
       },
@@ -87,9 +88,10 @@ export async function requestEmailVerification({
     throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-    select: { id: true, emailVerified: true },
+  const email = normalizeAuthEmail(parsed.data.email);
+  const user = await findUserByEmailInsensitive(email, {
+    id: true,
+    emailVerified: true,
   });
 
   if (!user || user.emailVerified) {
@@ -98,7 +100,7 @@ export async function requestEmailVerification({
 
   await prisma.verificationToken.deleteMany({
     where: {
-      identifier: parsed.data.email,
+      identifier: email,
       OR: [{ expires: { lt: new Date() } }],
     },
   });
@@ -109,7 +111,7 @@ export async function requestEmailVerification({
 
   await prisma.verificationToken.create({
     data: {
-      identifier: parsed.data.email,
+      identifier: email,
       token: tokenHash,
       expires,
     },
@@ -140,9 +142,9 @@ export async function confirmEmailVerification({
     throw new ServiceError("유효하지 않거나 만료된 토큰입니다.", "INVALID_TOKEN", 400);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: tokenEntry.identifier },
-    select: { id: true, emailVerified: true },
+  const user = await findUserByEmailInsensitive(tokenEntry.identifier, {
+    id: true,
+    emailVerified: true,
   });
 
   if (!user) {
@@ -232,6 +234,99 @@ export async function setPasswordForUser({ userId, input, meta }: SetPasswordPar
   });
 }
 
+type InvalidateUserSessionsParams = {
+  userId: string;
+};
+
+export async function invalidateUserSessions({
+  userId,
+}: InvalidateUserSessionsParams) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      sessionVersion: { increment: 1 },
+    },
+    select: { id: true },
+  });
+}
+
+type LinkSocialAccountForUserParams = {
+  userId: string;
+  input: unknown;
+};
+
+export async function linkSocialAccountForUser({
+  userId,
+  input,
+}: LinkSocialAccountForUserParams) {
+  const parsed = socialAccountLinkSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("소셜 계정 연결 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  const existingProviderAccount = await prisma.account.findFirst({
+    where: {
+      userId,
+      provider: parsed.data.provider,
+    },
+    select: {
+      providerAccountId: true,
+    },
+  });
+
+  if (existingProviderAccount) {
+    if (existingProviderAccount.providerAccountId === parsed.data.providerAccountId) {
+      return {
+        provider: parsed.data.provider,
+        alreadyLinked: true,
+      } as const;
+    }
+
+    throw new ServiceError(
+      "이미 같은 소셜 로그인 제공자가 연결되어 있습니다.",
+      "PROVIDER_ALREADY_CONNECTED",
+      409,
+    );
+  }
+
+  const linkedElsewhere = await prisma.account.findUnique({
+    where: {
+      provider_providerAccountId: {
+        provider: parsed.data.provider,
+        providerAccountId: parsed.data.providerAccountId,
+      },
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  if (linkedElsewhere && linkedElsewhere.userId !== userId) {
+    throw new ServiceError(
+      "이미 다른 계정에 연결된 소셜 계정입니다.",
+      "ACCOUNT_ALREADY_LINKED",
+      409,
+    );
+  }
+
+  await prisma.account.create({
+    data: {
+      userId,
+      type: "oauth",
+      provider: parsed.data.provider,
+      providerAccountId: parsed.data.providerAccountId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return {
+    provider: parsed.data.provider,
+    alreadyLinked: false,
+  } as const;
+}
+
 type PasswordResetRequestParams = {
   input: unknown;
 };
@@ -242,10 +337,8 @@ export async function requestPasswordReset({ input }: PasswordResetRequestParams
     throw new ServiceError("입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-    select: { id: true },
-  });
+  const email = normalizeAuthEmail(parsed.data.email);
+  const user = await findUserByEmailInsensitive(email, { id: true });
 
   if (!user) {
     return { token: null } as const;

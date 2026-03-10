@@ -3,12 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AuthControls } from "@/components/auth/auth-controls";
 import { FeedHoverMenu } from "@/components/navigation/feed-hover-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { subscribeViewerShellSync } from "@/lib/viewer-shell-sync";
+import { emitViewerShellSync, subscribeViewerShellSync } from "@/lib/viewer-shell-sync";
 
 type AppShellHeaderProps = {
   communities: Array<{
@@ -34,6 +34,9 @@ const DEFAULT_VIEWER_SHELL: ViewerShellData = {
 
 export function AppShellHeader({ communities }: AppShellHeaderProps) {
   const [viewerShell, setViewerShell] = useState<ViewerShellData>(DEFAULT_VIEWER_SHELL);
+  const authSnapshotRef = useRef(
+    `${DEFAULT_VIEWER_SHELL.isAuthenticated}:${DEFAULT_VIEWER_SHELL.canModerate}`,
+  );
   const pathname = usePathname();
   const navLinkClass =
     "inline-flex h-8 items-center rounded-sm px-1 text-[14px] leading-none text-[#315484] transition hover:bg-[#dcecff] hover:text-[#1f4f8f]";
@@ -61,6 +64,13 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
         }
 
         if (!cancelled) {
+          const nextAuthSnapshot = `${payload.data.isAuthenticated}:${payload.data.canModerate}`;
+          if (authSnapshotRef.current !== nextAuthSnapshot) {
+            authSnapshotRef.current = nextAuthSnapshot;
+            emitViewerShellSync({
+              reason: payload.data.isAuthenticated ? "auth-login" : "auth-logout",
+            });
+          }
           setViewerShell(payload.data);
         }
       } catch (error) {
@@ -145,6 +155,7 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
           ) : (
             <Link
               href="/login"
+              data-testid="header-login-link"
               className={`${navLinkClass} text-[#173963] hover:text-[#0f2f56]`}
             >
               로그인

@@ -228,7 +228,7 @@ describe("POST /api/auth/register contract", () => {
     const request = new Request("http://localhost/api/auth/register", {
       method: "POST",
       body: JSON.stringify({
-        email: "user@townpet.dev",
+        email: " User@Townpet.Dev ",
         password: "Townpet!2026",
         nickname: "townpet_user",
       }),
@@ -240,6 +240,13 @@ describe("POST /api/auth/register contract", () => {
 
     expect(response.status).toBe(201);
     expect(payload).toMatchObject({ ok: true, data: { email: "user@townpet.dev" } });
+    expect(mockRegisterUser).toHaveBeenCalledWith({
+      input: {
+        email: "user@townpet.dev",
+        password: "Townpet!2026",
+        nickname: "townpet_user",
+      },
+    });
     expect(mockSendVerificationEmail).toHaveBeenCalledWith({
       email: "user@townpet.dev",
       token: "verify-token",

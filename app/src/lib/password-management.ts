@@ -6,7 +6,7 @@ export const PASSWORD_MANAGEMENT_UNAVAILABLE_NOTICE =
 type PasswordManagementPolicyInput = {
   authProvider?: string | null;
   hasPassword: boolean;
-  linkedAccountProviders?: string[];
+  linkedAccountProviders?: readonly string[];
 };
 
 function normalizeProvider(provider: string | null | undefined) {

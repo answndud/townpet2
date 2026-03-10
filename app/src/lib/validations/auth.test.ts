@@ -62,4 +62,19 @@ describe("auth password validation", () => {
 
     expect(parsed.success).toBe(true);
   });
+
+  it("normalizes auth emails to trimmed lowercase values", () => {
+    const parsed = registerSchema.safeParse({
+      email: "  User@TownPet.Dev ",
+      password: "Townpet!2026",
+      nickname: "tester04",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      return;
+    }
+
+    expect(parsed.data.email).toBe("user@townpet.dev");
+  });
 });

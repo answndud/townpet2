@@ -108,6 +108,19 @@ export function shouldRunSecurityEnvPreflight(env: NodeJS.ProcessEnv = process.e
   return targetEnv === "production";
 }
 
+export function shouldRunAuthEmailReadinessPreflight(env: NodeJS.ProcessEnv = process.env) {
+  if (hasTruthyFlag(env.DEPLOY_AUTH_EMAIL_PREFLIGHT_SKIP)) {
+    return false;
+  }
+
+  if (hasTruthyFlag(env.DEPLOY_AUTH_EMAIL_PREFLIGHT_STRICT)) {
+    return true;
+  }
+
+  const targetEnv = (env.VERCEL_TARGET_ENV ?? env.VERCEL_ENV ?? "").trim().toLowerCase();
+  return targetEnv === "production";
+}
+
 async function listMigrationNames() {
   const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
   const entries = await readdir(migrationsDir, { withFileTypes: true });
@@ -151,6 +164,22 @@ export async function runSecurityEnvPreflight(commandRunner: CommandRunner = run
   const result = await commandRunner("pnpm", ["ops:check:security-env:strict"]);
   if (result.code !== 0) {
     throw new Error("[build:vercel] security env preflight failed.");
+  }
+}
+
+export async function runAuthEmailReadinessPreflight(
+  commandRunner: CommandRunner = runCommand,
+) {
+  if (!shouldRunAuthEmailReadinessPreflight()) {
+    console.log(
+      "[build:vercel] skipping auth email readiness preflight (non-production target or opt-out).",
+    );
+    return;
+  }
+
+  const result = await commandRunner("pnpm", ["ops:check:auth-email-readiness"]);
+  if (result.code !== 0) {
+    throw new Error("[build:vercel] auth email readiness preflight failed.");
   }
 }
 
@@ -268,6 +297,7 @@ async function runPrismaGenerate(commandRunner: CommandRunner = runCommand) {
 
 export async function runBuildVercel(commandRunner: CommandRunner = runCommand) {
   await runSecurityEnvPreflight(commandRunner);
+  await runAuthEmailReadinessPreflight(commandRunner);
   await runPrismaDeploy(commandRunner);
   await repairCommunityBoardSchema(commandRunner);
   await repairNotificationArchiveSchema(commandRunner);

@@ -7,7 +7,10 @@ import { useMemo, useState, useTransition } from "react";
 
 import { KakaoSignInButton } from "@/components/auth/kakao-signin-button";
 import { NaverSignInButton } from "@/components/auth/naver-signin-button";
+import { readPendingOAuthLinkIntent } from "@/lib/oauth-link-intent";
 import { getPublicProfileLoginNoticeMessage } from "@/lib/public-profile";
+import { getOAuthErrorMessage } from "@/lib/social-auth";
+import { emitViewerShellSync } from "@/lib/viewer-shell-sync";
 
 type LoginFormProps = {
   kakaoEnabled?: boolean;
@@ -32,6 +35,7 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
+  const [pendingLinkIntent] = useState(() => readPendingOAuthLinkIntent());
   const oauthError = searchParams.get("error");
   const notice = searchParams.get("notice");
   const nextPath = searchParams.get("next");
@@ -39,15 +43,10 @@ export function LoginForm({
     nextPath && nextPath.startsWith("/") ? nextPath : "/feed";
 
   const oauthMessage = useMemo(() => {
-    if (!oauthError) return null;
-    if (oauthError === "KAKAO_EMAIL_REQUIRED") {
-      return "카카오 계정 이메일 제공 동의가 필요합니다. 동의 후 다시 시도해 주세요.";
-    }
-    if (oauthError === "NAVER_EMAIL_REQUIRED") {
-      return "네이버 계정 이메일 제공 동의가 필요합니다. 동의 후 다시 시도해 주세요.";
-    }
-    return "소셜 로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-  }, [oauthError]);
+    return getOAuthErrorMessage(oauthError, {
+      pendingLinkProvider: pendingLinkIntent?.provider ?? null,
+    });
+  }, [oauthError, pendingLinkIntent]);
   const noticeMessage = useMemo(() => getPublicProfileLoginNoticeMessage(notice), [notice]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -73,7 +72,8 @@ export function LoginForm({
         return;
       }
 
-      router.push(result?.url ?? callbackUrl);
+      emitViewerShellSync({ reason: "auth-login" });
+      router.push(callbackUrl);
       router.refresh();
     });
   };
@@ -179,9 +179,20 @@ export function LoginForm({
         </>
       ) : null}
       {oauthMessage ? (
-        <p className="text-xs font-medium text-rose-700" role="alert" aria-live="polite">
-          {oauthMessage}
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-rose-700" role="alert" aria-live="polite">
+            {oauthMessage}
+          </p>
+          {(oauthError === "OAuthAccountNotLinked" || oauthError === "AccountNotLinked") &&
+          pendingLinkIntent?.returnPath ? (
+            <Link
+              href={pendingLinkIntent.returnPath}
+              className="text-xs font-medium text-[#315b9a] underline-offset-2 hover:text-[#1f3f71] hover:underline"
+            >
+              프로필로 돌아가 계정 연동 확인
+            </Link>
+          ) : null}
+        </div>
       ) : null}
     </form>
   );

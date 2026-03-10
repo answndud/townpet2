@@ -26,6 +26,40 @@
 
 ## Active Plan
 
+### Cycle 269: 운영 DB 인증 이메일 preflight 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 운영 DB의 case-insensitive email migration readiness 점검 스크립트 추가 | Codex | P0 | `done` | `User.email`의 trim+lowercase 기준 중복과 정규화 drift를 점검하는 스크립트/공용 helper가 추가되고, 실패-path 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/scripts/**`, `app/src/server/**` |
+| production build 전 auth email preflight 게이트와 운영 문서 반영 | Codex | P1 | `done` | `build:vercel`가 production에서 auth email preflight를 `prisma migrate deploy` 전에 실행하고, 운영 가이드에 수동 실행 경로와 skip 정책이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/scripts/vercel-build.ts`, `docs/operations/**`, `docs/security/**` |
+
+### Cycle 268: 인증 E2E 및 수동 검증 시나리오 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| credentials 로그인/로그아웃/세션 무효화/멀티탭 sync를 Playwright로 고정 | Codex | P0 | `done` | 대소문자 이메일 로그인, 로그아웃 후 오래된 세션 쿠키 무효화, 멀티탭 로그인/로그아웃 상태 동기화가 Playwright 시나리오로 검증된다 | `PLAN.md`, `PROGRESS.md`, `app/e2e/**`, auth UI selector |
+| 정지 계정 로그인 차단과 프로필 소셜 연동 흐름을 E2E 또는 dev 시뮬레이션으로 검증 | Codex | P1 | `done` | 정지 계정 credentials 로그인 차단, 프로필에서 카카오/네이버 연동 성공 흐름이 local/dev 환경에서 재현 가능한 시나리오로 고정된다 | `PLAN.md`, `PROGRESS.md`, `app/e2e/**`, `app/src/components/profile/**` |
+| 실제 OAuth 연동/복구용 수동 체크리스트 문서 추가 | Codex | P1 | `done` | production/preview에서 운영자가 실제 카카오/네이버 연동, OAuthAccountNotLinked 복구를 점검할 수 있는 체크리스트가 `docs/operations/manual-checks`에 추가된다 | `PLAN.md`, `PROGRESS.md`, `docs/operations/manual-checks/**` |
+
+### Cycle 267: OAuth 계정 연결/복구 플로우 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 프로필에서 카카오/네이버 계정 연결 상태를 확인하고 연동할 수 있는 UI 추가 | Codex | P0 | `done` | `/profile`에 현재 로그인 방식, 이메일 로그인 설정 여부, 연결된 소셜 provider 상태와 `카카오/네이버 연결하기` 버튼이 추가되고, 성공 notice가 사용자에게 노출된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/profile/page.tsx`, `app/src/components/profile/profile-social-account-connections.tsx`, `app/src/lib/social-auth.ts` |
+| OAuthAccountNotLinked 오류를 실제 복구 동선과 연결하고 provider 중복 연결을 차단 | Codex | P0 | `done` | 로그인 페이지의 OAuth 오류가 "기존 방식으로 로그인 후 프로필에서 연동" 흐름을 안내하고, 이미 같은 provider가 연결된 계정에 다른 provider 계정을 추가 연결하는 시도는 서버에서 차단된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/auth/login-form.tsx`, `app/src/lib/auth.ts`, `app/src/lib/oauth-link-intent.ts`, `app/src/lib/social-auth.ts` |
+| 로컬 개발용 social-dev 계정 연결 route와 회귀 테스트 추가 | Codex | P1 | `done` | local/dev 환경에서는 `social-dev` 전용 link API로 프로필 연결 플로우를 검증할 수 있고, service/route/helper 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/api/auth/social-dev/link/route.ts`, `app/src/server/services/auth.service.ts`, 관련 테스트 |
+
+### Cycle 266: 인증 이메일 DB 레벨 하드닝 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `User.email` / `VerificationToken.identifier`를 case-insensitive 컬럼으로 전환 | Codex | P0 | `done` | Prisma schema와 신규 migration이 `citext` 기반으로 정리되고, 기존 데이터는 trim+lowercase 정규화 후 중복 guard를 거쳐 안전하게 전환된다 | `PLAN.md`, `PROGRESS.md`, `app/prisma/schema.prisma`, `app/prisma/migrations/*` |
+| Prisma schema 검증과 인증 회귀 검증 재실행 | Codex | P0 | `done` | `prisma format/generate`, `typecheck`, 관련 auth 테스트가 통과하고 결과가 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/package.json`, 관련 테스트 |
+
+### Cycle 265: 인증/권한/세션 하드닝 1차 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 이메일 인증 입력값과 OAuth user email을 정규화하고 케이스 변형 중복을 차단 | Codex | P0 | `done` | 가입/로그인/비밀번호 재설정/이메일 인증/OAuth create-user 경로가 이메일을 일관되게 normalize하고, 기존 mixed-case 계정도 case-insensitive lookup으로 로그인/재설정이 가능하다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/validations/auth.ts`, `app/src/lib/auth.ts`, `app/src/server/services/auth.service.ts`, `app/src/server/auth-credentials.ts`, `app/src/server/queries/user.queries.ts`, 관련 테스트 |
+| 로그아웃 시 JWT 세션을 서버 기준으로 무효화하고 탭 간 auth 상태를 즉시 동기화 | Codex | P0 | `done` | 로그아웃 전에 서버에서 현재 사용자 세션 버전을 갱신해 이전 JWT가 재사용되지 않고, 로그인/로그아웃 후 다른 탭의 헤더 auth 상태도 즉시 갱신된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/services/auth.service.ts`, `app/src/app/api/auth/logout/route.ts`, `app/src/components/auth/auth-controls.tsx`, `app/src/lib/viewer-shell-sync.ts`, `app/src/components/navigation/app-shell-header.tsx`, 관련 테스트 |
+| 정지 계정의 로그인/세션 유지/API 접근을 일관되게 차단 | Codex | P0 | `done` | 활성 제재 계정은 credentials/OAuth 로그인과 기존 JWT 세션 유지가 차단되고, 인증 helper만 쓰는 API도 더 이상 정지 계정으로 호출되지 않는다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/auth.ts`, `app/src/server/auth-credentials.ts`, `app/src/server/services/sanction.service.ts`, 관련 테스트 |
+| OAuth 계정 충돌 시 복구 가능한 에러 메시지로 치환 | Codex | P1 | `done` | `OAuthAccountNotLinked` 등 소셜/이메일 충돌 시 로그인 화면에 원인과 복구 방법이 구체적으로 안내된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/auth/login-form.tsx` |
+
 ### Cycle 264: 알림/공개프로필/상대시간 freshness 보강 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

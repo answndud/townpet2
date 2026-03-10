@@ -1,6 +1,5 @@
 import { type User } from "next-auth";
 
-import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations/auth";
 import {
   LOGIN_ACCOUNT_IP_RULE_PREFIX,
@@ -8,12 +7,14 @@ import {
   type LoginRateLimitRule,
 } from "@/server/auth-login-rate-limit";
 import { recordAuthAuditEvent } from "@/server/auth-audit-log";
+import { findUserByEmailInsensitive } from "@/server/queries/user.queries";
 import { verifyPassword } from "@/server/password";
 import { getClientIp } from "@/server/request-context";
 import {
   clearRateLimitKeys,
   enforceRateLimitAndReturnState,
 } from "@/server/rate-limit";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
 
 const LOGIN_DELAY_STEP_MS = 750;
@@ -144,17 +145,14 @@ export async function authorizeCredentialsLogin(
     return null;
   }
 
-  const existingUser = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-    select: {
-      id: true,
-      email: true,
-      nickname: true,
-      image: true,
-      passwordHash: true,
-      emailVerified: true,
-      sessionVersion: true,
-    },
+  const existingUser = await findUserByEmailInsensitive(parsed.data.email, {
+    id: true,
+    email: true,
+    nickname: true,
+    image: true,
+    passwordHash: true,
+    emailVerified: true,
+    sessionVersion: true,
   });
 
   if (!existingUser) {
@@ -206,6 +204,23 @@ export async function authorizeCredentialsLogin(
       attemptCount,
     });
     return null;
+  }
+
+  try {
+    await assertUserInteractionAllowed(existingUser.id);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      await handleFailedLogin({
+        email: parsed.data.email,
+        userId: existingUser.id,
+        ipAddress: clientIp,
+        userAgent,
+        reasonCode: error.code,
+        attemptCount,
+      });
+      return null;
+    }
+    throw error;
   }
 
   await recordAuthAuditEvent({

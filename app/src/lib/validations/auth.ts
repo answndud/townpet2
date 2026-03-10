@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { normalizeAuthEmail } from "@/lib/auth-email";
+
 const breachedPasswordDenySet = new Set([
   "12345678",
   "123456789",
@@ -16,6 +18,11 @@ const breachedPasswordDenySet = new Set([
 ]);
 
 const loginPasswordSchema = z.string().min(1).max(72);
+const normalizedEmailSchema = z
+  .string()
+  .trim()
+  .email()
+  .transform((value) => normalizeAuthEmail(value));
 
 const strongPasswordSchema = z
   .string()
@@ -67,12 +74,12 @@ const strongPasswordSchema = z
   });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmailSchema,
   password: loginPasswordSchema,
 });
 
 export const registerSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmailSchema,
   password: strongPasswordSchema,
   nickname: z
     .string()
@@ -87,7 +94,7 @@ export const passwordSetupSchema = z.object({
 });
 
 export const passwordResetRequestSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmailSchema,
 });
 
 export const passwordResetConfirmSchema = z.object({
@@ -96,11 +103,16 @@ export const passwordResetConfirmSchema = z.object({
 });
 
 export const emailVerificationRequestSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmailSchema,
 });
 
 export const emailVerificationConfirmSchema = z.object({
   token: z.string().min(32),
+});
+
+export const socialAccountLinkSchema = z.object({
+  provider: z.enum(["kakao", "naver"]),
+  providerAccountId: z.string().trim().min(1).max(191),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -114,3 +126,4 @@ export type EmailVerificationRequestInput = z.infer<
 export type EmailVerificationConfirmInput = z.infer<
   typeof emailVerificationConfirmSchema
 >;
+export type SocialAccountLinkInput = z.infer<typeof socialAccountLinkSchema>;

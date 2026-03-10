@@ -1,6 +1,6 @@
 # PROGRESS.md
 
-기준일: 2026-03-09
+기준일: 2026-03-10
 
 ## 진행 현황 요약
 - Cycle 1~20: 완료
@@ -17,6 +17,94 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-10: Cycle 269 완료 (운영 DB 인증 이메일 preflight 추가)
+- 완료 내용
+- `app/src/server/auth-email-readiness.ts`와 `app/src/server/auth-email-readiness.test.ts`를 추가해 `User.email`과 `VerificationToken.identifier`의 `trim+lowercase` 기준 중복, 정규화 drift, 잘못된 normalized 값 유입 여부를 공용 helper와 회귀 테스트로 점검할 수 있게 했다.
+- `app/scripts/check-auth-email-readiness.ts`를 추가하고 `app/package.json`에 `pnpm ops:check:auth-email-readiness` 스크립트를 등록해, 운영 DB 반영 전 case-insensitive email migration readiness를 독립적으로 확인할 수 있게 했다.
+- `app/scripts/vercel-build.ts`는 production Vercel target에서 `ops:check:security-env:strict` 다음 단계로 auth email readiness preflight를 실행하도록 바뀌었고, preview는 기본 skip, `DEPLOY_AUTH_EMAIL_PREFLIGHT_STRICT=1`이면 opt-in, `DEPLOY_AUTH_EMAIL_PREFLIGHT_SKIP=1`이면 강제 skip할 수 있게 정리했다.
+- `app/scripts/vercel-build.test.ts`는 production build 실행 순서에 새 preflight가 포함되는지와, auth email preflight 실패 시 `prisma migrate deploy` 이전에 fail-fast 되는지 회귀 테스트로 고정했다.
+- `docs/개발_운영_가이드.md`, `docs/operations/Vercel_OAuth_초기설정_가이드.md`, `docs/operations/manual-checks/배포_보안_체크리스트.md`, `docs/security/보안_진행상황.md`에 운영 수동 실행 경로와 build gate 동작을 반영했다.
+- 검증 결과
+- `pnpm -C app lint scripts/check-auth-email-readiness.ts scripts/vercel-build.ts scripts/vercel-build.test.ts src/server/auth-email-readiness.ts src/server/auth-email-readiness.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/auth-email-readiness.test.ts scripts/vercel-build.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `118 files / 591 tests` 통과
+- `pnpm -C app ops:check:auth-email-readiness` 실행 결과 `summary: pass=5, warn=0, fail=0`
+- `git diff --check` 통과
+- 메모
+- 현재 로컬 DB 기준으로는 `users=35`, `verificationTokens=0` 상태에서 duplicate/drift 없이 readiness가 모두 `PASS`였다. production 반영 전에는 같은 명령을 운영 `DATABASE_URL` 기준으로 한 번 더 실행하는 것이 권장된다.
+
+### 2026-03-10: Cycle 268 완료 (인증 E2E 및 수동 검증 시나리오 보강)
+- 완료 내용
+- `app/e2e/auth-session-hardening.spec.ts`를 추가해 credentials 로그인 대소문자 이메일 허용, 멀티탭 로그인/로그아웃 상태 동기화, 로그아웃 후 오래된 세션 쿠키의 `/api/viewer-shell` 무효화를 Playwright로 고정했다.
+- 같은 파일에서 활성 제재 계정의 credentials 로그인을 차단하는 failure-path 시나리오를 추가했다.
+- `app/e2e/profile-social-account-linking.spec.ts`를 추가해 local/dev(`ENABLE_SOCIAL_DEV_LOGIN=1`) 환경에서 `/profile`의 카카오 계정 연결 성공과 `OAuthAccountNotLinked` 복구 안내 문구/복귀 링크를 Playwright로 검증하도록 정리했다.
+- `app/e2e/support/auth-helpers.ts`를 추가해 credentials 사용자/모더레이터 seed, 테스트 로그인, stale cookie 캡처 helper를 공용화했다.
+- 로그인/로그아웃 직후 다른 탭 헤더가 즉시 갱신되도록 `app/src/components/auth/login-form.tsx`, `app/src/components/auth/auth-controls.tsx`에서 `emitViewerShellSync()`를 직접 호출하게 했고, 헤더 비로그인 상태 검증용으로 `app/src/components/navigation/app-shell-header.tsx`에 `data-testid="header-login-link"`를 추가했다.
+- `app/src/components/profile/profile-social-account-connections.tsx`의 연결/연결됨 상태 selector를 기반으로 auth E2E에서 프로필 소셜 연동 UI를 안정적으로 검증하게 했다.
+- 운영자가 preview/production에서 직접 확인할 수 있도록 `docs/operations/manual-checks/인증_소셜로그인_체크리스트.md`를 추가했고, `docs/operations/manual-checks/수동점검_안내.md`에 참조를 연결했다.
+- `app/package.json`에는 auth 전용 Playwright 스크립트 `test:e2e:auth`를 추가하고, 해당 스위트는 인증/세션 상태를 다루므로 `--workers=1` 직렬 실행으로 고정했다.
+- 검증 결과
+- `pnpm -C app lint e2e/auth-session-hardening.spec.ts e2e/profile-social-account-linking.spec.ts e2e/support/auth-helpers.ts src/components/auth/login-form.tsx src/components/auth/auth-controls.tsx src/components/navigation/app-shell-header.tsx src/components/profile/profile-social-account-connections.tsx src/lib/oauth-link-intent.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/server/auth-credentials.test.ts src/app/api/auth/logout/route.test.ts src/lib/social-auth.test.ts src/server/services/auth-account-link.service.test.ts src/app/api/auth/social-dev/link/route.test.ts src/lib/viewer-shell-sync.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `117 files / 588 tests` 통과
+- Playwright 브라우저 바이너리 설치: `pnpm -C app exec playwright install chromium`
+- 로컬 dev 서버(`ENABLE_SOCIAL_DEV_LOGIN=1 ./node_modules/.bin/next dev --webpack --port 3000`)를 띄운 뒤, `PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 ENABLE_SOCIAL_DEV_LOGIN=1 pnpm -C app exec playwright test e2e/auth-session-hardening.spec.ts e2e/profile-social-account-linking.spec.ts --project=chromium --workers=1` 실행 결과 `4 passed`
+- `git diff --check` 통과
+- 메모
+- 이 세션 환경에서는 Playwright의 기본 `webServer`와 Chromium launch가 샌드박스 제약에 걸려, 브라우저 설치/3000 dev 서버 기동/Playwright 실행을 모두 권한 상승 경로로 검증했다. 저장소 스크립트 `pnpm -C app test:e2e:auth`는 그대로 남겼다.
+
+### 2026-03-10: Cycle 267 완료 (OAuth 계정 연결/복구 플로우 추가)
+- 완료 내용
+- `app/src/lib/social-auth.ts`를 추가해 카카오/네이버 provider label, 계정 연동 notice, OAuth 오류 복구 메시지를 한곳에서 관리하도록 정리했다.
+- `app/src/components/profile/profile-social-account-connections.tsx`를 추가하고 `app/src/app/profile/page.tsx`에 연결해, 프로필에서 현재 로그인 방식, 이메일 로그인 설정 여부, 연결된 소셜 provider 상태를 확인하고 카카오/네이버를 같은 계정에 연결할 수 있게 했다.
+- 위 프로필 연결 UI는 실제 OAuth provider가 설정된 경우에는 일반 OAuth linking 흐름을 타고, local/dev에서 `ENABLE_SOCIAL_DEV_LOGIN=1`인 경우에는 `app/src/app/api/auth/social-dev/link/route.ts`를 통해 Account row를 연결하는 개발용 검증 경로를 사용한다.
+- `app/src/lib/oauth-link-intent.ts`를 추가해 프로필에서 시작한 OAuth 연동 시도를 sessionStorage에 저장하고, `app/src/components/auth/login-form.tsx`는 `OAuthAccountNotLinked` 오류가 난 경우 "원래 로그인 방식으로 먼저 접속한 뒤 프로필에서 연결"이라는 실제 복구 동선을 안내하고 프로필 복귀 링크도 보여주게 바꿨다.
+- `app/src/lib/auth.ts`의 `signIn` callback은 같은 provider가 이미 연결된 계정에 다른 providerAccountId를 추가 연결하려는 시도를 서버에서 차단해, 한 계정에 서로 다른 카카오/네이버 계정이 중복 연결되지 않게 막는다.
+- `app/src/server/services/auth.service.ts`에 `linkSocialAccountForUser`를 추가했고, `app/src/server/queries/user.queries.ts`의 `linkedAccountProviders`는 중복 provider가 섞여도 dedupe된 배열을 반환하도록 정리했다.
+- 검증 결과
+- `pnpm -C app lint src/lib/social-auth.ts src/lib/social-auth.test.ts src/lib/oauth-link-intent.ts src/lib/validations/auth.ts src/server/services/auth.service.ts src/server/services/auth-account-link.service.test.ts src/app/api/auth/social-dev/link/route.ts src/app/api/auth/social-dev/link/route.test.ts src/lib/auth.ts src/server/queries/user.queries.ts src/components/auth/login-form.tsx src/components/profile/profile-social-account-connections.tsx src/app/profile/page.tsx src/lib/password-management.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/social-auth.test.ts src/server/services/auth-account-link.service.test.ts src/app/api/auth/social-dev/link/route.test.ts src/server/auth-credentials.test.ts src/server/services/auth.service.test.ts src/app/api/auth/logout/route.test.ts src/app/api/auth/register/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `117 files / 588 tests` 통과
+- `git diff --check` 통과
+- 메모
+- 실제 프로덕션 OAuth 연결은 Auth.js의 "로그인된 상태에서 새 OAuth provider를 연결하면 안전하게 linkAccount" 동작을 사용한다. 이번 턴의 `social-dev` link route는 local/dev 검증용 보조 경로이며 production에서는 비활성화된다.
+
+### 2026-03-10: Cycle 266 완료 (인증 이메일 DB 레벨 하드닝)
+- 완료 내용
+- `app/prisma/schema.prisma`의 Prisma client generator에 `postgresqlExtensions` preview feature를 추가하고, datasource에 `extensions = [citext]`를 선언해 `db push` 기준 새 DB에서도 `citext` 타입을 인식하도록 맞췄다.
+- 같은 schema에서 `User.email`과 `VerificationToken.identifier`를 각각 `@db.Citext`로 전환해 DB 레벨에서도 대소문자 비구분 비교가 강제되게 했다.
+- `app/prisma/migrations/20260310101500_make_auth_emails_case_insensitive/migration.sql`을 추가해 `citext` extension 생성, 기존 `User.email` / `VerificationToken.identifier` trim+lowercase 정규화, `User.email`의 case-insensitive duplicate guard, 컬럼 타입 전환까지 한 번에 수행하도록 정리했다.
+- 이 변경으로 앱 레벨 normalize + case-insensitive lookup 위에 DB 컬럼과 unique 제약도 같은 규칙을 강제하게 됐다.
+- 검증 결과
+- `pnpm -C app exec prisma format` 통과
+- `pnpm -C app exec prisma generate` 통과
+- `pnpm -C app exec prisma validate` 통과
+- `pnpm -C app db:push` 통과
+- `pnpm -C app lint src/lib/auth-email.ts src/lib/validations/auth.ts src/lib/validations/auth.test.ts src/server/queries/user.queries.ts src/server/services/auth.service.ts src/server/services/auth.service.test.ts src/server/auth-credentials.ts src/server/auth-credentials.test.ts src/lib/auth.ts src/app/api/auth/logout/route.ts src/app/api/auth/logout/route.test.ts src/components/auth/auth-controls.tsx src/lib/viewer-shell-sync.ts src/lib/viewer-shell-sync.test.ts src/components/navigation/app-shell-header.tsx src/components/auth/login-form.tsx src/app/api/auth/register/route.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/validations/auth.test.ts src/server/auth-credentials.test.ts src/server/services/auth.service.test.ts src/app/api/auth/register/route.test.ts src/app/api/auth/logout/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `114 files / 580 tests` 통과
+- `git diff --check` 통과
+- 메모
+- 이번 턴에서는 local dev DB를 `db push`로 새 schema에 맞췄고, 기존 manual migration chain까지 다시 적용하는 `prisma migrate dev`는 drift/reset 리스크 때문에 재실행하지 않았다.
+
+### 2026-03-10: Cycle 265 완료 (인증/권한/세션 하드닝 1차)
+- 완료 내용
+- `app/src/lib/auth-email.ts`를 추가하고 `app/src/lib/validations/auth.ts`의 로그인/회원가입/비밀번호 재설정/이메일 인증 스키마를 모두 trim+lowercase normalize로 통일했다.
+- `app/src/server/queries/user.queries.ts`에 case-insensitive email lookup을 추가하고 `getUserByEmail`, `getUserRoleByEmail`도 같은 기준을 쓰게 바꿨다.
+- `app/src/server/services/auth.service.ts`, `app/src/server/auth-credentials.ts`, `app/src/lib/auth.ts`는 가입/로그인/인증/비밀번호 재설정과 OAuth adapter `getUserByEmail/createUser/updateUser`가 모두 normalize된 email을 사용하도록 정리했다.
+- `app/src/app/api/auth/logout/route.ts`와 `app/src/server/services/auth.service.ts`의 `invalidateUserSessions`를 추가해 로그아웃 전에 서버 기준 `sessionVersion`을 증가시키고, `app/src/components/auth/auth-controls.tsx`는 먼저 이 route를 호출한 뒤 client signOut을 수행하도록 바꿨다.
+- `app/src/lib/auth.ts`의 NextAuth `signIn`/`jwt` callback은 활성 제재 사용자를 확인해 OAuth 로그인과 기존 JWT 세션 유지를 모두 차단하도록 보강했다.
+- `app/src/lib/viewer-shell-sync.ts`는 local custom event에 더해 `localStorage` 기반 cross-tab sync를 보내도록 확장했고, `app/src/components/navigation/app-shell-header.tsx`는 auth 상태 스냅샷이 바뀌면 다른 탭으로 sync를 전파하게 했다.
+- `app/src/components/auth/login-form.tsx`는 `OAuthAccountNotLinked`, `ACCOUNT_SUSPENDED`, `ACCOUNT_PERMANENTLY_BANNED` 에러를 generic 문구 대신 복구 가능한 안내 메시지로 매핑한다.
+- `docs/security/SECURITY_PLAN.md`, `docs/security/SECURITY_PROGRESS.md`는 현재 저장소에 존재하지 않아 이번 턴의 참고 문서에는 포함하지 못했다.
+- 검증 결과
+- `pnpm -C app lint src/lib/auth-email.ts src/lib/validations/auth.ts src/lib/validations/auth.test.ts src/server/queries/user.queries.ts src/server/services/auth.service.ts src/server/services/auth.service.test.ts src/server/auth-credentials.ts src/server/auth-credentials.test.ts src/lib/auth.ts src/app/api/auth/logout/route.ts src/app/api/auth/logout/route.test.ts src/components/auth/auth-controls.tsx src/lib/viewer-shell-sync.ts src/lib/viewer-shell-sync.test.ts src/components/navigation/app-shell-header.tsx src/components/auth/login-form.tsx src/app/api/auth/register/route.test.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `pnpm -C app test -- src/lib/viewer-shell-sync.test.ts src/server/auth-credentials.test.ts src/server/services/auth.service.test.ts src/app/api/auth/logout/route.test.ts src/lib/validations/auth.test.ts src/app/api/auth/register/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `114 files / 580 tests` 통과
+- `git diff --check` 통과
+- 메모
+- 이번 턴에서는 OAuth 계정 연결 자체를 새로 만들지는 않고, 충돌 원인과 복구 방법을 로그인 화면에서 분명히 안내하는 수준까지 정리했다.
+
 ### 2026-03-09: Cycle 264 완료 (알림/공개프로필/상대시간 freshness 보강)
 - 완료 내용
 - `app/src/components/notifications/notification-bell.tsx`에서 알림 드롭다운이 최초 1회 로드에 고정되지 않도록 `loadPreview`를 `useCallback`으로 정리하고, 패널을 열 때마다 최신 목록을 다시 불러오게 바꿨다.

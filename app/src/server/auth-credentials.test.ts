@@ -1,25 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { prisma } from "@/lib/prisma";
 import { authorizeCredentialsLogin, resolveFailedLoginDelayMs } from "@/server/auth-credentials";
 import { recordAuthAuditEvent } from "@/server/auth-audit-log";
+import { findUserByEmailInsensitive } from "@/server/queries/user.queries";
 import { verifyPassword } from "@/server/password";
 import {
   clearRateLimitKeys,
   enforceRateLimitAndReturnState,
 } from "@/server/rate-limit";
+import { assertUserInteractionAllowed } from "@/server/services/sanction.service";
 import { ServiceError } from "@/server/services/service-error";
-
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    user: {
-      findUnique: vi.fn(),
-    },
-  },
-}));
 
 vi.mock("@/server/auth-audit-log", () => ({
   recordAuthAuditEvent: vi.fn(),
+}));
+
+vi.mock("@/server/queries/user.queries", () => ({
+  findUserByEmailInsensitive: vi.fn(),
 }));
 
 vi.mock("@/server/password", () => ({
@@ -31,27 +28,30 @@ vi.mock("@/server/rate-limit", () => ({
   clearRateLimitKeys: vi.fn(),
 }));
 
-const mockPrisma = vi.mocked(prisma) as unknown as {
-  user: {
-    findUnique: ReturnType<typeof vi.fn>;
-  };
-};
 const mockVerifyPassword = vi.mocked(verifyPassword);
 const mockRecordAuthAuditEvent = vi.mocked(recordAuthAuditEvent);
+const mockFindUserByEmailInsensitive = vi.mocked(findUserByEmailInsensitive);
 const mockEnforceRateLimitAndReturnState = vi.mocked(enforceRateLimitAndReturnState);
 const mockClearRateLimitKeys = vi.mocked(clearRateLimitKeys);
+const mockAssertUserInteractionAllowed = vi.mocked(assertUserInteractionAllowed);
+
+vi.mock("@/server/services/sanction.service", () => ({
+  assertUserInteractionAllowed: vi.fn(),
+}));
 
 describe("authorizeCredentialsLogin", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mockPrisma.user.findUnique.mockReset();
     mockVerifyPassword.mockReset();
     mockRecordAuthAuditEvent.mockReset();
+    mockFindUserByEmailInsensitive.mockReset();
     mockEnforceRateLimitAndReturnState.mockReset();
     mockClearRateLimitKeys.mockReset();
+    mockAssertUserInteractionAllowed.mockReset();
 
     mockRecordAuthAuditEvent.mockResolvedValue(undefined);
     mockClearRateLimitKeys.mockResolvedValue(undefined);
+    mockAssertUserInteractionAllowed.mockResolvedValue();
   });
 
   afterEach(() => {
@@ -85,7 +85,7 @@ describe("authorizeCredentialsLogin", () => {
         reasonCode: "RATE_LIMITED",
       }),
     );
-    expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mockFindUserByEmailInsensitive).not.toHaveBeenCalled();
   });
 
   it("records invalid password failures and applies stepped delay", async () => {
@@ -93,7 +93,7 @@ describe("authorizeCredentialsLogin", () => {
       .mockResolvedValueOnce({ count: 1, resetAt: Date.now() + 60_000 })
       .mockResolvedValueOnce({ count: 3, resetAt: Date.now() + 60_000 })
       .mockResolvedValueOnce({ count: 3, resetAt: Date.now() + 60_000 });
-    mockPrisma.user.findUnique.mockResolvedValue({
+    mockFindUserByEmailInsensitive.mockResolvedValue({
       id: "user-1",
       email: "user@test.dev",
       nickname: "tester",
@@ -161,7 +161,7 @@ describe("authorizeCredentialsLogin", () => {
         reasonCode: "INVALID_INPUT",
       }),
     );
-    expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mockFindUserByEmailInsensitive).not.toHaveBeenCalled();
   });
 
   it("records successful login and clears account-scoped counters", async () => {
@@ -169,7 +169,7 @@ describe("authorizeCredentialsLogin", () => {
       .mockResolvedValueOnce({ count: 1, resetAt: Date.now() + 60_000 })
       .mockResolvedValueOnce({ count: 2, resetAt: Date.now() + 60_000 })
       .mockResolvedValueOnce({ count: 2, resetAt: Date.now() + 60_000 });
-    mockPrisma.user.findUnique.mockResolvedValue({
+    mockFindUserByEmailInsensitive.mockResolvedValue({
       id: "user-1",
       email: "user@test.dev",
       nickname: "tester",
@@ -208,5 +208,47 @@ describe("authorizeCredentialsLogin", () => {
       expect.stringContaining("auth:login:account-ip:"),
       expect.stringContaining("auth:login:account:"),
     ]);
+  });
+
+  it("rejects suspended users after password verification succeeds", async () => {
+    mockEnforceRateLimitAndReturnState
+      .mockResolvedValueOnce({ count: 1, resetAt: Date.now() + 60_000 })
+      .mockResolvedValueOnce({ count: 1, resetAt: Date.now() + 60_000 })
+      .mockResolvedValueOnce({ count: 1, resetAt: Date.now() + 60_000 });
+    mockFindUserByEmailInsensitive.mockResolvedValue({
+      id: "user-1",
+      email: "user@test.dev",
+      nickname: "tester",
+      image: null,
+      passwordHash: "stored-hash",
+      emailVerified: new Date("2026-03-01T00:00:00.000Z"),
+      sessionVersion: 4,
+    });
+    mockVerifyPassword.mockResolvedValue(true);
+    mockAssertUserInteractionAllowed.mockRejectedValue(
+      new ServiceError("정지", "ACCOUNT_SUSPENDED", 403),
+    );
+
+    const result = await authorizeCredentialsLogin(
+      {
+        email: "user@test.dev",
+        password: "Password1!",
+      },
+      {
+        headers: new Headers({
+          "x-forwarded-for": "203.0.113.15",
+          "user-agent": "Vitest",
+        }),
+      },
+    );
+
+    expect(result).toBeNull();
+    expect(mockRecordAuthAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "LOGIN_FAILURE",
+        userId: "user-1",
+        reasonCode: "ACCOUNT_SUSPENDED",
+      }),
+    );
   });
 });

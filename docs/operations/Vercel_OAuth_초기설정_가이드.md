@@ -31,7 +31,7 @@
    - Framework Preset: `Next.js`
    - Root Directory: `app`
    - Build Command: `pnpm build:vercel` (Root Directory=`app` 기준 `app/vercel.json`과 동일)
-   - production 배포에서는 `build:vercel`가 strict security env preflight를 먼저 실행하므로, 필수 secret이 빠지면 빌드 초반에 실패
+   - production 배포에서는 `build:vercel`가 strict security env preflight 다음에 auth email readiness preflight까지 먼저 실행하므로, 필수 secret 누락이나 email migration readiness 문제가 있으면 빌드 초반에 실패
 5. 우선 빈 환경변수로는 실패할 수 있으니, 아래 2단계까지 진행 후 Deploy
 
 ---
@@ -99,8 +99,15 @@ OAuth 연결 전 임시로 비워도 되는 값:
 - 예: `openssl rand -base64 32`
 
 중요:
-- production 배포는 `build:vercel` 시작 시 strict security env preflight를 먼저 실행합니다.
+- production 배포는 `build:vercel` 시작 시 strict security env preflight와 auth email readiness preflight를 먼저 실행합니다.
 - `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `UPSTASH_REDIS_REST_URL/TOKEN`이 빠지면 빌드 초반에 실패합니다.
+- `trim+lowercase` 기준 duplicate email이나 verification identifier drift가 있으면 `prisma migrate deploy` 전에 빌드가 중단됩니다.
+
+권장 사전 점검:
+
+```bash
+cd /Users/alex/project/townpet/app && pnpm ops:check:auth-email-readiness
+```
 
 ---
 
