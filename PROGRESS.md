@@ -17,6 +17,19 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-10: Cycle 292 완료 (모바일 헤더 상단 액션 정렬)
+- 완료 내용
+  - `app/src/components/navigation/app-shell-header.tsx`에 모바일 전용 상단 quick action 영역을 추가해 `내 프로필`과 `로그인`(인증 시 `로그아웃`)을 TownPet 로고와 같은 행으로 이동시켰다.
+  - 같은 파일은 기존 nav 안의 `내 프로필`/`로그인`/`로그아웃` 항목을 `md` 이상에서만 보이도록 바꿔 모바일 중복 노출을 제거했다.
+  - `app/src/components/navigation/app-shell-header-class.ts`에 모바일 quick link 클래스 상수를 추가해 높이와 font를 줄인 스타일을 분리했고, `app/src/components/auth/auth-controls.tsx`는 커스텀 className을 받을 수 있도록 확장했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/navigation/app-shell-header.tsx src/components/navigation/app-shell-header-class.ts src/components/navigation/app-shell-header-class.test.ts src/components/auth/auth-controls.tsx` 통과
+  - `pnpm -C app test -- src/components/navigation/app-shell-header-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `131 files / 663 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 조정은 모바일 헤더 상단 배치와 폰트 축소에 한정했고, 알림 벨/게시판 메뉴 같은 다른 모바일 네비게이션 구성은 유지했다.
+
 ### 2026-03-10: Cycle 291 완료 (검색/보드 필터링 E2E 보강)
 - 완료 내용
   - `app/e2e/search-and-board-filtering.spec.ts`를 추가해 인증 사용자의 `/search` global/local scope 전환, 인증 검색에서 `HIDDEN` 게시글 비노출, 입양 보드에서 차단 작성자 게시글 비노출을 Playwright로 검증하도록 했다.

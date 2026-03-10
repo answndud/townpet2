@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   APP_SHELL_HEADER_CLASS_NAME,
+  APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME,
   hasMobileStickyHeader,
   shouldRefreshViewerShellOnFocus,
 } from "@/components/navigation/app-shell-header-class";
@@ -17,5 +18,11 @@ describe("app shell header classes", () => {
     expect(shouldRefreshViewerShellOnFocus("/feed")).toBe(false);
     expect(shouldRefreshViewerShellOnFocus("/feed/guest")).toBe(false);
     expect(shouldRefreshViewerShellOnFocus("/posts/abc")).toBe(true);
+  });
+
+  it("uses a smaller mobile quick-link style for top-row actions", () => {
+    expect(APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME).toContain("text-[11px]");
+    expect(APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME).toContain("h-7");
+    expect(APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME).toContain("rounded-md");
   });
 });

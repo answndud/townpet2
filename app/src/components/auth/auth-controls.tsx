@@ -8,9 +8,10 @@ import { emitViewerShellSync } from "@/lib/viewer-shell-sync";
 
 type AuthControlsProps = {
   label: string;
+  className?: string;
 };
 
-export function AuthControls({ label }: AuthControlsProps) {
+export function AuthControls({ label, className }: AuthControlsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -18,7 +19,10 @@ export function AuthControls({ label }: AuthControlsProps) {
     <button
       type="button"
       data-testid="auth-logout-button"
-      className="inline-flex h-8 items-center rounded-sm px-1 text-[14px] leading-none text-[#173963] transition hover:bg-[#dcecff] hover:text-[#0f2f56] disabled:opacity-60"
+      className={
+        className ??
+        "inline-flex h-8 items-center rounded-sm px-1 text-[14px] leading-none text-[#173963] transition hover:bg-[#dcecff] hover:text-[#0f2f56] disabled:opacity-60"
+      }
       onClick={() =>
         startTransition(async () => {
           await fetch("/api/auth/logout", {

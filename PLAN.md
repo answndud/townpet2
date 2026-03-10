@@ -26,6 +26,11 @@
 
 ## Active Plan
 
+### Cycle 292: 모바일 헤더 상단 액션 정렬 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 모바일 헤더에서 `내 프로필`/`로그인`을 로고와 같은 행으로 올리고 폰트 크기 축소 | Codex | P2 | `done` | 모바일 viewport에서 `내 프로필`과 `로그인`(또는 `로그아웃`)이 TownPet 로고와 같은 상단 행에 배치되고, 기존보다 작은 font/height의 quick action 스타일을 사용하며, 데스크톱 네비게이션 동작은 유지되고 관련 class 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/navigation/app-shell-header.tsx`, `app/src/components/navigation/app-shell-header-class.ts`, `app/src/components/navigation/app-shell-header-class.test.ts`, `app/src/components/auth/auth-controls.tsx` |
+
 ### Cycle 291: 검색/보드 필터링 E2E 보강 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

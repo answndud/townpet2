@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { AuthControls } from "@/components/auth/auth-controls";
 import {
   APP_SHELL_HEADER_CLASS_NAME,
+  APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME,
   shouldRefreshViewerShellOnFocus,
 } from "@/components/navigation/app-shell-header-class";
 import { FeedHoverMenu } from "@/components/navigation/feed-hover-menu";
@@ -111,16 +112,37 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
   return (
     <header className={APP_SHELL_HEADER_CLASS_NAME}>
       <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-1.5 px-4 py-2 sm:gap-2 sm:px-6 sm:py-2.5 lg:px-10 lg:py-3 xl:flex-row xl:items-center xl:justify-between">
-        <Link href="/" className="inline-flex items-center" aria-label="TownPet 홈으로 이동">
-          <Image
-            src="/townpet-logo.svg"
-            alt="TownPet"
-            width={274}
-            height={72}
-            priority
-            className="h-[34px] w-auto sm:h-[40px]"
-          />
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex items-center" aria-label="TownPet 홈으로 이동">
+            <Image
+              src="/townpet-logo.svg"
+              alt="TownPet"
+              width={274}
+              height={72}
+              priority
+              className="h-[34px] w-auto sm:h-[40px]"
+            />
+          </Link>
+          <div className="flex items-center gap-1.5 md:hidden">
+            <Link href="/profile" className={APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME}>
+              내 프로필
+            </Link>
+            {viewerShell.isAuthenticated ? (
+              <AuthControls
+                label="로그아웃"
+                className={`${APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME} text-[#173963] hover:text-[#0f2f56] disabled:opacity-60`}
+              />
+            ) : (
+              <Link
+                href="/login"
+                data-testid="header-login-link-mobile"
+                className={`${APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME} text-[#173963] hover:text-[#0f2f56]`}
+              >
+                로그인
+              </Link>
+            )}
+          </div>
+        </div>
         <nav className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[14px] font-medium text-[#315484] sm:gap-x-3 sm:gap-y-1.5 xl:gap-x-3.5">
           {pathname !== "/feed" ? (
             <Link href="/feed" className={`${navLinkClass} md:hidden`}>
@@ -134,7 +156,7 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
             initialPreferredPetTypeIds={preferredPetTypeIds}
           />
           <span className="hidden px-0.5 text-[#9ab0cf] md:inline">|</span>
-          <Link href="/profile" className={navLinkClass}>
+          <Link href="/profile" className={`${navLinkClass} hidden md:inline-flex`}>
             내 프로필
           </Link>
           {viewerShell.isAuthenticated ? (
@@ -159,13 +181,13 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
           {viewerShell.isAuthenticated ? (
             <>
               <span className="hidden px-0.5 text-[#9ab0cf] md:inline">|</span>
-              <AuthControls label="로그아웃" />
+              <AuthControls className="hidden md:inline-flex h-8 items-center rounded-sm px-1 text-[14px] leading-none text-[#173963] transition hover:bg-[#dcecff] hover:text-[#0f2f56] disabled:opacity-60" label="로그아웃" />
             </>
           ) : (
             <Link
               href="/login"
               data-testid="header-login-link"
-              className={`${navLinkClass} text-[#173963] hover:text-[#0f2f56]`}
+              className={`${navLinkClass} hidden md:inline-flex text-[#173963] hover:text-[#0f2f56]`}
             >
               로그인
             </Link>
