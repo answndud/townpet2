@@ -54,6 +54,11 @@ export async function requireAuthenticatedUserId() {
   return userId;
 }
 
+export async function requireCurrentUserId() {
+  const user = await requireCurrentUser();
+  return user.id;
+}
+
 export async function getCurrentUserRole() {
   const session = await auth();
   if (session?.user?.id) {

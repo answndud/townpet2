@@ -2,33 +2,33 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/profile/audience-segments/route";
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listAudienceSegmentsByUserId } from "@/server/queries/audience-segment.queries";
 import { ServiceError } from "@/server/services/service-error";
 
-vi.mock("@/server/auth", () => ({ requireAuthenticatedUserId: vi.fn() }));
+vi.mock("@/server/auth", () => ({ requireCurrentUserId: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/audience-segment.queries", () => ({
   listAudienceSegmentsByUserId: vi.fn(),
 }));
 
-const mockRequireAuthenticatedUserId = vi.mocked(requireAuthenticatedUserId);
+const mockRequireCurrentUserId = vi.mocked(requireCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockListAudienceSegmentsByUserId = vi.mocked(listAudienceSegmentsByUserId);
 
 describe("GET /api/profile/audience-segments contract", () => {
   beforeEach(() => {
-    mockRequireAuthenticatedUserId.mockReset();
+    mockRequireCurrentUserId.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockListAudienceSegmentsByUserId.mockReset();
 
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-1");
+    mockRequireCurrentUserId.mockResolvedValue("user-1");
     mockListAudienceSegmentsByUserId.mockResolvedValue([]);
   });
 
   it("returns AUTH_REQUIRED when user is not authenticated", async () => {
-    mockRequireAuthenticatedUserId.mockRejectedValue(
+    mockRequireCurrentUserId.mockRejectedValue(
       new ServiceError("login", "AUTH_REQUIRED", 401),
     );
 
@@ -42,6 +42,24 @@ describe("GET /api/profile/audience-segments contract", () => {
       ok: false,
       error: { code: "AUTH_REQUIRED" },
     });
+  });
+
+  it("returns ACCOUNT_SUSPENDED when the current user is sanctioned", async () => {
+    mockRequireCurrentUserId.mockRejectedValue(
+      new ServiceError("account suspended", "ACCOUNT_SUSPENDED", 403),
+    );
+
+    const response = await GET(
+      new Request("http://localhost/api/profile/audience-segments") as NextRequest,
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "ACCOUNT_SUSPENDED" },
+    });
+    expect(mockListAudienceSegmentsByUserId).not.toHaveBeenCalled();
   });
 
   it("returns no-store audience segment payload", async () => {

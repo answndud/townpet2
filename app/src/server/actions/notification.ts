@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   archiveNotification,
@@ -21,7 +21,7 @@ export async function markNotificationReadAction(
   let userId: string | undefined;
 
   try {
-    userId = await requireAuthenticatedUserId();
+    userId = await requireCurrentUserId();
 
     const changed = await markNotificationRead(userId, notificationId);
     if (changed) {
@@ -52,7 +52,7 @@ export async function markAllNotificationsReadAction(): Promise<NotificationActi
   let userId: string | undefined;
 
   try {
-    userId = await requireAuthenticatedUserId();
+    userId = await requireCurrentUserId();
 
     const updated = await markAllNotificationsRead(userId);
     if (updated > 0) {
@@ -85,7 +85,7 @@ export async function archiveNotificationAction(
   let userId: string | undefined;
 
   try {
-    userId = await requireAuthenticatedUserId();
+    userId = await requireCurrentUserId();
 
     const changed = await archiveNotification(userId, notificationId);
     if (changed) {

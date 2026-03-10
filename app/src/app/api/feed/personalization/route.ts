@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { feedPersonalizationMetricSchema } from "@/lib/validations/feed-personalization";
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { getClientIp } from "@/server/request-context";
@@ -11,7 +11,7 @@ import { ServiceError } from "@/server/services/service-error";
 
 export async function POST(request: NextRequest) {
   try {
-    const currentUserId = await requireAuthenticatedUserId();
+    const currentUserId = await requireCurrentUserId();
     const clientIp = getClientIp(request);
 
     await enforceRateLimit({

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSocialAccountLinkedNotice,
+  buildSocialAccountUnlinkedNotice,
   buildSocialAccountProviderAlreadyConnectedNotice,
   getAuthProviderLabel,
   getOAuthErrorMessage,
@@ -22,6 +23,10 @@ describe("social auth helpers", () => {
     expect(
       getSocialAccountNoticeMessage(buildSocialAccountLinkedNotice("kakao")),
     ).toContain("카카오 로그인을 이 계정에 연결했습니다.");
+
+    expect(
+      getSocialAccountNoticeMessage(buildSocialAccountUnlinkedNotice("kakao")),
+    ).toContain("카카오 로그인을 이 계정에서 해제했습니다.");
 
     expect(
       getSocialAccountNoticeMessage(

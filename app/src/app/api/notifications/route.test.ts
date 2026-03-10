@@ -2,14 +2,14 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/notifications/route";
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
 import { getClientIp } from "@/server/request-context";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { ServiceError } from "@/server/services/service-error";
 
-vi.mock("@/server/auth", () => ({ requireAuthenticatedUserId: vi.fn() }));
+vi.mock("@/server/auth", () => ({ requireCurrentUserId: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/notification.queries", () => ({
   listNotificationsByUser: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("@/server/queries/notification.queries", () => ({
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
 
-const mockRequireAuthenticatedUserId = vi.mocked(requireAuthenticatedUserId);
+const mockRequireCurrentUserId = vi.mocked(requireCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockListNotificationsByUser = vi.mocked(listNotificationsByUser);
 const mockGetClientIp = vi.mocked(getClientIp);
@@ -25,13 +25,13 @@ const mockEnforceRateLimit = vi.mocked(enforceRateLimit);
 
 describe("GET /api/notifications contract", () => {
   beforeEach(() => {
-    mockRequireAuthenticatedUserId.mockReset();
+    mockRequireCurrentUserId.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockListNotificationsByUser.mockReset();
     mockGetClientIp.mockReset();
     mockEnforceRateLimit.mockReset();
 
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-1");
+    mockRequireCurrentUserId.mockResolvedValue("user-1");
     mockGetClientIp.mockReturnValue("127.0.0.1");
     mockEnforceRateLimit.mockResolvedValue();
     mockListNotificationsByUser.mockResolvedValue({
@@ -44,7 +44,7 @@ describe("GET /api/notifications contract", () => {
   });
 
   it("maps auth service error to 401", async () => {
-    mockRequireAuthenticatedUserId.mockRejectedValue(
+    mockRequireCurrentUserId.mockRejectedValue(
       new ServiceError("login", "AUTH_REQUIRED", 401),
     );
     const request = new Request("http://localhost/api/notifications") as NextRequest;
@@ -57,6 +57,23 @@ describe("GET /api/notifications contract", () => {
       ok: false,
       error: { code: "AUTH_REQUIRED" },
     });
+  });
+
+  it("maps sanction error to 403", async () => {
+    mockRequireCurrentUserId.mockRejectedValue(
+      new ServiceError("account suspended", "ACCOUNT_SUSPENDED", 403),
+    );
+    const request = new Request("http://localhost/api/notifications") as NextRequest;
+
+    const response = await GET(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload).toMatchObject({
+      ok: false,
+      error: { code: "ACCOUNT_SUSPENDED" },
+    });
+    expect(mockListNotificationsByUser).not.toHaveBeenCalled();
   });
 
   it("returns INVALID_QUERY for malformed query params", async () => {

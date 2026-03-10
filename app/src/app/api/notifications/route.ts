@@ -5,7 +5,7 @@ import {
   notificationFilterKindValues,
   parseUnreadOnly,
 } from "@/lib/notification-filter";
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listNotificationsByUser } from "@/server/queries/notification.queries";
 import { getClientIp } from "@/server/request-context";
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   let userId: string | undefined;
 
   try {
-    const authenticatedUserId = await requireAuthenticatedUserId();
+    const authenticatedUserId = await requireCurrentUserId();
     userId = authenticatedUserId;
     const clientIp = getClientIp(request);
     await enforceRateLimit({

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPublicUserProfileById } from "@/server/queries/user.queries";
 import { jsonError, jsonOk } from "@/server/response";
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   let viewerId: string | undefined;
 
   try {
-    viewerId = await requireAuthenticatedUserId();
+    viewerId = await requireCurrentUserId();
     const { id } = await params;
     const profile = await getPublicUserProfileById(id);
 

@@ -13,14 +13,16 @@ type EnsureCredentialUserParams = {
   email: string;
   password?: string;
   nicknamePrefix?: string;
+  hasPassword?: boolean;
 };
 
 export async function ensureCredentialUser({
   email,
   password = DEFAULT_E2E_PASSWORD,
   nicknamePrefix = "e2e-user",
+  hasPassword = true,
 }: EnsureCredentialUserParams) {
-  const passwordHash = await hashPassword(password);
+  const passwordHash = hasPassword ? await hashPassword(password) : null;
   const user = await prisma.user.upsert({
     where: { email },
     update: {
@@ -99,6 +101,19 @@ export async function loginWithCredentials(
   await page.getByTestId("login-email").fill(params.email);
   await page.getByTestId("login-password").fill(params.password ?? DEFAULT_E2E_PASSWORD);
   await page.getByTestId("login-submit").click();
+}
+
+export async function loginWithSocialDev(
+  page: Page,
+  params: {
+    provider: "kakao" | "naver";
+    next?: string;
+  },
+) {
+  const nextPath = params.next ?? "/feed";
+  await page.goto(`/login?next=${encodeURIComponent(nextPath)}`);
+  const providerLabel = params.provider === "kakao" ? "카카오로 로그인" : "네이버로 로그인";
+  await page.getByRole("button", { name: providerLabel }).click();
 }
 
 export async function buildCookieHeader(context: BrowserContext) {

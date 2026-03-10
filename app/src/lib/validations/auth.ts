@@ -115,6 +115,10 @@ export const socialAccountLinkSchema = z.object({
   providerAccountId: z.string().trim().min(1).max(191),
 });
 
+export const socialAccountUnlinkSchema = z.object({
+  provider: z.enum(["kakao", "naver"]),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type PasswordSetupInput = z.infer<typeof passwordSetupSchema>;
@@ -127,3 +131,4 @@ export type EmailVerificationConfirmInput = z.infer<
   typeof emailVerificationConfirmSchema
 >;
 export type SocialAccountLinkInput = z.infer<typeof socialAccountLinkSchema>;
+export type SocialAccountUnlinkInput = z.infer<typeof socialAccountUnlinkSchema>;

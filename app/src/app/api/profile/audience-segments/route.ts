@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { listAudienceSegmentsByUserId } from "@/server/queries/audience-segment.queries";
 import { jsonError, jsonOk } from "@/server/response";
@@ -8,7 +8,7 @@ import { ServiceError } from "@/server/services/service-error";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuthenticatedUserId();
+    const userId = await requireCurrentUserId();
     const segments = await listAudienceSegmentsByUserId(userId);
 
     return jsonOk(

@@ -6,7 +6,7 @@ import {
   markAllNotificationsReadAction,
   markNotificationReadAction,
 } from "@/server/actions/notification";
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import {
   archiveNotification,
@@ -20,7 +20,7 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("@/server/auth", () => ({
-  requireAuthenticatedUserId: vi.fn(),
+  requireCurrentUserId: vi.fn(),
 }));
 
 vi.mock("@/server/error-monitor", () => ({
@@ -34,7 +34,7 @@ vi.mock("@/server/queries/notification.queries", () => ({
 }));
 
 const mockRevalidatePath = vi.mocked(revalidatePath);
-const mockRequireAuthenticatedUserId = vi.mocked(requireAuthenticatedUserId);
+const mockRequireCurrentUserId = vi.mocked(requireCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockMarkNotificationRead = vi.mocked(markNotificationRead);
 const mockMarkAllNotificationsRead = vi.mocked(markAllNotificationsRead);
@@ -43,7 +43,7 @@ const mockArchiveNotification = vi.mocked(archiveNotification);
 describe("notification actions", () => {
   beforeEach(() => {
     mockRevalidatePath.mockReset();
-    mockRequireAuthenticatedUserId.mockReset();
+    mockRequireCurrentUserId.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockMarkNotificationRead.mockReset();
     mockMarkAllNotificationsRead.mockReset();
@@ -51,7 +51,7 @@ describe("notification actions", () => {
   });
 
   it("marks one notification as read and revalidates when changed", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-1");
+    mockRequireCurrentUserId.mockResolvedValue("user-1");
     mockMarkNotificationRead.mockResolvedValue(true);
 
     const result = await markNotificationReadAction("noti-1");
@@ -63,7 +63,7 @@ describe("notification actions", () => {
   });
 
   it("does not revalidate when mark-read changed nothing", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-1");
+    mockRequireCurrentUserId.mockResolvedValue("user-1");
     mockMarkNotificationRead.mockResolvedValue(false);
 
     const result = await markNotificationReadAction("noti-1");
@@ -73,7 +73,7 @@ describe("notification actions", () => {
   });
 
   it("maps mark-read service errors", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-1");
+    mockRequireCurrentUserId.mockResolvedValue("user-1");
     mockMarkNotificationRead.mockRejectedValue(
       new ServiceError("forbidden", "FORBIDDEN", 403),
     );
@@ -84,7 +84,7 @@ describe("notification actions", () => {
   });
 
   it("returns 500 and monitors unexpected mark-read errors", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-1");
+    mockRequireCurrentUserId.mockResolvedValue("user-1");
     mockMarkNotificationRead.mockRejectedValue(new Error("boom"));
 
     const result = await markNotificationReadAction("noti-1");
@@ -98,7 +98,7 @@ describe("notification actions", () => {
   });
 
   it("marks all notifications as read and revalidates when updated", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-2");
+    mockRequireCurrentUserId.mockResolvedValue("user-2");
     mockMarkAllNotificationsRead.mockResolvedValue(3);
 
     const result = await markAllNotificationsReadAction();
@@ -110,7 +110,7 @@ describe("notification actions", () => {
   });
 
   it("does not revalidate when mark-all updated nothing", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-2");
+    mockRequireCurrentUserId.mockResolvedValue("user-2");
     mockMarkAllNotificationsRead.mockResolvedValue(0);
 
     const result = await markAllNotificationsReadAction();
@@ -120,7 +120,7 @@ describe("notification actions", () => {
   });
 
   it("archives notification and revalidates when changed", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-3");
+    mockRequireCurrentUserId.mockResolvedValue("user-3");
     mockArchiveNotification.mockResolvedValue(true);
 
     const result = await archiveNotificationAction("noti-7");
@@ -132,7 +132,7 @@ describe("notification actions", () => {
   });
 
   it("maps archive service errors", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("user-3");
+    mockRequireCurrentUserId.mockResolvedValue("user-3");
     mockArchiveNotification.mockRejectedValue(
       new ServiceError("not-found", "NOT_FOUND", 404),
     );
@@ -140,5 +140,16 @@ describe("notification actions", () => {
     const result = await archiveNotificationAction("noti-7");
 
     expect(result).toEqual({ ok: false, code: "NOT_FOUND", message: "not-found" });
+  });
+
+  it("maps sanction errors from the current-user guard", async () => {
+    mockRequireCurrentUserId.mockRejectedValue(
+      new ServiceError("정지", "ACCOUNT_SUSPENDED", 403),
+    );
+
+    const result = await markAllNotificationsReadAction();
+
+    expect(result).toEqual({ ok: false, code: "ACCOUNT_SUSPENDED", message: "정지" });
+    expect(mockMarkAllNotificationsRead).not.toHaveBeenCalled();
   });
 });

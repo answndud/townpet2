@@ -17,6 +17,66 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-10: Cycle 274 완료 (제재 계정의 읽기 전용 인증 API 가드 통일)
+- 완료 내용
+- `app/src/app/api/notifications/route.ts`, `app/src/app/api/profile/audience-segments/route.ts`, `app/src/app/api/users/[id]/profile-summary/route.ts`가 더 이상 `requireAuthenticatedUserId()`를 쓰지 않고 `requireCurrentUserId()`를 사용하도록 바꿨다.
+- 이에 따라 제재 계정은 읽기 전용이더라도 개인 알림 목록, 개인 audience segment, 로그인 사용자 전용 공개 프로필 summary API를 더 이상 호출할 수 없고 `ACCOUNT_SUSPENDED` 403을 받는다.
+- `app/src/app/api/notifications/route.test.ts`, `app/src/app/api/profile/audience-segments/route.test.ts`, `app/src/app/api/users/[id]/profile-summary/route.test.ts`에는 `ACCOUNT_SUSPENDED` failure-path를 추가해 query/service가 호출되지 않는 회귀를 고정했다.
+- 이번 확장으로 authenticated GET 중에서도 개인 상태/개인화된 조회에 해당하는 경로는 쓰기 경로와 동일한 sanction policy를 따르게 됐다.
+- 검증 결과
+- `pnpm -C app lint src/app/api/notifications/route.ts src/app/api/notifications/route.test.ts src/app/api/profile/audience-segments/route.ts src/app/api/profile/audience-segments/route.test.ts 'src/app/api/users/[id]/profile-summary/route.ts' 'src/app/api/users/[id]/profile-summary/route.test.ts'` 통과
+- `pnpm -C app test -- src/app/api/notifications/route.test.ts src/app/api/profile/audience-segments/route.test.ts 'src/app/api/users/[id]/profile-summary/route.test.ts'` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `119 files / 600 tests` 통과
+- `pnpm -C app typecheck` 통과
+- `git diff --check` 통과
+- 메모
+- 공개 글/공개 프로필 본문 같은 비인증 공개 읽기 경로까지 막은 것은 아니다. 이번 턴은 인증이 붙은 personal/profile read API만 sanction-aware helper로 일관화했다.
+
+### 2026-03-10: Cycle 273 완료 (소셜 계정 unlink E2E 보강)
+- 완료 내용
+- `app/e2e/support/auth-helpers.ts`의 credentials 사용자 seed helper를 `hasPassword` 옵션까지 지원하도록 확장했고, `loginWithSocialDev()`를 추가해 local/dev 소셜 로그인 진입을 공용화했다.
+- `app/e2e/profile-social-account-linking.spec.ts`에 두 시나리오를 추가했다.
+- 첫 번째는 이메일 로그인 수단이 남아 있는 계정에서 카카오 연결 후 `해제`가 성공하고, profile notice와 DB account row 삭제가 함께 확인되는 흐름이다.
+- 두 번째는 passwordless 소셜 계정에서 카카오 연결 후, 마지막 로그인 수단이 되는 unlink 버튼이 비활성화되고 `유일한 로그인 수단` 안내가 보이는지 확인하는 흐름이다.
+- 기존 `OAuthAccountNotLinked` 복구 안내 시나리오와 함께 총 4개 profile social auth E2E가 유지되도록 정리했다.
+- 검증 결과
+- `pnpm -C app lint e2e/profile-social-account-linking.spec.ts e2e/support/auth-helpers.ts` 통과
+- `pnpm -C app typecheck` 통과
+- `ENABLE_SOCIAL_DEV_LOGIN=1 pnpm -C app exec playwright test e2e/profile-social-account-linking.spec.ts --project=chromium` 실행 결과 `4 passed`
+- `git diff --check` 통과
+- 메모
+- local/dev 소셜 로그인은 session의 `authProvider`가 `social-dev`로 잡히기 때문에, 실제 카카오/네이버 provider를 직접 쓰는 production 세션과는 다르다. 따라서 `현재 로그인 provider unlink -> 즉시 세션 종료`는 unit test와 운영 수동 체크리스트 영역으로 남겨 두었다.
+
+### 2026-03-10: Cycle 272 완료 (제재 계정의 상태변경 인증 경로 가드 통일)
+- 완료 내용
+- `app/src/server/auth.ts`에 `requireCurrentUserId()`를 추가해, 로그인 확인만 하는 `requireAuthenticatedUserId()`와 구분되는 sanction-aware ID helper를 만들었다.
+- `app/src/server/actions/notification.ts`의 알림 읽음/전체 읽음/보관 액션은 이제 `requireCurrentUserId()`를 사용해 제재 계정이 상태를 변경하지 못하도록 막는다.
+- `app/src/app/api/feed/personalization/route.ts`의 개인화 지표 기록 POST도 같은 helper를 사용하도록 바꿔, 정지 계정이 개인화 이벤트를 더 이상 쓰기 경로로 기록하지 못하게 했다.
+- `app/src/server/actions/notification.test.ts`, `app/src/app/api/feed/personalization/route.test.ts`에는 `ACCOUNT_SUSPENDED`가 403으로 surfacing 되고 실제 mutation/service 호출이 일어나지 않는 회귀 테스트를 추가했다.
+- 이번 턴에서는 `GET /api/notifications`, `GET /api/profile/audience-segments`, `GET /api/users/[id]/profile-summary` 같은 읽기 전용 authenticated API는 유지했다. 제재 계정의 읽기 정책은 별도 정책 결정 없이 한 번에 넓히지 않기 위해 쓰기/상태변경 경로만 우선 정리했다.
+- 검증 결과
+- `pnpm -C app lint src/server/auth.ts src/server/actions/notification.ts src/server/actions/notification.test.ts src/app/api/feed/personalization/route.ts src/app/api/feed/personalization/route.test.ts` 통과
+- `pnpm -C app test -- src/server/actions/notification.test.ts src/app/api/feed/personalization/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `119 files / 597 tests` 통과
+- `pnpm -C app typecheck` 통과
+- `git diff --check` 통과
+- 메모
+- 다음 단계에서 읽기 전용 authenticated API까지 제재 정책을 넓힐지 여부는 제품 정책 결정이 먼저 필요하다. 이번 턴은 운영 리스크가 큰 상태변경 경로를 우선 닫았다.
+
+### 2026-03-10: Cycle 271 완료 (소셜 계정 연결 해제 흐름 추가)
+- 완료 내용
+- `app/src/lib/validations/auth.ts`에 `socialAccountUnlinkSchema`를 추가하고, `app/src/server/services/auth.service.ts`에 `unlinkSocialAccountForUser`를 구현해 카카오/네이버 연결 해제를 서버에서 처리하도록 정리했다.
+- unlink 서비스는 `비밀번호 없음 + 다른 연결 provider 없음` 조합에서 마지막 로그인 수단 제거를 `LAST_LOGIN_METHOD_REQUIRED`로 차단하고, 현재 세션 provider를 해제하는 경우에는 `sessionVersion`을 올려 기존 JWT 세션을 즉시 무효화한다.
+- `app/src/app/api/auth/social-accounts/[provider]/route.ts`와 테스트를 추가해, 현재 로그인한 사용자가 소셜 계정을 해제할 수 있는 `DELETE` API를 만들고 service error를 정상 응답으로 surfacing 하도록 맞췄다.
+- `app/src/components/profile/profile-social-account-connections.tsx`는 연결된 카카오/네이버 provider마다 `해제` 버튼을 노출하고, 유일한 로그인 수단인 경우에는 비활성 안내를 보여준다.
+- 같은 컴포넌트는 현재 로그인 중인 provider를 해제하면 `signOut({ redirect: false })`와 `viewer-shell` sync를 실행한 뒤 `/login?notice=...`로 이동하게 했고, `app/src/components/auth/login-form.tsx`와 `app/src/lib/social-auth.ts`는 이 notice를 읽어 해제 완료 메시지를 로그인 화면에서도 보여주게 했다.
+- `docs/operations/manual-checks/인증_소셜로그인_체크리스트.md`와 `docs/security/보안_진행상황.md`에 소셜 계정 해제 검증 항목을 추가했다.
+- 검증 결과
+- `pnpm -C app lint src/components/profile/profile-social-account-connections.tsx src/components/auth/login-form.tsx src/lib/social-auth.ts src/lib/social-auth.test.ts src/lib/validations/auth.ts src/server/services/auth.service.ts src/server/services/auth-account-link.service.test.ts 'src/app/api/auth/social-accounts/[provider]/route.ts' 'src/app/api/auth/social-accounts/[provider]/route.test.ts'` 통과
+- `pnpm -C app test -- src/lib/social-auth.test.ts src/server/services/auth-account-link.service.test.ts 'src/app/api/auth/social-accounts/[provider]/route.test.ts'` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `119 files / 595 tests` 통과
+- `pnpm -C app typecheck` 통과
+- `git diff --check` 통과
+- 메모
+- 현재 구현은 unlink만 추가했고, provider 교체/재연결은 기존 connect 흐름을 그대로 사용한다. 현재 로그인 provider를 해제하면 보안을 위해 즉시 재로그인이 요구된다.
+
 ### 2026-03-10: Cycle 270 완료 (Vercel auth email preflight Prisma generate 순서 수정)
 - 완료 내용
 - 사용자 제공 Vercel production 빌드 로그에서 `ops:check:auth-email-readiness`가 `Prisma has detected that this project was built on Vercel` 초기화 오류로 실패하는 것을 확인했고, 원인이 `build:vercel`의 auth email readiness preflight가 `prisma generate`보다 먼저 실행되는 순서 문제임을 재현 로그 기준으로 정리했다.

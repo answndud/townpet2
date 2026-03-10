@@ -26,6 +26,30 @@
 
 ## Active Plan
 
+### Cycle 274: 제재 계정의 읽기 전용 인증 API 가드 통일 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 읽기 전용 authenticated API를 sanction-aware helper로 전환 | Codex | P0 | `done` | `GET /api/notifications`, `GET /api/profile/audience-segments`, `GET /api/users/[id]/profile-summary`가 `requireCurrentUserId()`를 사용해 제재 계정을 403으로 차단한다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/auth.ts`, `app/src/app/api/**`, 관련 테스트 |
+| 읽기 차단 정책 확장 결과를 security/progress 로그에 기록 | Codex | P1 | `done` | 이번 턴에서 읽기 전용 personal/profile 조회까지 제재 정책을 넓혔다는 판단과 검증 결과가 `PROGRESS.md`와 security log에 남는다 | `PLAN.md`, `PROGRESS.md`, `docs/security/**` |
+
+### Cycle 273: 소셜 계정 unlink E2E 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| profile social account linking E2E에 unlink 성공/차단 시나리오 추가 | Codex | P0 | `done` | credentials+linked social unlink 성공과 passwordless 소셜 계정의 마지막 로그인 수단 unlink 차단이 Playwright 시나리오로 고정된다 | `PLAN.md`, `PROGRESS.md`, `app/e2e/profile-social-account-linking.spec.ts`, `app/e2e/support/auth-helpers.ts` |
+| dev social 환경에서 active provider unlink 한계와 수동 검증 범위 기록 | Codex | P1 | `done` | dev social login의 `authProvider=social-dev` 한계로 현재 provider unlink session revoke는 unit/manual 영역이라는 판단이 `PROGRESS.md`와 security log에 기록된다 | `PLAN.md`, `PROGRESS.md`, `docs/security/**`, `docs/operations/manual-checks/**` |
+
+### Cycle 272: 제재 계정의 상태변경 인증 경로 가드 통일 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 상태변경용 인증 helper를 sanction-aware 경로로 통일 | Codex | P0 | `done` | 알림 읽음/보관 액션과 개인화 지표 기록처럼 상태를 바꾸는 인증 경로가 `requireCurrentUser` 기반 helper를 사용해 제재 계정을 403으로 차단한다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/auth.ts`, `app/src/server/actions/**`, `app/src/app/api/feed/personalization/route.ts`, 관련 테스트 |
+| 읽기 전용 authenticated API는 기존 정책 유지 여부를 문서에 명시 | Codex | P1 | `done` | 이번 턴에서 상태변경 경로만 sanction-aware helper로 올리고, 읽기 전용 personal/profile 조회는 유지한다는 판단이 `PROGRESS.md`와 security log에 기록된다 | `PLAN.md`, `PROGRESS.md`, `docs/security/**` |
+
+### Cycle 271: 소셜 계정 연결 해제 흐름 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 마지막 로그인 수단 보호가 포함된 소셜 계정 unlink 서비스/route 추가 | Codex | P0 | `done` | 카카오/네이버 연결 해제가 API/서비스로 제공되고, 비밀번호/다른 소셜 없이 마지막 로그인 수단을 제거하는 시도는 서버에서 차단된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/services/auth.service.ts`, `app/src/app/api/auth/**`, `app/src/lib/validations/auth.ts`, 관련 테스트 |
+| 프로필 UI와 로그인 notice에 소셜 계정 unlink 흐름 반영 | Codex | P1 | `done` | `/profile`에서 연결된 카카오/네이버 계정을 해제할 수 있고, 현재 로그인 수단을 해제한 경우 세션 정리 후 로그인 화면 안내가 동작한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/profile/profile-social-account-connections.tsx`, `app/src/components/auth/login-form.tsx`, `app/src/lib/social-auth.ts` |
+
 ### Cycle 270: Vercel auth email preflight Prisma generate 순서 수정 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

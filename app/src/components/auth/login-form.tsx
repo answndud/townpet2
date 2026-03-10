@@ -9,7 +9,7 @@ import { KakaoSignInButton } from "@/components/auth/kakao-signin-button";
 import { NaverSignInButton } from "@/components/auth/naver-signin-button";
 import { readPendingOAuthLinkIntent } from "@/lib/oauth-link-intent";
 import { getPublicProfileLoginNoticeMessage } from "@/lib/public-profile";
-import { getOAuthErrorMessage } from "@/lib/social-auth";
+import { getOAuthErrorMessage, getSocialAccountNoticeMessage } from "@/lib/social-auth";
 import { emitViewerShellSync } from "@/lib/viewer-shell-sync";
 
 type LoginFormProps = {
@@ -48,6 +48,10 @@ export function LoginForm({
     });
   }, [oauthError, pendingLinkIntent]);
   const noticeMessage = useMemo(() => getPublicProfileLoginNoticeMessage(notice), [notice]);
+  const socialAccountNoticeMessage = useMemo(
+    () => getSocialAccountNoticeMessage(notice),
+    [notice],
+  );
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -138,9 +142,9 @@ export function LoginForm({
           {error}
         </p>
       ) : null}
-      {noticeMessage ? (
+      {noticeMessage || socialAccountNoticeMessage ? (
         <p className="rounded-lg border border-[#dbe6f6] bg-[#f8fbff] px-3 py-2 text-xs font-medium text-[#315b9a]">
-          {noticeMessage}
+          {noticeMessage ?? socialAccountNoticeMessage}
         </p>
       ) : null}
       <button

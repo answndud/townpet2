@@ -2,13 +2,13 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/users/[id]/profile-summary/route";
-import { requireAuthenticatedUserId } from "@/server/auth";
+import { requireCurrentUserId } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPublicUserProfileById } from "@/server/queries/user.queries";
 import { ServiceError } from "@/server/services/service-error";
 
 vi.mock("@/server/auth", () => ({
-  requireAuthenticatedUserId: vi.fn(),
+  requireCurrentUserId: vi.fn(),
 }));
 
 vi.mock("@/server/error-monitor", () => ({
@@ -19,19 +19,19 @@ vi.mock("@/server/queries/user.queries", () => ({
   getPublicUserProfileById: vi.fn(),
 }));
 
-const mockRequireAuthenticatedUserId = vi.mocked(requireAuthenticatedUserId);
+const mockRequireCurrentUserId = vi.mocked(requireCurrentUserId);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetPublicUserProfileById = vi.mocked(getPublicUserProfileById);
 
 describe("GET /api/users/[id]/profile-summary", () => {
   beforeEach(() => {
-    mockRequireAuthenticatedUserId.mockReset();
+    mockRequireCurrentUserId.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetPublicUserProfileById.mockReset();
   });
 
   it("returns a no-store public profile summary for authenticated viewers", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("viewer-1");
+    mockRequireCurrentUserId.mockResolvedValue("viewer-1");
     mockGetPublicUserProfileById.mockResolvedValue({
       id: "user-1",
       nickname: "타운펫",
@@ -68,7 +68,7 @@ describe("GET /api/users/[id]/profile-summary", () => {
   });
 
   it("returns auth errors consistently", async () => {
-    mockRequireAuthenticatedUserId.mockRejectedValue(
+    mockRequireCurrentUserId.mockRejectedValue(
       new ServiceError("로그인이 필요합니다.", "AUTH_REQUIRED", 401),
     );
 
@@ -88,8 +88,30 @@ describe("GET /api/users/[id]/profile-summary", () => {
     });
   });
 
+  it("returns sanction errors consistently", async () => {
+    mockRequireCurrentUserId.mockRejectedValue(
+      new ServiceError("제재된 계정입니다.", "ACCOUNT_SUSPENDED", 403),
+    );
+
+    const response = await GET(
+      new Request("http://localhost/api/users/user-1/profile-summary") as NextRequest,
+      { params: Promise.resolve({ id: "user-1" }) },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload).toEqual({
+      ok: false,
+      error: {
+        code: "ACCOUNT_SUSPENDED",
+        message: "제재된 계정입니다.",
+      },
+    });
+    expect(mockGetPublicUserProfileById).not.toHaveBeenCalled();
+  });
+
   it("returns 500 for unexpected failures", async () => {
-    mockRequireAuthenticatedUserId.mockResolvedValue("viewer-1");
+    mockRequireCurrentUserId.mockResolvedValue("viewer-1");
     mockGetPublicUserProfileById.mockRejectedValue(new Error("boom"));
 
     const response = await GET(

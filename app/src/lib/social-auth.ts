@@ -47,6 +47,10 @@ export function buildSocialAccountLinkedNotice(provider: SocialAuthProvider) {
   return `SOCIAL_ACCOUNT_LINKED_${provider.toUpperCase()}` as const;
 }
 
+export function buildSocialAccountUnlinkedNotice(provider: SocialAuthProvider) {
+  return `SOCIAL_ACCOUNT_UNLINKED_${provider.toUpperCase()}` as const;
+}
+
 export function buildSocialAccountProviderAlreadyConnectedNotice(
   provider: SocialAuthProvider,
 ) {
@@ -73,6 +77,12 @@ export function getSocialAccountNoticeMessage(notice: string | null) {
   if (linkedProvider) {
     const label = getSocialAuthProviderLabel(linkedProvider);
     return `${label} 로그인을 이 계정에 연결했습니다. 다음부터는 ${label}로도 같은 계정에 로그인할 수 있습니다.`;
+  }
+
+  const unlinkedProvider = getProviderFromPrefixedNotice(notice, "SOCIAL_ACCOUNT_UNLINKED_");
+  if (unlinkedProvider) {
+    const label = getSocialAuthProviderLabel(unlinkedProvider);
+    return `${label} 로그인을 이 계정에서 해제했습니다. 다음 로그인부터는 남아 있는 로그인 수단을 사용해 주세요.`;
   }
 
   const alreadyConnectedProvider = getProviderFromPrefixedNotice(

@@ -11,6 +11,7 @@ import {
   passwordSetupSchema,
   registerSchema,
   socialAccountLinkSchema,
+  socialAccountUnlinkSchema,
 } from "@/lib/validations/auth";
 import { findUserByEmailInsensitive } from "@/server/queries/user.queries";
 import { hashPassword, hashToken, verifyPassword } from "@/server/password";
@@ -324,6 +325,95 @@ export async function linkSocialAccountForUser({
   return {
     provider: parsed.data.provider,
     alreadyLinked: false,
+  } as const;
+}
+
+type UnlinkSocialAccountForUserParams = {
+  userId: string;
+  authProvider?: string | null;
+  input: unknown;
+};
+
+export async function unlinkSocialAccountForUser({
+  userId,
+  authProvider,
+  input,
+}: UnlinkSocialAccountForUserParams) {
+  const parsed = socialAccountUnlinkSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new ServiceError("소셜 계정 해제 입력값이 올바르지 않습니다.", "INVALID_INPUT", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      passwordHash: true,
+      accounts: {
+        select: {
+          id: true,
+          provider: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new ServiceError("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND", 404);
+  }
+
+  const accountToRemove = user.accounts.find(
+    (account) => account.provider === parsed.data.provider,
+  );
+
+  if (!accountToRemove) {
+    throw new ServiceError("연결된 소셜 계정을 찾을 수 없습니다.", "PROVIDER_NOT_LINKED", 404);
+  }
+
+  const remainingProviders = [...new Set(
+    user.accounts
+      .map((account) => account.provider)
+      .filter((provider) => provider !== parsed.data.provider),
+  )];
+  const hasPassword = Boolean(user.passwordHash);
+
+  if (!hasPassword && remainingProviders.length === 0) {
+    throw new ServiceError(
+      "마지막 로그인 수단은 해제할 수 없습니다. 먼저 비밀번호를 설정하거나 다른 소셜 로그인을 연결해 주세요.",
+      "LAST_LOGIN_METHOD_REQUIRED",
+      409,
+    );
+  }
+
+  const normalizedAuthProvider = typeof authProvider === "string"
+    ? authProvider.trim().toLowerCase()
+    : "";
+  const sessionRevoked = normalizedAuthProvider === parsed.data.provider;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.account.delete({
+      where: {
+        id: accountToRemove.id,
+      },
+    });
+
+    if (sessionRevoked) {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          sessionVersion: { increment: 1 },
+        },
+      });
+    }
+  });
+
+  return {
+    provider: parsed.data.provider,
+    sessionRevoked,
+    remainingLoginMethods: {
+      hasPassword,
+      linkedAccountProviders: remainingProviders,
+    },
   } as const;
 }
 
