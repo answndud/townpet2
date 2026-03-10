@@ -3,6 +3,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { unstable_update } from "@/lib/auth";
 import {
+  bumpFeedCacheVersion,
+  bumpPostCommentsCacheVersion,
+  bumpPostDetailCacheVersion,
+  bumpSearchCacheVersion,
+  bumpSuggestCacheVersion,
+} from "@/server/cache/query-cache";
+import {
   setPrimaryNeighborhoodAction,
   updateProfileAction,
   updateProfileImageAction,
@@ -29,6 +36,14 @@ vi.mock("@/lib/auth", () => ({
   unstable_update: vi.fn(),
 }));
 
+vi.mock("@/server/cache/query-cache", () => ({
+  bumpFeedCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpSearchCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpSuggestCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpPostDetailCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpPostCommentsCacheVersion: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -39,6 +54,11 @@ const mockUpdateProfileImage = vi.mocked(updateProfileImage);
 const mockSetPrimaryNeighborhood = vi.mocked(setPrimaryNeighborhood);
 const mockRevalidatePath = vi.mocked(revalidatePath);
 const mockUnstableUpdate = vi.mocked(unstable_update);
+const mockBumpFeedCacheVersion = vi.mocked(bumpFeedCacheVersion);
+const mockBumpSearchCacheVersion = vi.mocked(bumpSearchCacheVersion);
+const mockBumpSuggestCacheVersion = vi.mocked(bumpSuggestCacheVersion);
+const mockBumpPostDetailCacheVersion = vi.mocked(bumpPostDetailCacheVersion);
+const mockBumpPostCommentsCacheVersion = vi.mocked(bumpPostCommentsCacheVersion);
 
 describe("user actions", () => {
   beforeEach(() => {
@@ -48,6 +68,16 @@ describe("user actions", () => {
     mockSetPrimaryNeighborhood.mockReset();
     mockRevalidatePath.mockReset();
     mockUnstableUpdate.mockReset();
+    mockBumpFeedCacheVersion.mockReset();
+    mockBumpFeedCacheVersion.mockResolvedValue(undefined);
+    mockBumpSearchCacheVersion.mockReset();
+    mockBumpSearchCacheVersion.mockResolvedValue(undefined);
+    mockBumpSuggestCacheVersion.mockReset();
+    mockBumpSuggestCacheVersion.mockResolvedValue(undefined);
+    mockBumpPostDetailCacheVersion.mockReset();
+    mockBumpPostDetailCacheVersion.mockResolvedValue(undefined);
+    mockBumpPostCommentsCacheVersion.mockReset();
+    mockBumpPostCommentsCacheVersion.mockResolvedValue(undefined);
   });
 
   it("updates profile and revalidates", async () => {
@@ -73,11 +103,19 @@ describe("user actions", () => {
       },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/profile");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/search");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/bookmarks");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/users/user-1");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/onboarding");
     expect(mockUnstableUpdate).toHaveBeenCalledWith({
       user: { nickname: "타운펫" },
     });
+    expect(mockBumpFeedCacheVersion).toHaveBeenCalled();
+    expect(mockBumpSearchCacheVersion).toHaveBeenCalled();
+    expect(mockBumpSuggestCacheVersion).toHaveBeenCalled();
+    expect(mockBumpPostDetailCacheVersion).toHaveBeenCalled();
+    expect(mockBumpPostCommentsCacheVersion).toHaveBeenCalled();
   });
 
   it("sets primary neighborhood and revalidates", async () => {
@@ -111,7 +149,15 @@ describe("user actions", () => {
       user: { image: "/uploads/avatar.png" },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/profile");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/search");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/bookmarks");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/users/user-5");
+    expect(mockBumpFeedCacheVersion).toHaveBeenCalled();
+    expect(mockBumpSearchCacheVersion).toHaveBeenCalled();
+    expect(mockBumpSuggestCacheVersion).toHaveBeenCalled();
+    expect(mockBumpPostDetailCacheVersion).toHaveBeenCalled();
+    expect(mockBumpPostCommentsCacheVersion).toHaveBeenCalled();
   });
 
   it("accepts multi-neighborhood payload", async () => {

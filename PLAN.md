@@ -26,15 +26,27 @@
 
 ## Active Plan
 
-### Cycle 284: 모바일 헤더 비고정화 (완료)
+### Cycle 285: 데이터 정합성 운영 repair + 알림 invalid target 정리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 삭제된 게시글 종속 데이터 정리를 위한 운영 repair 서비스/스크립트 추가 | Codex | P0 | `done` | `DELETED` 게시글에 남아 있는 댓글/댓글반응/게시글반응/북마크/알림/카운트를 일괄 정리하는 공용 service와 `pnpm -C app db:repair:post-integrity` 스크립트가 제공되고, dry-run/limit/scope 옵션이 문서화된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/post-integrity.service.ts`, `app/scripts/repair-post-integrity.ts`, `app/package.json`, `docs/개발_운영_가이드.md` |
+| 알림 invalid target 정리를 댓글 삭제 케이스까지 확장 | Codex | P0 | `done` | notification list/redirect가 삭제된 게시글뿐 아니라 삭제된 댓글 target도 즉시 archive 처리하고, 더 이상 게시글 fallback 대신 `TARGET_UNAVAILABLE` notice로 닫히며 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/notification.queries.ts`, `app/src/server/queries/notification.queries.test.ts` |
+| 게시글 카운트 재정합 회귀 테스트 추가 | Codex | P1 | `done` | 활성/삭제 게시글의 `commentCount`, `likeCount`, `dislikeCount`를 실제 row 기준으로 재계산하는 helper와 dry-run 포함 테스트가 추가되고 lint/typecheck/test 결과가 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/post-integrity.service.test.ts`, 관련 테스트 |
+
+### Cycle 284: 전역 맨 위로 버튼 공통화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/feed` 외 상세/일반 페이지까지 공통 `맨 위로` 버튼을 전역 배치로 확장 | Codex | P2 | `done` | 루트 레이아웃에 전역 플로팅 `맨 위로` 버튼이 배치되어 게시글 상세를 포함한 대부분의 스크롤 페이지에서 동일하게 동작하고, `/feed`/게스트 피드/입양 보드의 중복 버튼이 제거되며, 표시 threshold와 스크롤 동작 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/layout.tsx`, `app/src/components/ui/scroll-to-top-button.tsx`, `app/src/components/ui/scroll-to-top-button.test.ts`, `app/src/app/feed/page.tsx`, `app/src/components/posts/guest-feed-page-client.tsx`, `app/src/app/boards/adoption/page.tsx` |
+
+### Cycle 283: 모바일 헤더 비고정화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
 | 모바일 스크롤 시 앱 헤더가 함께 내려가도록 responsive sticky 범위 조정 | Codex | P2 | `done` | 모바일 viewport에서는 앱 헤더가 더 이상 `sticky`로 고정되지 않고 스크롤과 함께 사라지며, `sm` 이상 breakpoint에서는 기존 상단 고정 동작이 유지되고, class 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/navigation/app-shell-header.tsx`, `app/src/components/navigation/app-shell-header-class.ts`, `app/src/components/navigation/app-shell-header-class.test.ts` |
 
-### Cycle 282: 전역 맨 위로 버튼 공통화 (완료)
+### Cycle 282: 카카오 게시글 공유 SDK 정렬 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| `/feed` 외 상세/일반 페이지까지 공통 `맨 위로` 버튼을 전역 배치로 확장 | Codex | P2 | `done` | 루트 레이아웃에 전역 플로팅 `맨 위로` 버튼이 배치되어 게시글 상세를 포함한 대부분의 스크롤 페이지에서 동일하게 동작하고, `/feed`/게스트 피드/입양 보드의 중복 버튼이 제거되며, 표시 threshold와 스크롤 동작 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/layout.tsx`, `app/src/components/ui/scroll-to-top-button.tsx`, `app/src/components/ui/scroll-to-top-button.test.ts`, `app/src/app/feed/page.tsx`, `app/src/components/posts/guest-feed-page-client.tsx`, `app/src/app/boards/adoption/page.tsx` |
+| 게시글 카카오 공유를 공식 JS SDK 기반으로 전환하고 운영 설정을 명시 | Codex | P1 | `done` | 게시글 상세 공유 버튼이 raw sharer URL 대신 `Kakao.Share.sendDefault()` 기반으로 동작하고, 잘못된/누락된 JavaScript key에서는 사용자에게 설정 오류를 안내하며, Vercel/Kakao 운영 설정 문서와 env 요구사항이 최신 기준을 반영한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-share-controls.tsx`, `app/src/lib/kakao-share.ts`, `app/src/lib/kakao-share.test.ts`, `docs/operations/**`, `docs/operations/manual-checks/**` |
 
 ### Cycle 281: 비회원 게시글 신고 로그인 게이트 정렬 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

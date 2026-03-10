@@ -235,7 +235,9 @@ async function archiveUnavailableNotificationsForUser(userId: string) {
   let candidates: Array<{
     id: string;
     postId: string | null;
+    commentId: string | null;
     post: { id: string; status: PostStatus } | null;
+    comment: { id: string; status: PostStatus } | null;
   }>;
   try {
     candidates = (await delegate.findMany({
@@ -247,7 +249,14 @@ async function archiveUnavailableNotificationsForUser(userId: string) {
       select: {
         id: true,
         postId: true,
+        commentId: true,
         post: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+        comment: {
           select: {
             id: true,
             status: true,
@@ -257,14 +266,21 @@ async function archiveUnavailableNotificationsForUser(userId: string) {
     })) as Array<{
       id: string;
       postId: string | null;
+      commentId: string | null;
       post: { id: string; status: PostStatus } | null;
+      comment: { id: string; status: PostStatus } | null;
     }>;
   } catch (error) {
     throwNotificationSchemaSyncRequired(error);
   }
 
   const invalidIds = candidates
-    .filter((candidate) => candidate.postId && (!candidate.post || candidate.post.status !== PostStatus.ACTIVE))
+    .filter(
+      (candidate) =>
+        (candidate.postId && (!candidate.post || candidate.post.status !== PostStatus.ACTIVE)) ||
+        (candidate.commentId &&
+          (!candidate.comment || candidate.comment.status !== PostStatus.ACTIVE)),
+    )
     .map((candidate) => candidate.id);
 
   if (invalidIds.length === 0) {
@@ -737,6 +753,18 @@ export async function getNotificationNavigationTarget(userId: string, notificati
   }
 
   if (notification.postId && (!notification.post || notification.post.status !== PostStatus.ACTIVE)) {
+    await archiveNotification(userId, notification.id);
+    return {
+      href: "/notifications?notice=TARGET_UNAVAILABLE",
+      archived: true,
+      found: true,
+    };
+  }
+
+  if (
+    notification.commentId &&
+    (!notification.comment || notification.comment.status !== PostStatus.ACTIVE)
+  ) {
     await archiveNotification(userId, notification.id);
     return {
       href: "/notifications?notice=TARGET_UNAVAILABLE",

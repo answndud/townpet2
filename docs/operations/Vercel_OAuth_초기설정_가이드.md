@@ -143,16 +143,22 @@ curl -sS -i https://<배포URL>/api/health
 3. 생성 후 설정
    - 제품 설정 -> `카카오 로그인` 활성화
    - 앱 키에서 `REST API 키` 확인 (이 값이 `KAKAO_CLIENT_ID`)
+   - 앱 키에서 `JavaScript 키` 확인 (이 값이 `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`)
    - 보안 -> `Client Secret` 사용 설정 + 발급 (`KAKAO_CLIENT_SECRET`)
+   - 플랫폼 -> `Web`에 `https://<최종운영URL>` 등록 (JavaScript SDK 도메인)
 4. Redirect URI 등록
    - `https://<최종운영URL>/api/auth/callback/kakao`
    - (선택) `https://<stagingURL>/api/auth/callback/kakao`
 5. 동의항목 설정
    - 이메일 필수 사용이면 `카카오계정(이메일)` 동의항목 활성화
+6. 카카오 공유를 함께 쓸 경우
+   - `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY=<JavaScript 키>`를 Vercel Production env에 추가
+   - 카카오톡 공유에서 여는 웹 URL은 Kakao Developers의 JavaScript SDK 도메인/제품 링크 관리에 같은 운영 도메인으로 맞춘다
 
 Vercel 환경변수 반영:
 - `KAKAO_CLIENT_ID=<REST API 키>`
 - `KAKAO_CLIENT_SECRET=<Client Secret>`
+- `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY=<JavaScript 키>`
 
 ---
 

@@ -37,6 +37,7 @@
     "db:rehearse:guest-legacy-cleanup": "tsx scripts/rehearse-guest-legacy-cleanup.ts",
     "db:cleanup:auth-audits": "tsx scripts/cleanup-auth-audits.ts",
     "db:cleanup:notifications": "tsx scripts/cleanup-notifications.ts",
+    "db:repair:post-integrity": "tsx scripts/repair-post-integrity.ts",
     "db:cleanup:upload-assets": "tsx scripts/cleanup-upload-assets.ts",
     "db:backfill:upload-media-proxy": "tsx scripts/backfill-upload-media-proxy.ts",
     "db:cleanup:search-terms": "tsx scripts/cleanup-search-terms.ts",

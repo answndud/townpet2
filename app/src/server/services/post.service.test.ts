@@ -4,10 +4,20 @@ import { PostReactionType, PostStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notifyReactionOnPost } from "@/server/services/notification.service";
 import {
+  deletePost,
   registerPostView,
   togglePostBookmark,
   togglePostReaction,
 } from "@/server/services/post.service";
+import {
+  bumpFeedCacheVersion,
+  bumpNotificationListCacheVersion,
+  bumpNotificationUnreadCacheVersion,
+  bumpPostCommentsCacheVersion,
+  bumpPostDetailCacheVersion,
+  bumpSearchCacheVersion,
+  bumpSuggestCacheVersion,
+} from "@/server/cache/query-cache";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -35,6 +45,16 @@ vi.mock("@/server/services/notification.service", () => ({
   notifyReactionOnPost: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/server/cache/query-cache", () => ({
+  bumpFeedCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpSearchCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpSuggestCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpPostDetailCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpPostCommentsCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpNotificationUnreadCacheVersion: vi.fn().mockResolvedValue(undefined),
+  bumpNotificationListCacheVersion: vi.fn().mockResolvedValue(undefined),
+}));
+
 const mockPrisma = vi.mocked(prisma) as unknown as {
   post: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -55,6 +75,13 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
   $transaction: ReturnType<typeof vi.fn>;
 };
 const mockNotifyReactionOnPost = vi.mocked(notifyReactionOnPost);
+const mockBumpFeedCacheVersion = vi.mocked(bumpFeedCacheVersion);
+const mockBumpSearchCacheVersion = vi.mocked(bumpSearchCacheVersion);
+const mockBumpSuggestCacheVersion = vi.mocked(bumpSuggestCacheVersion);
+const mockBumpPostDetailCacheVersion = vi.mocked(bumpPostDetailCacheVersion);
+const mockBumpPostCommentsCacheVersion = vi.mocked(bumpPostCommentsCacheVersion);
+const mockBumpNotificationUnreadCacheVersion = vi.mocked(bumpNotificationUnreadCacheVersion);
+const mockBumpNotificationListCacheVersion = vi.mocked(bumpNotificationListCacheVersion);
 
 describe("post reaction toggle", () => {
   beforeEach(() => {
@@ -70,6 +97,20 @@ describe("post reaction toggle", () => {
     mockPrisma.$transaction.mockReset();
     mockNotifyReactionOnPost.mockReset();
     mockNotifyReactionOnPost.mockResolvedValue(null);
+    mockBumpFeedCacheVersion.mockReset();
+    mockBumpFeedCacheVersion.mockResolvedValue(undefined);
+    mockBumpSearchCacheVersion.mockReset();
+    mockBumpSearchCacheVersion.mockResolvedValue(undefined);
+    mockBumpSuggestCacheVersion.mockReset();
+    mockBumpSuggestCacheVersion.mockResolvedValue(undefined);
+    mockBumpPostDetailCacheVersion.mockReset();
+    mockBumpPostDetailCacheVersion.mockResolvedValue(undefined);
+    mockBumpPostCommentsCacheVersion.mockReset();
+    mockBumpPostCommentsCacheVersion.mockResolvedValue(undefined);
+    mockBumpNotificationUnreadCacheVersion.mockReset();
+    mockBumpNotificationUnreadCacheVersion.mockResolvedValue(undefined);
+    mockBumpNotificationListCacheVersion.mockReset();
+    mockBumpNotificationListCacheVersion.mockResolvedValue(undefined);
   });
 
   it("creates like reaction when no reaction exists", async () => {
@@ -393,6 +434,134 @@ describe("post bookmark toggle", () => {
     expect(mockPrisma.postBookmark.create).not.toHaveBeenCalled();
     expect(mockPrisma.postBookmark.delete).not.toHaveBeenCalled();
     expect(result).toEqual({ bookmarked: true });
+  });
+});
+
+describe("deletePost", () => {
+  beforeEach(() => {
+    mockPrisma.post.findUnique.mockReset();
+    mockPrisma.userSanction.findFirst.mockReset();
+    mockPrisma.userSanction.findFirst.mockResolvedValue(null);
+    mockPrisma.$transaction.mockReset();
+  });
+
+  it("soft-deletes comments and removes reactions/bookmarks while archiving notifications", async () => {
+    const commentFindMany = vi.fn().mockResolvedValue([{ id: "comment-1" }, { id: "comment-2" }]);
+    const notificationFindMany = vi
+      .fn()
+      .mockResolvedValue([{ userId: "user-2" }, { userId: "user-3" }, { userId: "user-2" }]);
+    const commentReactionDeleteMany = vi.fn().mockResolvedValue({ count: 2 });
+    const commentUpdateMany = vi.fn().mockResolvedValue({ count: 2 });
+    const postReactionDeleteMany = vi.fn().mockResolvedValue({ count: 4 });
+    const postBookmarkDeleteMany = vi.fn().mockResolvedValue({ count: 3 });
+    const notificationUpdateMany = vi.fn().mockResolvedValue({ count: 3 });
+    const postUpdate = vi.fn().mockResolvedValue({ id: "post-9", status: PostStatus.DELETED });
+
+    mockPrisma.post.findUnique.mockResolvedValue({
+      id: "post-9",
+      status: PostStatus.ACTIVE,
+      authorId: "author-9",
+      images: [],
+    });
+    mockPrisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        comment: {
+          findMany: commentFindMany,
+          updateMany: commentUpdateMany,
+        },
+        commentReaction: {
+          deleteMany: commentReactionDeleteMany,
+        },
+        postReaction: {
+          deleteMany: postReactionDeleteMany,
+        },
+        postBookmark: {
+          deleteMany: postBookmarkDeleteMany,
+        },
+        notification: {
+          findMany: notificationFindMany,
+          updateMany: notificationUpdateMany,
+        },
+        post: {
+          update: postUpdate,
+        },
+      } as never),
+    );
+
+    const result = await deletePost({
+      postId: "post-9",
+      authorId: "author-9",
+    });
+
+    expect(commentFindMany).toHaveBeenCalledWith({
+      where: { postId: "post-9" },
+      select: { id: true },
+    });
+    expect(commentReactionDeleteMany).toHaveBeenCalledWith({
+      where: { commentId: { in: ["comment-1", "comment-2"] } },
+    });
+    expect(commentUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["comment-1", "comment-2"] } },
+      data: {
+        status: PostStatus.DELETED,
+        likeCount: 0,
+        dislikeCount: 0,
+      },
+    });
+    expect(postReactionDeleteMany).toHaveBeenCalledWith({
+      where: { postId: "post-9" },
+    });
+    expect(postBookmarkDeleteMany).toHaveBeenCalledWith({
+      where: { postId: "post-9" },
+    });
+    expect(notificationUpdateMany).toHaveBeenCalledWith({
+      where: {
+        postId: "post-9",
+        archivedAt: null,
+      },
+      data: {
+        archivedAt: expect.any(Date),
+      },
+    });
+    expect(postUpdate).toHaveBeenCalledWith({
+      where: { id: "post-9" },
+      data: {
+        status: PostStatus.DELETED,
+        commentCount: 0,
+        likeCount: 0,
+        dislikeCount: 0,
+      },
+      select: { id: true, status: true },
+    });
+    expect(result).toEqual({ id: "post-9", status: PostStatus.DELETED });
+    expect(mockBumpFeedCacheVersion).toHaveBeenCalled();
+    expect(mockBumpSearchCacheVersion).toHaveBeenCalled();
+    expect(mockBumpSuggestCacheVersion).toHaveBeenCalled();
+    expect(mockBumpPostDetailCacheVersion).toHaveBeenCalled();
+    expect(mockBumpPostCommentsCacheVersion).toHaveBeenCalled();
+    expect(mockBumpNotificationUnreadCacheVersion).toHaveBeenCalledWith("user-2");
+    expect(mockBumpNotificationUnreadCacheVersion).toHaveBeenCalledWith("user-3");
+    expect(mockBumpNotificationListCacheVersion).toHaveBeenCalledWith("user-2");
+    expect(mockBumpNotificationListCacheVersion).toHaveBeenCalledWith("user-3");
+  });
+
+  it("rejects deleting another user's post", async () => {
+    mockPrisma.post.findUnique.mockResolvedValue({
+      id: "post-10",
+      status: PostStatus.ACTIVE,
+      authorId: "owner-10",
+      images: [],
+    });
+
+    await expect(
+      deletePost({
+        postId: "post-10",
+        authorId: "intruder-1",
+      }),
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      status: 403,
+    });
   });
 });
 

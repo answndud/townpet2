@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache";
 import { unstable_update } from "@/lib/auth";
 import { requireCurrentUser } from "@/server/auth";
 import {
+  bumpFeedCacheVersion,
+  bumpPostCommentsCacheVersion,
+  bumpPostDetailCacheVersion,
+  bumpSearchCacheVersion,
+  bumpSuggestCacheVersion,
+} from "@/server/cache/query-cache";
+import {
   setPrimaryNeighborhood,
   updatePreferredPetTypes,
   updateProfile,
@@ -15,6 +22,14 @@ import { ServiceError } from "@/server/services/service-error";
 type UserActionResult =
   | { ok: true }
   | { ok: false; code: string; message: string };
+
+function bumpUserPresentationCaches() {
+  void bumpFeedCacheVersion().catch(() => undefined);
+  void bumpSearchCacheVersion().catch(() => undefined);
+  void bumpSuggestCacheVersion().catch(() => undefined);
+  void bumpPostDetailCacheVersion().catch(() => undefined);
+  void bumpPostCommentsCacheVersion().catch(() => undefined);
+}
 
 export async function updateProfileAction(input: unknown): Promise<UserActionResult> {
   try {
@@ -30,8 +45,12 @@ export async function updateProfileAction(input: unknown): Promise<UserActionRes
       // Session refresh failure should not fail profile persistence.
     }
     revalidatePath("/profile");
+    revalidatePath("/feed");
+    revalidatePath("/search");
+    revalidatePath("/bookmarks");
     revalidatePath(`/users/${user.id}`);
     revalidatePath("/onboarding");
+    bumpUserPresentationCaches();
     return { ok: true };
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -83,7 +102,11 @@ export async function updateProfileImageAction(input: unknown): Promise<UserActi
       // Session refresh failure should not fail profile image persistence.
     }
     revalidatePath("/profile");
+    revalidatePath("/feed");
+    revalidatePath("/search");
+    revalidatePath("/bookmarks");
     revalidatePath(`/users/${user.id}`);
+    bumpUserPresentationCaches();
     return { ok: true };
   } catch (error) {
     if (error instanceof ServiceError) {

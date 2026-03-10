@@ -39,6 +39,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       count: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -55,6 +56,7 @@ const mockPrisma = vi.mocked(prisma) as unknown as {
     create: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
   };
+  $transaction: ReturnType<typeof vi.fn>;
 };
 
 function buildPasswordHash(rawPassword: string) {
@@ -76,6 +78,7 @@ describe("guest post management", () => {
     mockPrisma.guestBan.create.mockReset();
     mockPrisma.guestViolation.create.mockReset();
     mockPrisma.guestViolation.count.mockReset();
+    mockPrisma.$transaction.mockReset();
 
     mockGetForbiddenKeywords.mockReset();
     mockGetGuestPostPolicy.mockReset();
@@ -196,20 +199,45 @@ describe("guest post management", () => {
   });
 
   it("deletes guest post when password and identity are valid", async () => {
+    const postUpdate = vi.fn().mockResolvedValue({
+      id: "post-1",
+      status: PostStatus.DELETED,
+    });
     mockPrisma.post.findUnique.mockResolvedValue({
       id: "post-1",
       status: PostStatus.ACTIVE,
       guestAuthorId: "guest-author-1",
+      images: [],
       guestAuthor: {
         passwordHash: buildPasswordHash("1234"),
         ipHash: sha256("127.0.0.1"),
         fingerprintHash: null,
       },
     });
-    mockPrisma.post.update.mockResolvedValue({
-      id: "post-1",
-      status: PostStatus.DELETED,
-    });
+    mockPrisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        comment: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        commentReaction: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        postReaction: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        postBookmark: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        notification: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        post: {
+          update: postUpdate,
+        },
+      } as never),
+    );
 
     await expect(
       deleteGuestPost({
@@ -224,7 +252,7 @@ describe("guest post management", () => {
       status: PostStatus.DELETED,
     });
 
-    expect(mockPrisma.post.update).toHaveBeenCalledTimes(1);
+    expect(postUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("updates guest post using GuestAuthor credential when legacy hash is absent", async () => {
@@ -263,10 +291,15 @@ describe("guest post management", () => {
   });
 
   it("deletes guest post using GuestAuthor credential when legacy hash is absent", async () => {
+    const postUpdate = vi.fn().mockResolvedValue({
+      id: "post-1",
+      status: PostStatus.DELETED,
+    });
     mockPrisma.post.findUnique.mockResolvedValue({
       id: "post-1",
       status: PostStatus.ACTIVE,
       guestAuthorId: "guest-author-1",
+      images: [],
       guestAuthor: {
         passwordHash: buildPasswordHash("1234"),
         ipHash: sha256("127.0.0.1"),
@@ -276,10 +309,30 @@ describe("guest post management", () => {
       guestIpHash: null,
       guestFingerprintHash: null,
     });
-    mockPrisma.post.update.mockResolvedValue({
-      id: "post-1",
-      status: PostStatus.DELETED,
-    });
+    mockPrisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        comment: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        commentReaction: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        postReaction: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        postBookmark: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        notification: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        post: {
+          update: postUpdate,
+        },
+      } as never),
+    );
 
     await expect(
       deleteGuestPost({
@@ -294,6 +347,6 @@ describe("guest post management", () => {
       status: PostStatus.DELETED,
     });
 
-    expect(mockPrisma.post.update).toHaveBeenCalledTimes(1);
+    expect(postUpdate).toHaveBeenCalledTimes(1);
   });
 });

@@ -38,6 +38,8 @@ import {
 } from "@/lib/validations/post";
 import {
   bumpFeedCacheVersion,
+  bumpNotificationListCacheVersion,
+  bumpNotificationUnreadCacheVersion,
   bumpPostCommentsCacheVersion,
   bumpPostDetailCacheVersion,
   bumpSearchCacheVersion,
@@ -144,6 +146,85 @@ const notifyPostCacheChange = () => {
   void bumpPostDetailCacheVersion().catch(() => undefined);
   void bumpPostCommentsCacheVersion().catch(() => undefined);
 };
+
+const notifyNotificationCacheChange = (userIds: string[]) => {
+  for (const userId of Array.from(new Set(userIds.filter((value) => value.length > 0)))) {
+    void bumpNotificationUnreadCacheVersion(userId).catch(() => undefined);
+    void bumpNotificationListCacheVersion(userId).catch(() => undefined);
+  }
+};
+
+async function softDeletePostDependents(postId: string) {
+  return prisma.$transaction(async (tx) => {
+    const [comments, notifications] = await Promise.all([
+      tx.comment.findMany({
+        where: { postId },
+        select: { id: true },
+      }),
+      tx.notification.findMany({
+        where: {
+          postId,
+          archivedAt: null,
+        },
+        select: { userId: true },
+      }),
+    ]);
+
+    const commentIds = comments.map((comment) => comment.id);
+    const archivedAt = new Date();
+
+    if (commentIds.length > 0) {
+      await tx.commentReaction.deleteMany({
+        where: {
+          commentId: { in: commentIds },
+        },
+      });
+
+      await tx.comment.updateMany({
+        where: { id: { in: commentIds } },
+        data: {
+          status: PostStatus.DELETED,
+          likeCount: 0,
+          dislikeCount: 0,
+        },
+      });
+    }
+
+    await Promise.all([
+      tx.postReaction.deleteMany({
+        where: { postId },
+      }),
+      tx.postBookmark.deleteMany({
+        where: { postId },
+      }),
+      tx.notification.updateMany({
+        where: {
+          postId,
+          archivedAt: null,
+        },
+        data: {
+          archivedAt,
+        },
+      }),
+    ]);
+
+    const deleted = await tx.post.update({
+      where: { id: postId },
+      data: {
+        status: PostStatus.DELETED,
+        commentCount: 0,
+        likeCount: 0,
+        dislikeCount: 0,
+      },
+      select: { id: true, status: true },
+    });
+
+    return {
+      deleted,
+      notificationUserIds: notifications.map((notification) => notification.userId),
+    };
+  });
+}
 
 async function finalizeUploadUrlChanges(params: {
   attachedUrls?: string[];
@@ -1319,15 +1400,12 @@ export async function deletePost({ postId, authorId }: DeletePostParams) {
     throw new ServiceError("삭제 권한이 없습니다.", "FORBIDDEN", 403);
   }
 
-  const deleted = await prisma.post.update({
-    where: { id: postId },
-    data: { status: PostStatus.DELETED },
-    select: { id: true, status: true },
-  });
+  const { deleted, notificationUserIds } = await softDeletePostDependents(postId);
   await finalizeUploadUrlChanges({
     releasedUrls: (existing.images ?? []).map((image) => image.url),
   });
   notifyPostCacheChange();
+  notifyNotificationCacheChange(notificationUserIds);
   return deleted;
 }
 
@@ -1625,15 +1703,12 @@ export async function deleteGuestPost({
     throw new ServiceError("비밀번호가 일치하지 않습니다.", "INVALID_GUEST_PASSWORD", 403);
   }
 
-  const deleted = await prisma.post.update({
-    where: { id: postId },
-    data: { status: PostStatus.DELETED },
-    select: { id: true, status: true },
-  });
+  const { deleted, notificationUserIds } = await softDeletePostDependents(postId);
   await finalizeUploadUrlChanges({
     releasedUrls: (existing.images ?? []).map((image) => image.url),
   });
   notifyPostCacheChange();
+  notifyNotificationCacheChange(notificationUserIds);
   return deleted;
 }
 

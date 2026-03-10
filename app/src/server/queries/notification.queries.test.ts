@@ -435,7 +435,9 @@ describe("notification queries invalidation behavior", () => {
         {
           id: "noti-stale",
           postId: "post-deleted",
+          commentId: null,
           post: { id: "post-deleted", status: PostStatus.DELETED },
+          comment: null,
         },
       ])
       .mockResolvedValueOnce([]);
@@ -460,7 +462,40 @@ describe("notification queries invalidation behavior", () => {
     });
   });
 
-  it("resolves notification redirect to post fallback when comment target is gone", async () => {
+  it("archives notifications whose comment target was deleted before counting", async () => {
+    mockPrisma.notification.findMany
+      .mockResolvedValueOnce([
+        {
+          id: "noti-comment-stale",
+          postId: "post-active",
+          commentId: "comment-deleted",
+          post: { id: "post-active", status: PostStatus.ACTIVE },
+          comment: { id: "comment-deleted", status: PostStatus.DELETED },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    mockPrisma.notification.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.notification.count.mockResolvedValue(0);
+
+    await listNotificationsByUser({
+      userId: "user-comment-cleanup",
+      kind: "ALL",
+      unreadOnly: false,
+    });
+
+    expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-comment-cleanup",
+        archivedAt: null,
+        id: { in: ["noti-comment-stale"] },
+      },
+      data: {
+        archivedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("redirects to unavailable notice when comment target is gone", async () => {
     mockPrisma.notification.findUnique.mockResolvedValue({
       id: "noti-nav",
       userId: "user-8",
@@ -476,8 +511,8 @@ describe("notification queries invalidation behavior", () => {
     const target = await getNotificationNavigationTarget("user-8", "noti-nav");
 
     expect(target).toEqual({
-      href: "/posts/post-8",
-      archived: false,
+      href: "/notifications?notice=TARGET_UNAVAILABLE",
+      archived: true,
       found: true,
     });
   });

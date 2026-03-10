@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import {
+  buildKakaoSharePayload,
+  loadKakaoSdk,
+  resolveKakaoShareErrorMessage,
+} from "@/lib/kakao-share";
+
 type PostShareControlsProps = {
   url: string;
   title: string;
@@ -14,6 +20,7 @@ function encode(value: string) {
 }
 
 export function PostShareControls({ url, title, compact = false }: PostShareControlsProps) {
+  const kakaoJavaScriptKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY?.trim() ?? "";
   const [message, setMessage] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -26,10 +33,6 @@ export function PostShareControls({ url, title, compact = false }: PostShareCont
     [title, url],
   );
 
-  const kakaoShareUrl = useMemo(
-    () => `https://sharer.kakao.com/talk/friends/picker/link?url=${encode(url)}`,
-    [url],
-  );
 
   const handleCopy = async () => {
     try {
@@ -38,6 +41,23 @@ export function PostShareControls({ url, title, compact = false }: PostShareCont
       setIsOpen(false);
     } catch {
       setMessage("링크 복사에 실패했습니다.");
+    }
+  };
+
+  const handleKakaoShare = async () => {
+    setMessage(null);
+
+    if (kakaoJavaScriptKey.length === 0) {
+      setMessage("카카오 공유 설정이 비어 있습니다. 링크 복사를 이용해 주세요.");
+      return;
+    }
+
+    try {
+      const kakao = await loadKakaoSdk(kakaoJavaScriptKey);
+      kakao.Share.sendDefault(buildKakaoSharePayload({ title, url }));
+      setIsOpen(false);
+    } catch (error) {
+      setMessage(resolveKakaoShareErrorMessage(error));
     }
   };
 
@@ -134,16 +154,14 @@ export function PostShareControls({ url, title, compact = false }: PostShareCont
           >
             X 공유
           </a>
-          <a
-            href={kakaoShareUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            onClick={() => setIsOpen(false)}
+          <button
+            type="button"
+            onClick={handleKakaoShare}
             role="menuitem"
-            className="flex w-full items-center justify-start px-2.5 py-1.5 text-xs font-semibold text-[#6c5319] transition hover:bg-[#fff5df]"
+            className="flex w-full items-center justify-start rounded-md px-2.5 py-1.5 text-xs font-semibold text-[#6c5319] transition hover:bg-[#fff5df]"
           >
             카카오 공유
-          </a>
+          </button>
           <Link
             href={url}
             target="_blank"

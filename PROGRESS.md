@@ -17,7 +17,29 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
-### 2026-03-10: Cycle 284 완료 (모바일 헤더 비고정화)
+### 2026-03-10: Cycle 282 완료 (카카오 게시글 공유 SDK 정렬)
+- 완료 내용
+  - `app/src/components/posts/post-share-controls.tsx`는 더 이상 `sharer.kakao.com` raw 링크를 열지 않고, `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY` 기반의 공식 `Kakao.Share.sendDefault()` 경로를 사용하도록 바뀌었다.
+  - `app/src/lib/kakao-share.ts`를 추가해 Kakao SDK lazy load, text template payload 생성, `4011` 같은 앱 키 오류 메시지 정규화를 공용 helper로 분리했다.
+  - production CSP는 `https://developers.kakao.com`, `https://t1.kakaocdn.net` 스크립트를 허용하도록 보강해 실제 배포에서 Kakao SDK 로딩이 차단되지 않게 맞췄다.
+  - `app/.env.production.example`, `docs/operations/Vercel_OAuth_초기설정_가이드.md`, `docs/operations/manual-checks/배포_보안_체크리스트.md`, `docs/개발_운영_가이드.md`에 `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`와 Kakao Web domain/share 설정 요구사항을 반영했다.
+  - `app/src/lib/kakao-share.test.ts`, `app/src/lib/security-headers.test.ts`로 Kakao share failure-path와 CSP allowlist 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-share-controls.tsx src/lib/kakao-share.ts src/lib/kakao-share.test.ts src/lib/security-headers.ts src/lib/security-headers.test.ts` 통과
+  - `pnpm -C app test -- src/lib/kakao-share.test.ts src/lib/security-headers.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `130 files / 654 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 코드 기준 fix는 완료됐지만 실제 production에서 Kakao 공유가 열리려면 Vercel Production env에 `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`를 추가한 뒤 재배포하고, Kakao Developers의 Web domain/Product Link 설정을 현재 운영 도메인으로 맞춰야 한다.
+
+### 2026-03-10: Cycle 282 착수 (카카오 게시글 공유 SDK 정렬)
+- 착수 범위
+  - 현재 게시글 공유 UI는 `sharer.kakao.com` raw URL만 열고 있어 Kakao JavaScript key/도메인 설정과 분리된 비공식 경로에 머물러 있다.
+  - 공식 `Kakao.Share.sendDefault()` 경로로 전환하고, 운영 env/문서에 `NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY`와 카카오 도메인 등록 요구사항을 추가한다.
+- 예정 검증
+  - `post-share-controls`와 Kakao share helper에 대한 lint/unit test를 추가하고, `git diff --check`까지 확인한다.
+
+### 2026-03-10: Cycle 283 완료 (모바일 헤더 비고정화)
 - 완료 내용
   - `app/src/components/navigation/app-shell-header.tsx`의 헤더 포지셔닝 클래스를 분리해 모바일 기본값에서는 고정을 제거하고, `sm` 이상에서만 `sticky top-0 z-40`이 적용되도록 조정했다.
   - `app/src/components/navigation/app-shell-header-class.ts`를 추가해 responsive header class를 상수화했고, 향후 클래스 회귀를 문자열 diff 없이 테스트할 수 있게 정리했다.
@@ -30,7 +52,24 @@
 - 메모
   - 저장소 지침에 적힌 `docs/SPEC.md`는 현재 repo에 존재하지 않아 확인할 수 없었고, 이번 변경은 헤더 레이아웃 한정 UI 수정으로 진행했다.
 
-### 2026-03-10: Cycle 282 완료 (전역 맨 위로 버튼 공통화)
+### 2026-03-10: Cycle 285 완료 (데이터 정합성 운영 repair + 알림 invalid target 정리)
+- 완료 내용
+- `app/src/server/post-integrity.service.ts`를 추가해 `DELETED` 게시글의 종속 데이터를 운영에서 일괄 정리할 수 있는 공용 helper를 만들었다. `repairDeletedPostIntegrity()`는 댓글/댓글반응/게시글반응/북마크/open notification과 `commentCount/likeCount/dislikeCount`를 정리하고, `recountPostEngagementCounts()`는 활성/삭제 게시글의 denormalized count를 실제 row 기준으로 재계산한다.
+- 같은 파일의 `archiveInvalidNotificationTargets()`는 삭제된 게시글뿐 아니라 삭제된 댓글을 가리키는 알림도 archive 대상으로 포함하도록 확장했다.
+- `app/src/server/queries/notification.queries.ts`는 notification list/redirect 단계에서 댓글 target이 삭제된 알림을 즉시 archive 하고, 더 이상 게시글 fallback으로 이동시키지 않고 `/notifications?notice=TARGET_UNAVAILABLE`로 닫히게 바뀌었다.
+- `app/scripts/repair-post-integrity.ts`와 `pnpm db:repair:post-integrity`를 추가해 deleted post repair, invalid notification archive, post count recount를 한 번에 실행할 수 있게 했고, dry-run/limit/scope 옵션과 cache version bump를 함께 제공했다.
+- `app/src/server/post-integrity.service.test.ts`는 deleted post repair, dry-run, invalid notification archive, count recount를 회귀 테스트로 고정했고, `app/src/server/queries/notification.queries.test.ts`는 deleted comment target cleanup/redirect 동작을 새 기준으로 맞췄다.
+- `docs/개발_운영_가이드.md`에는 `POST_INTEGRITY_REPAIR_DRY_RUN=1 pnpm db:repair:post-integrity`와 실제 적용 명령을 운영 runbook으로 추가했다.
+- 검증 결과
+- `pnpm -C app lint src/server/post-integrity.service.ts src/server/post-integrity.service.test.ts src/server/queries/notification.queries.ts src/server/queries/notification.queries.test.ts scripts/repair-post-integrity.ts` 통과
+- `pnpm -C app test -- src/server/post-integrity.service.test.ts src/server/queries/notification.queries.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `128 files / 649 tests` 통과
+- `pnpm -C app typecheck` 통과
+- `git diff --check` 통과
+- 메모
+- 이번 턴의 repair는 앞으로의 soft delete만 고치는 것이 아니라, 이미 누적된 `DELETED` 게시글/invalid notification을 운영에서 정리하기 위한 backfill 성격이다.
+- 댓글 target이 사라진 알림을 더 이상 게시글로 우회시키지 않기 때문에, 사용자는 삭제된 댓글 알림 클릭 시 일관되게 `TARGET_UNAVAILABLE` notice를 보게 된다.
+
+### 2026-03-10: Cycle 284 완료 (전역 맨 위로 버튼 공통화)
 - 완료 내용
   - `app/src/components/ui/scroll-to-top-button.tsx`를 scroll threshold 기반 전역 플로팅 버튼으로 확장하고, route change 뒤에도 현재 `window.scrollY`를 다시 읽어 노출 여부를 동기화하도록 정리했다.
   - `app/src/app/layout.tsx`가 버튼을 루트에 1회만 렌더링하도록 바꿔 `/feed`뿐 아니라 게시글 상세(`/posts/[id]`, `/posts/[id]/guest`)와 기타 스크롤 페이지에서도 같은 `맨 위로` 동작을 제공한다.
