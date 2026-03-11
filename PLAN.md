@@ -26,6 +26,17 @@
 
 ## Active Plan
 
+### Cycle 309: 구조화 필드 canonicalization + 검색 정규화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 병원후기/입양/봉사 구조화 입력값을 canonical 값으로 정규화하고 폼 추천값을 제공 | Codex | P1 | `done` | 구조화 필드 Zod 검증이 병원명/치료유형/보호소명/지역/동물종/품종/연령/봉사유형을 canonical 값으로 정규화하고, create service가 저장 전 같은 helper를 다시 적용하며, 작성 폼이 datalist 추천값을 제공하고 관련 validation/service 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/structured-field-normalization.ts`, `app/src/lib/structured-field-normalization.test.ts`, `app/src/lib/validations/text.ts`, `app/src/lib/validations/post.ts`, `app/src/components/posts/post-create-form.tsx`, `app/src/server/services/post.service.ts`, `app/src/lib/validations/post.test.ts`, `app/src/server/services/post-create-policy.test.ts` |
+| 메인 검색/공용 보드 검색이 구조화 필드 alias variant를 함께 사용하도록 정규화 | Codex | P1 | `done` | 메인 검색, 랭킹 검색, 공용 보드/입양 보드 검색이 canonical structured search variant를 함께 사용하고, 병원/입양 alias 검색 회귀 테스트가 존재하며, lint/test/typecheck가 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/post.queries.ts`, `app/src/server/queries/community.queries.ts`, `app/src/server/queries/post.queries.test.ts`, `app/src/server/queries/community.queries.test.ts` |
+
+### Cycle 308: 작성/수정 에디터 shell 공통화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 작성/수정 폼의 리치 텍스트 에디터 chrome을 공용 shell과 toolbar 프리미티브로 통일 | Codex | P2 | `done` | `post-create-form`과 `post-detail-edit-form`이 공용 `PostRichTextEditorShell`, `PostEditorToolbarButton`, `PostEditorToolbarDivider`를 재사용하고, 공용 shell 렌더링 회귀 테스트가 존재하며, lint/test/typecheck 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-rich-text-editor-shell.tsx`, `app/src/components/posts/post-rich-text-editor-shell.test.tsx`, `app/src/components/posts/post-create-form.tsx`, `app/src/components/posts/post-detail-edit-form.tsx` |
+
 ### Cycle 307: 댓글/글쓰기/수정 폼 semantic 패널 정리 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

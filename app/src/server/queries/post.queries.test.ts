@@ -301,6 +301,34 @@ describe("post queries", () => {
     );
   });
 
+  it("expands structured alias queries to canonical search variants", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    await listPosts({
+      limit: 20,
+      scope: PostScope.GLOBAL,
+      q: "코숏",
+      searchIn: "ALL",
+    });
+
+    const args = mockPrisma.post.findMany.mock.calls[0][0];
+    expect(args.where.OR).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          adoptionListing: {
+            is: {
+              OR: expect.arrayContaining([
+                expect.objectContaining({
+                  breed: { contains: "코리안 숏헤어", mode: "insensitive" },
+                }),
+              ]),
+            },
+          },
+        }),
+      ]),
+    );
+  });
+
   it("applies breed filter for breed lounge feed", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
@@ -1306,7 +1334,7 @@ describe("post queries", () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
     await listPostSearchSuggestions({
-      q: "슬개골",
+      q: "중성화",
       limit: 5,
       scope: PostScope.GLOBAL,
       searchIn: "ALL",
@@ -1320,7 +1348,7 @@ describe("post queries", () => {
             is: {
               OR: expect.arrayContaining([
                 expect.objectContaining({
-                  treatmentType: { contains: "슬개골", mode: "insensitive" },
+                  treatmentType: { contains: "중성화 수술", mode: "insensitive" },
                 }),
               ]),
             },
@@ -1343,11 +1371,28 @@ describe("post queries", () => {
     });
 
     expect(items).toEqual([]);
-    const sql = mockPrisma.$queryRaw.mock.calls[1]?.[0] as { strings?: TemplateStringsArray };
+    const sql = mockPrisma.$queryRaw.mock.calls.at(-1)?.[0] as { strings?: TemplateStringsArray };
     const statement = sql.strings ? Array.from(sql.strings).join(" ") : "";
     expect(statement).toContain(`p."status" = 'ACTIVE'::"PostStatus"`);
     expect(statement).toContain(`p."id" DESC`);
     expect(statement).toContain(`LEFT JOIN "HospitalReview" hr`);
+  });
+
+  it("includes canonical structured search variants in ranked search SQL bindings", async () => {
+    mockPrisma.$queryRaw
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([]);
+
+    await listRankedSearchPosts({
+      limit: 10,
+      scope: PostScope.GLOBAL,
+      q: "코기",
+      searchIn: "ALL",
+    });
+
+    const sql = mockPrisma.$queryRaw.mock.calls.at(-1)?.[0] as { values?: unknown[] };
+    expect(sql).toBeDefined();
+    expect(sql.values).toEqual(expect.arrayContaining(["%웰시코기%"]));
   });
 
   it("paginates my-posts query with limit + 1 strategy", async () => {

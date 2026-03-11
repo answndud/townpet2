@@ -21,6 +21,11 @@ import { prisma } from "@/lib/prisma";
 import { detectContactSignals, moderateContactContent } from "@/lib/contact-policy";
 import { buildGuestIpMeta } from "@/lib/guest-ip-display";
 import { isGuestPostTypeBlocked, isGuestScopeAllowed } from "@/lib/guest-post-policy";
+import {
+  normalizeAdoptionListingFields,
+  normalizeHospitalReviewFields,
+  normalizeVolunteerRecruitmentFields,
+} from "@/lib/structured-field-normalization";
 import { getUploadProxyPath } from "@/lib/upload-url";
 import {
   evaluateAdminOnlyPostWritePolicy,
@@ -572,6 +577,15 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     }
 
     volunteerRecruitmentInput = recruitmentInput.data;
+  }
+  if (hospitalReviewInput) {
+    hospitalReviewInput = normalizeHospitalReviewFields(hospitalReviewInput);
+  }
+  if (adoptionListingInput) {
+    adoptionListingInput = normalizeAdoptionListingFields(adoptionListingInput);
+  }
+  if (volunteerRecruitmentInput) {
+    volunteerRecruitmentInput = normalizeVolunteerRecruitmentFields(volunteerRecruitmentInput);
   }
   const [forbiddenKeywords, newUserSafetyPolicy, guestPostPolicy] = await Promise.all([
     getForbiddenKeywords(),

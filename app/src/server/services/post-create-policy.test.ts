@@ -677,6 +677,53 @@ describe("createPost new-user restriction", () => {
     );
   });
 
+  it("canonicalizes structured adoption fields before storing", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      role: UserRole.MODERATOR,
+      createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      createPost({
+        authorId: "user-1",
+        input: {
+          title: "입양 공고",
+          content: "내용",
+          type: PostType.ADOPTION_LISTING,
+          scope: PostScope.GLOBAL,
+          adoptionListing: {
+            shelterName: "서울시 동물 보호 센터",
+            region: "서울 마포",
+            animalType: "개",
+            breed: "코기",
+            ageLabel: "2 세 추정",
+            sizeLabel: " 중형 ",
+            status: "OPEN",
+          },
+        },
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mockPrisma.post.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          adoptionListing: {
+            create: expect.objectContaining({
+              shelterName: "서울시 동물보호센터",
+              region: "서울특별시 마포구",
+              animalType: "강아지",
+              breed: "웰시코기",
+              ageLabel: "2살 추정",
+              sizeLabel: "중형",
+              status: "OPEN",
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
   it("allows volunteer common board without animal tags and stores structured relation", async () => {
     mockPrisma.user.findUnique.mockResolvedValue({
       id: "user-1",

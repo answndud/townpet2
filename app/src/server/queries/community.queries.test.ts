@@ -56,7 +56,7 @@ describe("community queries", () => {
     await listCommonBoardPosts({
       limit: 20,
       commonBoardType: CommonBoardType.HOSPITAL,
-      q: "슬개골",
+      q: "중성화",
       viewerId: "viewer-1",
     });
 
@@ -77,7 +77,7 @@ describe("community queries", () => {
             is: {
               OR: expect.arrayContaining([
                 expect.objectContaining({
-                  treatmentType: { contains: "슬개골", mode: "insensitive" },
+                  treatmentType: { contains: "중성화 수술", mode: "insensitive" },
                 }),
               ]),
             },
@@ -94,7 +94,7 @@ describe("community queries", () => {
     await listAdoptionBoardPostsPage({
       page: 1,
       limit: 12,
-      q: "말티즈",
+      q: "코기",
       viewerId: "viewer-2",
     });
 
@@ -114,7 +114,7 @@ describe("community queries", () => {
             is: {
               OR: expect.arrayContaining([
                 expect.objectContaining({
-                  breed: { contains: "말티즈", mode: "insensitive" },
+                  breed: { contains: "웰시코기", mode: "insensitive" },
                 }),
               ]),
             },

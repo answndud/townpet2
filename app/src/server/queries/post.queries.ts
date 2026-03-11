@@ -18,6 +18,7 @@ import {
 } from "@/lib/pet-profile";
 import { prisma } from "@/lib/prisma";
 import { buildVisibleAuthorFilter } from "@/lib/sanction-visibility";
+import { buildStructuredSearchVariants } from "@/lib/structured-field-normalization";
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import {
   expandExcludedPostTypes,
@@ -849,87 +850,90 @@ function buildPostSearchWhere(
     return {};
   }
 
-  const titleFilter = { title: { contains: trimmedQuery, mode: "insensitive" as const } };
-  const contentFilter = {
-    content: { contains: trimmedQuery, mode: "insensitive" as const },
-  };
-  const authorFilter = {
+  const searchTerms = Array.from(new Set([trimmedQuery, ...buildStructuredSearchVariants(trimmedQuery)]));
+  const titleFilters = searchTerms.map((term) => ({
+    title: { contains: term, mode: "insensitive" as const },
+  }));
+  const contentFilters = searchTerms.map((term) => ({
+    content: { contains: term, mode: "insensitive" as const },
+  }));
+  const authorFilters = searchTerms.map((term) => ({
     author: {
-      nickname: { contains: trimmedQuery, mode: "insensitive" as const },
+      nickname: { contains: term, mode: "insensitive" as const },
     },
-  };
+  }));
   const structuredFilters: Prisma.PostWhereInput[] = [
-    { animalTags: { has: trimmedQuery } },
+    ...searchTerms.map((term) => ({ animalTags: { has: term } })),
     {
       hospitalReview: {
         is: {
-          OR: [
-            { hospitalName: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { treatmentType: { contains: trimmedQuery, mode: "insensitive" as const } },
-          ],
+          OR: searchTerms.flatMap((term) => [
+            { hospitalName: { contains: term, mode: "insensitive" as const } },
+            { treatmentType: { contains: term, mode: "insensitive" as const } },
+          ]),
         },
       },
     },
     {
       placeReview: {
         is: {
-          OR: [
-            { placeName: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { placeType: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { address: { contains: trimmedQuery, mode: "insensitive" as const } },
-          ],
+          OR: searchTerms.flatMap((term) => [
+            { placeName: { contains: term, mode: "insensitive" as const } },
+            { placeType: { contains: term, mode: "insensitive" as const } },
+            { address: { contains: term, mode: "insensitive" as const } },
+          ]),
         },
       },
     },
     {
       walkRoute: {
         is: {
-          OR: [
-            { routeName: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { safetyTags: { has: trimmedQuery } },
-          ],
+          OR: searchTerms.flatMap((term) => [
+            { routeName: { contains: term, mode: "insensitive" as const } },
+            { safetyTags: { has: term } },
+          ]),
         },
       },
     },
     {
       adoptionListing: {
         is: {
-          OR: [
-            { shelterName: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { region: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { animalType: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { breed: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { ageLabel: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { sizeLabel: { contains: trimmedQuery, mode: "insensitive" as const } },
-          ],
+          OR: searchTerms.flatMap((term) => [
+            { shelterName: { contains: term, mode: "insensitive" as const } },
+            { region: { contains: term, mode: "insensitive" as const } },
+            { animalType: { contains: term, mode: "insensitive" as const } },
+            { breed: { contains: term, mode: "insensitive" as const } },
+            { ageLabel: { contains: term, mode: "insensitive" as const } },
+            { sizeLabel: { contains: term, mode: "insensitive" as const } },
+          ]),
         },
       },
     },
     {
       volunteerRecruitment: {
         is: {
-          OR: [
-            { shelterName: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { region: { contains: trimmedQuery, mode: "insensitive" as const } },
-            { volunteerType: { contains: trimmedQuery, mode: "insensitive" as const } },
-          ],
+          OR: searchTerms.flatMap((term) => [
+            { shelterName: { contains: term, mode: "insensitive" as const } },
+            { region: { contains: term, mode: "insensitive" as const } },
+            { volunteerType: { contains: term, mode: "insensitive" as const } },
+          ]),
         },
       },
     },
   ];
 
   if (searchIn === "TITLE") {
-    return titleFilter;
+    return titleFilters.length === 1 ? titleFilters[0]! : { OR: titleFilters };
   }
   if (searchIn === "CONTENT") {
-    return contentFilter;
+    return contentFilters.length === 1 ? contentFilters[0]! : { OR: contentFilters };
   }
   if (searchIn === "AUTHOR") {
-    return authorFilter;
+    return authorFilters.length === 1 ? authorFilters[0]! : { OR: authorFilters };
   }
 
   return {
-    OR: [titleFilter, contentFilter, authorFilter, ...structuredFilters],
+    OR: [...titleFilters, ...contentFilters, ...authorFilters, ...structuredFilters],
   };
 }
 
@@ -3823,12 +3827,64 @@ function buildRankedSearchWhereSql({
   return Prisma.join(clauses, " AND ");
 }
 
+type StructuredSearchSqlVariant = {
+  query: string;
+  pattern: string;
+  compactQuery: string;
+  compactPattern: string;
+};
+
+function buildStructuredSearchSqlVariants(query: string) {
+  return Array.from(new Set(buildStructuredSearchVariants(query))).map((value) => ({
+    query: value,
+    pattern: `%${value}%`,
+    compactQuery: value.replace(/\s+/g, ""),
+    compactPattern: `%${value.replace(/\s+/g, "")}%`,
+  }));
+}
+
+function buildStructuredSearchTextSql() {
+  return Prisma.sql`concat_ws(' ',
+    COALESCE(hr."hospitalName", ''),
+    COALESCE(hr."treatmentType", ''),
+    COALESCE(pr."placeName", ''),
+    COALESCE(pr."placeType", ''),
+    COALESCE(pr."address", ''),
+    COALESCE(wr."routeName", ''),
+    COALESCE(array_to_string(wr."safetyTags", ' '), ''),
+    COALESCE(al."shelterName", ''),
+    COALESCE(al."region", ''),
+    COALESCE(al."animalType", ''),
+    COALESCE(al."breed", ''),
+    COALESCE(al."ageLabel", ''),
+    COALESCE(al."sizeLabel", ''),
+    COALESCE(vr."shelterName", ''),
+    COALESCE(vr."region", ''),
+    COALESCE(vr."volunteerType", '')
+  )`;
+}
+
+function buildStructuredSearchMatchSql(
+  structuredTextSql: Prisma.Sql,
+  variants: StructuredSearchSqlVariant[],
+) {
+  const clauses = variants.flatMap(({ query, pattern, compactQuery, compactPattern }) => [
+    Prisma.sql`${structuredTextSql} ILIKE ${pattern}`,
+    Prisma.sql`REPLACE(${structuredTextSql}, ' ', '') ILIKE ${compactPattern}`,
+    Prisma.sql`to_tsvector('simple', ${structuredTextSql}) @@ websearch_to_tsquery('simple', ${query})`,
+    Prisma.sql`to_tsvector('simple', REPLACE(${structuredTextSql}, ' ', '')) @@ websearch_to_tsquery('simple', ${compactQuery})`,
+  ]);
+
+  return clauses.length === 1 ? clauses[0]! : Prisma.sql`(${Prisma.join(clauses, " OR ")})`;
+}
+
 function buildRankedSearchMatchSql(
   searchIn: PostSearchIn,
   query: string,
   pattern: string,
   compactPattern: string,
   useTrigram: boolean,
+  structuredSearchVariants: StructuredSearchSqlVariant[],
 ) {
   const compactQuery = query.replace(/\s+/g, "");
   const titleSimilaritySql = useTrigram
@@ -3863,30 +3919,8 @@ function buildRankedSearchMatchSql(
     OR to_tsvector('simple', COALESCE(u."nickname", '')) @@ websearch_to_tsquery('simple', ${query})
     ${authorNicknameSimilaritySql}
   )`;
-  const structuredTextSql = Prisma.sql`concat_ws(' ',
-    COALESCE(hr."hospitalName", ''),
-    COALESCE(hr."treatmentType", ''),
-    COALESCE(pr."placeName", ''),
-    COALESCE(pr."placeType", ''),
-    COALESCE(pr."address", ''),
-    COALESCE(wr."routeName", ''),
-    COALESCE(array_to_string(wr."safetyTags", ' '), ''),
-    COALESCE(al."shelterName", ''),
-    COALESCE(al."region", ''),
-    COALESCE(al."animalType", ''),
-    COALESCE(al."breed", ''),
-    COALESCE(al."ageLabel", ''),
-    COALESCE(al."sizeLabel", ''),
-    COALESCE(vr."shelterName", ''),
-    COALESCE(vr."region", ''),
-    COALESCE(vr."volunteerType", '')
-  )`;
-  const structuredMatch = Prisma.sql`(
-    ${structuredTextSql} ILIKE ${pattern}
-    OR REPLACE(${structuredTextSql}, ' ', '') ILIKE ${compactPattern}
-    OR to_tsvector('simple', ${structuredTextSql}) @@ websearch_to_tsquery('simple', ${query})
-    OR to_tsvector('simple', REPLACE(${structuredTextSql}, ' ', '')) @@ websearch_to_tsquery('simple', ${compactQuery})
-  )`;
+  const structuredTextSql = buildStructuredSearchTextSql();
+  const structuredMatch = buildStructuredSearchMatchSql(structuredTextSql, structuredSearchVariants);
 
   if (searchIn === "TITLE") {
     return titleMatch;
@@ -3932,12 +3966,14 @@ export async function listRankedSearchPosts({
   const compactQuery = trimmedQuery.replace(/\s+/g, "");
   const compactPattern = `%${compactQuery}%`;
   const useTrigram = await supportsPgTrgm();
+  const structuredSearchVariants = buildStructuredSearchSqlVariants(trimmedQuery);
   const searchMatchSql = buildRankedSearchMatchSql(
     resolvedSearchIn,
     trimmedQuery,
     likePattern,
     compactPattern,
     useTrigram,
+    structuredSearchVariants,
   );
   const whereSql = buildRankedSearchWhereSql({
     scope,
@@ -3961,6 +3997,10 @@ export async function listRankedSearchPosts({
           similarity(COALESCE(u."nickname", ''), ${trimmedQuery})
         ) * 4.0`
     : Prisma.sql``;
+  const structuredSearchScoreSql = buildStructuredSearchMatchSql(
+    buildStructuredSearchTextSql(),
+    structuredSearchVariants,
+  );
 
   const runRankedSearch = async () => {
     const candidates = await prisma.$queryRaw<RankedSearchRow[]>(Prisma.sql`
@@ -3993,24 +4033,7 @@ export async function listRankedSearchPosts({
               ELSE 0
             END
           + CASE
-              WHEN concat_ws(' ',
-                COALESCE(hr."hospitalName", ''),
-                COALESCE(hr."treatmentType", ''),
-                COALESCE(pr."placeName", ''),
-                COALESCE(pr."placeType", ''),
-                COALESCE(pr."address", ''),
-                COALESCE(wr."routeName", ''),
-                COALESCE(array_to_string(wr."safetyTags", ' '), ''),
-                COALESCE(al."shelterName", ''),
-                COALESCE(al."region", ''),
-                COALESCE(al."animalType", ''),
-                COALESCE(al."breed", ''),
-                COALESCE(al."ageLabel", ''),
-                COALESCE(al."sizeLabel", ''),
-                COALESCE(vr."shelterName", ''),
-                COALESCE(vr."region", ''),
-                COALESCE(vr."volunteerType", '')
-              ) ILIKE ${likePattern}
+              WHEN ${structuredSearchScoreSql}
               THEN 1.1
               ELSE 0
             END

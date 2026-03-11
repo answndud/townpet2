@@ -4,6 +4,11 @@ import { PostScope } from "@prisma/client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  PostEditorToolbarButton,
+  PostEditorToolbarDivider,
+  PostRichTextEditorShell,
+} from "@/components/posts/post-rich-text-editor-shell";
 import { ImageUploadField } from "@/components/ui/image-upload-field";
 import {
   areSameStringArray,
@@ -504,190 +509,176 @@ export function PostDetailEditForm({
         </label>
       ) : null}
 
-      <div className="tp-card mt-6">
-        <div className="tp-editor-toolbar-soft">
-          <span className="tp-form-section-title">본문</span>
-          <button
-            type="button"
-            onClick={applyLink}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft tp-btn-sm inline-flex items-center px-3 font-semibold"
-          >
-            링크
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditorTab("write")}
-            className={`inline-flex items-center rounded-lg px-3 transition ${editorTab === "write" ? "tp-btn-primary" : "tp-btn-soft"} tp-btn-sm`}
-          >
-            작성
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditorTab("preview")}
-            className={`inline-flex items-center rounded-lg px-3 transition ${editorTab === "preview" ? "tp-btn-primary" : "tp-btn-soft"} tp-btn-sm`}
-          >
-            미리보기
-          </button>
-          <span
-            className={`ml-auto ${
-              formState.content.length > POST_CONTENT_MAX_LENGTH ? "text-rose-600" : "tp-text-subtle"
-            }`}
-          >
-            {formState.content.length.toLocaleString("ko-KR")} / {POST_CONTENT_MAX_LENGTH.toLocaleString("ko-KR")}자
-          </span>
-        </div>
-
-        <div className="tp-editor-toolbar">
-          <button
-            type="button"
-            onClick={() => runEditorCommand("bold")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            B
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("italic")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold italic"
-          >
-            I
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("underline")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold underline"
-          >
-            밑줄
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("strikeThrough")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            취소선
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("formatBlock", "pre")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-mono"
-          >
-            {'</>'}
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("insertUnorderedList")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            목록
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("insertOrderedList")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            번호목록
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("formatBlock", "blockquote")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            인용
-          </button>
-          <div className="tp-divider-soft mx-1" />
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "small")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-[11px]"
-          >
-            작게
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "normal")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-[12px]"
-          >
-            보통
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "large")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-sm font-semibold"
-          >
-            크게
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "xlarge")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-base font-semibold"
-          >
-            매우 크게
-          </button>
-          <div className="tp-divider-soft mx-1" />
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "blue")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-[#2f5da4]"
-          >
-            파랑
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "red")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-rose-600"
-          >
-            빨강
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "green")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-emerald-700"
-          >
-            초록
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "gray")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-slate-600"
-          >
-            회색
-          </button>
-        </div>
-
-        {editorTab === "write" ? (
-          <div
-            ref={contentRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={syncEditorToFormState}
-            onBlur={syncEditorToFormState}
-            className="tp-editor-surface min-h-[260px] w-full border-0 px-4 py-3 text-sm leading-relaxed outline-none [&_img]:h-auto [&_img]:max-w-full"
-          />
-        ) : (
-          <div className="tp-editor-surface min-h-[260px] px-4 py-3 text-sm">
+      <div className="mt-6">
+        <PostRichTextEditorShell
+          headerContent={
+            <>
+              <PostEditorToolbarButton
+                onClick={applyLink}
+                onMouseDown={preserveToolbarSelection}
+                scale="bar"
+              >
+                링크
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => setEditorTab("write")}
+                tone={editorTab === "write" ? "primary" : "soft"}
+                scale="bar"
+                className="transition"
+              >
+                작성
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => setEditorTab("preview")}
+                tone={editorTab === "preview" ? "primary" : "soft"}
+                scale="bar"
+                className="transition"
+              >
+                미리보기
+              </PostEditorToolbarButton>
+              <span
+                className={`ml-auto ${
+                  formState.content.length > POST_CONTENT_MAX_LENGTH
+                    ? "text-rose-600"
+                    : "tp-text-subtle"
+                }`}
+              >
+                {formState.content.length.toLocaleString("ko-KR")} / {POST_CONTENT_MAX_LENGTH.toLocaleString("ko-KR")}자
+              </span>
+            </>
+          }
+          toolbar={
+            <>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("bold")}
+                onMouseDown={preserveToolbarSelection}
+              >
+                B
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("italic")}
+                onMouseDown={preserveToolbarSelection}
+                className="italic"
+              >
+                I
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("underline")}
+                onMouseDown={preserveToolbarSelection}
+                className="underline"
+              >
+                밑줄
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("strikeThrough")}
+                onMouseDown={preserveToolbarSelection}
+              >
+                취소선
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("formatBlock", "pre")}
+                onMouseDown={preserveToolbarSelection}
+                className="font-mono"
+              >
+                {"</>"}
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("insertUnorderedList")}
+                onMouseDown={preserveToolbarSelection}
+              >
+                목록
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("insertOrderedList")}
+                onMouseDown={preserveToolbarSelection}
+              >
+                번호목록
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => runEditorCommand("formatBlock", "blockquote")}
+                onMouseDown={preserveToolbarSelection}
+              >
+                인용
+              </PostEditorToolbarButton>
+              <PostEditorToolbarDivider />
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("size", "small")}
+                onMouseDown={preserveToolbarSelection}
+                className="px-2 text-[11px]"
+              >
+                작게
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("size", "normal")}
+                onMouseDown={preserveToolbarSelection}
+                className="px-2 text-[12px]"
+              >
+                보통
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("size", "large")}
+                onMouseDown={preserveToolbarSelection}
+                className="px-2 text-sm"
+              >
+                크게
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("size", "xlarge")}
+                onMouseDown={preserveToolbarSelection}
+                className="px-2 text-base"
+              >
+                매우 크게
+              </PostEditorToolbarButton>
+              <PostEditorToolbarDivider />
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("color", "blue")}
+                onMouseDown={preserveToolbarSelection}
+                className="text-[#2f5da4]"
+              >
+                파랑
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("color", "red")}
+                onMouseDown={preserveToolbarSelection}
+                className="text-rose-600"
+              >
+                빨강
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("color", "green")}
+                onMouseDown={preserveToolbarSelection}
+                className="text-emerald-700"
+              >
+                초록
+              </PostEditorToolbarButton>
+              <PostEditorToolbarButton
+                onClick={() => applyStyledSelection("color", "gray")}
+                onMouseDown={preserveToolbarSelection}
+                className="text-slate-600"
+              >
+                회색
+              </PostEditorToolbarButton>
+            </>
+          }
+        >
+          {editorTab === "write" ? (
             <div
-              className="prose prose-sm max-w-none space-y-2 tp-text-primary"
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
+              ref={contentRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={syncEditorToFormState}
+              onBlur={syncEditorToFormState}
+              className="tp-editor-surface min-h-[260px] w-full border-0 px-4 py-3 text-sm leading-relaxed outline-none [&_img]:h-auto [&_img]:max-w-full"
             />
-          </div>
-        )}
+          ) : (
+            <div className="tp-editor-surface min-h-[260px] px-4 py-3 text-sm">
+              <div
+                className="prose prose-sm max-w-none space-y-2 tp-text-primary"
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </div>
+          )}
+        </PostRichTextEditorShell>
       </div>
 
       <div className="mt-6">

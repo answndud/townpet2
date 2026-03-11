@@ -17,6 +17,33 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 309 완료 (구조화 필드 canonicalization + 검색 정규화)
+- 완료 내용
+  - `app/src/lib/structured-field-normalization.ts`와 `app/src/lib/structured-field-normalization.test.ts`를 추가해 병원명, 치료유형, 보호소명, 지역, 동물종, 품종, 연령, 봉사유형의 canonicalization helper와 alias 검색 variant 생성을 공용화했다.
+  - `app/src/lib/validations/text.ts`, `app/src/lib/validations/post.ts`는 구조화 필드를 `optionalNormalizedString` 기반으로 정규화하도록 바꿨고, `app/src/server/services/post.service.ts`는 저장 직전 같은 helper를 다시 적용해 validation 우회나 future caller 차이에도 canonical 값이 저장되도록 맞췄다.
+  - `app/src/components/posts/post-create-form.tsx`는 병원후기/입양/봉사 구조화 입력에 datalist 추천값을 붙여 자유 텍스트 분산을 줄였고, `app/src/lib/validations/post.test.ts`, `app/src/server/services/post-create-policy.test.ts`에 canonicalization 회귀를 추가했다.
+  - `app/src/server/queries/post.queries.ts`, `app/src/server/queries/community.queries.ts`는 메인 검색, 랭킹 검색, 공용 보드/입양 보드 검색이 alias query를 canonical structured variant까지 함께 확장하도록 바꿨고, `app/src/server/queries/post.queries.test.ts`, `app/src/server/queries/community.queries.test.ts`로 병원/입양 alias 검색 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/structured-field-normalization.ts src/lib/structured-field-normalization.test.ts src/lib/validations/text.ts src/lib/validations/post.ts src/lib/validations/post.test.ts src/server/services/post.service.ts src/server/services/post-create-policy.test.ts src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts src/server/queries/community.queries.ts src/server/queries/community.queries.test.ts src/components/posts/post-create-form.tsx` 통과
+  - `pnpm -C app test -- src/lib/structured-field-normalization.test.ts src/lib/validations/post.test.ts src/server/services/post-create-policy.test.ts src/server/queries/post.queries.test.ts src/server/queries/community.queries.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `142 files / 713 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 턴은 structured field의 canonical text와 검색 alias 확장에 집중했고, 병원/지역/품종 catalog를 별도 DB 모델로 승격하는 작업은 아직 착수하지 않았다.
+
+### 2026-03-11: Cycle 308 완료 (작성/수정 에디터 shell 공통화)
+- 완료 내용
+  - `app/src/components/posts/post-rich-text-editor-shell.tsx`를 추가해 작성/수정 폼이 함께 쓰는 리치 텍스트 에디터 카드 골격, 상단 header row, toolbar row, footer row와 toolbar button/divider 프리미티브를 공용화했다.
+  - `app/src/components/posts/post-create-form.tsx`는 기존 임시저장/모바일 toolbar 흐름을 유지한 채 새 `PostRichTextEditorShell`과 `PostEditorToolbarButton`/`Divider`를 사용하도록 옮겨, 작성 폼의 editor chrome 중복을 줄였다.
+  - `app/src/components/posts/post-detail-edit-form.tsx`는 링크/작성/미리보기 전환과 서식 toolbar를 같은 공용 shell/button/divider로 교체해 작성 폼과 수정 폼이 동일한 editor UI 문법을 재사용하도록 맞췄다.
+  - `app/src/components/posts/post-rich-text-editor-shell.test.tsx`를 추가해 공용 shell의 header/mobile toolbar/footer 렌더링과 button tone/scale class 조합을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-rich-text-editor-shell.tsx src/components/posts/post-rich-text-editor-shell.test.tsx src/components/posts/post-create-form.tsx src/components/posts/post-detail-edit-form.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-rich-text-editor-shell.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `141 files / 704 tests` 통과
+  - `pnpm -C app typecheck` 통과
+- 메모
+  - 이번 턴은 editor chrome 공통화가 목적이라 작성/수정 submit 로직, 이미지 업로드 흐름, markdown serialize 정책은 변경하지 않았다.
+
 ### 2026-03-11: Cycle 307 완료 (댓글/글쓰기/수정 폼 semantic 패널 정리)
 - 완료 내용
   - `app/src/app/globals.css`에 `tp-form-section-bar`, `tp-form-section-title`, `tp-form-label`, `tp-form-note`, `tp-form-panel`, `tp-form-panel-muted`, `tp-editor-toolbar`, `tp-editor-toolbar-soft`, `tp-editor-surface`, `tp-divider-soft`를 추가해 폼/패널/에디터 주변의 공통 semantic role을 늘렸다.

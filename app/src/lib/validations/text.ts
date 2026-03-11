@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { normalizeStoredText } from "@/lib/text-normalization";
 
+type StringNormalizer = (value: string) => string | undefined;
+
 function normalizeStringInput(value: unknown) {
   if (typeof value !== "string") {
     return value;
@@ -24,6 +26,19 @@ export function trimmedRequiredString(options: { min?: number; max?: number } = 
 }
 
 export function optionalTrimmedString(options: { min?: number; max?: number } = {}) {
+  return optionalNormalizedString(
+    (value) => {
+      const trimmed = normalizeStoredText(value).trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    },
+    options,
+  );
+}
+
+export function optionalNormalizedString(
+  normalizer: StringNormalizer,
+  options: { min?: number; max?: number } = {},
+) {
   const { min = 1, max } = options;
   let schema = z.string().min(min);
   if (typeof max === "number") {
@@ -36,8 +51,7 @@ export function optionalTrimmedString(options: { min?: number; max?: number } = 
         return value;
       }
 
-      const trimmed = normalizeStoredText(value).trim();
-      return trimmed.length > 0 ? trimmed : undefined;
+      return normalizer(value);
     },
     schema.optional(),
   ) as z.ZodType<string | undefined>;

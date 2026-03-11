@@ -8,6 +8,11 @@ import type { ReactNode } from "react";
 
 import { ImageUploadField } from "@/components/ui/image-upload-field";
 import {
+  PostEditorToolbarButton,
+  PostEditorToolbarDivider,
+  PostRichTextEditorShell,
+} from "@/components/posts/post-rich-text-editor-shell";
+import {
   areSameStringArray,
   buildImageMarkdown,
   extractImageUrlsFromMarkup,
@@ -30,6 +35,14 @@ import {
 } from "@/lib/editor-content-serializer";
 import { POST_CONTENT_MAX_LENGTH, POST_TITLE_MAX_LENGTH } from "@/lib/input-limits";
 import { REVIEW_CATEGORY, type ReviewCategory } from "@/lib/review-category";
+import {
+  ADOPTION_AGE_LABEL_SUGGESTIONS,
+  ADOPTION_ANIMAL_TYPE_SUGGESTIONS,
+  ADOPTION_BREED_SUGGESTIONS,
+  HOSPITAL_TREATMENT_TYPE_SUGGESTIONS,
+  STRUCTURED_REGION_SUGGESTIONS,
+  VOLUNTEER_TYPE_SUGGESTIONS,
+} from "@/lib/structured-field-normalization";
 import { createPostAction } from "@/server/actions/post";
 
 type NeighborhoodOption = {
@@ -1154,9 +1167,8 @@ export function PostCreateForm({
         ) : null}
       </section>
 
-      <section className="tp-card overflow-hidden">
-        <div className="tp-editor-toolbar-soft">
-          <span className="tp-form-section-title">본문</span>
+      <PostRichTextEditorShell
+        headerContent={(
           <span
             className={`ml-auto ${
               formState.content.length > POST_CONTENT_MAX_LENGTH ? "text-rose-600" : "tp-text-subtle"
@@ -1164,159 +1176,150 @@ export function PostCreateForm({
           >
             {formState.content.length.toLocaleString("ko-KR")} / {POST_CONTENT_MAX_LENGTH.toLocaleString("ko-KR")}자
           </span>
-        </div>
-
-        <div className="tp-editor-toolbar sm:hidden">
-          <button
-            type="button"
-            onClick={() => runEditorCommand("bold")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            B
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("italic")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold italic"
-          >
-            I
-          </button>
-          <details className="ml-auto">
-            <summary className="tp-btn-soft inline-flex h-7 cursor-pointer list-none items-center px-2.5 font-semibold">
-              고급
-            </summary>
-            <div className="tp-form-panel mt-2 flex flex-wrap gap-1.5 p-2">
-              <button
-                type="button"
-                onClick={() => applyStyledSelection("size", "large")}
-                onMouseDown={preserveToolbarSelection}
-                className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-              >
-                크게
-              </button>
-              <button
-                type="button"
-                onClick={() => runEditorCommand("underline")}
-                onMouseDown={preserveToolbarSelection}
-                className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold underline"
-              >
-                밑줄
-              </button>
-              <button
-                type="button"
-                onClick={() => runEditorCommand("strikeThrough")}
-                onMouseDown={preserveToolbarSelection}
-                className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-              >
-                취소선
-              </button>
-            </div>
-          </details>
-        </div>
-
-        <div className="tp-editor-toolbar hidden sm:flex">
-          <button
-            type="button"
-            onClick={() => runEditorCommand("bold")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            B
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("italic")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold italic"
-          >
-            I
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("strikeThrough")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            취소선
-          </button>
-          <button
-            type="button"
-            onClick={() => runEditorCommand("underline")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold underline"
-          >
-            밑줄
-          </button>
-          <div className="tp-divider-soft mx-1" />
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "small")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-[11px]"
-          >
-            작게
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "normal")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-[12px]"
-          >
-            보통
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "large")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-sm font-semibold"
-          >
-            크게
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("size", "xlarge")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2 text-base font-semibold"
-          >
-            매우 크게
-          </button>
-          <div className="tp-divider-soft mx-1" />
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "blue")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-[#2f5da4]"
-          >
-            파랑
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "red")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-rose-600"
-          >
-            빨강
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "green")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-emerald-700"
-          >
-            초록
-          </button>
-          <button
-            type="button"
-            onClick={() => applyStyledSelection("color", "gray")}
-            onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold text-slate-600"
-          >
-            회색
-          </button>
-        </div>
-
+        )}
+        mobileToolbar={(
+          <>
+            <PostEditorToolbarButton
+              onClick={() => runEditorCommand("bold")}
+              onMouseDown={preserveToolbarSelection}
+            >
+              B
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => runEditorCommand("italic")}
+              onMouseDown={preserveToolbarSelection}
+              className="italic"
+            >
+              I
+            </PostEditorToolbarButton>
+            <details className="ml-auto">
+              <summary className="tp-btn-soft inline-flex h-7 cursor-pointer list-none items-center px-2.5 font-semibold">
+                고급
+              </summary>
+              <div className="tp-form-panel mt-2 flex flex-wrap gap-1.5 p-2">
+                <PostEditorToolbarButton
+                  onClick={() => applyStyledSelection("size", "large")}
+                  onMouseDown={preserveToolbarSelection}
+                >
+                  크게
+                </PostEditorToolbarButton>
+                <PostEditorToolbarButton
+                  onClick={() => runEditorCommand("underline")}
+                  onMouseDown={preserveToolbarSelection}
+                  className="underline"
+                >
+                  밑줄
+                </PostEditorToolbarButton>
+                <PostEditorToolbarButton
+                  onClick={() => runEditorCommand("strikeThrough")}
+                  onMouseDown={preserveToolbarSelection}
+                >
+                  취소선
+                </PostEditorToolbarButton>
+              </div>
+            </details>
+          </>
+        )}
+        toolbar={(
+          <>
+            <PostEditorToolbarButton
+              onClick={() => runEditorCommand("bold")}
+              onMouseDown={preserveToolbarSelection}
+            >
+              B
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => runEditorCommand("italic")}
+              onMouseDown={preserveToolbarSelection}
+              className="italic"
+            >
+              I
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => runEditorCommand("strikeThrough")}
+              onMouseDown={preserveToolbarSelection}
+            >
+              취소선
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => runEditorCommand("underline")}
+              onMouseDown={preserveToolbarSelection}
+              className="underline"
+            >
+              밑줄
+            </PostEditorToolbarButton>
+            <PostEditorToolbarDivider />
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("size", "small")}
+              onMouseDown={preserveToolbarSelection}
+              className="px-2 text-[11px]"
+            >
+              작게
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("size", "normal")}
+              onMouseDown={preserveToolbarSelection}
+              className="px-2 text-[12px]"
+            >
+              보통
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("size", "large")}
+              onMouseDown={preserveToolbarSelection}
+              className="px-2 text-sm"
+            >
+              크게
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("size", "xlarge")}
+              onMouseDown={preserveToolbarSelection}
+              className="px-2 text-base"
+            >
+              매우 크게
+            </PostEditorToolbarButton>
+            <PostEditorToolbarDivider />
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("color", "blue")}
+              onMouseDown={preserveToolbarSelection}
+              className="tp-text-link"
+            >
+              파랑
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("color", "red")}
+              onMouseDown={preserveToolbarSelection}
+              className="text-rose-600"
+            >
+              빨강
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("color", "green")}
+              onMouseDown={preserveToolbarSelection}
+              className="text-emerald-700"
+            >
+              초록
+            </PostEditorToolbarButton>
+            <PostEditorToolbarButton
+              onClick={() => applyStyledSelection("color", "gray")}
+              onMouseDown={preserveToolbarSelection}
+              className="text-slate-600"
+            >
+              회색
+            </PostEditorToolbarButton>
+          </>
+        )}
+        footerContent={(
+          <>
+            <PostEditorToolbarButton onClick={clearDraft}>임시저장 삭제</PostEditorToolbarButton>
+            <span className="tp-text-subtle">
+              {draftSavedAt
+                ? `임시저장: ${new Date(draftSavedAt).toLocaleString("ko-KR")}`
+                : "임시저장 없음"}
+            </span>
+            {draftMessage ? <span className="tp-text-accent">{draftMessage}</span> : null}
+          </>
+        )}
+      >
         <div
           ref={contentRef}
           contentEditable
@@ -1325,23 +1328,7 @@ export function PostCreateForm({
           onBlur={syncEditorToFormState}
           className="tp-editor-surface min-h-[340px] w-full border-0 px-4 py-3 text-sm leading-relaxed outline-none [&_img]:h-auto [&_img]:max-w-full"
         />
-
-        <div className="tp-editor-toolbar-soft border-t">
-          <button
-            type="button"
-            onClick={clearDraft}
-            className="tp-btn-soft inline-flex h-7 items-center px-2.5 font-semibold"
-          >
-            임시저장 삭제
-          </button>
-          <span className="tp-text-subtle">
-            {draftSavedAt
-              ? `임시저장: ${new Date(draftSavedAt).toLocaleString("ko-KR")}`
-              : "임시저장 없음"}
-          </span>
-          {draftMessage ? <span className="tp-text-accent">{draftMessage}</span> : null}
-        </div>
-      </section>
+      </PostRichTextEditorShell>
 
       <div id="post-image-upload" className="tp-card p-4">
         <ImageUploadField
@@ -1409,6 +1396,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.hospitalReview.treatmentType}
+              list="hospital-treatment-type-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -1776,6 +1764,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.adoptionListing.region}
+              list="structured-region-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -1794,6 +1783,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.adoptionListing.animalType}
+              list="adoption-animal-type-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -1812,6 +1802,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.adoptionListing.breed}
+              list="adoption-breed-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -1830,6 +1821,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.adoptionListing.ageLabel}
+              list="adoption-age-label-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -1974,6 +1966,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.volunteerRecruitment.region}
+              list="structured-region-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -2010,6 +2003,7 @@ export function PostCreateForm({
             <input
               className="tp-input-soft px-3 py-2 text-sm"
               value={formState.volunteerRecruitment.volunteerType}
+              list="volunteer-type-options"
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
@@ -2066,6 +2060,37 @@ export function PostCreateForm({
           </label>
         </StructuredFieldSection>
       ) : null}
+
+      <datalist id="hospital-treatment-type-options">
+        {HOSPITAL_TREATMENT_TYPE_SUGGESTIONS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="structured-region-options">
+        {STRUCTURED_REGION_SUGGESTIONS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="adoption-animal-type-options">
+        {ADOPTION_ANIMAL_TYPE_SUGGESTIONS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="adoption-breed-options">
+        {ADOPTION_BREED_SUGGESTIONS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="adoption-age-label-options">
+        {ADOPTION_AGE_LABEL_SUGGESTIONS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="volunteer-type-options">
+        {VOLUNTEER_TYPE_SUGGESTIONS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
 
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 

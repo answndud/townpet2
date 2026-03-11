@@ -3,6 +3,7 @@ import { cache } from "react";
 
 import { prisma } from "@/lib/prisma";
 import { buildVisibleAuthorFilter } from "@/lib/sanction-visibility";
+import { buildStructuredSearchVariants } from "@/lib/structured-field-normalization";
 import { createStaticQueryCacheKey, withQueryCache } from "@/server/cache/query-cache";
 import { listHiddenAuthorIdsForViewer } from "@/server/queries/user-relation.queries";
 
@@ -126,10 +127,11 @@ function buildCommonBoardSearchFilters(
     return [];
   }
 
-  const baseFilters: Prisma.PostWhereInput[] = [
-    { title: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-    { content: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-  ];
+  const searchTerms = Array.from(new Set([trimmedQ, ...buildStructuredSearchVariants(trimmedQ)]));
+  const baseFilters: Prisma.PostWhereInput[] = searchTerms.flatMap((term) => [
+    { title: { contains: term, mode: Prisma.QueryMode.insensitive } },
+    { content: { contains: term, mode: Prisma.QueryMode.insensitive } },
+  ]);
 
   if (commonBoardType === CommonBoardType.HOSPITAL) {
     return [
@@ -137,10 +139,10 @@ function buildCommonBoardSearchFilters(
       {
         hospitalReview: {
           is: {
-            OR: [
-              { hospitalName: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { treatmentType: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-            ],
+            OR: searchTerms.flatMap((term) => [
+              { hospitalName: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { treatmentType: { contains: term, mode: Prisma.QueryMode.insensitive } },
+            ]),
           },
         },
       },
@@ -153,13 +155,13 @@ function buildCommonBoardSearchFilters(
       {
         adoptionListing: {
           is: {
-            OR: [
-              { shelterName: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { region: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { animalType: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { breed: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { ageLabel: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-            ],
+            OR: searchTerms.flatMap((term) => [
+              { shelterName: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { region: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { animalType: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { breed: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { ageLabel: { contains: term, mode: Prisma.QueryMode.insensitive } },
+            ]),
           },
         },
       },
@@ -172,11 +174,11 @@ function buildCommonBoardSearchFilters(
       {
         volunteerRecruitment: {
           is: {
-            OR: [
-              { shelterName: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { region: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-              { volunteerType: { contains: trimmedQ, mode: Prisma.QueryMode.insensitive } },
-            ],
+            OR: searchTerms.flatMap((term) => [
+              { shelterName: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { region: { contains: term, mode: Prisma.QueryMode.insensitive } },
+              { volunteerType: { contains: term, mode: Prisma.QueryMode.insensitive } },
+            ]),
           },
         },
       },

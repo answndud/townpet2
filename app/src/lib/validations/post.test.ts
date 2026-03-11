@@ -65,6 +65,36 @@ describe("post validations", () => {
     expect(result.success).toBe(false);
   });
 
+  it("canonicalizes hospital review and adoption structured text fields", () => {
+    const hospital = hospitalReviewSchema.safeParse({
+      hospitalName: "서울 24 시간 동물 병원",
+      treatmentType: "중성화",
+    });
+    const adoption = adoptionListingSchema.safeParse({
+      shelterName: "서울시 동물 보호 센터",
+      region: "서울 마포",
+      animalType: "개",
+      breed: "코숏",
+      ageLabel: "2 세 추정",
+      sizeLabel: " 중형 ",
+    });
+
+    expect(hospital.success).toBe(true);
+    expect(adoption.success).toBe(true);
+    expect(hospital.data).toMatchObject({
+      hospitalName: "서울 24시 동물병원",
+      treatmentType: "중성화 수술",
+    });
+    expect(adoption.data).toMatchObject({
+      shelterName: "서울시 동물보호센터",
+      region: "서울특별시 마포구",
+      animalType: "강아지",
+      breed: "코숏",
+      ageLabel: "2살 추정",
+      sizeLabel: "중형",
+    });
+  });
+
   it("accepts place review defaults", () => {
     const result = placeReviewSchema.safeParse({
       placeName: "펫카페",
@@ -113,6 +143,21 @@ describe("post validations", () => {
     expect(result.data?.volunteerDate).toBeInstanceOf(Date);
     expect(result.data?.capacity).toBe(12);
     expect(result.data?.status).toBe("FULL");
+  });
+
+  it("canonicalizes volunteer structured text fields", () => {
+    const result = volunteerRecruitmentSchema.safeParse({
+      shelterName: "마포 유기 동물 보호 센터",
+      region: "서울 마포",
+      volunteerType: "사진촬영봉사",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({
+      shelterName: "마포 유기동물보호센터",
+      region: "서울특별시 마포구",
+      volunteerType: "사진 촬영",
+    });
   });
 
   it("accepts petType in list filters", () => {

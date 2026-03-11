@@ -14,8 +14,19 @@ import {
 import { POST_CONTENT_MAX_LENGTH, POST_TITLE_MAX_LENGTH } from "@/lib/input-limits";
 import { isFreeBoardPostType } from "@/lib/post-type-groups";
 import { REVIEW_CATEGORY, REVIEW_CATEGORY_VALUES, type ReviewCategory } from "@/lib/review-category";
+import {
+  normalizeAdoptionAgeLabel,
+  normalizeAnimalType,
+  normalizeHospitalName,
+  normalizeHospitalTreatmentType,
+  normalizeShelterName,
+  normalizeStructuredRegion,
+  normalizeStructuredTextValue,
+  normalizeVolunteerType,
+} from "@/lib/structured-field-normalization";
 import { isTrustedUploadUrl } from "@/lib/upload-url";
 import {
+  optionalNormalizedString,
   optionalTrimmedNonEmptyString,
   optionalTrimmedString,
   trimmedRequiredString,
@@ -169,8 +180,8 @@ export const postCreateSchema = z.object({
   });
 
 export const hospitalReviewSchema = z.object({
-  hospitalName: optionalTrimmedString(),
-  treatmentType: optionalTrimmedString(),
+  hospitalName: optionalNormalizedString(normalizeHospitalName),
+  treatmentType: optionalNormalizedString(normalizeHospitalTreatmentType),
   totalCost: optionalInt({ min: 0 }),
   waitTime: optionalInt({ min: 0 }),
   rating: optionalInt({ min: 1, max: 5 }),
@@ -201,23 +212,23 @@ export const walkRouteSchema = z.object({
 });
 
 export const adoptionListingSchema = z.object({
-  shelterName: optionalTrimmedString(),
-  region: optionalTrimmedString(),
-  animalType: optionalTrimmedString(),
-  breed: optionalTrimmedString(),
-  ageLabel: optionalTrimmedString(),
+  shelterName: optionalNormalizedString(normalizeShelterName),
+  region: optionalNormalizedString(normalizeStructuredRegion),
+  animalType: optionalNormalizedString(normalizeAnimalType),
+  breed: optionalNormalizedString(normalizeStructuredTextValue),
+  ageLabel: optionalNormalizedString(normalizeAdoptionAgeLabel),
   sex: optionalNativeEnum(AnimalSex),
   isNeutered: optionalBoolean,
   isVaccinated: optionalBoolean,
-  sizeLabel: optionalTrimmedString(),
+  sizeLabel: optionalNormalizedString(normalizeStructuredTextValue),
   status: optionalNativeEnum(AdoptionStatus),
 });
 
 export const volunteerRecruitmentSchema = z.object({
-  shelterName: optionalTrimmedString(),
-  region: optionalTrimmedString(),
+  shelterName: optionalNormalizedString(normalizeShelterName),
+  region: optionalNormalizedString(normalizeStructuredRegion),
   volunteerDate: optionalDate,
-  volunteerType: optionalTrimmedString(),
+  volunteerType: optionalNormalizedString(normalizeVolunteerType),
   capacity: optionalInt({ min: 1, max: 999 }),
   status: optionalNativeEnum(VolunteerRecruitmentStatus),
 });
