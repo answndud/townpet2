@@ -49,7 +49,12 @@ export async function GET(request: NextRequest) {
 
     const [currentUser, unreadNotificationCount] = await Promise.all([
       getUserById(userId).catch(() => null),
-      countUnreadNotifications(userId),
+      countUnreadNotifications(userId).catch((error) => {
+        if (error instanceof ServiceError && error.code === "SCHEMA_SYNC_REQUIRED") {
+          return 0;
+        }
+        throw error;
+      }),
     ]);
     const canModerate =
       currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MODERATOR;

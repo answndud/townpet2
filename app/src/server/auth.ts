@@ -45,6 +45,21 @@ export async function getCurrentUserId() {
   return null;
 }
 
+export async function getCurrentUserIdFromRequest(
+  request: Pick<Request, "headers">,
+  options?: { allowDemoFallback?: boolean },
+) {
+  if (!hasSessionCookieFromRequest(request)) {
+    if (options?.allowDemoFallback) {
+      return getCurrentUserId();
+    }
+    return null;
+  }
+
+  const session = await auth();
+  return session?.user?.id ?? null;
+}
+
 export async function requireAuthenticatedUserId() {
   const userId = await getCurrentUserId();
   if (!userId) {

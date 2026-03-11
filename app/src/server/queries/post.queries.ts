@@ -2492,6 +2492,7 @@ export async function getPostById(id?: string, viewerId?: string) {
       key: cacheKey,
       ttlSeconds: 30,
       fetcher: runGetPost,
+      cacheNull: false,
     });
   }
 
@@ -2536,6 +2537,7 @@ export async function getPostMetadataById(id?: string, viewerId?: string) {
       key: cacheKey,
       ttlSeconds: 30,
       fetcher: runMetadata,
+      cacheNull: false,
     });
   }
 
@@ -2577,6 +2579,7 @@ export async function getPostStatsById(id?: string, viewerId?: string) {
       key: cacheKey,
       ttlSeconds: 60,
       fetcher: runStats,
+      cacheNull: false,
     });
   }
 
@@ -2613,6 +2616,7 @@ export async function getPostReadAccessById(id?: string, viewerId?: string) {
       key: cacheKey,
       ttlSeconds: 60,
       fetcher: runReadAccess,
+      cacheNull: false,
     });
   }
 
@@ -2649,6 +2653,7 @@ export async function getPostContentById(id?: string, viewerId?: string) {
       key: cacheKey,
       ttlSeconds: 60,
       fetcher: runContent,
+      cacheNull: false,
     });
   }
 

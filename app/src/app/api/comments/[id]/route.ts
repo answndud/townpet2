@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getClientIp } from "@/server/request-context";
@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const forceGuestMode =
       process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
-    const userId = forceGuestMode ? null : await getCurrentUserId();
+    const userId = forceGuestMode ? null : await getCurrentUserIdFromRequest(request);
 
     if (userId) {
       const updated = await updateComment({
@@ -130,7 +130,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const forceGuestMode =
       process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
-    const userId = forceGuestMode ? null : await getCurrentUserId();
+    const userId = forceGuestMode ? null : await getCurrentUserIdFromRequest(request);
 
     if (userId) {
       const deleted = await deleteComment({ commentId, authorId: userId });

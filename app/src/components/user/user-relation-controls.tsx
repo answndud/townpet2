@@ -4,9 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  blockUserAction,
   muteUserAction,
-  unblockUserAction,
   unmuteUserAction,
 } from "@/server/actions/user-relation";
 
@@ -26,7 +24,6 @@ export function UserRelationControls({
   compact = false,
 }: UserRelationControlsProps) {
   const router = useRouter();
-  const [isBlockedByMe, setIsBlockedByMe] = useState(initialState.isBlockedByMe);
   const [isMutedByMe, setIsMutedByMe] = useState(initialState.isMutedByMe);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -34,34 +31,20 @@ export function UserRelationControls({
   const buttonClass =
     "rounded-lg border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
-  const runAction = (action: "BLOCK" | "UNBLOCK" | "MUTE" | "UNMUTE") => {
+  const runAction = (action: "MUTE" | "UNMUTE") => {
     startTransition(async () => {
       setMessage(null);
       const payload = { targetUserId };
-      const result =
-        action === "BLOCK"
-          ? await blockUserAction(payload)
-          : action === "UNBLOCK"
-            ? await unblockUserAction(payload)
-            : action === "MUTE"
-              ? await muteUserAction(payload)
-              : await unmuteUserAction(payload);
+      const result = action === "MUTE" ? await muteUserAction(payload) : await unmuteUserAction(payload);
 
       if (!result.ok) {
         setMessage(result.message);
         return;
       }
 
-      setIsBlockedByMe(result.state.isBlockedByMe);
       setIsMutedByMe(result.state.isMutedByMe);
       setMessage(
-        action === "BLOCK"
-          ? "사용자를 차단했습니다."
-          : action === "UNBLOCK"
-            ? "차단을 해제했습니다."
-            : action === "MUTE"
-            ? "사용자를 뮤트했습니다."
-            : "뮤트를 해제했습니다.",
+        action === "MUTE" ? "사용자를 뮤트했습니다." : "뮤트를 해제했습니다.",
       );
       router.refresh();
     });
@@ -69,18 +52,6 @@ export function UserRelationControls({
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? "text-[11px]" : "text-xs"}`}>
-      <button
-        type="button"
-        disabled={isPending}
-        onClick={() => runAction(isBlockedByMe ? "UNBLOCK" : "BLOCK")}
-        className={`${buttonClass} ${
-          isBlockedByMe
-            ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
-            : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-        }`}
-      >
-        {isBlockedByMe ? "차단 해제" : "차단"}
-      </button>
       <button
         type="button"
         disabled={isPending}

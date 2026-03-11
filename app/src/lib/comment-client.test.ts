@@ -13,6 +13,7 @@ describe("comment-client", () => {
         ok: true,
         data: {
           comments: [{ id: "comment-1" }],
+          bestComments: [{ id: "comment-best-1" }],
           totalCount: 1,
           totalRootCount: 1,
           page: 1,
@@ -22,6 +23,7 @@ describe("comment-client", () => {
       }),
     ).toEqual({
       comments: [{ id: "comment-1" }],
+      bestComments: [{ id: "comment-best-1" }],
       totalCount: 1,
       totalRootCount: 1,
       page: 1,
@@ -46,6 +48,7 @@ describe("comment-client", () => {
         ok: true,
         data: {
           comments: [{ id: "comment-1" }],
+          bestComments: [{ id: "comment-best-1" }],
           totalCount: 1,
           totalRootCount: 1,
           page: 2,
@@ -57,6 +60,7 @@ describe("comment-client", () => {
 
     await expect(fetchPostCommentPage<{ id: string }>("post-1", { page: 2, limit: 10 })).resolves.toEqual({
       comments: [{ id: "comment-1" }],
+      bestComments: [{ id: "comment-best-1" }],
       totalCount: 1,
       totalRootCount: 1,
       page: 2,
@@ -68,6 +72,35 @@ describe("comment-client", () => {
       method: "GET",
       credentials: "same-origin",
       cache: "no-store",
+    });
+  });
+
+  it("guest mode fetch는 guest header를 함께 보낸다", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          comments: [],
+          bestComments: [],
+          totalCount: 0,
+          totalRootCount: 0,
+          page: 1,
+          totalPages: 1,
+          limit: 30,
+        },
+      }),
+    } as Response);
+
+    await fetchPostCommentPage("post-1", { forceGuestMode: true });
+
+    expect(fetchSpy).toHaveBeenCalledWith("/api/posts/post-1/comments", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        "x-guest-mode": "1",
+      },
     });
   });
 });

@@ -26,6 +26,116 @@
 
 ## Active Plan
 
+### Cycle 347: 댓글 뮤트 액션의 강제 revalidate 제거로 즉시 반영 안정화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글에서 호출하는 뮤트/뮤트 해제 action은 서버 `revalidatePath`를 건너뛰어 댓글 로컬 reload를 덮어쓰지 않도록 안정화 | Codex | P1 | `done` | user-relation action은 `revalidate:false` 옵션을 지원하고, 댓글 스레드는 이 옵션으로 relation action을 호출하며, action 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/actions/user-relation.ts`, `app/src/server/actions/user-relation.test.ts`, `app/src/components/posts/post-comment-thread.tsx` |
+
+### Cycle 346: 댓글 뮤트 즉시 반영과 placeholder 상태 해제 동선 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글에서 뮤트/뮤트 해제를 누르면 새로고침 없이 즉시 댓글 목록을 다시 불러오고, 같은 댓글 위치로 스크롤 복원하며, placeholder 상태에서도 `뮤트 해제`를 바로 제공 | Codex | P1 | `done` | 댓글 작성자 메뉴의 뮤트는 `onCommentsChanged`를 통해 현재 페이지를 즉시 reload하고 해당 댓글 위치를 복원하며, muted placeholder 댓글/베스트 댓글은 `뮤트 해제` 버튼을 보여주고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, 관련 테스트 |
+
+### Cycle 345: 베스트 댓글도 뮤트 placeholder 정책으로 통일 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 베스트 댓글 섹션에서도 뮤트 작성자 댓글을 제거하지 않고 placeholder로 유지해 일반 댓글과 같은 정책으로 통일 | Codex | P1 | `done` | 댓글 query는 베스트 댓글에서 차단 작성자만 제외하고 뮤트 작성자는 placeholder로 sanitize하며, 베스트 댓글 UI도 `뮤트한 사용자 댓글입니다.`를 렌더하고 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/comment.queries.ts`, `app/src/components/posts/post-comment-thread.tsx`, 관련 테스트 |
+
+### Cycle 344: 뮤트 댓글을 placeholder로 유지하고 차단 댓글만 숨김 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 스레드에서 뮤트 작성자 댓글을 완전 제외하지 않고 placeholder로 남기되, 차단 작성자 댓글은 계속 숨기는 기본 정책을 도입 | Codex | P1 | `done` | 사용자 관계 query는 차단/뮤트 author ids를 분리해 제공하고, 댓글 query는 차단 댓글만 제외하면서 뮤트 댓글은 placeholder 상태로 sanitize하며, 댓글 UI는 `뮤트한 사용자 댓글입니다.`를 렌더하고 메뉴/반응/답글/신고를 막고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/user-relation.queries.ts`, `app/src/server/queries/comment.queries.ts`, `app/src/components/posts/post-comment-thread.tsx`, 관련 테스트 |
+
+### Cycle 343: hidden-author 메모리 캐시 제거로 관계 변경 즉시 반영 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 뮤트/차단 해제 후 post detail/comment 조회에 이전 hidden-author 상태가 남지 않도록 `listHiddenAuthorIdsForViewer`의 process-local 메모리 캐시를 제거 | Codex | P1 | `done` | 사용자 관계 query는 매 요청 DB 기준으로 hidden author ids를 계산하고, 뮤트 상태 변경이 다음 댓글 조회에 즉시 반영되며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/user-relation.queries.ts`, 관련 테스트 |
+
+### Cycle 342: 프로필 로그인 수단 UI를 단일 요약으로 축소 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 내 프로필의 `계정 연동` UI에서 카카오/네이버 연결·준비중 문구를 제거하고 현재 로그인 수단만 보여주는 단일 요약 카드로 축소 | Codex | P2 | `done` | 프로필 페이지는 현재 로그인 수단만 표시하고 다른 로그인 옵션/연동 준비중/연결·해제 버튼을 노출하지 않으며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/profile/page.tsx`, `app/src/components/profile/profile-social-account-connections.tsx`, 관련 테스트 |
+
+### Cycle 341: guest 상세 댓글 fetch를 강제 guest-mode로 고정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/posts/[id]/guest`의 댓글 fetch는 브라우저 쿠키/세션과 무관하게 항상 guest viewer로 동작하도록 `x-guest-mode`를 사용해 강제 고정 | Codex | P1 | `done` | guest 상세 페이지의 댓글 fetch helper와 댓글 API GET이 `x-guest-mode`를 지원하고, guest 페이지에서 쿠키 때문에 댓글이 404로 숨지 않으며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/posts/[id]/guest/page.tsx`, `app/src/components/posts/post-comment-section-client.tsx`, `app/src/lib/comment-client.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, 관련 테스트 |
+
+### Cycle 340: 게스트 post-detail API에서 demo fallback 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 비로그인 게스트 요청은 `DEMO_USER_EMAIL`이 설정돼 있어도 실제 세션 쿠키가 없으면 demo user로 취급하지 않도록 post-detail 관련 API를 request-aware auth helper로 전환 | Codex | P1 | `done` | `getCurrentUserIdFromRequest` helper가 추가되고, 댓글/반응/조회수/상세/본문/통계/게시글/댓글 수정삭제 관련 API는 세션 쿠키가 있을 때만 사용자 컨텍스트를 사용하며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/auth.ts`, `app/src/server/auth.test.ts`, `app/src/app/api/posts/[id]/**`, `app/src/app/api/comments/[id]/route.ts` |
+
+### Cycle 339: viewer-shell 알림 스키마 오류 fail-open 처리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `NotificationDelivery` 스키마 누락으로 `/api/viewer-shell`이 503을 내더라도 인증 헤더 셸이 깨지지 않도록 unread count를 0으로 fail-open | Codex | P1 | `done` | viewer-shell route는 notification schema sync 오류에서 503 대신 인증 셸 payload를 유지하고 unread count를 0으로 반환하며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/api/viewer-shell/route.ts`, `app/src/app/api/viewer-shell/route.test.ts` |
+
+### Cycle 338: post-detail null 캐시로 인한 stale 404 방지 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세/댓글 read-access 계열 조회에서 `null` 결과를 캐시하지 않아 stale 404가 남지 않도록 보강 | Codex | P1 | `done` | `withQueryCache`가 선택적으로 `null` 캐시를 건너뛸 수 있고, post-detail 관련 조회는 `cacheNull: false`를 사용해 게스트 read-access/comment 경로의 stale 404를 방지하며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/cache/query-cache.ts`, `app/src/server/cache/query-cache.test.ts`, `app/src/server/queries/post.queries.ts` |
+
+### Cycle 337: 비로그인 댓글 작성자 메뉴 비노출 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 비로그인 사용자는 댓글 작성자 이름 메뉴에서 `프로필 보기`와 `뮤트` 모두 볼 수 없도록 차단 | Codex | P2 | `done` | 댓글/베스트 댓글 작성자 이름은 로그인 사용자에게만 메뉴를 열고, 비로그인 사용자는 plain text만 보며 `프로필 보기`/`뮤트`가 노출되지 않고 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 336: 댓글 작성자 메뉴에 뮤트 액션 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 작성자 이름 메뉴에 `뮤트` 액션을 추가하고 자기 자신/비로그인 상태에서는 숨김 | Codex | P2 | `done` | 댓글 작성자 메뉴는 `프로필 보기`와 함께 `뮤트` action을 제공하고, 성공 시 메뉴를 닫고 새로고침하며, 자기 자신/비로그인에서는 뮤트가 노출되지 않고 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 335: 사용자 관계 UI를 뮤트 전용으로 축소 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 공개 프로필/게시글 상세/내 프로필 관계 관리 UI에서 차단 노출을 제거하고 뮤트만 남김 | Codex | P2 | `done` | `UserRelationControls`는 뮤트/뮤트 해제만 제공하고 내 프로필 관계 관리 섹션도 뮤트 목록만 노출하며, 차단 데이터 모델/정책은 유지하되 사용자 노출은 줄이고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/user/user-relation-controls.tsx`, `app/src/app/profile/page.tsx`, 관련 테스트 |
+
+### Cycle 334: 댓글 작성자 메뉴 외부 클릭 닫힘 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 작성자 메뉴가 바깥 영역 클릭이나 포커스 이탈 시 자동으로 닫히도록 보강 | Codex | P2 | `done` | 댓글 작성자 메뉴는 외부 클릭/포커스 이탈/`Esc` 입력 시 닫히고, 닫힘 판단 helper 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 333: 댓글 작성자 메뉴를 프로필 보기 1개로 재정리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 작성자 클릭은 직접 이동이 아니라 다시 메뉴를 열되, 액션은 `프로필 보기` 하나만 남기도록 정리 | Codex | P2 | `done` | 댓글 작성자 이름은 다시 메뉴를 열고 내부 액션은 `프로필 보기`만 제공하며, `작성 글 보기`는 제거되고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 332: 댓글 작성자 클릭을 프로필 직행으로 단순화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 작성자 클릭 메뉴에서 `작성 글 보기`를 제거하고 작성자 이름을 공개 프로필 직접 이동으로 단순화 | Codex | P2 | `done` | 댓글 작성자 이름은 다시 공개 프로필 직접 링크로 동작하고, 메뉴 액션 텍스트가 제거되며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 331: 댓글 작성자 메뉴 액션 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 작성자 이름 클릭 시 즉시 프로필로 이동하지 않고 `프로필 보기`/`작성 글 보기`를 선택할 수 있는 메뉴를 제공 | Codex | P2 | `done` | 댓글 작성자 이름은 공개 프로필/작성 글 보기 액션을 담은 메뉴를 열고, 공개 프로필 탭 링크 helper가 공용화되며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/lib/public-profile.ts`, `app/src/app/users/[id]/page.tsx`, 관련 테스트 |
+
+### Cycle 330: 베스트 댓글 헤더 보조 문구 제거 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 베스트 댓글 헤더의 `공감 10개 이상`, `TOP 4` 보조 문구를 제거 | Codex | P2 | `done` | 베스트 댓글 섹션 헤더에는 제목만 남고 보조 문구가 제거되며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 329: 댓글 divider 라인 톤 완화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세 댓글 목록과 답글 연결선의 divider 톤을 더 연하게 조정 | Codex | P2 | `done` | 댓글 스레드의 베스트 섹션/일반 목록 divider, 답글 badge/guide line, 작성 폼 상단 구분선이 더 옅은 블루 톤으로 조정되고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-comment-thread.test.tsx` |
+
+### Cycle 328: 베스트 댓글 확인용 데모 시드 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 베스트 댓글/원댓글 이동을 바로 확인할 수 있는 전용 데모 게시글과 댓글 시드 스크립트를 추가하고 로컬 DB에 실제 데이터를 주입 | Codex | P2 | `done` | 재실행 가능한 comment demo seed 스크립트와 package script가 추가되고, 로컬 DB 실행 결과 베스트 댓글 4개/전체 댓글 수/확인용 URL이 출력되며, lint/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/scripts/seed-comment-best-demo.ts`, `app/package.json` |
+
+### Cycle 327: 베스트 댓글 원댓글 점프 링크 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 베스트 댓글 카드에서 실제 댓글 위치로 이동할 수 있는 `원댓글로 가기` 링크를 추가 | Codex | P1 | `done` | 댓글 API/쿼리가 베스트 댓글별 `threadRootId/threadPage` 메타를 함께 반환하고, 베스트 댓글 UI는 버튼 클릭 시 필요한 댓글 페이지를 불러온 뒤 해당 댓글 anchor로 스크롤하며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/comment.queries.ts`, `app/src/components/posts/post-comment-thread.tsx`, 관련 테스트 |
+
+### Cycle 326: 베스트 댓글 상단 고정 + 최신 댓글 정렬 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 상단에 좋아요 기준 `베스트 댓글` TOP 4를 고정 노출하고 일반 댓글 목록을 최신 루트 댓글 순으로 전환 | Codex | P1 | `done` | 댓글 API/쿼리가 `bestComments`를 함께 반환하고 `좋아요 10개 이상` 댓글만 TOP 4로 선정하며, 댓글 스레드는 베스트 섹션을 상단에 렌더하고 일반 댓글은 최신 루트 댓글 기준 번호 pagination을 유지하고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/comment.queries.ts`, `app/src/components/posts/post-comment-thread.tsx`, 관련 테스트 |
+
 ### Cycle 325: 댓글 루트 페이지네이션 서버 전환 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

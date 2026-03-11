@@ -10,7 +10,6 @@ import {
   getPasswordManagementNoticeMessage,
   getPasswordManagementUnavailableMessage,
 } from "@/lib/password-management";
-import { isSocialDevLoginEnabled } from "@/lib/env";
 import { getSocialAccountNoticeMessage } from "@/lib/social-auth";
 import { NeighborhoodPreferenceForm } from "@/components/profile/neighborhood-preference-form";
 import { PetProfileManager } from "@/components/profile/pet-profile-manager";
@@ -33,7 +32,7 @@ import {
   listPetsByUserId,
 } from "@/server/queries/user.queries";
 import { countUserBookmarkedPosts, countUserPosts } from "@/server/queries/post.queries";
-import { listMyBlockedUsers, listMyMutedUsers } from "@/server/queries/user-relation.queries";
+import { listMyMutedUsers } from "@/server/queries/user-relation.queries";
 
 type ProfilePageProps = {
   searchParams?: Promise<{
@@ -82,16 +81,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     resolvedSearchParams.notice ?? null,
   );
   const accountNotice = passwordManagementNotice ?? socialAccountNotice;
-  const isLocalPreview = process.env.NODE_ENV !== "production";
-  const socialDevEnabled = isSocialDevLoginEnabled();
-  const kakaoEnabledByEnv = Boolean(
-    process.env.KAKAO_CLIENT_ID && process.env.KAKAO_CLIENT_SECRET,
-  );
-  const naverEnabledByEnv = Boolean(
-    process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET,
-  );
-  const kakaoEnabled = kakaoEnabledByEnv || (isLocalPreview && socialDevEnabled);
-  const naverEnabled = naverEnabledByEnv || (isLocalPreview && socialDevEnabled);
 
   const isNicknameMissing = !user.nickname?.trim();
   const primaryNeighborhood = user.neighborhoods.find((item) => item.isPrimary);
@@ -100,15 +89,13 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     countUserPosts({ authorId: user.id }),
     countUserBookmarkedPosts({ userId: user.id }),
   ]);
-  let blockedUsers = [] as Awaited<ReturnType<typeof listMyBlockedUsers>>;
   let mutedUsers = [] as Awaited<ReturnType<typeof listMyMutedUsers>>;
   let pets = [] as Awaited<ReturnType<typeof listPetsByUserId>>;
   let audienceSegments = [] as Awaited<ReturnType<typeof listAudienceSegmentsByUserId>>;
   let breedCatalogBySpecies = buildDefaultBreedCatalogBySpecies();
 
   if (!isNicknameMissing) {
-    [blockedUsers, mutedUsers, pets, audienceSegments, breedCatalogBySpecies] = await Promise.all([
-      listMyBlockedUsers(user.id),
+    [mutedUsers, pets, audienceSegments, breedCatalogBySpecies] = await Promise.all([
       listMyMutedUsers(user.id),
       listPetsByUserId(user.id),
       listAudienceSegmentsByUserId(user.id),
@@ -227,12 +214,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <ProfileSocialAccountConnections
           authProvider={session.user?.authProvider}
           hasPassword={passwordStatus?.hasPassword ?? false}
-          linkedAccountProviders={passwordStatus?.linkedAccountProviders ?? []}
-          kakaoEnabled={kakaoEnabled}
-          kakaoDevMode={isLocalPreview && !kakaoEnabledByEnv && socialDevEnabled}
-          naverEnabled={naverEnabled}
-          naverDevMode={isLocalPreview && !naverEnabledByEnv && socialDevEnabled}
-          socialDevEnabled={socialDevEnabled}
         />
 
         <ProfileInfoForm
@@ -299,51 +280,12 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             </section>
 
             <section className="tp-card p-5 sm:p-6">
-              <h2 className="tp-text-section-title tp-text-heading">사용자 관계 관리</h2>
+              <h2 className="tp-text-section-title tp-text-heading">뮤트 관리</h2>
               <p className="tp-text-subtle mt-2 text-xs">
-                차단/뮤트한 사용자를 여기서 바로 해제할 수 있습니다.
+                뮤트한 사용자를 여기서 바로 해제할 수 있습니다.
               </p>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <div className="tp-soft-card p-4">
-                  <h3 className="tp-text-card-title tp-text-heading">
-                    차단 목록 ({blockedUsers.length})
-                  </h3>
-                  {blockedUsers.length === 0 ? (
-                    <p className="tp-text-subtle mt-3 text-xs">차단한 사용자가 없습니다.</p>
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      {blockedUsers.map((entry) => (
-                        <div
-                          key={entry.id}
-                          className="tp-border-soft tp-text-accent rounded-lg border bg-white px-3 py-2 text-xs"
-                        >
-                          <p className="tp-text-heading break-all font-semibold">
-                            {entry.blocked?.nickname ?? entry.blocked?.email ?? entry.blockedId}
-                          </p>
-                          <p className="tp-text-subtle mt-0.5 text-[11px]">
-                            {entry.createdAt.toLocaleString("ko-KR")}
-                          </p>
-                          <div className="mt-2">
-                            <UserRelationControls
-                              key={`${entry.blockedId}:1:${mutedUsers.some((mute) => mute.mutedUserId === entry.blockedId) ? "1" : "0"}:0`}
-                              targetUserId={entry.blockedId}
-                              initialState={{
-                                isBlockedByMe: true,
-                                hasBlockedMe: false,
-                                isMutedByMe: mutedUsers.some(
-                                  (mute) => mute.mutedUserId === entry.blockedId,
-                                ),
-                              }}
-                              compact
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
+              <div className="mt-4">
                 <div className="tp-soft-card p-4">
                   <h3 className="tp-text-card-title tp-text-heading">
                     뮤트 목록 ({mutedUsers.length})
@@ -365,12 +307,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                           </p>
                           <div className="mt-2">
                             <UserRelationControls
-                              key={`${entry.mutedUserId}:${blockedUsers.some((block) => block.blockedId === entry.mutedUserId) ? "1" : "0"}:1:0`}
+                              key={`${entry.mutedUserId}:0:1:0`}
                               targetUserId={entry.mutedUserId}
                               initialState={{
-                                isBlockedByMe: blockedUsers.some(
-                                  (block) => block.blockedId === entry.mutedUserId,
-                                ),
+                                isBlockedByMe: false,
                                 hasBlockedMe: false,
                                 isMutedByMe: true,
                               }}

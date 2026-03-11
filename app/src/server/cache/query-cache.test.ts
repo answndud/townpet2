@@ -46,4 +46,32 @@ describe("query cache build/runtime behavior", () => {
     expect(key).toBe("cache:feed:v3:page=1");
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("does not cache null values when cacheNull is disabled", async () => {
+    stubCacheEnv();
+    vi.stubEnv("NEXT_PHASE", "phase-production-build");
+
+    const { withQueryCache } = await loadQueryCacheModule();
+    const fetcher = vi
+      .fn<() => Promise<string | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce("fresh-value");
+
+    const first = await withQueryCache({
+      key: "cache:test:null-skip",
+      ttlSeconds: 60,
+      fetcher,
+      cacheNull: false,
+    });
+    const second = await withQueryCache({
+      key: "cache:test:null-skip",
+      ttlSeconds: 60,
+      fetcher,
+      cacheNull: false,
+    });
+
+    expect(first).toBeNull();
+    expect(second).toBe("fresh-value");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });

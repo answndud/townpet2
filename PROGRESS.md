@@ -17,6 +17,279 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 347 완료 (댓글 뮤트 액션의 강제 revalidate 제거)
+- 완료 내용
+  - 댓글에서 `뮤트/뮤트 해제`를 눌렀을 때 화면이 깜빡이지만 실제 댓글 상태는 그대로였다가 수동 새로고침 후에만 반영되는 문제를 다시 점검했다. 원인은 `muteUserAction` / `unmuteUserAction`이 서버에서 `revalidatePath()`를 강제로 호출해 현재 댓글 섹션의 로컬 reload 결과를 덮어쓰는 데 있었다.
+  - `app/src/server/actions/user-relation.ts`에 `revalidate?: boolean` 옵션을 추가하고, 기본값은 기존처럼 `true`를 유지하되 `false`면 `revalidatePath()`를 건너뛰도록 바꿨다.
+  - `app/src/components/posts/post-comment-thread.tsx`의 댓글 전용 relation action 호출은 이제 `{ revalidate: false }`로 실행되어, 서버 tree refresh 대신 현재 댓글 페이지의 `onCommentsChanged()` reload 결과만 화면에 적용되도록 정리했다.
+  - `app/src/server/actions/user-relation.test.ts`를 추가해 기본 동작에서는 relation view revalidate가 발생하고, 댓글 전용 opt-out에서는 revalidate가 호출되지 않는지 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/actions/user-relation.ts src/server/actions/user-relation.test.ts src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/server/actions/user-relation.test.ts src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `153 files / 752 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 346 완료 (댓글 뮤트 즉시 반영 + placeholder 상태 해제 동선 보강)
+- 완료 내용
+  - 댓글 작성자 메뉴에서 `뮤트`를 눌렀을 때 `router.refresh()`에만 의존하던 경로를 걷어내고, 댓글 스레드의 `onCommentsChanged(currentPage)`를 직접 호출해 현재 댓글 페이지를 즉시 다시 불러오도록 바꿨다.
+  - `app/src/components/posts/post-comment-thread.tsx`에 relation-change 전용 scroll target 상태를 추가해, 뮤트/뮤트 해제 후 댓글 목록이 다시 로드되면 같은 댓글 요소(`comment-*` 또는 `best-comment-*`)로 자동 스크롤 복원되도록 보강했다.
+  - muted placeholder 댓글과 muted 베스트 댓글에는 이제 `뮤트 해제` 버튼이 바로 노출되어, placeholder 상태에서도 메뉴를 거치지 않고 곧바로 해제할 수 있다.
+  - 댓글 작성자 메뉴 컴포넌트는 `commentId`와 relation refresh callback을 받아 뮤트 성공 직후 댓글 목록 reload를 트리거하도록 변경했다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`에 muted 일반 댓글/베스트 댓글 모두 `뮤트 해제` 동선이 노출되는 회귀를 유지했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `152 files / 749 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 345 완료 (베스트 댓글도 뮤트 placeholder 정책으로 통일)
+- 완료 내용
+  - 일반 댓글은 placeholder로 남는데 베스트 댓글에서는 뮤트 댓글이 아예 사라지는 불일치를 확인했다. 사용자 관점에서는 `존재는 보이고 내용만 가려진다`는 정책이 베스트 댓글에도 동일하게 적용돼야 했다.
+  - `app/src/server/queries/comment.queries.ts`에서 베스트 댓글은 더 이상 뮤트 작성자를 제외하지 않고, 차단 작성자만 제외한 뒤 뮤트 작성자 댓글은 일반 댓글과 같은 placeholder sanitizer를 통과하도록 바꿨다.
+  - `app/src/components/posts/post-comment-thread.tsx`의 베스트 댓글 렌더도 `뮤트한 사용자` / `뮤트한 사용자 댓글입니다.` placeholder를 쓰도록 보강했다.
+  - `app/src/server/queries/comment.queries.test.ts`, `app/src/components/posts/post-comment-thread.test.tsx`에 베스트 댓글 placeholder 회귀를 추가했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/queries/comment.queries.ts src/server/queries/comment.queries.test.ts src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/server/queries/comment.queries.test.ts src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `152 files / 749 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 344 완료 (뮤트 댓글 placeholder 유지, 차단 댓글만 숨김)
+- 완료 내용
+  - 댓글 스레드에서는 뮤트 작성자 댓글의 존재는 유지하고 내용만 placeholder로 바꾸자는 정책으로 정리했다. 피드/검색/게시글 목록의 작성자 숨김 규칙은 유지하되, 댓글 스레드에서만 `뮤트는 placeholder`, `차단은 계속 완전 숨김`으로 분리했다.
+  - `app/src/server/queries/user-relation.queries.ts`에 `listHiddenAuthorGroupsForViewer`를 추가해 `blockedAuthorIds`, `mutedAuthorIds`, `hiddenAuthorIds`를 함께 계산하도록 바꿨고, 기존 `listHiddenAuthorIdsForViewer`는 이 helper를 재사용하게 정리했다.
+  - `app/src/server/queries/comment.queries.ts`는 차단 작성자 댓글만 댓글 페이지/카운트/답글 트리에서 제외하고, 뮤트 작성자 댓글은 포함하되 `뮤트한 사용자 댓글입니다.`와 `isMutedByViewer` 플래그로 sanitize 하도록 변경했다. 베스트 댓글은 뮤트/차단 작성자 모두 제외하도록 유지했다.
+  - `app/src/components/posts/post-comment-load-state.ts`에 `isMutedByViewer`를 추가했고, `app/src/components/posts/post-comment-thread.tsx`는 muted 댓글에서 작성자 메뉴, 반응, 답글, 신고, 수정 메뉴를 숨기고 placeholder 작성자/내용만 렌더하도록 바꿨다. 답글 트리 자체는 유지되어 muted 원댓글 아래의 visible 답글은 계속 보인다.
+  - `app/src/server/queries/user-relation.queries.test.ts`, `app/src/server/queries/comment.queries.test.ts`, `app/src/components/posts/post-comment-thread.test.tsx`에 새 정책 회귀를 추가했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/queries/user-relation.queries.ts src/server/queries/user-relation.queries.test.ts src/server/queries/comment.queries.ts src/server/queries/comment.queries.test.ts src/components/posts/post-comment-load-state.ts src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/server/queries/user-relation.queries.test.ts src/server/queries/comment.queries.test.ts src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `152 files / 748 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 343 완료 (hidden-author 메모리 캐시 제거로 관계 변경 즉시 반영)
+- 완료 내용
+  - 댓글이 계속 보이지 않는 원인 후보를 다시 좁힌 결과, `listHiddenAuthorIdsForViewer`가 viewer별 hidden author ids를 5초짜리 process-local 메모리 캐시로 들고 있어 뮤트/차단 해제 직후에도 이전 상태가 남을 수 있음을 확인했다.
+  - 이 캐시는 액션을 처리한 서버 인스턴스와 댓글 API를 처리한 인스턴스가 다르면 즉시 무효화가 보장되지 않아, 사용자 입장에서는 `프로필에서 뮤트 해제했는데도 댓글이 안 보이는` 증상으로 이어질 수 있었다.
+  - `app/src/server/queries/user-relation.queries.ts`에서 hidden author ids 메모리 캐시를 제거하고, 매 요청 DB 기준으로 block/mute 상태를 다시 계산하도록 바꿨다.
+  - `app/src/server/queries/user-relation.queries.test.ts`를 추가해 첫 조회에서 뮤트된 작성자가 숨겨지고, 두 번째 조회에서 뮤트가 제거되면 즉시 hidden ids에서 빠지는지 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/queries/user-relation.queries.ts src/server/queries/user-relation.queries.test.ts` 통과
+  - `pnpm -C app test -- src/server/queries/user-relation.queries.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 342 완료 (프로필 로그인 수단 UI를 단일 요약으로 축소)
+- 완료 내용
+  - `app/src/components/profile/profile-social-account-connections.tsx`를 전면 단순화해 기존 `계정 연동` 기능을 제거하고 `현재 로그인 수단`만 보여주는 요약 카드로 바꿨다.
+  - 이 변경으로 이메일 로그인 사용자는 더 이상 프로필에서 `카카오 연동 준비 중`, `네이버 연동 준비 중`, `연결하기`, `해제` 같은 다른 로그인 옵션을 보지 않는다.
+  - `app/src/app/profile/page.tsx`에서도 더 이상 소셜 provider enable/dev-mode 계산을 하지 않고, 현재 로그인 수단과 비밀번호 보유 여부만 전달하도록 정리했다.
+  - `app/src/components/profile/profile-social-account-connections.test.tsx`를 추가해 이메일 로그인 시 다른 소셜 옵션이 보이지 않는지, 카카오 로그인 시에도 다른 대안 버튼이 렌더되지 않는지 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/profile/page.tsx src/components/profile/profile-social-account-connections.tsx src/components/profile/profile-social-account-connections.test.tsx` 통과
+  - `pnpm -C app test -- src/components/profile/profile-social-account-connections.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 341 완료 (guest 상세 댓글 fetch를 강제 guest-mode로 고정)
+- 완료 내용
+  - 로컬 dev 서버의 실제 응답을 직접 확인한 결과, 서버는 게스트 요청으로는 `GET /api/posts/cmmlwiyy30009wkpga7l0lyq9/comments?page=1&limit=30`에 `200`과 댓글 38개를 정상 반환하고 있었다.
+  - 브라우저에서만 404가 나는 이유는 `/posts/[id]/guest` 페이지에서도 브라우저 쿠키가 같이 전송되면 댓글 API가 로그인 사용자 컨텍스트를 타기 때문이었다. 따라서 guest 페이지는 쿠키와 무관하게 항상 guest viewer로 읽어야 했다.
+  - `app/src/lib/comment-client.ts`에 `forceGuestMode` 옵션을 추가하고 `x-guest-mode: 1` 헤더를 보낼 수 있게 했다.
+  - `app/src/components/posts/post-comment-section-client.tsx`는 `forceGuestMode` prop을 받아 댓글 fetch에 전달하고, `app/src/app/posts/[id]/guest/page.tsx`는 이를 활성화하도록 바꿨다.
+  - `app/src/app/api/posts/[id]/comments/route.ts` GET은 `x-guest-mode: 1`이면 세션/쿠키가 있어도 viewer를 `null`로 고정해 guest 댓글 조회를 수행하도록 보강했다.
+  - `app/src/lib/comment-client.test.ts`, `app/src/app/api/posts/[id]/comments/route.test.ts`에 guest-mode header 회귀를 추가했다.
+- 검증 결과
+  - `pnpm -C app lint 'src/app/posts/[id]/guest/page.tsx' src/components/posts/post-comment-section-client.tsx src/lib/comment-client.ts src/lib/comment-client.test.ts 'src/app/api/posts/[id]/comments/route.ts' 'src/app/api/posts/[id]/comments/route.test.ts'` 통과
+  - `pnpm -C app test -- src/lib/comment-client.test.ts 'src/app/api/posts/[id]/comments/route.test.ts' src/components/posts/post-comment-section-client.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `150 files / 742 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 340 완료 (게스트 post-detail API에서 demo fallback 제거)
+- 완료 내용
+  - 댓글 404의 실제 원인을 확인했다. 로컬 `.env.local`의 `DEMO_USER_EMAIL=demo@townpet.dev` 때문에 비로그인 댓글 API가 demo user로 해석됐고, 해당 demo user가 현재 데모 게시글 작성자(`cmmlwiyxk0000wkpg3pl3z89k`)를 이미 뮤트하고 있어 `/api/posts/cmmlwiyy30009wkpga7l0lyq9/comments`가 404를 반환하고 있었다.
+  - `app/src/server/auth.ts`에 `getCurrentUserIdFromRequest` helper를 추가해 세션 쿠키가 없는 요청은 demo fallback을 타지 않도록 분리했다.
+  - `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/posts/[id]/reaction/route.ts`, `app/src/app/api/posts/[id]/view/route.ts`, `app/src/app/api/posts/[id]/route.ts`, `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/app/api/posts/[id]/content/route.ts`, `app/src/app/api/posts/[id]/stats/route.ts`, `app/src/app/api/comments/[id]/route.ts`가 모두 request-aware helper를 사용하도록 바꿨다.
+  - `app/src/server/auth.test.ts`에 세션 쿠키가 없을 때 demo fallback을 쓰지 않는 회귀를 추가했고, 관련 API route 테스트도 새 helper 기준으로 갱신했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/auth.ts src/server/auth.test.ts 'src/app/api/posts/[id]/comments/route.ts' 'src/app/api/posts/[id]/comments/route.test.ts' 'src/app/api/posts/[id]/reaction/route.ts' 'src/app/api/posts/[id]/reaction/route.test.ts' 'src/app/api/posts/[id]/view/route.ts' 'src/app/api/posts/[id]/view/route.test.ts' 'src/app/api/posts/[id]/route.ts' 'src/app/api/posts/[id]/route.test.ts' 'src/app/api/posts/[id]/detail/route.ts' 'src/app/api/posts/[id]/content/route.ts' 'src/app/api/posts/[id]/stats/route.ts' 'src/app/api/comments/[id]/route.ts'` 통과
+  - `pnpm -C app test -- src/server/auth.test.ts 'src/app/api/posts/[id]/comments/route.test.ts' 'src/app/api/posts/[id]/reaction/route.test.ts' 'src/app/api/posts/[id]/view/route.test.ts' 'src/app/api/posts/[id]/route.test.ts'` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `150 files / 740 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 339 완료 (viewer-shell 알림 스키마 오류 fail-open 처리)
+- 완료 내용
+  - `app/src/app/api/viewer-shell/route.ts`에서 `countUnreadNotifications(userId)`가 `SCHEMA_SYNC_REQUIRED`를 던지면 503으로 전체 셸을 깨뜨리지 않고 unread count를 `0`으로 대체하도록 fail-open 처리했다.
+  - 이 변경으로 `NotificationDelivery` 테이블이 아직 없는 로컬 DB에서도 인증 사용자가 헤더 셸과 댓글 화면을 계속 사용할 수 있다.
+  - 댓글 대상 게시글 `cmmlwiyy30009wkpga7l0lyq9`에 대해 `getPostReadAccessById(...)`와 `listComments(...)`를 직접 실행해 현재 코드 기준으로는 read-access와 댓글 페이지 조회가 정상 동작하는 것도 확인했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/api/viewer-shell/route.ts src/app/api/viewer-shell/route.test.ts` 통과
+  - `pnpm -C app test -- src/app/api/viewer-shell/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 338 완료 (post-detail null 캐시로 인한 stale 404 방지)
+- 완료 내용
+  - `app/src/server/cache/query-cache.ts`에 `cacheNull` 옵션을 추가해 선택적으로 `null` 결과를 캐시하지 않도록 보강했다.
+  - `app/src/server/queries/post.queries.ts`의 post-detail 계열 조회(`getPostById`, `getPostMetadataById`, `getPostStatsById`, `getPostReadAccessById`, `getPostContentById`)는 모두 `cacheNull: false`를 사용하게 바꿨다.
+  - 이 변경으로 게스트 경로에서 게시글이 잠깐 `null`로 조회된 뒤에도 `/api/posts/[id]/comments`가 stale 404를 계속 반환하는 문제를 줄일 수 있다.
+  - `app/src/server/cache/query-cache.test.ts`에 `null` 미캐시 회귀를 추가해 같은 키에서 첫 조회 `null` 후 두 번째 조회가 source를 다시 타는지 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/cache/query-cache.ts src/server/cache/query-cache.test.ts src/server/queries/post.queries.ts` 통과
+  - `pnpm -C app test -- src/server/cache/query-cache.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 로그에 보인 `/api/viewer-shell 503`은 별도 스키마 이슈로, `NotificationDelivery` 테이블 누락이 계속 남아 있으면 헤더 셸 API는 여전히 실패할 수 있다.
+
+### 2026-03-11: Cycle 337 완료 (비로그인 댓글 작성자 메뉴 비노출)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`에 `canOpenCommentAuthorMenu` helper를 추가하고, 댓글/베스트 댓글 작성자 이름 메뉴를 로그인 사용자에게만 렌더하도록 분기했다.
+  - 비로그인 상태에서는 작성자 이름이 plain text로만 보이고, `프로필 보기`와 `뮤트`는 둘 다 메뉴 자체가 생기지 않도록 차단했다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`에 signed-out 렌더 회귀와 helper 테스트를 추가해 게스트에서는 메뉴 마크업이 생기지 않는지 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 336 완료 (댓글 작성자 메뉴에 뮤트 액션 추가)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`의 댓글 작성자 메뉴에 `뮤트` 액션을 추가하고, 메뉴 안에서 `muteUserAction`을 직접 호출하도록 연결했다.
+  - 뮤트는 로그인 사용자이면서 자기 자신이 아닌 작성자에게만 노출되며, 성공 시 메뉴를 닫고 메시지를 남긴 뒤 `router.refresh()`로 댓글 목록과 베스트 댓글 영역을 다시 읽게 했다.
+  - `canMuteCommentAuthor` helper를 추가해 자기 자신/비로그인에서는 뮤트가 나오지 않는 조건을 분리했고, `app/src/components/posts/post-comment-thread.test.tsx`에 회귀를 보강했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 335 완료 (사용자 관계 UI를 뮤트 전용으로 축소)
+- 완료 내용
+  - `app/src/components/user/user-relation-controls.tsx`에서 차단/차단 해제 버튼과 관련 action import/state/message를 제거하고, 관계 컨트롤을 `뮤트`/`뮤트 해제` 전용으로 단순화했다.
+  - `app/src/app/profile/page.tsx`의 관계 관리 섹션은 `뮤트 관리`로 바꾸고 차단 목록 렌더링과 `listMyBlockedUsers` 조회를 제거해, 사용자에게는 뮤트 목록만 보이도록 정리했다.
+  - 차단 데이터 모델과 차단 기반 서버 정책은 이번 턴에서 건드리지 않았고, 사용자 노출 UI만 먼저 줄였다.
+  - `app/src/components/user/user-relation-controls.test.tsx`를 추가해 관계 컨트롤에 차단 버튼이 다시 생기지 않는지와 `hasBlockedMe` 안내가 뮤트 전용 UI와 함께 유지되는지를 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/user/user-relation-controls.tsx src/components/user/user-relation-controls.test.tsx src/app/profile/page.tsx` 통과
+  - `pnpm -C app test -- src/components/user/user-relation-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 334 완료 (댓글 작성자 메뉴 외부 클릭 닫힘 보강)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`의 댓글 작성자 메뉴를 `details` 기본 토글에서 제어형 버튼 메뉴로 바꾸고, 바깥 클릭/포커스 이탈/`Esc` 입력 시 닫히도록 보강했다.
+  - 메뉴 액션은 기존과 동일하게 `프로필 보기` 1개만 유지했고, 내부 링크 클릭 시에도 메뉴가 바로 닫히도록 정리했다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`에는 정적 마크업 확인 외에 외부 클릭 닫힘 판단 helper 회귀를 추가해, 내부 target/null target은 유지되고 외부 target만 닫히는지 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 333 완료 (댓글 작성자 메뉴를 프로필 보기 1개로 재정리)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`에서 댓글 작성자 클릭을 다시 `details/summary` 기반 메뉴로 되돌리고, 내부 액션은 `프로필 보기`만 남겼다.
+  - 이전 턴에서 임시로 적용했던 직접 프로필 이동은 제거했고, `작성 글 보기` 액션과 관련 텍스트는 다시 빠졌다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`는 댓글 작성자 href와 `프로필 보기` 텍스트는 유지되지만 `작성 글 보기`는 렌더링되지 않는지 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 332 완료 (댓글 작성자 클릭을 프로필 직행으로 단순화)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`에서 `CommentAuthorMenu`를 제거하고 로그인 사용자의 댓글 작성자 이름을 다시 공개 프로필 직접 링크로 되돌렸다.
+  - `작성 글 보기` 메뉴 항목과 menu 전용 스타일 상수를 함께 제거해 클릭 흐름을 한 번으로 줄였다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`는 작성자 href는 유지되지만 `프로필 보기`/`작성 글 보기` 텍스트는 더 이상 렌더링되지 않는지 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 331 완료 (댓글 작성자 메뉴 액션 추가)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`에서 로그인 사용자의 댓글 작성자 이름을 직접 이동 링크 대신 `details/summary` 기반 메뉴로 바꿨다.
+  - 메뉴에는 `프로필 보기`, `작성 글 보기` 두 액션을 넣었고, 게스트 댓글 작성자 이름은 기존처럼 plain text로 유지했다.
+  - `app/src/lib/public-profile.ts`에 공개 프로필 탭 링크 helper `buildPublicProfileTabHref`를 추가하고, `app/src/app/users/[id]/page.tsx`도 같은 helper를 사용하도록 정리했다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`, `app/src/lib/public-profile.test.ts`로 메뉴 액션 링크와 helper 동작을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/public-profile.ts src/lib/public-profile.test.ts 'src/app/users/[id]/page.tsx' src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/lib/public-profile.test.ts src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 330 완료 (베스트 댓글 헤더 보조 문구 제거)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`에서 베스트 댓글 헤더의 `공감 10개 이상`, `TOP 4` 보조 문구를 제거하고 제목 `베스트 댓글`만 남겼다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`는 베스트 댓글 제목은 유지되지만 보조 문구는 렌더링되지 않는지 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-11: Cycle 329 완료 (댓글 divider 라인 톤 완화)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`에 댓글 전용 divider/border class 상수를 추가하고, 베스트 댓글 섹션/일반 댓글 목록의 `divide-y`, 답글 연결 guide line, `답글` badge border, 작성 폼 상단 border를 더 옅은 블루 톤으로 낮췄다.
+  - 전역 `tp-border-soft`는 그대로 두고 댓글 스레드에만 별도 색을 써서 다른 카드/섹션 회귀 없이 시각 밀도만 줄였다.
+  - `app/src/components/posts/post-comment-thread.test.tsx`는 옅은 divider class가 유지되는지 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 댓글 구분선과 답글 가이드선만 완화한 것이고, 카드 외곽선이나 다른 상세 섹션 border 토큰은 건드리지 않았다.
+
+### 2026-03-11: Cycle 328 완료 (베스트 댓글 확인용 데모 시드 추가)
+- 완료 내용
+  - `app/scripts/seed-comment-best-demo.ts`를 추가해 베스트 댓글/최신 댓글/원댓글 이동을 한 번에 확인할 수 있는 전용 데모 게시글과 댓글 더미 데이터를 재실행 가능하게 만들었다.
+  - 스크립트는 전용 데모 사용자들을 upsert하고, 전용 게시글 `[댓글 데모] 베스트 댓글/원댓글 이동 확인용`을 만든 뒤 기존 댓글을 비우고 다시 채운다.
+  - 댓글 더미는 루트 댓글 36개 + 답글 2개(총 38개)로 구성되어 페이지 2가 생기도록 만들었고, 그중 4개는 `likeCount >= 10`으로 베스트 댓글에 노출되며, 하나는 reply 베스트 댓글이라 `원댓글로 가기`의 페이지 이동도 같이 확인할 수 있다.
+  - `app/package.json`에 `pnpm -C app db:seed:comment-best-demo` 스크립트를 추가했다.
+- 검증 결과
+  - `pnpm -C app lint scripts/seed-comment-best-demo.ts` 통과
+  - `pnpm -C app typecheck` 통과
+  - `pnpm -C app db:seed:comment-best-demo` 실행 결과
+    - `postId`: `cmmlwiyy30009wkpga7l0lyq9`
+    - `guestUrl`: `http://localhost:3000/posts/cmmlwiyy30009wkpga7l0lyq9/guest`
+    - `authUrl`: `http://localhost:3000/posts/cmmlwiyy30009wkpga7l0lyq9`
+    - `commentCount`: `38`
+    - `bestReplyId`: `cmmlwiyz0002bwkpg3ec8u6m8`
+  - `git diff --check` 통과
+- 메모
+  - 이 시드는 로컬 확인용이라 좋아요/싫어요 집계는 실제 `CommentReaction` row 전체를 만들지 않고 `likeCount/dislikeCount` 값을 직접 넣는 방식이다. UI 검증과 베스트 댓글 선정/이동 확인에는 충분하다.
+
+### 2026-03-11: Cycle 327 완료 (베스트 댓글 원댓글 점프 링크 추가)
+- 완료 내용
+  - `app/src/server/queries/comment.queries.ts`는 베스트 댓글 응답에 `threadRootId`, `threadPage` 메타를 추가했다. reply가 베스트로 선정된 경우에도 부모 체인을 따라 루트 댓글을 찾고, 최신순 루트 pagination 기준으로 해당 루트가 몇 페이지에 있는지 계산해서 함께 내려준다.
+  - `app/src/components/posts/post-comment-load-state.ts`, `app/src/components/posts/post-comment-thread.tsx`는 새 메타를 반영해 베스트 댓글 카드에 `원댓글로 가기` 버튼을 추가했다. 버튼 클릭 시 현재 페이지에 없으면 해당 댓글 페이지를 먼저 다시 불러오고, 로드 후 `#comment-{id}` anchor로 부드럽게 스크롤한다.
+  - `app/src/server/queries/comment.queries.test.ts`, `app/src/components/posts/post-comment-thread.test.tsx`는 베스트 댓글의 `threadPage/threadRootId` 계산과 `원댓글로 가기` 버튼 렌더링을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/queries/comment.queries.ts src/server/queries/comment.queries.test.ts src/components/posts/post-comment-load-state.ts src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx` 통과
+  - `pnpm -C app test -- src/server/queries/comment.queries.test.ts src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `149 files / 730 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 현재는 댓글 섹션 내부 상태 기반 pagination을 유지한 채 점프를 붙인 버전이라 URL query에 페이지 정보를 쓰지는 않는다. 동일 게시글 상세 안에서만 이동한다.
+
+### 2026-03-11: Cycle 326 완료 (베스트 댓글 상단 고정 + 최신 댓글 정렬 전환)
+- 완료 내용
+  - `app/src/server/queries/comment.queries.ts`는 댓글 페이지 응답에 `bestComments`를 추가하고, `좋아요 10개 이상`인 ACTIVE 댓글만 `좋아요 수 내림차순 -> 생성일 내림차순` 기준으로 TOP 4 선정하도록 보강했다. 같은 변경에서 일반 댓글 루트 조회 순서도 `createdAt DESC, id DESC`로 바꿔 하단 목록이 최신 댓글 기준으로 보이게 맞췄다.
+  - `app/src/components/posts/post-comment-thread.tsx`는 상단에 `베스트 댓글` 섹션을 새로 렌더하고, 일반 댓글 목록은 `최신 댓글` 블록으로 분리했다. 새 루트 댓글 작성 후에는 마지막 페이지가 아니라 1페이지를 다시 불러와, 작성 직후 최신 댓글 영역에서 바로 보이도록 바꿨다.
+  - `app/src/components/posts/post-comment-load-state.ts`, `app/src/lib/comment-client.ts`, `app/src/components/posts/post-comment-section-client.tsx`는 새 `bestComments` 응답 필드를 페이지 상태/클라이언트 fetch helper/상세 prefetch 경로에 반영했다.
+  - `app/src/server/queries/comment.queries.test.ts`, `app/src/components/posts/post-comment-thread.test.tsx`, 기존 `comment-client`, `post-comment-section-client`, comments API route 테스트를 갱신해 베스트 댓글 계약과 상단 섹션 렌더링을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/comment-ranking.ts src/server/queries/comment.queries.ts src/server/queries/comment.queries.test.ts src/components/posts/post-comment-load-state.ts src/lib/comment-client.ts src/lib/comment-client.test.ts src/components/posts/post-comment-section-client.tsx src/components/posts/post-comment-section-client.test.ts src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx src/app/api/posts/[id]/comments/route.test.ts` 통과
+  - `pnpm -C app test -- src/server/queries/comment.queries.test.ts src/components/posts/post-comment-thread.test.tsx src/lib/comment-client.test.ts src/components/posts/post-comment-section-client.test.ts src/app/api/posts/[id]/comments/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `149 files / 730 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 사이클은 FMKorea식 `베스트 댓글 + 최신 댓글` 구조를 가볍게 도입한 1차 버전이다. 베스트 댓글은 상단에서 별도로 보여주지만, 현재는 원댓글 이동 링크나 reply context jump는 넣지 않았고 읽기 전용 요약 카드로 제공한다.
+
 ### 2026-03-11: Cycle 325 완료 (댓글 루트 페이지네이션 서버 전환)
 - 완료 내용
   - `app/src/server/queries/comment.queries.ts`는 댓글 전체 일괄 조회 대신 `page/limit` 기준으로 루트 댓글만 먼저 조회하고, 현재 페이지 루트들의 답글/하위 답글만 추가로 수집해 반환하도록 바꿨다. 응답에는 `comments`, `totalCount`, `totalRootCount`, `page`, `totalPages`, `limit`가 포함된다.

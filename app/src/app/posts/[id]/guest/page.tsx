@@ -602,6 +602,7 @@ export default async function GuestPostDetailPage({ params }: PostDetailPageProp
           canInteract={false}
           canInteractWithPostOwner={false}
           loginHref={loginHref}
+          forceGuestMode
         />
       </main>
     </div>

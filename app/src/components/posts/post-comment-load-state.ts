@@ -2,6 +2,8 @@ export type PostCommentItem = {
   id: string;
   postId: string;
   parentId: string | null;
+  threadRootId?: string | null;
+  threadPage?: number | null;
   content: string;
   status: string;
   likeCount: number;
@@ -14,12 +16,14 @@ export type PostCommentItem = {
   guestIpDisplay?: string | null;
   guestIpLabel?: string | null;
   isGuestAuthor?: boolean;
+  isMutedByViewer?: boolean;
   reactions?: Array<{ type: "LIKE" | "DISLIKE" }>;
   author: { id: string; nickname: string | null; email?: string | null };
 };
 
 export type PostCommentPageData = {
   comments: PostCommentItem[];
+  bestComments: PostCommentItem[];
   totalCount: number;
   totalRootCount: number;
   page: number;

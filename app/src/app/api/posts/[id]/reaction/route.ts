@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { jsonError, jsonOk } from "@/server/response";
 
@@ -11,7 +11,7 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getCurrentUserIdFromRequest(request);
     if (!userId) {
       return jsonError(401, {
         code: "AUTH_REQUIRED",

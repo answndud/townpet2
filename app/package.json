@@ -28,6 +28,7 @@
     "db:seed:admin": "tsx scripts/seed-admin.ts",
     "db:seed:adoption-demo": "tsx scripts/seed-adoption-demo.ts",
     "db:seed:board-posts": "tsx scripts/seed-board-posts.ts",
+    "db:seed:comment-best-demo": "tsx scripts/seed-comment-best-demo.ts",
     "db:seed:users": "tsx scripts/seed-users.ts",
     "db:seed:search-cases": "tsx scripts/seed-search-cases.ts",
     "db:seed:passwords": "tsx scripts/seed-passwords.ts",

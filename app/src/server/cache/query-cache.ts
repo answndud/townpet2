@@ -252,6 +252,7 @@ export async function withQueryCache<T>(params: {
   key: string;
   ttlSeconds: number;
   fetcher: () => Promise<T>;
+  cacheNull?: boolean;
 }) {
   if (!shouldUseCache()) {
     return params.fetcher();
@@ -270,7 +271,10 @@ export async function withQueryCache<T>(params: {
 
   const fresh = await params.fetcher();
   try {
-    await setCacheValue(params.key, JSON.stringify(fresh), params.ttlSeconds);
+    const shouldCacheNull = params.cacheNull ?? true;
+    if (!(fresh === null && !shouldCacheNull)) {
+      await setCacheValue(params.key, JSON.stringify(fresh), params.ttlSeconds);
+    }
   } catch (error) {
     logger.warn("Cache write failed; returning source data.", {
       error: serializeError(error),

@@ -1,7 +1,8 @@
 import type { PostCommentPageData } from "@/components/posts/post-comment-load-state";
 
-type CommentPageData<T> = Omit<PostCommentPageData, "comments"> & {
+type CommentPageData<T> = Omit<PostCommentPageData, "comments" | "bestComments"> & {
   comments: T[];
+  bestComments: T[];
 };
 
 type CommentPageResponse<T> = {
@@ -15,6 +16,7 @@ export async function fetchPostCommentPage<T>(
   params?: {
     page?: number;
     limit?: number;
+    forceGuestMode?: boolean;
   },
 ) {
   const searchParams = new URLSearchParams();
@@ -30,6 +32,11 @@ export async function fetchPostCommentPage<T>(
       method: "GET",
       credentials: "same-origin",
       cache: "no-store",
+      headers: params?.forceGuestMode
+        ? {
+            "x-guest-mode": "1",
+          }
+        : undefined,
     },
   );
   const payload = (await response.json()) as CommentPageResponse<T>;
@@ -47,6 +54,7 @@ export function unwrapCommentPageResponse<T>(
   return (
     payload.data ?? {
       comments: [],
+      bestComments: [],
       totalCount: 0,
       totalRootCount: 0,
       page: 1,

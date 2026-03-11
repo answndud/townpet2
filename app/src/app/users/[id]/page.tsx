@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { getCspNonce } from "@/lib/csp-nonce";
 import { buildPaginationWindow, parsePositivePage } from "@/lib/pagination";
 import {
+  buildPublicProfileTabHref,
   buildPublicProfileLoginHref,
   resolvePublicProfileTab,
 } from "@/lib/public-profile";
@@ -52,16 +53,6 @@ function buildBioExcerpt(text: string, maxLength = 140) {
     return normalized;
   }
   return `${normalized.slice(0, maxLength)}...`;
-}
-
-function buildTabHref(userId: string, tab: ActivityTab, page = 1) {
-  const query = new URLSearchParams();
-  query.set("tab", tab);
-  if (page > 1) {
-    query.set("page", String(page));
-  }
-
-  return `/users/${userId}?${query.toString()}`;
 }
 
 export async function generateMetadata({
@@ -165,7 +156,7 @@ export default async function PublicUserProfilePage({
     showPublicPets: profile.showPublicPets,
   });
   if (resolvedTab !== tab) {
-    redirect(buildTabHref(profile.id, resolvedTab));
+    redirect(buildPublicProfileTabHref(profile.id, resolvedTab));
   }
 
   const [postsPage, commentsPage, reactionsPage, pets] = await Promise.all([
@@ -315,7 +306,7 @@ export default async function PublicUserProfilePage({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {profile.showPublicPosts ? (
               <Link
-                href={buildTabHref(profile.id, "posts")}
+                href={buildPublicProfileTabHref(profile.id, "posts")}
                 className={`rounded-lg border px-3 py-1.5 ${
                   resolvedTab === "posts"
                     ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -327,7 +318,7 @@ export default async function PublicUserProfilePage({
             ) : null}
             {profile.showPublicComments ? (
               <Link
-                href={buildTabHref(profile.id, "comments")}
+                href={buildPublicProfileTabHref(profile.id, "comments")}
                 className={`rounded-lg border px-3 py-1.5 ${
                   resolvedTab === "comments"
                     ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -338,7 +329,7 @@ export default async function PublicUserProfilePage({
               </Link>
             ) : null}
             <Link
-              href={buildTabHref(profile.id, "reactions")}
+              href={buildPublicProfileTabHref(profile.id, "reactions")}
               className={`rounded-lg border px-3 py-1.5 ${
                 resolvedTab === "reactions"
                   ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -369,7 +360,7 @@ export default async function PublicUserProfilePage({
               {tabTotalPages > 1 ? (
                 <div className="flex flex-wrap items-center justify-center gap-1.5 pt-3">
                   <Link
-                    href={buildTabHref(profile.id, "posts", Math.max(1, tabPage - 1))}
+                    href={buildPublicProfileTabHref(profile.id, "posts", Math.max(1, tabPage - 1))}
                     aria-disabled={tabPage <= 1}
                     className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
                       tabPage <= 1
@@ -382,7 +373,7 @@ export default async function PublicUserProfilePage({
                   {buildPaginationWindow(tabPage, tabTotalPages).map((pageNumber) => (
                     <Link
                       key={`public-profile-post-page-${pageNumber}`}
-                      href={buildTabHref(profile.id, "posts", pageNumber)}
+                      href={buildPublicProfileTabHref(profile.id, "posts", pageNumber)}
                       className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition ${
                         pageNumber === tabPage
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -393,7 +384,7 @@ export default async function PublicUserProfilePage({
                     </Link>
                   ))}
                   <Link
-                    href={buildTabHref(profile.id, "posts", Math.min(tabTotalPages, tabPage + 1))}
+                    href={buildPublicProfileTabHref(profile.id, "posts", Math.min(tabTotalPages, tabPage + 1))}
                     aria-disabled={tabPage >= tabTotalPages}
                     className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
                       tabPage >= tabTotalPages
@@ -433,7 +424,7 @@ export default async function PublicUserProfilePage({
               {tabTotalPages > 1 ? (
                 <div className="flex flex-wrap items-center justify-center gap-1.5 pt-3">
                   <Link
-                    href={buildTabHref(profile.id, "comments", Math.max(1, tabPage - 1))}
+                    href={buildPublicProfileTabHref(profile.id, "comments", Math.max(1, tabPage - 1))}
                     aria-disabled={tabPage <= 1}
                     className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
                       tabPage <= 1
@@ -446,7 +437,7 @@ export default async function PublicUserProfilePage({
                   {buildPaginationWindow(tabPage, tabTotalPages).map((pageNumber) => (
                     <Link
                       key={`public-profile-comment-page-${pageNumber}`}
-                      href={buildTabHref(profile.id, "comments", pageNumber)}
+                      href={buildPublicProfileTabHref(profile.id, "comments", pageNumber)}
                       className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition ${
                         pageNumber === tabPage
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -457,7 +448,7 @@ export default async function PublicUserProfilePage({
                     </Link>
                   ))}
                   <Link
-                    href={buildTabHref(profile.id, "comments", Math.min(tabTotalPages, tabPage + 1))}
+                    href={buildPublicProfileTabHref(profile.id, "comments", Math.min(tabTotalPages, tabPage + 1))}
                     aria-disabled={tabPage >= tabTotalPages}
                     className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
                       tabPage >= tabTotalPages
@@ -493,7 +484,7 @@ export default async function PublicUserProfilePage({
               {tabTotalPages > 1 ? (
                 <div className="flex flex-wrap items-center justify-center gap-1.5 pt-3">
                   <Link
-                    href={buildTabHref(profile.id, "reactions", Math.max(1, tabPage - 1))}
+                    href={buildPublicProfileTabHref(profile.id, "reactions", Math.max(1, tabPage - 1))}
                     aria-disabled={tabPage <= 1}
                     className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
                       tabPage <= 1
@@ -506,7 +497,7 @@ export default async function PublicUserProfilePage({
                   {buildPaginationWindow(tabPage, tabTotalPages).map((pageNumber) => (
                     <Link
                       key={`public-profile-reaction-page-${pageNumber}`}
-                      href={buildTabHref(profile.id, "reactions", pageNumber)}
+                      href={buildPublicProfileTabHref(profile.id, "reactions", pageNumber)}
                       className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition ${
                         pageNumber === tabPage
                           ? "border-[#3567b5] bg-[#3567b5] text-white"
@@ -517,7 +508,7 @@ export default async function PublicUserProfilePage({
                     </Link>
                   ))}
                   <Link
-                    href={buildTabHref(profile.id, "reactions", Math.min(tabTotalPages, tabPage + 1))}
+                    href={buildPublicProfileTabHref(profile.id, "reactions", Math.min(tabTotalPages, tabPage + 1))}
                     aria-disabled={tabPage >= tabTotalPages}
                     className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
                       tabPage >= tabTotalPages

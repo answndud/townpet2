@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostStatus, ReportTarget } from "@prisma/client";
-import { useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 
 import {
   canUseCommentReaction,
@@ -26,12 +26,15 @@ import {
   deleteCommentAction,
   updateCommentAction,
 } from "@/server/actions/comment";
+import { muteUserAction, unmuteUserAction } from "@/server/actions/user-relation";
 
 type CommentItem = {
   id: string;
   content: string;
   createdAt: Date | string;
   parentId: string | null;
+  threadRootId?: string | null;
+  threadPage?: number | null;
   status: PostStatus;
   likeCount: number;
   dislikeCount: number;
@@ -43,17 +46,17 @@ type CommentItem = {
   guestIpDisplay?: string | null;
   guestIpLabel?: string | null;
   isGuestAuthor?: boolean;
+  isMutedByViewer?: boolean;
   author: { id: string; nickname: string | null };
 };
 
 type PostCommentThreadProps = {
   postId: string;
   comments: CommentItem[];
+  bestComments: CommentItem[];
   totalCommentCount: number;
-  totalRootCount: number;
   currentPage: number;
   totalPages: number;
-  pageSize: number;
   currentUserId?: string;
   canInteract?: boolean;
   loginHref?: string;
@@ -64,6 +67,38 @@ type PostCommentThreadProps = {
 type CommentFormState = {
   [key: string]: string;
 };
+
+const COMMENT_DIVIDER_CLASS_NAME = "divide-[#edf3fb]";
+const COMMENT_BORDER_CLASS_NAME = "border-[#eaf1fb]";
+const COMMENT_REPLY_GUIDE_CLASS_NAME =
+  "before:bg-[#edf3fb] relative mt-2 ml-8 space-y-1.5 pl-3 before:absolute before:bottom-0 before:left-0 before:top-0 before:w-px before:content-['']";
+const COMMENT_REPLY_BADGE_CLASS_NAME =
+  "tp-text-muted inline-flex h-5 items-center rounded-md border border-[#e7eef9] bg-white px-1.5 text-[10px] font-medium";
+const COMMENT_AUTHOR_MENU_BUTTON_CLASS_NAME =
+  "tp-text-heading inline-flex max-w-full cursor-pointer items-center gap-1 rounded-md bg-transparent px-1 py-0.5 text-[13px] font-semibold transition hover:bg-[#f4f8ff] hover:text-[#2f5da4]";
+const COMMENT_AUTHOR_MENU_PANEL_CLASS_NAME =
+  "tp-border-muted absolute left-0 z-20 mt-1.5 min-w-[108px] rounded-md border bg-white p-1 shadow-[0_10px_24px_rgba(16,40,74,0.1)]";
+const MUTED_COMMENT_PLACEHOLDER_TEXT = "뮤트한 사용자 댓글입니다.";
+const MUTED_COMMENT_AUTHOR_NAME = "뮤트한 사용자";
+
+export function shouldCloseCommentAuthorMenu(
+  menuRoot: Pick<Node, "contains"> | null,
+  target: EventTarget | null,
+) {
+  if (!menuRoot || !target) {
+    return false;
+  }
+
+  return !menuRoot.contains(target as Node);
+}
+
+export function canOpenCommentAuthorMenu(viewerId?: string) {
+  return Boolean(viewerId);
+}
+
+export function canMuteCommentAuthor(viewerId?: string, targetUserId?: string) {
+  return Boolean(viewerId && targetUserId && viewerId !== targetUserId);
+}
 
 function formatCommentDate(value: Date | string) {
   const parsed = value instanceof Date ? value : new Date(value);
@@ -89,14 +124,167 @@ function buildPaginationItems(currentPage: number, totalPages: number) {
   return items;
 }
 
+function ReactionStatIcon({ type }: { type: "LIKE" | "DISLIKE" }) {
+  return type === "LIKE" ? (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M8 8V4.8A2.8 2.8 0 0 1 10.8 2l.5 3.1c.2 1-.1 2-.7 2.8L10 8.6h4.4A2.6 2.6 0 0 1 17 11.2l-.8 4.6a2.6 2.6 0 0 1-2.6 2.2H8z" />
+      <path d="M3 8h3v10H3z" />
+    </svg>
+  ) : (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M12 12v3.2A2.8 2.8 0 0 1 9.2 18l-.5-3.1c-.2-1 .1-2 .7-2.8l.6-.7H5.6A2.6 2.6 0 0 1 3 8.8l.8-4.6A2.6 2.6 0 0 1 6.4 2H12z" />
+      <path d="M17 12h-3V2h3z" />
+    </svg>
+  );
+}
+
+function CommentAuthorMenu({
+  userId,
+  displayName,
+  commentId,
+  currentUserId,
+  onActionMessage,
+  onRelationChanged,
+}: {
+  userId: string;
+  displayName: string;
+  commentId: string;
+  currentUserId?: string;
+  onActionMessage?: (message: string) => void;
+  onRelationChanged?: (commentId: string) => Promise<void>;
+}) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMutePending, startMuteTransition] = useTransition();
+  const canMute = canMuteCommentAuthor(currentUserId, userId);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const closeMenuIfOutside = (target: EventTarget | null) => {
+      if (shouldCloseCommentAuthorMenu(menuRef.current, target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handlePointerDown = (event: globalThis.PointerEvent) => {
+      closeMenuIfOutside(event.target);
+    };
+
+    const handleFocusIn = (event: globalThis.FocusEvent) => {
+      closeMenuIfOutside(event.target);
+    };
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleMute = () => {
+    if (!canMute || isMutePending) {
+      return;
+    }
+
+    startMuteTransition(async () => {
+      const result = await muteUserAction(
+        { targetUserId: userId },
+        { revalidate: false },
+      );
+      if (!result.ok) {
+        onActionMessage?.(result.message);
+        return;
+      }
+
+      setIsOpen(false);
+      onActionMessage?.("사용자를 뮤트했습니다.");
+      if (onRelationChanged) {
+        await onRelationChanged(commentId);
+      }
+    });
+  };
+
+  return (
+    <div ref={menuRef} className="relative inline-flex max-w-full shrink-0">
+      <button
+        type="button"
+        className={COMMENT_AUTHOR_MENU_BUTTON_CLASS_NAME}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span className="truncate">{displayName}</span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 12 12"
+          className="mt-px h-3 w-3 shrink-0 text-[#6a84ac]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+        >
+          <path d="M2.25 4.5 6 8.25 9.75 4.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {isOpen ? (
+        <div className={COMMENT_AUTHOR_MENU_PANEL_CLASS_NAME} role="menu">
+          <Link
+            href={`/users/${userId}`}
+            role="menuitem"
+            className="tp-text-heading block rounded px-2 py-1.5 text-[11px] hover:bg-[#f5f9ff]"
+            onClick={() => setIsOpen(false)}
+          >
+            프로필 보기
+          </Link>
+          {canMute ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="tp-text-heading block w-full rounded px-2 py-1.5 text-left text-[11px] hover:bg-[#f5f9ff]"
+              onClick={handleMute}
+              disabled={isMutePending}
+            >
+              뮤트
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PostCommentThread({
   postId,
   comments,
+  bestComments,
   totalCommentCount,
-  totalRootCount,
   currentPage,
   totalPages,
-  pageSize,
   currentUserId,
   canInteract = true,
   loginHref = "/login",
@@ -114,6 +302,11 @@ export function PostCommentThread({
   const [guestActionPrompt, setGuestActionPrompt] = useState<Record<string, "EDIT" | "DELETE" | null>>({});
   const [guestDisplayName, setGuestDisplayName] = useState("");
   const [guestPassword, setGuestPassword] = useState("");
+  const [pendingBestCommentJump, setPendingBestCommentJump] = useState<{
+    id: string;
+    page: number;
+  } | null>(null);
+  const [pendingRelationFocusCommentId, setPendingRelationFocusCommentId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const actionLockRef = useRef(false);
@@ -147,6 +340,86 @@ export function PostCommentThread({
   const roots = useMemo(() => comments.filter((comment) => comment.parentId === null), [comments]);
 
   const pageItems = buildPaginationItems(currentPage, totalPages);
+  const hasBestComments = bestComments.length > 0;
+
+  useEffect(() => {
+    if (!pendingBestCommentJump || typeof document === "undefined") {
+      return;
+    }
+
+    if (currentPage !== pendingBestCommentJump.page) {
+      return;
+    }
+
+    const targetElement = document.getElementById(`comment-${pendingBestCommentJump.id}`);
+    if (!targetElement) {
+      setMessage("원댓글을 찾을 수 없습니다.");
+      setPendingBestCommentJump(null);
+      return;
+    }
+
+    targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `#comment-${pendingBestCommentJump.id}`);
+    }
+    setPendingBestCommentJump(null);
+  }, [comments, currentPage, pendingBestCommentJump]);
+
+  useEffect(() => {
+    if (!pendingRelationFocusCommentId || typeof document === "undefined") {
+      return;
+    }
+
+    const targetElement =
+      document.getElementById(`comment-${pendingRelationFocusCommentId}`) ??
+      document.getElementById(`best-comment-${pendingRelationFocusCommentId}`);
+
+    if (!targetElement) {
+      return;
+    }
+
+    targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPendingRelationFocusCommentId(null);
+  }, [bestComments, comments, pendingRelationFocusCommentId]);
+
+  const handleBestCommentJump = async (comment: CommentItem) => {
+    const targetPage = comment.threadPage ?? currentPage;
+    setPendingBestCommentJump({
+      id: comment.id,
+      page: targetPage,
+    });
+
+    if (targetPage !== currentPage && onCommentsChanged) {
+      await onCommentsChanged(targetPage);
+    }
+  };
+
+  const refreshCommentsForRelationChange = async (commentId: string) => {
+    setPendingRelationFocusCommentId(commentId);
+
+    if (onCommentsChanged) {
+      await onCommentsChanged(currentPage);
+      return;
+    }
+
+    router.refresh();
+  };
+
+  const handleUnmute = (commentId: string, userId: string) => {
+    startTransition(async () => {
+      const result = await unmuteUserAction(
+        { targetUserId: userId },
+        { revalidate: false },
+      );
+      if (!result.ok) {
+        setMessage(result.message);
+        return;
+      }
+
+      setMessage("사용자 뮤트를 해제했습니다.");
+      await refreshCommentsForRelationChange(commentId);
+    });
+  };
 
   const handleCreate = (parentId?: string) => {
     if (actionLockRef.current) {
@@ -238,9 +511,7 @@ export function PostCommentThread({
           setCollapsedReplies((prev) => ({ ...prev, [parentId]: false }));
         }
         if (onCommentsChanged) {
-          const nextPage = parentId
-            ? currentPage
-            : Math.max(1, Math.ceil((totalRootCount + 1) / Math.max(pageSize, 1)));
+          const nextPage = parentId ? currentPage : 1;
           await onCommentsChanged(nextPage);
         }
         router.refresh();
@@ -404,6 +675,7 @@ export function PostCommentThread({
   const renderComment = (comment: CommentItem, depth = 0) => {
     const replies = repliesMap.get(comment.id) ?? [];
     const isDeleted = comment.status === "DELETED";
+    const isMutedPlaceholder = Boolean(comment.isMutedByViewer) && !isDeleted;
     const isGuestComment = Boolean(
       comment.isGuestAuthor || comment.guestAuthorId || comment.guestDisplayName?.trim(),
     );
@@ -415,21 +687,29 @@ export function PostCommentThread({
       : `0.${comment.author.id.slice(-3)}`;
     const isAuthor = currentUserId && comment.author.id === currentUserId;
     const hasActiveReply = replies.some((reply) => reply.status === "ACTIVE");
-    const canEdit = (isAuthor || isGuestComment) && !hasActiveReply && comment.status === "ACTIVE";
-    const canOpenMenu = !isDeleted && canEdit;
-    const canReply = canComment && comment.status === "ACTIVE";
-    const canReport = Boolean(currentUserId) && comment.status === "ACTIVE" && !isAuthor;
+    const canEdit =
+      !isMutedPlaceholder && (isAuthor || isGuestComment) && !hasActiveReply && comment.status === "ACTIVE";
+    const canOpenMenu = !isDeleted && !isMutedPlaceholder && canEdit;
+    const canReply = !isMutedPlaceholder && canComment && comment.status === "ACTIVE";
+    const canReport = Boolean(currentUserId) && !isMutedPlaceholder && comment.status === "ACTIVE" && !isAuthor;
     const canReactToComment = canUseCommentReaction({
       currentUserId,
       canInteract,
-      isCommentActive: comment.status === "ACTIVE",
+      isCommentActive: comment.status === "ACTIVE" && !isMutedPlaceholder,
     });
-    const displayName = isGuestComment
-      ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
-      : resolveUserDisplayName(comment.author.nickname);
-    const avatarText = displayName.slice(0, 1).toUpperCase();
+    const displayName = isMutedPlaceholder
+      ? MUTED_COMMENT_AUTHOR_NAME
+      : isGuestComment
+        ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
+        : resolveUserDisplayName(comment.author.nickname);
+    const avatarText = (isMutedPlaceholder ? "뮤" : displayName.slice(0, 1)).toUpperCase();
     const actionLinkClass =
       "tp-text-muted text-[11px] font-medium transition hover:text-[#2f5da4] hover:underline disabled:cursor-not-allowed disabled:opacity-50";
+    const commentBodyText = isDeleted
+      ? "삭제된 댓글입니다."
+      : isMutedPlaceholder
+        ? MUTED_COMMENT_PLACEHOLDER_TEXT
+        : comment.content;
 
     return (
       <div
@@ -437,7 +717,11 @@ export function PostCommentThread({
         id={`comment-${comment.id}`}
         className={depth > 0 ? "mt-2" : undefined}
       >
-        <article className={`flex gap-2.5 px-1 py-2.5 ${isDeleted ? "tp-surface-soft opacity-80" : ""}`}>
+        <article
+          className={`flex gap-2.5 px-1 py-2.5 ${
+            isDeleted ? "tp-surface-soft opacity-80" : isMutedPlaceholder ? "tp-surface-soft rounded-md" : ""
+          }`}
+        >
           <div className="tp-surface-alt tp-text-accent mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">
             {avatarText}
           </div>
@@ -445,7 +729,7 @@ export function PostCommentThread({
           <div className="min-w-0 flex-1">
             <header className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
-                {isGuestComment ? (
+                {isMutedPlaceholder || isGuestComment || !canOpenCommentAuthorMenu(currentUserId) ? (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <p className="tp-text-heading truncate text-[13px] font-semibold">{displayName}</p>
                     <p suppressHydrationWarning className="tp-text-subtle text-[11px]">
@@ -454,12 +738,14 @@ export function PostCommentThread({
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <Link
-                      href={`/users/${comment.author.id}`}
-                      className="tp-text-heading truncate text-[13px] font-semibold hover:text-[#2f5da4]"
-                    >
-                      {displayName}
-                    </Link>
+                    <CommentAuthorMenu
+                      userId={comment.author.id}
+                      displayName={displayName}
+                      commentId={comment.id}
+                      currentUserId={currentUserId}
+                      onActionMessage={setMessage}
+                      onRelationChanged={refreshCommentsForRelationChange}
+                    />
                     <p suppressHydrationWarning className="tp-text-subtle text-[11px]">
                       {formatCommentDate(comment.createdAt)}
                     </p>
@@ -467,7 +753,7 @@ export function PostCommentThread({
                 )}
               </div>
 
-              {!isDeleted ? (
+              {!isDeleted && !isMutedPlaceholder ? (
                 <div className="ml-auto flex shrink-0 items-start gap-1.5">
                   <CommentReactionControls
                     key={`${comment.id}:${comment.likeCount}:${comment.dislikeCount}:${comment.reactions?.[0]?.type ?? "NONE"}`}
@@ -525,12 +811,28 @@ export function PostCommentThread({
                   ) : null}
                 </div>
               ) : null}
+              {!isDeleted && isMutedPlaceholder && canMuteCommentAuthor(currentUserId, comment.author.id) ? (
+                <div className="ml-auto flex shrink-0 items-start gap-1.5">
+                  <button
+                    type="button"
+                    className="tp-text-muted rounded-md px-1.5 py-0.5 text-[11px] font-medium transition hover:bg-white hover:text-[#2f5da4] hover:underline"
+                    onClick={() => handleUnmute(comment.id, comment.author.id)}
+                    disabled={isPending}
+                  >
+                    뮤트 해제
+                  </button>
+                </div>
+              ) : null}
             </header>
 
-            <div className={`mt-1 text-[14px] leading-6 ${isDeleted ? "tp-text-placeholder" : "tp-text-primary"}`}>
+            <div
+              className={`mt-1 text-[14px] leading-6 ${
+                isDeleted || isMutedPlaceholder ? "tp-text-placeholder" : "tp-text-primary"
+              }`}
+            >
               <LinkifiedContent
-                text={isDeleted ? "삭제된 댓글입니다." : comment.content}
-                showYoutubeEmbeds={!isDeleted}
+                text={commentBodyText}
+                showYoutubeEmbeds={!isDeleted && !isMutedPlaceholder}
               />
             </div>
 
@@ -720,7 +1022,7 @@ export function PostCommentThread({
             ) : null}
 
             {replies.length > 0 && !collapsedReplies[comment.id] ? (
-              <div className="before:bg-[#d7e2f3] relative mt-2 ml-8 space-y-1.5 pl-3 before:absolute before:bottom-0 before:left-0 before:top-0 before:w-px before:content-['']">
+              <div className={COMMENT_REPLY_GUIDE_CLASS_NAME}>
                 {replies.map((reply) => renderComment(reply, depth + 1))}
               </div>
             ) : null}
@@ -730,18 +1032,134 @@ export function PostCommentThread({
     );
   };
 
+  const renderBestComment = (comment: CommentItem) => {
+    const isMutedPlaceholder = Boolean(comment.isMutedByViewer);
+    const isGuestComment = Boolean(
+      comment.isGuestAuthor || comment.guestAuthorId || comment.guestDisplayName?.trim(),
+    );
+    const guestAuthorName = comment.guestDisplayName?.trim()
+      ? comment.guestDisplayName
+      : resolveUserDisplayName(comment.author.nickname);
+    const guestIpDisplay = comment.guestIpDisplay?.trim()
+      ? comment.guestIpDisplay
+      : `0.${comment.author.id.slice(-3)}`;
+    const displayName = isMutedPlaceholder
+      ? MUTED_COMMENT_AUTHOR_NAME
+      : isGuestComment
+        ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
+        : resolveUserDisplayName(comment.author.nickname);
+    const authorNode = isMutedPlaceholder || isGuestComment || !canOpenCommentAuthorMenu(currentUserId) ? (
+      <span className="tp-text-heading truncate text-[13px] font-semibold">{displayName}</span>
+    ) : (
+      <CommentAuthorMenu
+        userId={comment.author.id}
+        displayName={displayName}
+        commentId={comment.id}
+        currentUserId={currentUserId}
+        onActionMessage={setMessage}
+        onRelationChanged={refreshCommentsForRelationChange}
+      />
+    );
+
+    return (
+      <article
+        key={`best-${comment.id}`}
+        id={`best-comment-${comment.id}`}
+        className="flex flex-col gap-2.5 px-3 py-3.5 sm:px-4"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="inline-flex h-5 items-center rounded-md bg-[#2f6fda] px-1.5 text-[10px] font-semibold tracking-[0.03em] text-white">
+                BEST
+              </span>
+              {comment.parentId ? (
+                <span className={COMMENT_REPLY_BADGE_CLASS_NAME}>
+                  답글
+                </span>
+              ) : null}
+              {authorNode}
+              <span suppressHydrationWarning className="tp-text-subtle text-[11px]">
+                {formatCommentDate(comment.createdAt)}
+              </span>
+            </div>
+            <p className="tp-text-primary mt-2 overflow-hidden whitespace-pre-line text-[13px] leading-6 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+              {isMutedPlaceholder ? MUTED_COMMENT_PLACEHOLDER_TEXT : comment.content}
+            </p>
+          </div>
+
+          <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
+            <div className="tp-text-muted flex items-center gap-3 text-[11px] font-semibold">
+              <span className="inline-flex items-center gap-1">
+                <ReactionStatIcon type="LIKE" />
+                <span>{comment.likeCount.toLocaleString()}</span>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <ReactionStatIcon type="DISLIKE" />
+                <span>{comment.dislikeCount.toLocaleString()}</span>
+              </span>
+            </div>
+            {isMutedPlaceholder && canMuteCommentAuthor(currentUserId, comment.author.id) ? (
+              <button
+                type="button"
+                className="tp-text-muted rounded-md px-1.5 py-0.5 text-[11px] font-medium transition hover:bg-white hover:text-[#2f5da4] hover:underline"
+                onClick={() => handleUnmute(comment.id, comment.author.id)}
+                disabled={isPending}
+              >
+                뮤트 해제
+              </button>
+            ) : null}
+            {comment.threadPage && (comment.threadPage === currentPage || onCommentsChanged) ? (
+              <button
+                type="button"
+                className="tp-text-muted rounded-md px-1.5 py-0.5 text-[11px] font-medium transition hover:bg-white hover:text-[#2f5da4] hover:underline"
+                onClick={() => {
+                  void handleBestCommentJump(comment);
+                }}
+              >
+                원댓글로 가기
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    );
+  };
+
   return (
     <div className={POST_COMMENT_THREAD_CARD_CLASS_NAME}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="tp-text-section-title tp-text-heading">댓글 {totalCommentCount}</h2>
-        {totalPages > 1 ? <span className="tp-text-label text-[11px]">{currentPage} / {totalPages}</span> : null}
+        {!hasBestComments && totalPages > 1 ? (
+          <span className="tp-text-label text-[11px]">{currentPage} / {totalPages}</span>
+        ) : null}
       </div>
       {message ? <p className="tp-text-subtle mt-2 text-[11px]">{message}</p> : null}
+
+      {hasBestComments ? (
+        <section className={`${COMMENT_BORDER_CLASS_NAME} mt-3 overflow-hidden rounded-md border bg-[#f7fbff] sm:mt-4`}>
+          <div className={`${COMMENT_BORDER_CLASS_NAME} border-b px-3 py-2.5 sm:px-4`}>
+            <h3 className="tp-text-heading text-[12px] font-semibold">베스트 댓글</h3>
+          </div>
+          <div className={`divide-y ${COMMENT_DIVIDER_CLASS_NAME}`}>
+            {bestComments.map((comment) => renderBestComment(comment))}
+          </div>
+        </section>
+      ) : null}
+
+      {hasBestComments ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 sm:mt-5">
+          <h3 className="tp-text-heading text-[12px] font-semibold">최신 댓글</h3>
+          {totalPages > 1 ? (
+            <span className="tp-text-label text-[11px]">{currentPage} / {totalPages}</span>
+          ) : null}
+        </div>
+      ) : null}
 
       {roots.length === 0 ? (
         <p className="tp-text-subtle mt-4 text-[13px]">댓글이 없습니다.</p>
       ) : (
-        <div className="tp-border-soft mt-3 divide-y rounded-md border bg-white sm:mt-4">
+        <div className={`${COMMENT_BORDER_CLASS_NAME} mt-3 divide-y rounded-md border bg-white sm:mt-4 ${COMMENT_DIVIDER_CLASS_NAME}`}>
           {roots.map((comment) => renderComment(comment))}
         </div>
       )}
@@ -783,7 +1201,7 @@ export function PostCommentThread({
         </div>
       ) : null}
 
-      <div className="tp-border-soft mt-3 border-t pt-2.5 sm:mt-4 sm:pt-3">
+      <div className={`${COMMENT_BORDER_CLASS_NAME} mt-3 border-t pt-2.5 sm:mt-4 sm:pt-3`}>
         <div className={`${POST_COMMENT_FORM_PANEL_CLASS_NAME} p-2.5 sm:p-2.5`}>
           {canComment ? (
             <>

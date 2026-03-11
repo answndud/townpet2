@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DELETE, GET, PATCH } from "@/app/api/posts/[id]/route";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostById } from "@/server/queries/post.queries";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
@@ -12,7 +12,7 @@ import { assertPostReadable } from "@/server/services/post-read-access.service";
 import { ServiceError } from "@/server/services/service-error";
 import { deleteGuestPost, updateGuestPost } from "@/server/services/post.service";
 
-vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
+vi.mock("@/server/auth", () => ({ getCurrentUserIdFromRequest: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/post.queries", () => ({ getPostById: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({
@@ -31,7 +31,7 @@ vi.mock("@/server/services/post.service", () => ({
   updatePost: vi.fn(),
 }));
 
-const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
+const mockGetCurrentUserIdFromRequest = vi.mocked(getCurrentUserIdFromRequest);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetPostById = vi.mocked(getPostById);
 const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
@@ -43,7 +43,7 @@ const mockDeleteGuestPost = vi.mocked(deleteGuestPost);
 
 describe("/api/posts/[id] contract", () => {
   beforeEach(() => {
-    mockGetCurrentUserId.mockReset();
+    mockGetCurrentUserIdFromRequest.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetPostById.mockReset();
     mockGetGuestPostPolicy.mockReset();
@@ -53,7 +53,7 @@ describe("/api/posts/[id] contract", () => {
     mockUpdateGuestPost.mockReset();
     mockDeleteGuestPost.mockReset();
 
-    mockGetCurrentUserId.mockResolvedValue(null);
+    mockGetCurrentUserIdFromRequest.mockResolvedValue(null);
     mockGetGuestPostPolicy.mockResolvedValue({
       postRateLimit10m: 5,
       postRateLimit1h: 10,

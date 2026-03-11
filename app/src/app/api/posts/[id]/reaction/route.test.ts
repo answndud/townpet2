@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/posts/[id]/reaction/route";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 
-vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
+vi.mock("@/server/auth", () => ({ getCurrentUserIdFromRequest: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -16,16 +16,16 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
+const mockGetCurrentUserIdFromRequest = vi.mocked(getCurrentUserIdFromRequest);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockFindUnique = vi.mocked(prisma.postReaction.findUnique);
 
 describe("GET /api/posts/[id]/reaction contract", () => {
   beforeEach(() => {
-    mockGetCurrentUserId.mockReset();
+    mockGetCurrentUserIdFromRequest.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockFindUnique.mockReset();
-    mockGetCurrentUserId.mockResolvedValue(null);
+    mockGetCurrentUserIdFromRequest.mockResolvedValue(null);
     mockFindUnique.mockResolvedValue(null);
   });
 
@@ -43,7 +43,7 @@ describe("GET /api/posts/[id]/reaction contract", () => {
   });
 
   it("returns current reaction type for authenticated user", async () => {
-    mockGetCurrentUserId.mockResolvedValue("user-1");
+    mockGetCurrentUserIdFromRequest.mockResolvedValue("user-1");
     mockFindUnique.mockResolvedValue({ type: "LIKE" } as never);
     const request = new Request("http://localhost/api/posts/post-1/reaction") as NextRequest;
 
@@ -67,7 +67,7 @@ describe("GET /api/posts/[id]/reaction contract", () => {
   });
 
   it("returns 500 and monitors unexpected errors", async () => {
-    mockGetCurrentUserId.mockResolvedValue("user-1");
+    mockGetCurrentUserIdFromRequest.mockResolvedValue("user-1");
     mockFindUnique.mockRejectedValue(new Error("db down"));
     const request = new Request("http://localhost/api/posts/post-1/reaction") as NextRequest;
 

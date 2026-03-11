@@ -44,17 +44,9 @@ type UserMuteDelegate = {
 let blockDelegateWarned = false;
 let muteDelegateWarned = false;
 let missingTableWarned = false;
-const hiddenAuthorIdsCache = new Map<
-  string,
-  {
-    ids: string[];
-    expiresAt: number;
-  }
->();
-const HIDDEN_AUTHOR_IDS_CACHE_TTL_MS = 5_000;
 
 export function invalidateHiddenAuthorIdsCache(viewerId: string) {
-  hiddenAuthorIdsCache.delete(viewerId);
+  void viewerId;
 }
 
 function getBlockDelegate() {
@@ -123,56 +115,67 @@ export type UserRelationState = {
   isMutedByMe: boolean;
 };
 
-export async function listHiddenAuthorIdsForViewer(viewerId?: string) {
-  if (!viewerId) {
-    return [];
-  }
+export type HiddenAuthorGroupsForViewer = {
+  blockedAuthorIds: string[];
+  mutedAuthorIds: string[];
+  hiddenAuthorIds: string[];
+};
 
-  const cached = hiddenAuthorIdsCache.get(viewerId);
-  const now = Date.now();
-  if (cached && cached.expiresAt > now) {
-    return cached.ids;
+export async function listHiddenAuthorGroupsForViewer(
+  viewerId?: string,
+): Promise<HiddenAuthorGroupsForViewer> {
+  if (!viewerId) {
+    return {
+      blockedAuthorIds: [],
+      mutedAuthorIds: [],
+      hiddenAuthorIds: [],
+    };
   }
 
   const blockDelegate = requireBlockDelegate();
   const muteDelegate = requireMuteDelegate();
-  const hiddenIds = new Set<string>();
+  const blockedIds = new Set<string>();
+  const mutedIds = new Set<string>();
 
   try {
-    if (blockDelegate) {
-      const blocks = await blockDelegate.findMany({
+    const [blocks, mutes] = await Promise.all([
+      blockDelegate.findMany({
         where: {
           OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
         },
         select: { blockerId: true, blockedId: true },
-      });
-
-      for (const block of blocks) {
-        hiddenIds.add(block.blockerId === viewerId ? block.blockedId : block.blockerId);
-      }
-    }
-
-    if (muteDelegate) {
-      const mutes = await muteDelegate.findMany({
+      }),
+      muteDelegate.findMany({
         where: { userId: viewerId },
         select: { mutedUserId: true },
-      });
+      }),
+    ]);
 
-      for (const mute of mutes) {
-        hiddenIds.add(mute.mutedUserId);
-      }
+    for (const block of blocks) {
+      blockedIds.add(block.blockerId === viewerId ? block.blockedId : block.blockerId);
+    }
+
+    for (const mute of mutes) {
+      mutedIds.add(mute.mutedUserId);
     }
   } catch (error) {
     throwUserRelationSchemaSyncRequired(error);
   }
 
-  hiddenIds.delete(viewerId);
-  const resolved = Array.from(hiddenIds);
-  hiddenAuthorIdsCache.set(viewerId, {
-    ids: resolved,
-    expiresAt: Date.now() + HIDDEN_AUTHOR_IDS_CACHE_TTL_MS,
-  });
-  return resolved;
+  blockedIds.delete(viewerId);
+  mutedIds.delete(viewerId);
+  const hiddenIds = new Set([...blockedIds, ...mutedIds]);
+
+  return {
+    blockedAuthorIds: Array.from(blockedIds),
+    mutedAuthorIds: Array.from(mutedIds),
+    hiddenAuthorIds: Array.from(hiddenIds),
+  };
+}
+
+export async function listHiddenAuthorIdsForViewer(viewerId?: string) {
+  const hiddenAuthorGroups = await listHiddenAuthorGroupsForViewer(viewerId);
+  return hiddenAuthorGroups.hiddenAuthorIds;
 }
 
 export async function getUserRelationState(viewerId?: string, targetUserId?: string) {

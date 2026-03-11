@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { buildGuestIpMeta } from "@/lib/guest-ip-display";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { enforceAuthenticatedWriteRateLimit } from "@/server/authenticated-write-throttle";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { assertGuestStepUp } from "@/server/guest-step-up";
@@ -30,7 +30,8 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
-    const userId = await getCurrentUserId();
+    const forceGuestMode = request.headers.get("x-guest-mode") === "1";
+    const userId = forceGuestMode ? null : await getCurrentUserIdFromRequest(request);
     const viewerId = userId ?? undefined;
     const requestUrl = new URL(request.url);
     const pageParam = Number(requestUrl.searchParams.get("page") ?? "1");
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const forceGuestMode =
       process.env.NODE_ENV !== "production" && request.headers.get("x-guest-mode") === "1";
-    const userId = forceGuestMode ? null : await getCurrentUserId();
+    const userId = forceGuestMode ? null : await getCurrentUserIdFromRequest(request);
     const clientIp = getClientIp(request);
     const viewerId = userId ?? undefined;
     const post = await getPostReadAccessById(postId, viewerId);

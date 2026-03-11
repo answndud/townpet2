@@ -93,7 +93,7 @@ describe("GET /api/viewer-shell contract", () => {
     expect(mockMonitorUnhandledError).not.toHaveBeenCalled();
   });
 
-  it("surfaces notification schema sync errors for authenticated shell", async () => {
+  it("falls back to zero unread notifications when notification schema sync is missing", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } } as never);
     mockGetUserById.mockResolvedValue({
       id: "user-1",
@@ -107,12 +107,14 @@ describe("GET /api/viewer-shell contract", () => {
     const response = await GET(new Request("http://localhost/api/viewer-shell") as NextRequest);
     const payload = await response.json();
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
     expect(payload).toEqual({
-      ok: false,
-      error: {
-        code: "SCHEMA_SYNC_REQUIRED",
-        message: "schema sync required",
+      ok: true,
+      data: {
+        isAuthenticated: true,
+        canModerate: false,
+        unreadNotificationCount: 0,
+        preferredPetTypeIds: [],
       },
     });
   });

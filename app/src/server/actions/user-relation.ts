@@ -22,6 +22,10 @@ type RelationActionResult =
     }
   | { ok: false; code: string; message: string };
 
+type RelationActionOptions = {
+  revalidate?: boolean;
+};
+
 function revalidateRelationViews() {
   revalidatePath("/feed");
   revalidatePath("/search");
@@ -29,11 +33,20 @@ function revalidateRelationViews() {
   revalidatePath("/posts/[id]", "page");
 }
 
-export async function blockUserAction(input: unknown): Promise<RelationActionResult> {
+function shouldRevalidate(options?: RelationActionOptions) {
+  return options?.revalidate !== false;
+}
+
+export async function blockUserAction(
+  input: unknown,
+  options?: RelationActionOptions,
+): Promise<RelationActionResult> {
   try {
     const user = await requireCurrentUser();
     const state = await blockUser({ userId: user.id, input });
-    revalidateRelationViews();
+    if (shouldRevalidate(options)) {
+      revalidateRelationViews();
+    }
     return { ok: true, state };
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -47,11 +60,16 @@ export async function blockUserAction(input: unknown): Promise<RelationActionRes
   }
 }
 
-export async function unblockUserAction(input: unknown): Promise<RelationActionResult> {
+export async function unblockUserAction(
+  input: unknown,
+  options?: RelationActionOptions,
+): Promise<RelationActionResult> {
   try {
     const user = await requireCurrentUser();
     const state = await unblockUser({ userId: user.id, input });
-    revalidateRelationViews();
+    if (shouldRevalidate(options)) {
+      revalidateRelationViews();
+    }
     return { ok: true, state };
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -65,11 +83,16 @@ export async function unblockUserAction(input: unknown): Promise<RelationActionR
   }
 }
 
-export async function muteUserAction(input: unknown): Promise<RelationActionResult> {
+export async function muteUserAction(
+  input: unknown,
+  options?: RelationActionOptions,
+): Promise<RelationActionResult> {
   try {
     const user = await requireCurrentUser();
     const state = await muteUser({ userId: user.id, input });
-    revalidateRelationViews();
+    if (shouldRevalidate(options)) {
+      revalidateRelationViews();
+    }
     return { ok: true, state };
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -83,11 +106,16 @@ export async function muteUserAction(input: unknown): Promise<RelationActionResu
   }
 }
 
-export async function unmuteUserAction(input: unknown): Promise<RelationActionResult> {
+export async function unmuteUserAction(
+  input: unknown,
+  options?: RelationActionOptions,
+): Promise<RelationActionResult> {
   try {
     const user = await requireCurrentUser();
     const state = await unmuteUser({ userId: user.id, input });
-    revalidateRelationViews();
+    if (shouldRevalidate(options)) {
+      revalidateRelationViews();
+    }
     return { ok: true, state };
   } catch (error) {
     if (error instanceof ServiceError) {

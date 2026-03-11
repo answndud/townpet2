@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/api/posts/[id]/comments/route";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getPostReadAccessById } from "@/server/queries/post.queries";
@@ -18,7 +18,7 @@ import {
   getOrCreateGuestSystemUserId,
 } from "@/server/services/guest-author.service";
 import { ServiceError } from "@/server/services/service-error";
-vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
+vi.mock("@/server/auth", () => ({ getCurrentUserIdFromRequest: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({ getGuestPostPolicy: vi.fn() }));
 vi.mock("@/server/queries/post.queries", () => ({ getPostReadAccessById: vi.fn() }));
@@ -53,7 +53,7 @@ vi.mock("@/lib/guest-ip-display", () => ({
   }),
 }));
 
-const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
+const mockGetCurrentUserIdFromRequest = vi.mocked(getCurrentUserIdFromRequest);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetPostReadAccessById = vi.mocked(getPostReadAccessById);
@@ -69,7 +69,7 @@ const mockGetOrCreateGuestSystemUserId = vi.mocked(getOrCreateGuestSystemUserId)
 
 describe("POST /api/posts/[id]/comments contract", () => {
   beforeEach(() => {
-    mockGetCurrentUserId.mockReset();
+    mockGetCurrentUserIdFromRequest.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetGuestPostPolicy.mockReset();
     mockGetPostReadAccessById.mockReset();
@@ -82,7 +82,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
     mockCreateGuestAuthor.mockReset();
     mockGetOrCreateGuestSystemUserId.mockReset();
 
-    mockGetCurrentUserId.mockResolvedValue(null);
+    mockGetCurrentUserIdFromRequest.mockResolvedValue(null);
     mockGetGuestPostPolicy.mockResolvedValue({
       postRateLimit10m: 5,
       postRateLimit1h: 10,
@@ -103,6 +103,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
     } as never);
     mockListComments.mockResolvedValue({
       comments: [],
+      bestComments: [],
       totalCount: 0,
       totalRootCount: 0,
       page: 1,
@@ -145,6 +146,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
   it("disables caching for comments GET", async () => {
     mockListComments.mockResolvedValue({
       comments: [{ id: "comment-1" }],
+      bestComments: [{ id: "comment-best-1" }],
       totalCount: 1,
       totalRootCount: 1,
       page: 1,
@@ -168,6 +170,24 @@ describe("POST /api/posts/[id]/comments contract", () => {
     expect(mockListComments).toHaveBeenCalledWith("post-1", undefined, {
       page: 3,
       limit: 12,
+    });
+  });
+
+  it("treats guest-mode GET as unauthenticated even when auth helper would return a user", async () => {
+    mockGetCurrentUserIdFromRequest.mockResolvedValue("user-1");
+    const request = new Request("http://localhost/api/posts/post-1/comments", {
+      headers: {
+        "x-guest-mode": "1",
+      },
+    }) as NextRequest;
+
+    await GET(request, { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(mockGetCurrentUserIdFromRequest).not.toHaveBeenCalled();
+    expect(mockGetPostReadAccessById).toHaveBeenCalledWith("post-1", undefined);
+    expect(mockListComments).toHaveBeenCalledWith("post-1", undefined, {
+      page: 1,
+      limit: 30,
     });
   });
 
@@ -256,7 +276,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
   });
 
   it("passes authenticated client fingerprint into comment throttling", async () => {
-    mockGetCurrentUserId.mockResolvedValue("user-1");
+    mockGetCurrentUserIdFromRequest.mockResolvedValue("user-1");
     mockCreateComment.mockResolvedValue({ id: "comment-9" } as never);
     const request = new Request("http://localhost/api/posts/post-1/comments", {
       method: "POST",

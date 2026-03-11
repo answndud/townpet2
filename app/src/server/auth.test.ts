@@ -5,6 +5,7 @@ import { ServiceError } from "@/server/services/service-error";
 import {
   getCurrentUser,
   getCurrentUserId,
+  getCurrentUserIdFromRequest,
   getCurrentUserRole,
   hasSessionCookieFromRequest,
   requireAuthenticatedUserId,
@@ -143,6 +144,30 @@ describe("auth helpers", () => {
 
     expect(userId).toBe("demo-id-only");
     expect(mockGetUserByEmail).toHaveBeenCalledWith(demoEmail);
+  });
+
+  it("does not use demo fallback for request helper when session cookie is missing", async () => {
+    process.env.DEMO_USER_EMAIL = demoEmail;
+    mockAuth.mockResolvedValue(null as never);
+    const request = new Request("http://localhost/api/posts/post-1/comments");
+
+    const userId = await getCurrentUserIdFromRequest(request);
+
+    expect(userId).toBeNull();
+    expect(mockGetUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it("uses session id for request helper when session cookie exists", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cookie-user-1" } } as never);
+    const request = new Request("http://localhost/api/posts/post-1/comments", {
+      headers: {
+        cookie: "townpet.session-token=abc123",
+      },
+    });
+
+    const userId = await getCurrentUserIdFromRequest(request);
+
+    expect(userId).toBe("cookie-user-1");
   });
 
   it("does not use demo fallback in production", async () => {

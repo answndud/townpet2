@@ -27,6 +27,7 @@ type PostCommentSectionClientProps = {
   loginHref: string;
   onCommentCountChange?: (count: number) => void;
   initialLoadState?: PostCommentPrefetchState;
+  forceGuestMode?: boolean;
 };
 
 export function PostCommentSectionClient({
@@ -37,6 +38,7 @@ export function PostCommentSectionClient({
   loginHref,
   onCommentCountChange,
   initialLoadState,
+  forceGuestMode = false,
 }: PostCommentSectionClientProps) {
   const [commentPage, setCommentPage] = useState<PostCommentPageData | null>(
     initialLoadState?.pageData ?? null,
@@ -73,6 +75,7 @@ export function PostCommentSectionClient({
       const nextCommentPage = await fetchPostCommentPage<PostCommentItem>(postId, {
         page: nextPage,
         limit: DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
+        forceGuestMode,
       });
       if (mountedRef.current) {
         setCommentPage(nextCommentPage);
@@ -88,7 +91,7 @@ export function PostCommentSectionClient({
         setIsLoading(false);
       }
     }
-  }, [onCommentCountChange, page, postId]);
+  }, [forceGuestMode, onCommentCountChange, page, postId]);
 
   useEffect(() => {
     if (!initialLoadState) {
@@ -104,6 +107,7 @@ export function PostCommentSectionClient({
       if (initialLoadState.status === "ready") {
         const nextCommentPage = initialLoadState.pageData ?? {
           comments: [],
+          bestComments: [],
           totalCount: 0,
           totalRootCount: 0,
           page: 1,
@@ -188,6 +192,7 @@ export function PostCommentSectionClient({
 
   const resolvedCommentPage = commentPage ?? {
     comments,
+    bestComments: [],
     totalCount: comments.length,
     totalRootCount: comments.filter((comment) => comment.parentId === null).length,
     page,
@@ -199,11 +204,12 @@ export function PostCommentSectionClient({
     <PostCommentThread
       postId={postId}
       comments={comments as unknown as Parameters<typeof PostCommentThread>[0]["comments"]}
+      bestComments={
+        resolvedCommentPage.bestComments as unknown as Parameters<typeof PostCommentThread>[0]["bestComments"]
+      }
       totalCommentCount={resolvedCommentPage.totalCount}
-      totalRootCount={resolvedCommentPage.totalRootCount}
       currentPage={resolvedCommentPage.page}
       totalPages={resolvedCommentPage.totalPages}
-      pageSize={resolvedCommentPage.limit}
       currentUserId={viewerState.currentUserId}
       canInteract={viewerState.canInteract}
       loginHref={loginHref}

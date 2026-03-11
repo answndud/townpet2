@@ -2,34 +2,34 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/posts/[id]/view/route";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getClientIp } from "@/server/request-context";
 import { registerPostView } from "@/server/services/post.service";
 
-vi.mock("@/server/auth", () => ({ getCurrentUserId: vi.fn() }));
+vi.mock("@/server/auth", () => ({ getCurrentUserIdFromRequest: vi.fn() }));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/request-context", () => ({ getClientIp: vi.fn() }));
 vi.mock("@/server/services/post.service", () => ({ registerPostView: vi.fn() }));
 
-const mockGetCurrentUserId = vi.mocked(getCurrentUserId);
+const mockGetCurrentUserIdFromRequest = vi.mocked(getCurrentUserIdFromRequest);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetClientIp = vi.mocked(getClientIp);
 const mockRegisterPostView = vi.mocked(registerPostView);
 
 describe("POST /api/posts/[id]/view contract", () => {
   beforeEach(() => {
-    mockGetCurrentUserId.mockReset();
+    mockGetCurrentUserIdFromRequest.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetClientIp.mockReset();
     mockRegisterPostView.mockReset();
-    mockGetCurrentUserId.mockResolvedValue(null);
+    mockGetCurrentUserIdFromRequest.mockResolvedValue(null);
     mockGetClientIp.mockReturnValue("127.0.0.1");
     mockRegisterPostView.mockResolvedValue(false);
   });
 
   it("registers post view with authenticated user id", async () => {
-    mockGetCurrentUserId.mockResolvedValue("user-1");
+    mockGetCurrentUserIdFromRequest.mockResolvedValue("user-1");
     const request = new Request("http://localhost/api/posts/post-1/view", {
       method: "POST",
       headers: { "user-agent": "test-agent" },

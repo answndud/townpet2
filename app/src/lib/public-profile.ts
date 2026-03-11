@@ -17,6 +17,20 @@ export function buildPublicProfileLoginHref(userId: string) {
   return `/login?${params.toString()}`;
 }
 
+export function buildPublicProfileTabHref(
+  userId: string,
+  tab: PublicProfileActivityTab = "posts",
+  page = 1,
+) {
+  const query = new URLSearchParams();
+  query.set("tab", tab);
+  if (page > 1) {
+    query.set("page", String(page));
+  }
+
+  return `/users/${userId}?${query.toString()}`;
+}
+
 export function getPublicProfileLoginNoticeMessage(notice: string | null) {
   if (notice === PUBLIC_PROFILE_LOGIN_NOTICE) {
     return "프로필을 보려면 로그인해 주세요.";

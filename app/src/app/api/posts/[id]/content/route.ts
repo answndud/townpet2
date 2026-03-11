@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
-import { getCurrentUserId } from "@/server/auth";
+import { getCurrentUserIdFromRequest } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostContentById } from "@/server/queries/post.queries";
 import { jsonError, jsonOk } from "@/server/response";
@@ -15,7 +15,7 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: postId } = await params;
-    const userId = await getCurrentUserId();
+    const userId = await getCurrentUserIdFromRequest(request);
     const viewerId = userId ?? undefined;
     const post = await getPostContentById(postId, viewerId);
     if (!post) {

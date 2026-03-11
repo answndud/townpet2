@@ -77,6 +77,7 @@ describe("PostCommentSectionClient loading policy", () => {
       shouldAutoLoadPostComments({
         pageData: {
           comments: [],
+          bestComments: [],
           totalCount: 0,
           totalRootCount: 0,
           page: 1,
