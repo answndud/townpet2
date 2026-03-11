@@ -17,6 +17,34 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 306 완료 (게시글 상세 정보 카드 공통화)
+- 완료 내용
+  - `app/src/components/posts/post-detail-info-section.tsx`를 추가해 게시글 상세 하단의 구조화 정보를 공용 `section/item` 카드 패턴으로 렌더링하도록 정리했다.
+  - `app/src/components/posts/post-detail-client.tsx`는 병원후기, 후기/리뷰, 동네 산책코스, 유기동물 입양, 보호소 봉사 모집 정보를 모두 이 공용 컴포넌트로 바꿔 모바일/데스크톱에서 같은 카드 밀도와 라벨 리듬을 쓰게 했다.
+  - 같은 파일의 오류 상태, 본문 영역, 첨부파일 라벨, 신고 패널도 semantic color role을 쓰도록 맞췄고, `app/src/components/posts/post-report-form.tsx`는 상세 안에서 보이는 비로그인 안내/라벨/메시지 톤을 공용 스타일로 정리했다.
+  - 회귀 검증으로 `app/src/components/posts/post-detail-info-section.test.tsx`를 추가해 공용 section/item 렌더링과 unknown span fallback을 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/globals-css.test.ts src/app/layout.tsx src/components/notifications/notification-center.tsx src/app/profile/page.tsx src/components/posts/post-detail-client.tsx src/components/posts/post-detail-info-section.tsx src/components/posts/post-detail-info-section.test.tsx src/components/posts/post-report-form.tsx` 통과
+  - `pnpm -C app test -- src/app/globals-css.test.ts src/components/posts/post-detail-info-section.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `140 files / 702 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 댓글/글쓰기/수정 폼도 같은 정리 대상이지만, 현재 턴 기준으로 해당 파일들에는 입력 검증 하드닝 변경이 이미 진행 중이라 충돌 위험이 낮은 상세 화면부터 먼저 공통 패턴화했다.
+
+### 2026-03-11: Cycle 305 완료 (semantic color role 확장)
+- 완료 내용
+  - `app/src/app/globals.css`에 `label`, `placeholder`, `disabled`, `danger` 계열 semantic color role과 `tp-btn-disabled`를 추가해 비슷한 의미의 색이 화면마다 따로 적히지 않도록 정리했다.
+  - `app/src/app/globals-css.test.ts`는 새 role class 존재를 회귀로 고정했고, `app/src/app/layout.tsx`는 body에 semantic text role을 유지하도록 맞췄다.
+  - `app/src/components/notifications/notification-center.tsx`는 읽음 badge와 페이지네이션 disabled/active 스타일을 공용 role 및 버튼 클래스 기반으로 정리했다.
+  - `app/src/app/profile/page.tsx`는 프로필 이미지 border, 비밀번호/품종 라운지 CTA, 세그먼트 badge, 차단/뮤트 목록 카드의 색을 semantic role로 옮겨 같은 브랜드 톤을 쓰게 했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/globals-css.test.ts src/app/layout.tsx src/components/notifications/notification-center.tsx src/app/profile/page.tsx src/components/posts/post-detail-client.tsx src/components/posts/post-detail-info-section.tsx src/components/posts/post-detail-info-section.test.tsx src/components/posts/post-report-form.tsx` 통과
+  - `pnpm -C app test -- src/app/globals-css.test.ts src/components/posts/post-detail-info-section.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `140 files / 702 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - `globals.css` 자체를 ESLint 대상에 넣으면 설정상 ignore warning만 발생하므로, 최종 lint는 TS/TSX 대상 기준으로 다시 확인했다.
+
 ### 2026-03-11: Cycle 304 완료 (폼 입력값 검증 하드닝)
 - 완료 내용
   - `app/src/lib/input-limits.ts`, `app/src/lib/validations/text.ts`, `app/src/lib/text-normalization.ts`를 추가해 게시글/댓글/신고 입력에서 공통으로 쓰는 길이 상수와 `NFC + trim` 문자열 정규화 helper를 만들었다.

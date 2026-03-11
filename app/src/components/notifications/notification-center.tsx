@@ -394,7 +394,7 @@ export function NotificationCenter({
                         읽음 처리
                       </button>
                     ) : (
-                      <span className="tp-text-subtle rounded-md border border-[#d7e3f5] bg-[#f4f8ff] px-2.5 py-1 text-xs">
+                      <span className="tp-border-soft tp-surface-soft tp-text-subtle rounded-md border px-2.5 py-1 text-xs">
                         읽음
                       </span>
                     )}
@@ -407,15 +407,11 @@ export function NotificationCenter({
       </section>
 
       {items.length > 0 && totalPages > 1 ? (
-        <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-[20px] border border-[#dbe6f6] bg-white px-3 py-3">
+        <div className="tp-border-soft flex flex-wrap items-center justify-center gap-1.5 rounded-[20px] border bg-white px-3 py-3">
           <Link
             href={buildNotificationListHref(kind, unreadOnly, Math.max(1, currentPage - 1))}
             aria-disabled={currentPage <= 1}
-            className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
-              currentPage <= 1
-                ? "pointer-events-none border-[#d6e1f1] bg-[#eef3fb] text-[#91a6c6]"
-                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-            }`}
+            className={`inline-flex items-center rounded-lg ${currentPage <= 1 ? "tp-btn-disabled pointer-events-none" : "tp-btn-soft"} tp-btn-xs transition`}
           >
             이전
           </Link>
@@ -423,11 +419,7 @@ export function NotificationCenter({
             <Link
               key={`notification-page-${pageNumber}`}
               href={buildNotificationListHref(kind, unreadOnly, pageNumber)}
-              className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition ${
-                pageNumber === currentPage
-                  ? "border-[#3567b5] bg-[#3567b5] text-white"
-                  : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-              }`}
+              className={`inline-flex min-w-8 items-center justify-center rounded-lg ${pageNumber === currentPage ? "tp-btn-primary" : "tp-btn-soft"} tp-btn-xs transition`}
             >
               {pageNumber}
             </Link>
@@ -435,11 +427,7 @@ export function NotificationCenter({
           <Link
             href={buildNotificationListHref(kind, unreadOnly, Math.min(totalPages, currentPage + 1))}
             aria-disabled={currentPage >= totalPages}
-            className={`inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-semibold transition ${
-              currentPage >= totalPages
-                ? "pointer-events-none border-[#d6e1f1] bg-[#eef3fb] text-[#91a6c6]"
-                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-            }`}
+            className={`inline-flex items-center rounded-lg ${currentPage >= totalPages ? "tp-btn-disabled pointer-events-none" : "tp-btn-soft"} tp-btn-xs transition`}
           >
             다음
           </Link>

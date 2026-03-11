@@ -26,6 +26,16 @@
 
 ## Active Plan
 
+### Cycle 306: 게시글 상세 정보 카드 공통화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세 하단의 구조화 정보 카드를 공용 section/item 컴포넌트로 통일 | Codex | P2 | `done` | 게시글 상세의 병원후기/후기리뷰/산책코스/입양/봉사 정보가 공용 상세 정보 section/item 컴포넌트를 재사용하고, 상세 상단 상태 카드와 신고 폼도 같은 브랜드 톤을 사용하며, 공용 상세 정보 카드 렌더링/unknown span fallback 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-detail-client.tsx`, `app/src/components/posts/post-detail-info-section.tsx`, `app/src/components/posts/post-detail-info-section.test.tsx`, `app/src/components/posts/post-report-form.tsx` |
+
+### Cycle 305: semantic color role 확장 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 전역 semantic color role을 늘리고 알림/프로필/상세 핵심 화면의 하드코딩 색을 줄이기 | Codex | P2 | `done` | `globals.css`에 label/placeholder/disabled/danger 계열 role class가 추가되고, body/알림 센터/내 프로필/게시글 상세 핵심 영역이 이 semantic color class를 재사용하며, globals role 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts`, `app/src/app/layout.tsx`, `app/src/components/notifications/notification-center.tsx`, `app/src/app/profile/page.tsx`, `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 304: 폼 입력값 검증 하드닝 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

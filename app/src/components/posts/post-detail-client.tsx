@@ -6,6 +6,10 @@ import { PostType } from "@prisma/client";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
 import { PostBoardLinkChip } from "@/components/posts/post-board-link-chip";
+import {
+  PostDetailInfoItem,
+  PostDetailInfoSection,
+} from "@/components/posts/post-detail-info-section";
 import { GuestPostDetailActions } from "@/components/posts/guest-post-detail-actions";
 import { PostBookmarkButton } from "@/components/posts/post-bookmark-button";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
@@ -176,7 +180,7 @@ const typeMeta: Record<PostType, { label: string; chipClass: string }> = {
   },
 };
 
-const emptyValue = <span className="text-[#95a8c5]">비어 있음</span>;
+const emptyValue = <span className="tp-text-placeholder">비어 있음</span>;
 
 const renderTextValue = (value: string | null | undefined) =>
   value && value.trim().length > 0 ? value : emptyValue;
@@ -373,7 +377,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
     return (
       <div className="tp-page-bg min-h-screen pb-16">
         <main className="mx-auto flex max-w-[1000px] flex-col gap-4 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
-          <div className="rounded-xl border border-[#f0d3d3] bg-white p-6 text-center">
+          <div className="tp-border-danger-soft tp-surface-danger-soft rounded-xl border p-6 text-center">
             <h2 className="tp-text-heading text-lg font-semibold">게시글을 불러오지 못했습니다.</h2>
             <p className="tp-text-subtle mt-2 text-sm">{error}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
@@ -383,7 +387,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                   setError(null);
                   setData(null);
                 }}
-                className="border border-[#3567b5] bg-[#3567b5] px-4 py-2 font-semibold text-white transition hover:bg-[#2f5da4]"
+                className="tp-btn-primary tp-btn-sm"
               >
                 다시 시도
               </button>
@@ -495,7 +499,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
               ) : null}
             </div>
 
-            <div className="mt-3 grid gap-3 border-b border-[#e0e9f5] pb-4 md:mt-4 md:gap-4 md:pb-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
+            <div className="tp-border-soft mt-3 grid gap-3 border-b pb-4 md:mt-4 md:gap-4 md:pb-5 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
               <div>
                 <h1 className="tp-text-post-title tp-text-primary">
                   {post.title}
@@ -526,7 +530,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                   <span>댓글 {resolvedCommentCount.toLocaleString()}</span>
                 </p>
                 <details className="tp-text-subtle mt-1 text-[11px] md:text-right">
-                  <summary className="cursor-pointer list-none font-semibold text-[#5878a2]">상세 정보</summary>
+                  <summary className="tp-text-label cursor-pointer list-none font-semibold">상세 정보</summary>
                   <p className="mt-1 leading-5">
                     {createdAt.toLocaleDateString("ko-KR")} ·{" "}
                     {post.neighborhood ? `${post.neighborhood.city} ${post.neighborhood.name}` : "전체"}
@@ -545,9 +549,9 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
               </div>
             </div>
 
-            <section className="tp-border-soft mt-3 rounded-xl border bg-[#fcfdff] px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
-              <h2 className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-[#4f6f9f]">내용</h2>
-              <article className="tp-text-body text-[#17345f]">
+            <section className="tp-border-soft tp-surface-alt mt-3 rounded-xl border px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
+              <h2 className="tp-text-label mb-2 text-[11px] font-semibold tracking-[0.14em]">내용</h2>
+              <article className="tp-text-body tp-text-primary">
                 {shouldUsePlainFallback ? (
                   <div className="whitespace-pre-wrap">{post.content}</div>
                 ) : (
@@ -558,7 +562,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                 )}
                 {orderedImages.length > 0 ? (
                   <div className="tp-border-soft tp-surface-soft mt-5 border px-3 py-2.5">
-                    <p className="text-[11px] font-semibold tracking-[0.08em] text-[#4f6f9f]">첨부파일</p>
+                    <p className="tp-text-label text-[11px] font-semibold tracking-[0.08em]">첨부파일</p>
                     <ul className="mt-2 space-y-1">
                       {orderedImages.map((image, index) => {
                         const fileName = extractAttachmentName(image.url, index);
@@ -580,8 +584,8 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
               </article>
             </section>
 
-            <div className="mt-3 space-y-2 border-b border-[#e0e9f5] pb-3 sm:mt-4 sm:space-y-3 sm:pb-4">
-              <div className="tp-surface-soft rounded-xl border border-[#d8e4f6] px-2.5 py-2.5 sm:px-3 sm:py-3">
+            <div className="tp-border-soft mt-3 space-y-2 border-b pb-3 sm:mt-4 sm:space-y-3 sm:pb-4">
+              <div className="tp-border-soft tp-surface-soft rounded-xl border px-2.5 py-2.5 sm:px-3 sm:py-3">
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                   <div className="hidden sm:block" aria-hidden="true" />
                   <div className="flex justify-center sm:justify-self-center">
@@ -648,9 +652,9 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
             ) : null}
 
             {canReportPost && canInteract && !isAuthor && canInteractWithPostOwner ? (
-              <details className="tp-border-soft mt-3 rounded-lg border bg-[#fbfdff] px-3 py-2.5">
+              <details className="tp-border-soft tp-surface-alt mt-3 rounded-lg border px-3 py-2.5">
                 <summary className="tp-btn-soft tp-btn-xs inline-flex cursor-pointer items-center">게시글 신고</summary>
-                <div className="mt-2 rounded-lg border border-[#e3ebf8] bg-white p-3">
+                <div className="tp-border-soft mt-2 rounded-lg border bg-white p-3">
                   <PostReportForm targetId={post.id} />
                 </div>
               </details>
@@ -659,214 +663,135 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
         </div>
 
         {post.hospitalReview ? (
-          <section className="tp-card p-5 sm:p-6">
-            <h2 className="tp-text-section-title text-[#163462]">병원후기 상세</h2>
-            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">병원</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.hospitalReview.hospitalName)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">치료</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.hospitalReview.treatmentType)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">평점</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderNumberValue(post.hospitalReview.rating, "점")}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">비용</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">
-                  {post.hospitalReview.totalCost !== null && post.hospitalReview.totalCost !== undefined
-                    ? `${post.hospitalReview.totalCost.toLocaleString()}원`
-                    : emptyValue}
-                </p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">대기</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderNumberValue(post.hospitalReview.waitTime, "분")}</p>
-              </div>
-            </div>
-          </section>
+          <PostDetailInfoSection title="병원후기 상세">
+            <PostDetailInfoItem label="병원" value={renderTextValue(post.hospitalReview.hospitalName)} />
+            <PostDetailInfoItem label="치료" value={renderTextValue(post.hospitalReview.treatmentType)} />
+            <PostDetailInfoItem label="평점" value={renderNumberValue(post.hospitalReview.rating, "점")} />
+            <PostDetailInfoItem
+              label="비용"
+              value={
+                post.hospitalReview.totalCost !== null && post.hospitalReview.totalCost !== undefined
+                  ? `${post.hospitalReview.totalCost.toLocaleString()}원`
+                  : emptyValue
+              }
+            />
+            <PostDetailInfoItem label="대기" value={renderNumberValue(post.hospitalReview.waitTime, "분")} />
+          </PostDetailInfoSection>
         ) : null}
 
         {post.placeReview ? (
-          <section className="tp-card p-5 sm:p-6">
-            <h2 className="tp-text-section-title text-[#163462]">후기/리뷰 상세</h2>
-            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">장소명</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.placeReview.placeName)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">유형</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.placeReview.placeType)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">주소</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.placeReview.address)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">반려동물</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderBooleanValue(post.placeReview.isPetAllowed, "가능", "불가")}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">평점</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderNumberValue(post.placeReview.rating, "점")}</p>
-              </div>
-            </div>
-          </section>
+          <PostDetailInfoSection title="후기/리뷰 상세">
+            <PostDetailInfoItem label="장소명" value={renderTextValue(post.placeReview.placeName)} />
+            <PostDetailInfoItem label="유형" value={renderTextValue(post.placeReview.placeType)} />
+            <PostDetailInfoItem label="주소" value={renderTextValue(post.placeReview.address)} />
+            <PostDetailInfoItem
+              label="반려동물"
+              value={renderBooleanValue(post.placeReview.isPetAllowed, "가능", "불가")}
+            />
+            <PostDetailInfoItem label="평점" value={renderNumberValue(post.placeReview.rating, "점")} />
+          </PostDetailInfoSection>
         ) : null}
 
         {post.walkRoute ? (
-          <section className="tp-card p-5 sm:p-6">
-            <h2 className="tp-text-section-title text-[#163462]">동네 산책코스 상세</h2>
-            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">코스명</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.walkRoute.routeName)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">거리</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderNumberValue(post.walkRoute.distance, "km")}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">시간</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderNumberValue(post.walkRoute.duration, "분")}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">난이도</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">{renderTextValue(post.walkRoute.difficulty)}</p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3 md:col-span-2">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">편의시설</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">
-                  {[
-                    post.walkRoute.hasStreetLights ? "가로등" : null,
-                    post.walkRoute.hasRestroom ? "화장실" : null,
-                    post.walkRoute.hasParkingLot ? "주차장" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "정보 없음"}
-                </p>
-              </div>
-              <div className="border border-[#dde7f5] bg-[#f8fbff] px-3 py-3 md:col-span-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6c84ab]">안전 태그</p>
-                <p className="mt-1 font-medium text-[#1f3f71]">
-                  {post.walkRoute.safetyTags && post.walkRoute.safetyTags.length > 0
-                    ? post.walkRoute.safetyTags.join(", ")
-                    : "없음"}
-                </p>
-              </div>
-            </div>
-          </section>
+          <PostDetailInfoSection title="동네 산책코스 상세">
+            <PostDetailInfoItem label="코스명" value={renderTextValue(post.walkRoute.routeName)} />
+            <PostDetailInfoItem label="거리" value={renderNumberValue(post.walkRoute.distance, "km")} />
+            <PostDetailInfoItem label="시간" value={renderNumberValue(post.walkRoute.duration, "분")} />
+            <PostDetailInfoItem label="난이도" value={renderTextValue(post.walkRoute.difficulty)} />
+            <PostDetailInfoItem
+              label="편의시설"
+              span="wide"
+              value={
+                [
+                  post.walkRoute.hasStreetLights ? "가로등" : null,
+                  post.walkRoute.hasRestroom ? "화장실" : null,
+                  post.walkRoute.hasParkingLot ? "주차장" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "정보 없음"
+              }
+            />
+            <PostDetailInfoItem
+              label="안전 태그"
+              span="full"
+              value={
+                post.walkRoute.safetyTags && post.walkRoute.safetyTags.length > 0
+                  ? post.walkRoute.safetyTags.join(", ")
+                  : "없음"
+              }
+            />
+          </PostDetailInfoSection>
         ) : null}
 
         {post.adoptionListing ? (
-          <section className="tp-card p-5 sm:p-6">
-            <h2 className="tp-text-section-title text-[#163462]">유기동물 입양 정보</h2>
-            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">보호소</p>
-                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.shelterName)}</p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">지역</p>
-                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.region)}</p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">상태</p>
-                <p className="mt-1 font-medium text-[#5f4712]">
-                  {renderTextValue(
-                    post.adoptionListing.status
-                      ? (adoptionStatusLabel[post.adoptionListing.status] ?? post.adoptionListing.status)
-                      : null,
-                  )}
-                </p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">동물 종류</p>
-                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.animalType)}</p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">품종</p>
-                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.breed)}</p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">나이</p>
-                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.ageLabel)}</p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">성별</p>
-                <p className="mt-1 font-medium text-[#5f4712]">
-                  {renderTextValue(
-                    post.adoptionListing.sex
-                      ? (animalSexLabel[post.adoptionListing.sex] ?? post.adoptionListing.sex)
-                      : null,
-                  )}
-                </p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">중성화</p>
-                <p className="mt-1 font-medium text-[#5f4712]">
-                  {renderBooleanValue(post.adoptionListing.isNeutered, "완료", "미완료")}
-                </p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">예방접종</p>
-                <p className="mt-1 font-medium text-[#5f4712]">
-                  {renderBooleanValue(post.adoptionListing.isVaccinated, "완료", "미완료")}
-                </p>
-              </div>
-              <div className="border border-[#f0dfb8] bg-[#fffaf0] px-3 py-3 md:col-span-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9b7a34]">체형/크기</p>
-                <p className="mt-1 font-medium text-[#5f4712]">{renderTextValue(post.adoptionListing.sizeLabel)}</p>
-              </div>
-            </div>
-          </section>
+          <PostDetailInfoSection title="유기동물 입양 정보">
+            <PostDetailInfoItem label="보호소" value={renderTextValue(post.adoptionListing.shelterName)} />
+            <PostDetailInfoItem label="지역" value={renderTextValue(post.adoptionListing.region)} />
+            <PostDetailInfoItem
+              label="상태"
+              value={renderTextValue(
+                post.adoptionListing.status
+                  ? (adoptionStatusLabel[post.adoptionListing.status] ?? post.adoptionListing.status)
+                  : null,
+              )}
+            />
+            <PostDetailInfoItem label="동물 종류" value={renderTextValue(post.adoptionListing.animalType)} />
+            <PostDetailInfoItem label="품종" value={renderTextValue(post.adoptionListing.breed)} />
+            <PostDetailInfoItem label="나이" value={renderTextValue(post.adoptionListing.ageLabel)} />
+            <PostDetailInfoItem
+              label="성별"
+              value={renderTextValue(
+                post.adoptionListing.sex
+                  ? (animalSexLabel[post.adoptionListing.sex] ?? post.adoptionListing.sex)
+                  : null,
+              )}
+            />
+            <PostDetailInfoItem
+              label="중성화"
+              value={renderBooleanValue(post.adoptionListing.isNeutered, "완료", "미완료")}
+            />
+            <PostDetailInfoItem
+              label="예방접종"
+              value={renderBooleanValue(post.adoptionListing.isVaccinated, "완료", "미완료")}
+            />
+            <PostDetailInfoItem
+              label="체형/크기"
+              span="full"
+              value={renderTextValue(post.adoptionListing.sizeLabel)}
+            />
+          </PostDetailInfoSection>
         ) : null}
 
         {post.volunteerRecruitment ? (
-          <section className="tp-card p-5 sm:p-6">
-            <h2 className="tp-text-section-title text-[#163462]">보호소 봉사 모집 정보</h2>
-            <div className="mt-4 grid gap-3 text-sm text-[#355988] md:grid-cols-3">
-              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">보호소</p>
-                <p className="mt-1 font-medium text-[#365412]">{renderTextValue(post.volunteerRecruitment.shelterName)}</p>
-              </div>
-              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">지역</p>
-                <p className="mt-1 font-medium text-[#365412]">{renderTextValue(post.volunteerRecruitment.region)}</p>
-              </div>
-              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">모집 상태</p>
-                <p className="mt-1 font-medium text-[#365412]">
-                  {renderTextValue(
-                    post.volunteerRecruitment.status
-                      ? (volunteerStatusLabel[post.volunteerRecruitment.status] ??
-                        post.volunteerRecruitment.status)
-                      : null,
-                  )}
-                </p>
-              </div>
-              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">봉사 일정</p>
-                <p className="mt-1 font-medium text-[#365412]">
-                  {post.volunteerRecruitment.volunteerDate
-                    ? new Date(post.volunteerRecruitment.volunteerDate).toLocaleString("ko-KR")
-                    : emptyValue}
-                </p>
-              </div>
-              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">봉사 유형</p>
-                <p className="mt-1 font-medium text-[#365412]">{renderTextValue(post.volunteerRecruitment.volunteerType)}</p>
-              </div>
-              <div className="border border-[#d6e7b3] bg-[#f8fff0] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#6d8d2d]">모집 인원</p>
-                <p className="mt-1 font-medium text-[#365412]">{renderNumberValue(post.volunteerRecruitment.capacity, "명")}</p>
-              </div>
-            </div>
-          </section>
+          <PostDetailInfoSection title="보호소 봉사 모집 정보">
+            <PostDetailInfoItem label="보호소" value={renderTextValue(post.volunteerRecruitment.shelterName)} />
+            <PostDetailInfoItem label="지역" value={renderTextValue(post.volunteerRecruitment.region)} />
+            <PostDetailInfoItem
+              label="모집 상태"
+              value={renderTextValue(
+                post.volunteerRecruitment.status
+                  ? (volunteerStatusLabel[post.volunteerRecruitment.status] ??
+                    post.volunteerRecruitment.status)
+                  : null,
+              )}
+            />
+            <PostDetailInfoItem
+              label="봉사 일정"
+              value={
+                post.volunteerRecruitment.volunteerDate
+                  ? new Date(post.volunteerRecruitment.volunteerDate).toLocaleString("ko-KR")
+                  : emptyValue
+              }
+            />
+            <PostDetailInfoItem
+              label="봉사 유형"
+              value={renderTextValue(post.volunteerRecruitment.volunteerType)}
+            />
+            <PostDetailInfoItem
+              label="모집 인원"
+              value={renderNumberValue(post.volunteerRecruitment.capacity, "명")}
+            />
+          </PostDetailInfoSection>
         ) : null}
 
         <PostCommentSectionClient

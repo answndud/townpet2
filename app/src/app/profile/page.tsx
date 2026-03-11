@@ -135,7 +135,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                 alt="프로필 이미지"
                 width={56}
                 height={56}
-                className="h-14 w-14 rounded-full border border-[#cbdcf5] object-cover"
+                className="tp-border-soft h-14 w-14 rounded-full border object-cover"
               />
             ) : (
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#cbdcf5] bg-[radial-gradient(circle_at_top,#ffffff,transparent_60%),linear-gradient(180deg,#f8fbff_0%,#edf4ff_100%)] text-[#5b78a1] shadow-[0_8px_18px_rgba(53,103,181,0.10)]">
@@ -212,7 +212,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             {passwordSetupCopy ? (
               <Link
                 href="/password/setup"
-                className="tp-btn-soft tp-btn-sm text-[#315484]"
+                className="tp-btn-soft tp-btn-sm tp-text-accent"
               >
                 {passwordSetupCopy.profileLinkLabel}
               </Link>
@@ -271,7 +271,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="tp-text-card-title tp-text-heading">{segment.label}</p>
-                        <span className="tp-text-accent rounded-full border border-[#c8daf5] bg-white px-2 py-0.5 text-[11px] font-semibold">
+                        <span className="tp-border-soft tp-text-accent rounded-full border bg-white px-2 py-0.5 text-[11px] font-semibold">
                           신뢰도 {Math.round(segment.confidenceScore * 100)}%
                         </span>
                       </div>
@@ -287,7 +287,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                       {hasBreedLoungeRoute(segment.breedCode) ? (
                         <Link
                           href={`/lounges/breeds/${segment.breedCode}`}
-                          className="tp-btn-soft tp-btn-sm mt-3 inline-flex text-[#204f8a]"
+                          className="tp-btn-soft tp-btn-sm tp-text-link mt-3 inline-flex"
                         >
                           품종 라운지 보기
                         </Link>
@@ -314,7 +314,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                   ) : (
                     <div className="mt-3 space-y-3">
                       {blockedUsers.map((entry) => (
-                        <div key={entry.id} className="rounded-lg border border-[#c9d8ef] bg-white px-3 py-2 text-xs text-[#355988]">
+                        <div
+                          key={entry.id}
+                          className="tp-border-soft tp-text-accent rounded-lg border bg-white px-3 py-2 text-xs"
+                        >
                           <p className="tp-text-heading break-all font-semibold">
                             {entry.blocked?.nickname ?? entry.blocked?.email ?? entry.blockedId}
                           </p>
@@ -350,7 +353,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                   ) : (
                     <div className="mt-3 space-y-3">
                       {mutedUsers.map((entry) => (
-                        <div key={entry.id} className="rounded-lg border border-[#c9d8ef] bg-white px-3 py-2 text-xs text-[#355988]">
+                        <div
+                          key={entry.id}
+                          className="tp-border-soft tp-text-accent rounded-lg border bg-white px-3 py-2 text-xs"
+                        >
                           <p className="tp-text-heading break-all font-semibold">
                             {entry.mutedUser?.nickname ?? entry.mutedUser?.email ?? entry.mutedUserId}
                           </p>

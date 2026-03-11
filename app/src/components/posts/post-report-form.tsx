@@ -30,11 +30,11 @@ export function PostReportForm({
 
   if (!canReport) {
     return (
-      <div className="rounded-lg border border-[#dbe6f6] bg-[#f7fbff] px-3 py-2 text-xs text-[#355988]">
+      <div className="tp-border-soft tp-surface-alt tp-text-accent rounded-lg border px-3 py-2 text-xs">
         로그인 후 {targetLabel} 신고 가능.{" "}
         <Link
           href={loginHref}
-          className="font-semibold text-[#2f5da4] underline underline-offset-2"
+          className="tp-text-link font-semibold underline underline-offset-2"
         >
           로그인하기
         </Link>
@@ -78,7 +78,7 @@ export function PostReportForm({
       className="space-y-3"
     >
       <div className="grid gap-2">
-        <label className="flex flex-col gap-1 text-[11px] font-semibold text-[#355988]">
+        <label className="tp-text-accent flex flex-col gap-1 text-[11px] font-semibold">
           <span>사유</span>
           <select
             className="tp-input-soft h-9 px-3 text-[13px]"
@@ -94,7 +94,7 @@ export function PostReportForm({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-[11px] font-semibold text-[#355988]">
+        <label className="tp-text-accent flex flex-col gap-1 text-[11px] font-semibold">
           <span>추가 설명</span>
           <textarea
             className="tp-input-soft min-h-[72px] px-3 py-2 text-[13px]"
@@ -107,7 +107,7 @@ export function PostReportForm({
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        {message ? <p className="text-[11px] text-[#4f678d]">{message}</p> : <span />}
+        {message ? <p className="tp-text-muted text-[11px]">{message}</p> : <span />}
         <button
           type="submit"
           className="tp-btn-soft tp-btn-xs border-rose-300 text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
