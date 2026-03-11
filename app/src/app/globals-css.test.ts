@@ -6,6 +6,8 @@ describe("globals.css semantic color roles", () => {
   it("defines shared text, border, and surface role classes", () => {
     const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
+    expect(css).toContain(".tp-page-bg");
+    expect(css).toContain("#fbfdff");
     expect(css).toContain(".tp-text-primary");
     expect(css).toContain(".tp-text-heading");
     expect(css).toContain(".tp-text-muted");

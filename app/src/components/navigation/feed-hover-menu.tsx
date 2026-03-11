@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { PostType } from "@prisma/client";
 
 import {
-  APP_SHELL_DESKTOP_GROUP_CLASS_NAME,
+  APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME,
   APP_SHELL_MOBILE_PANEL_CLASS_NAME,
   APP_SHELL_MOBILE_PANEL_PILL_CLASS_NAME,
   APP_SHELL_MOBILE_PANEL_SUMMARY_CLASS_NAME,
@@ -244,7 +244,7 @@ export function FeedHoverMenu({
         </details>
       </div>
 
-      <div className={`hidden md:flex ${APP_SHELL_DESKTOP_GROUP_CLASS_NAME}`} onMouseLeave={scheduleClose}>
+      <div className={`hidden md:flex ${APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME}`} onMouseLeave={scheduleClose}>
         <div className="relative" onMouseEnter={() => openMenuNow("board")} onMouseLeave={scheduleClose}>
           <button
             type="button"

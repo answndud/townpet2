@@ -23,6 +23,30 @@ export const APP_SHELL_NAV_LINK_CLASS_NAME = [
   "hover:text-[#1f4f8f]",
 ].join(" ");
 
+export const APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME = [
+  "items-center",
+  "gap-1.5",
+].join(" ");
+
+export const APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME = [
+  "h-8",
+  "w-[150px]",
+  "rounded-md",
+  "border",
+  "border-[#dbe6f6]",
+  "bg-white/92",
+  "px-3",
+  "text-[13px]",
+  "leading-none",
+  "text-[#315484]",
+  "outline-none",
+  "transition",
+  "placeholder:text-[#6a84ab]",
+  "focus:border-[#bcd4f4]",
+  "focus:bg-white",
+  "sm:w-[190px]",
+].join(" ");
+
 export const APP_SHELL_DESKTOP_GROUP_CLASS_NAME = [
   "items-center",
   "gap-1",

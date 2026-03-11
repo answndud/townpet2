@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { unwrapCommentListResponse } from "@/lib/comment-client";
 import { emitPostCommentCountSync } from "@/lib/post-comment-count-sync";
+import { POST_COMMENT_SECTION_STATE_CLASS_NAME } from "@/components/posts/post-comment-layout-class";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 
 type CommentItem = {
@@ -131,7 +132,7 @@ export function PostCommentSectionClient({
     return (
       <div
         ref={containerRef}
-        className="mt-5 rounded-lg border border-[#dbe6f6] bg-white px-3 py-2.5 text-[13px] text-[#6a84ac]"
+        className={`${POST_COMMENT_SECTION_STATE_CLASS_NAME} border-[#dbe6f6] bg-white text-[#6a84ac]`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span>댓글</span>
@@ -149,7 +150,7 @@ export function PostCommentSectionClient({
 
   if (error) {
     return (
-      <div className="mt-5 rounded-lg border border-[#f0d3d3] bg-[#fff7f7] px-3 py-2.5 text-[13px] text-[#8b4b4b]">
+      <div className={`${POST_COMMENT_SECTION_STATE_CLASS_NAME} border-[#f0d3d3] bg-[#fff7f7] text-[#8b4b4b]`}>
         {error}
       </div>
     );
@@ -157,7 +158,7 @@ export function PostCommentSectionClient({
 
   if (!comments) {
     return (
-      <div className="mt-5 rounded-lg border border-[#dbe6f6] bg-white px-3 py-2.5 text-[13px] text-[#6a84ac]">
+      <div className={`${POST_COMMENT_SECTION_STATE_CLASS_NAME} border-[#dbe6f6] bg-white text-[#6a84ac]`}>
         댓글을 불러오는 중...
       </div>
     );

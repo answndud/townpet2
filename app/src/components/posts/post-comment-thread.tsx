@@ -7,6 +7,7 @@ import { useMemo, useRef, useState, useTransition, type KeyboardEvent } from "re
 
 import { CommentReactionControls } from "@/components/posts/comment-reaction-controls";
 import { LinkifiedContent } from "@/components/content/linkified-content";
+import { POST_COMMENT_THREAD_CARD_CLASS_NAME } from "@/components/posts/post-comment-layout-class";
 import { PostReportForm } from "@/components/posts/post-report-form";
 import { getClientFingerprint, getGuestFingerprint } from "@/lib/guest-client";
 import { getGuestWriteHeaders } from "@/lib/guest-step-up.client";
@@ -711,7 +712,7 @@ export function PostCommentThread({
   };
 
   return (
-    <div className="tp-card mt-6 w-full p-4 sm:mt-8 sm:p-5">
+    <div className={POST_COMMENT_THREAD_CARD_CLASS_NAME}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="tp-text-section-title tp-text-heading">댓글 {comments.length}</h2>
         {totalPages > 1 ? <span className="tp-text-label text-[11px]">{currentPage} / {totalPages}</span> : null}

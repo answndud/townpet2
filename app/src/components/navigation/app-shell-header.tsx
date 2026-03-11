@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import { AuthControls } from "@/components/auth/auth-controls";
 import {
   APP_SHELL_DESKTOP_GROUP_CLASS_NAME,
+  APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME,
+  APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME,
   APP_SHELL_HEADER_CLASS_NAME,
   APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME,
   APP_SHELL_NAV_LINK_CLASS_NAME,
@@ -158,7 +160,7 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
               initialPreferredPetTypeIds={preferredPetTypeIds}
             />
 
-            <div className={`hidden md:flex ${APP_SHELL_DESKTOP_GROUP_CLASS_NAME}`}>
+            <div className={`hidden md:flex ${APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME}`}>
               <Link href="/profile" className={APP_SHELL_NAV_LINK_CLASS_NAME}>
                 내 프로필
               </Link>
@@ -182,17 +184,17 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
             ) : null}
           </div>
 
-          <div className="hidden md:flex md:items-center md:gap-1.5">
+          <div className={`hidden md:flex ${APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME}`}>
             <form
               action="/feed"
               method="get"
-              className={`flex ${APP_SHELL_DESKTOP_GROUP_CLASS_NAME}`}
+              className={`flex ${APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME}`}
             >
               <input
                 name="q"
                 type="search"
                 placeholder="검색"
-                className="tp-input-soft h-8 w-[150px] bg-white px-3 text-xs leading-none sm:w-[190px]"
+                className={APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME}
               />
               <button
                 type="submit"

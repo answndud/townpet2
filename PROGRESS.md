@@ -17,6 +17,66 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 314 완료 (전역 페이지 배경 톤 미세 조정)
+- 완료 내용
+  - `app/src/app/globals.css`의 `tp-page-bg` gradient를 `#fbfdff -> #f8fbff -> #f3f8ff`로 더 밝게 조정해, 이전보다 체감되는 수준으로 화면 배경을 연하게 맞췄다.
+  - `app/src/app/globals-css.test.ts`는 `.tp-page-bg`와 `#fbfdff` 존재를 함께 확인하도록 바꿔, 이후 배경 톤이 다시 진해지는 회귀를 잡도록 했다.
+- 검증 결과
+  - `pnpm -C app test -- src/app/globals-css.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 전역 page background tone만 조정했고, 카드/버튼/헤더 surface 색은 건드리지 않았다.
+
+### 2026-03-11: Cycle 313 완료 (게시글 상세 댓글 카드 간격 정리)
+- 완료 내용
+  - `app/src/components/posts/post-comment-thread.tsx`의 댓글 카드 wrapper에서 `mt-6 sm:mt-8`을 제거해, 게시글 내용 카드와 댓글 카드 사이 간격이 상위 레이아웃의 `gap`만 사용하도록 정리했다.
+  - `app/src/components/posts/post-comment-section-client.tsx`는 댓글 lazy-load, 로딩, 에러 상태에서도 같은 top margin 제거가 유지되도록 맞췄다.
+  - `app/src/components/posts/post-comment-layout-class.ts`와 `app/src/components/posts/post-comment-layout-class.test.ts`를 추가해 댓글 카드/상태 박스가 다시 큰 top margin을 가지지 않도록 class 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-layout-class.ts src/components/posts/post-comment-layout-class.test.ts src/components/posts/post-comment-section-client.tsx src/components/posts/post-comment-thread.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-layout-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `143 files / 715 tests` 통과
+  - `pnpm -C app typecheck` 통과
+- 메모
+  - 이번 변경은 댓글 카드 spacing만 줄인 레이아웃 조정이라, 댓글 작성/답글/신고 동작 자체는 변경하지 않았다.
+
+### 2026-03-11: Cycle 312 완료 (게시글 상세 반응/신고 액션 레이아웃 정리)
+- 완료 내용
+  - `app/src/components/posts/post-detail-client.tsx`에서 게시글 상세의 반응 카드 wrapper에서 `tp-surface-soft`를 제거하고 `bg-white` 기반으로 바꿔, 내용 카드처럼 안쪽이 채워지지 않은 흰 배경으로 정리했다.
+  - 같은 파일에서 `게시글 신고`는 별도 하단 `details` 블록을 제거하고 상단 액션 라인의 왼쪽 토글 버튼으로 옮겼다. 현재 액션 카드는 `신고 / 좋아요·싫어요 / 북마크·공유`가 같은 y축 3열에 놓이고, 신고 폼만 카드 아래로 펼쳐진다.
+  - 신고 폼 자체 동작 회귀는 기존 `app/src/components/posts/post-report-form.test.tsx`를 유지해 게스트 로그인 유도와 로그인 사용자 입력 렌더링이 계속 보장되도록 했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-detail-client.tsx src/components/posts/post-report-form.tsx src/components/posts/post-report-form.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-report-form.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `142 files / 713 tests` 통과
+  - `pnpm -C app typecheck` 통과
+- 메모
+  - 이번 변경은 게시글 상세 액션 레이아웃과 surface tone만 조정했고, 반응/북마크/공유/신고 기능 로직 자체는 그대로 유지했다.
+
+### 2026-03-11: Cycle 311 완료 (데스크톱 헤더 검색 cluster 정렬)
+- 완료 내용
+  - `app/src/components/navigation/app-shell-header-class.ts`에 `APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME`를 추가해 데스크톱 헤더 검색 input이 nav link와 같은 높이, rounded-md, spacing 리듬을 쓰도록 공용화했다.
+  - `app/src/components/navigation/app-shell-header.tsx`는 검색 form에서 기존 큰 pill group wrapper를 제거하고, 검색 input과 `찾기` 버튼을 같은 desktop nav cluster 안에 두어 `게시판`/`관심 동물`/`내 프로필`과 더 비슷한 버튼 문법으로 보이게 맞췄다.
+  - `app/src/components/navigation/app-shell-header-class.test.ts`는 새 search input class가 같은 높이와 모서리 리듬을 유지하는지 회귀를 추가했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/navigation/app-shell-header.tsx src/components/navigation/app-shell-header-class.ts src/components/navigation/app-shell-header-class.test.ts` 통과
+  - `pnpm -C app test -- src/components/navigation/app-shell-header-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `142 files / 713 tests` 통과
+  - `pnpm -C app typecheck` 통과
+- 메모
+  - 이번 변경은 검색 input/버튼의 배치와 shape 통일이 목적이라, 검색 action 경로와 placeholder/기능 자체는 그대로 유지했다.
+
+### 2026-03-11: Cycle 310 완료 (데스크톱 헤더 nav hover 문법 통일)
+- 완료 내용
+  - `app/src/components/navigation/app-shell-header-class.ts`에 `APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME`를 추가해 데스크톱 헤더의 주요 nav 링크를 큰 흰 pill group이 아니라 동일한 hit area 간격으로 배치할 수 있도록 분리했다.
+  - `app/src/components/navigation/feed-hover-menu.tsx`는 데스크톱 `게시판`/`관심 동물` 트리거를 새 nav cluster 안에 배치해 두 버튼이 서로 붙어 보이던 느낌을 줄이고, hover 시 보이는 rounded hover shape와 기본 버튼 문법이 더 자연스럽게 맞도록 정리했다.
+  - `app/src/components/navigation/app-shell-header.tsx`는 `내 프로필`과 알림 버튼도 같은 nav cluster 흐름으로 연결해 `게시판`/`관심 동물`/`내 프로필`이 같은 크기와 모양의 상단 버튼처럼 보이도록 맞췄다.
+  - `app/src/components/navigation/app-shell-header-class.test.ts`는 새 desktop nav cluster spacing을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/navigation/app-shell-header.tsx src/components/navigation/feed-hover-menu.tsx src/components/navigation/app-shell-header-class.ts src/components/navigation/app-shell-header-class.test.ts` 통과
+  - `pnpm -C app test -- src/components/navigation/app-shell-header-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `142 files / 713 tests` 통과
+  - `pnpm -C app typecheck` 통과
+- 메모
+  - 이번 변경은 hover 색상 자체보다 버튼이 놓이는 간격과 기본/hover 상태의 shape mismatch를 줄이는 데 초점을 맞췄고, 모바일 헤더와 admin/search 그룹 레이아웃은 그대로 유지했다.
+
 ### 2026-03-11: Cycle 309 완료 (구조화 필드 canonicalization + 검색 정규화)
 - 완료 내용
   - `app/src/lib/structured-field-normalization.ts`와 `app/src/lib/structured-field-normalization.test.ts`를 추가해 병원명, 치료유형, 보호소명, 지역, 동물종, 품종, 연령, 봉사유형의 canonicalization helper와 alias 검색 variant 생성을 공용화했다.

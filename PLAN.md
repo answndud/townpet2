@@ -26,6 +26,31 @@
 
 ## Active Plan
 
+### Cycle 314: 전역 페이지 배경 톤 미세 조정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `tp-page-bg` 배경색을 더 연한 블루 톤으로 낮추기 | Codex | P2 | `done` | 전역 `tp-page-bg` gradient가 `#FBFDFF -> #F8FBFF -> #F3F8FF` 톤으로 조정되고, globals CSS 회귀 테스트가 새 배경색을 고정하며, typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts` |
+
+### Cycle 313: 게시글 상세 댓글 카드 간격 정리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세의 내용 카드와 댓글 카드 사이 간격을 줄여 같은 흐름으로 정리 | Codex | P2 | `done` | 댓글 스레드 카드와 댓글 lazy-load/로딩/에러 상태가 자체 top margin 없이 상위 레이아웃 gap만 사용하고, 관련 layout class 회귀 테스트가 존재하며, lint/test/typecheck 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-layout-class.ts`, `app/src/components/posts/post-comment-layout-class.test.ts`, `app/src/components/posts/post-comment-section-client.tsx`, `app/src/components/posts/post-comment-thread.tsx` |
+
+### Cycle 312: 게시글 상세 반응/신고 액션 레이아웃 정리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세의 반응 박스를 흰 배경으로 바꾸고 `게시글 신고`를 상단 왼쪽 액션으로 재배치 | Codex | P2 | `done` | 게시글 상세의 반응/북마크/공유 영역이 채워진 tint 없이 흰 배경 카드를 사용하고, `신고 / 반응 / 북마크·공유`가 같은 y축 3열에 배치되며, 신고 폼은 카드 아래로만 펼쳐지고 관련 lint/test/typecheck 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-detail-client.tsx`, `app/src/components/posts/post-report-form.tsx`, `app/src/components/posts/post-report-form.test.tsx` |
+
+### Cycle 311: 데스크톱 헤더 검색 cluster 정렬 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 데스크톱 헤더의 검색 input과 `찾기` 버튼도 nav link와 같은 리듬으로 정렬 | Codex | P2 | `done` | 데스크톱 헤더에서 검색 input은 별도 pill wrapper 없이 nav cluster 안에서 같은 높이/반경/spacing을 사용하고, `찾기` 버튼은 기존 nav link hover 문법을 유지하며, 공용 search input class와 관련 회귀 테스트가 존재한다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/navigation/app-shell-header-class.ts`, `app/src/components/navigation/app-shell-header-class.test.ts`, `app/src/components/navigation/app-shell-header.tsx` |
+
+### Cycle 310: 데스크톱 헤더 nav hover 문법 통일 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 데스크톱 헤더의 `게시판`/`관심 동물`/`내 프로필` 간격과 hover 버튼 문법을 통일 | Codex | P2 | `done` | 데스크톱 헤더에서 `게시판`, `관심 동물`, `내 프로필`이 큰 그룹 pill 없이 동일한 nav link hit area와 spacing을 사용하고, 공용 desktop nav cluster class 및 회귀 테스트가 존재하며, lint/test/typecheck 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/navigation/app-shell-header-class.ts`, `app/src/components/navigation/app-shell-header-class.test.ts`, `app/src/components/navigation/app-shell-header.tsx`, `app/src/components/navigation/feed-hover-menu.tsx` |
+
 ### Cycle 309: 구조화 필드 canonicalization + 검색 정규화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

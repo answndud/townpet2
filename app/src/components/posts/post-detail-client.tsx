@@ -250,6 +250,7 @@ type PostDetailClientProps = {
 export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const [data, setData] = useState<PostDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPostReportOpen, setIsPostReportOpen] = useState(false);
 
   const handleCommentCountChange = (nextCommentCount: number) => {
     setData((current) => {
@@ -428,6 +429,8 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const canInteractWithPostOwner = !(
     resolvedRelationState.hasBlockedMe || resolvedRelationState.isBlockedByMe
   );
+  const showPostReportControls =
+    canReportPost && canInteract && !isAuthor && canInteractWithPostOwner;
   const meta = typeMeta[post.type];
   const createdAt = ensureDate(post.createdAt);
   const updatedAt = ensureDate(post.updatedAt);
@@ -585,10 +588,20 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
             </section>
 
             <div className="tp-border-soft mt-3 space-y-2 border-b pb-3 sm:mt-4 sm:space-y-3 sm:pb-4">
-              <div className="tp-border-soft tp-surface-soft rounded-xl border px-2.5 py-2.5 sm:px-3 sm:py-3">
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                  <div className="hidden sm:block" aria-hidden="true" />
-                  <div className="flex justify-center sm:justify-self-center">
+              <div className="tp-border-soft rounded-xl border bg-white px-2.5 py-2.5 sm:px-3 sm:py-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                  <div className="justify-self-start">
+                    {showPostReportControls ? (
+                      <button
+                        type="button"
+                        className="tp-btn-soft tp-btn-xs"
+                        onClick={() => setIsPostReportOpen((current) => !current)}
+                      >
+                        {isPostReportOpen ? "신고 닫기" : "신고"}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="flex justify-center">
                     <PostReactionControls
                       key={`${post.id}:${canInteract ? "viewer" : "guest"}:${canInteractWithPostOwner ? "interactive" : "blocked"}`}
                       postId={post.id}
@@ -600,7 +613,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                       onStateChange={handleReactionStateChange}
                     />
                   </div>
-                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-self-end">
+                  <div className="flex items-center justify-self-end gap-2">
                     <PostBookmarkButton
                       key={`${post.id}:${canInteract ? "viewer" : "guest"}`}
                       postId={post.id}
@@ -612,6 +625,11 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                     <PostShareControls url={postUrl} compact />
                   </div>
                 </div>
+                {showPostReportControls && isPostReportOpen ? (
+                  <div className="tp-border-soft mt-2 rounded-lg border bg-white p-3">
+                    <PostReportForm targetId={post.id} />
+                  </div>
+                ) : null}
               </div>
               {isAuthor ? (
                 <>
@@ -651,14 +669,6 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
               </div>
             ) : null}
 
-            {canReportPost && canInteract && !isAuthor && canInteractWithPostOwner ? (
-              <details className="tp-border-soft tp-surface-alt mt-3 rounded-lg border px-3 py-2.5">
-                <summary className="tp-btn-soft tp-btn-xs inline-flex cursor-pointer items-center">게시글 신고</summary>
-                <div className="tp-border-soft mt-2 rounded-lg border bg-white p-3">
-                  <PostReportForm targetId={post.id} />
-                </div>
-              </details>
-            ) : null}
           </section>
         </div>
 
