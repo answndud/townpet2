@@ -17,6 +17,7 @@ import {
 } from "@/components/posts/post-detail-info-section";
 import { GuestPostDetailActions } from "@/components/posts/guest-post-detail-actions";
 import { PostBookmarkButton } from "@/components/posts/post-bookmark-button";
+import { POST_DETAIL_ACTION_BUTTON_CLASS_NAME } from "@/components/posts/post-detail-action-button-class";
 import { PostDetailActions } from "@/components/posts/post-detail-actions";
 import { PostPersonalizationDwellTracker } from "@/components/posts/post-personalization-dwell-tracker";
 import { PostReactionControls } from "@/components/posts/post-reaction-controls";
@@ -679,20 +680,20 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
                   <div className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
                     <Link
                       href={`/posts/${post.id}/edit`}
-                      className="tp-btn-soft tp-btn-sm"
+                      className={POST_DETAIL_ACTION_BUTTON_CLASS_NAME}
                     >
                       수정
                     </Link>
                     <PostDetailActions postId={post.id} />
                   </div>
                   <details className="sm:hidden">
-                    <summary className="tp-btn-soft tp-btn-sm inline-flex items-center">
+                    <summary className={POST_DETAIL_ACTION_BUTTON_CLASS_NAME}>
                       글 관리
                     </summary>
                     <div className="tp-border-soft tp-surface-soft mt-2 flex flex-wrap items-center gap-2 rounded-xl border p-2">
                       <Link
                         href={`/posts/${post.id}/edit`}
-                        className="tp-btn-soft tp-btn-sm inline-flex items-center"
+                        className={POST_DETAIL_ACTION_BUTTON_CLASS_NAME}
                       >
                         수정
                       </Link>

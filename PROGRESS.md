@@ -17,6 +17,19 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 348 완료 (게시글 상세 수정/삭제 버튼 정렬/형태 통일)
+- 완료 내용
+  - 게시글 상세에서 `수정` 링크가 일반 inline text처럼 잡혀 수직 정렬이 살짝 위로 치우쳐 보이던 문제를 확인하고, 공용 `inline-flex items-center justify-center` 기반 action button class로 정리했다.
+  - `app/src/components/posts/post-detail-action-button-class.ts`를 추가해 상세 관리 버튼 공용 class와 danger variant를 분리했다.
+  - `app/src/components/posts/post-detail-client.tsx`의 `수정` 링크와 모바일 `글 관리` summary에 공용 action button class를 적용해 텍스트 정렬을 바로잡았다.
+  - `app/src/components/posts/post-detail-actions.tsx`의 `삭제` 버튼은 기존 rose border/text 색은 유지하면서 `tp-btn-soft tp-btn-sm` 기반 형태를 쓰도록 바꿨고, `app/src/components/posts/guest-post-detail-actions.tsx`도 같은 danger variant로 맞췄다.
+  - `app/src/components/posts/post-detail-action-button-class.test.ts`를 추가해 수정/삭제 버튼 클래스가 정렬과 danger 색 규칙을 모두 만족하는지 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-detail-client.tsx src/components/posts/post-detail-actions.tsx src/components/posts/guest-post-detail-actions.tsx src/components/posts/post-detail-action-button-class.ts src/components/posts/post-detail-action-button-class.test.ts` 통과
+  - `pnpm -C app test -- src/components/posts/post-detail-action-button-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-11: Cycle 347 완료 (댓글 뮤트 액션의 강제 revalidate 제거)
 - 완료 내용
   - 댓글에서 `뮤트/뮤트 해제`를 눌렀을 때 화면이 깜빡이지만 실제 댓글 상태는 그대로였다가 수동 새로고침 후에만 반영되는 문제를 다시 점검했다. 원인은 `muteUserAction` / `unmuteUserAction`이 서버에서 `revalidatePath()`를 강제로 호출해 현재 댓글 섹션의 로컬 reload 결과를 덮어쓰는 데 있었다.

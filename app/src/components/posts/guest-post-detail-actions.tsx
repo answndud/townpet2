@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { POST_DETAIL_ACTION_DANGER_BUTTON_CLASS_NAME } from "@/components/posts/post-detail-action-button-class";
+
 const GUEST_FP_STORAGE_KEY = "townpet:guest-fingerprint:v1";
 
 function getGuestFingerprint() {
@@ -93,7 +95,7 @@ export function GuestPostDetailActions({ postId }: GuestPostDetailActionsProps) 
             <button
               type="button"
               onClick={handleDelete}
-              className="inline-flex h-8 items-center border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
+              className={POST_DETAIL_ACTION_DANGER_BUTTON_CLASS_NAME}
               disabled={isPending}
             >
               {isPending ? "삭제 중..." : "비회원 삭제"}
@@ -120,7 +122,7 @@ export function GuestPostDetailActions({ postId }: GuestPostDetailActionsProps) 
         <button
           type="button"
           onClick={handleDelete}
-          className="inline-flex h-8 items-center border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
+          className={POST_DETAIL_ACTION_DANGER_BUTTON_CLASS_NAME}
           disabled={isPending}
         >
           {isPending ? "삭제 중..." : "비회원 삭제"}

@@ -26,6 +26,11 @@
 
 ## Active Plan
 
+### Cycle 348: 게시글 상세 수정/삭제 버튼 정렬과 형태 통일 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세의 `수정` 버튼 텍스트 수직 정렬을 바로잡고, `삭제` 버튼은 기존 rose border 색을 유지하면서 공용 버튼 형태와 일치하도록 통일 | Codex | P2 | `done` | 상세/비회원 상세 관리 버튼은 공용 action button class를 재사용하고, 수정 링크는 `inline-flex items-center justify-center`로 정렬되며, 삭제 버튼은 rose border/text만 오버라이드한 shared soft button shape를 사용하고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-detail-client.tsx`, `app/src/components/posts/post-detail-actions.tsx`, `app/src/components/posts/guest-post-detail-actions.tsx`, 관련 테스트 |
+
 ### Cycle 347: 댓글 뮤트 액션의 강제 revalidate 제거로 즉시 반영 안정화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

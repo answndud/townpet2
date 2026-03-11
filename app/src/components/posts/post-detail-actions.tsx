@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { POST_DETAIL_ACTION_DANGER_BUTTON_CLASS_NAME } from "@/components/posts/post-detail-action-button-class";
 import { deletePostAction } from "@/server/actions/post";
 
 type PostDetailActionsProps = {
@@ -37,7 +38,7 @@ export function PostDetailActions({ postId }: PostDetailActionsProps) {
       <button
         type="button"
         onClick={handleDelete}
-        className="border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-[#d5dfee] disabled:text-[#9fb2cf]"
+        className={POST_DETAIL_ACTION_DANGER_BUTTON_CLASS_NAME}
         disabled={isPending}
       >
         {isPending ? "삭제 중..." : "삭제"}
