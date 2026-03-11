@@ -17,6 +17,21 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 325 완료 (댓글 루트 페이지네이션 서버 전환)
+- 완료 내용
+  - `app/src/server/queries/comment.queries.ts`는 댓글 전체 일괄 조회 대신 `page/limit` 기준으로 루트 댓글만 먼저 조회하고, 현재 페이지 루트들의 답글/하위 답글만 추가로 수집해 반환하도록 바꿨다. 응답에는 `comments`, `totalCount`, `totalRootCount`, `page`, `totalPages`, `limit`가 포함된다.
+  - `app/src/app/api/posts/[id]/comments/route.ts`는 GET 쿼리 파라미터 `page`, `limit`를 받아 새 댓글 페이지 응답을 그대로 반환하도록 바꿨고, `route.test.ts`에는 page/limit forwarding 계약을 추가했다.
+  - `app/src/lib/comment-client.ts`, `app/src/lib/comment-client.test.ts`는 댓글 페이지 fetch helper와 response unwrap 로직을 새 구조에 맞게 공용화했다.
+  - `app/src/components/posts/post-comment-section-client.tsx`는 댓글 페이지 상태를 관리하며 페이지 전환/재로드 시 해당 서버 페이지를 다시 불러오도록 정리했고, `app/src/components/posts/post-comment-thread.tsx`는 기존 client-side root slicing을 제거하고 서버가 내려준 `currentPage/totalPages/totalCount` 기준으로 번호 pagination UI를 유지하도록 바꿨다.
+  - `app/src/components/posts/post-detail-client.tsx`는 인증 상세의 댓글 prefetch도 page 1 기준 페이지 데이터로 맞췄고, `app/src/components/posts/post-comment-load-state.ts`, `app/src/components/posts/post-comment-section-client.test.ts`로 eager load 및 prefetch 정책 회귀를 유지했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-load-state.ts src/components/posts/post-comment-section-client.tsx src/components/posts/post-comment-section-client.test.ts src/components/posts/post-comment-thread.tsx src/components/posts/post-detail-client.tsx src/lib/comment-client.ts src/lib/comment-client.test.ts src/server/queries/comment.queries.ts src/app/api/posts/[id]/comments/route.ts src/app/api/posts/[id]/comments/route.test.ts` 통과
+  - `pnpm -C app test -- src/app/api/posts/[id]/comments/route.test.ts src/components/posts/post-comment-section-client.test.ts src/lib/comment-client.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `147 files / 728 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 사이클은 번호 pagination UI를 유지한 채 데이터 단위만 서버 페이지네이션으로 줄였고, `cursor` 기반 API나 대댓글 `더보기`는 아직 도입하지 않았다.
+
 ### 2026-03-11: Cycle 324 완료 (댓글 로딩 시작 시점 단축 + 상세/댓글 워터폴 완화)
 - 완료 내용
   - `app/src/components/posts/post-comment-section-client.tsx`에서 `IntersectionObserver` 기반 지연 로딩과 별도 `댓글 불러오기` 게이트를 제거하고, 게시글 상세 진입 직후 댓글 fetch가 바로 시작되도록 바꿨다.

@@ -53,7 +53,7 @@ describe("PostCommentSectionClient loading policy", () => {
   it("starts loading immediately when there is no prefetched state", () => {
     expect(
       shouldAutoLoadPostComments({
-        comments: null,
+        pageData: null,
         error: null,
         isLoading: false,
         prefetchStatus: "idle",
@@ -64,7 +64,7 @@ describe("PostCommentSectionClient loading policy", () => {
   it("waits for parent prefetch when comments are already loading in the detail client", () => {
     expect(
       shouldAutoLoadPostComments({
-        comments: null,
+        pageData: null,
         error: null,
         isLoading: false,
         prefetchStatus: "loading",
@@ -75,7 +75,14 @@ describe("PostCommentSectionClient loading policy", () => {
   it("does not auto-load again once prefetched comments are ready or failed", () => {
     expect(
       shouldAutoLoadPostComments({
-        comments: [],
+        pageData: {
+          comments: [],
+          totalCount: 0,
+          totalRootCount: 0,
+          page: 1,
+          totalPages: 1,
+          limit: 30,
+        },
         error: null,
         isLoading: false,
         prefetchStatus: "ready",
@@ -84,7 +91,7 @@ describe("PostCommentSectionClient loading policy", () => {
 
     expect(
       shouldAutoLoadPostComments({
-        comments: null,
+        pageData: null,
         error: "댓글을 불러오지 못했습니다.",
         isLoading: false,
         prefetchStatus: "error",

@@ -26,6 +26,11 @@
 
 ## Active Plan
 
+### Cycle 325: 댓글 루트 페이지네이션 서버 전환 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 API를 루트 댓글 기준 서버 페이지네이션으로 전환하고 상세 화면 번호 pagination이 실제 서버 페이지를 구독하도록 변경 | Codex | P1 | `done` | `/api/posts/[id]/comments`는 `page/limit` 기준으로 루트 댓글만 페이지네이션하고 현재 페이지 루트의 답글만 반환하며, 댓글 섹션/스레드는 전체 fetch + client-side slicing 없이 서버 페이지 데이터를 렌더하고, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/comment.queries.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/components/posts/post-comment-section-client.tsx`, `app/src/components/posts/post-comment-thread.tsx`, 관련 테스트 |
+
 ### Cycle 324: 댓글 로딩 시작 시점 단축 + 상세/댓글 워터폴 완화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

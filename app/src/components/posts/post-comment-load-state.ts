@@ -18,24 +18,35 @@ export type PostCommentItem = {
   author: { id: string; nickname: string | null; email?: string | null };
 };
 
+export type PostCommentPageData = {
+  comments: PostCommentItem[];
+  totalCount: number;
+  totalRootCount: number;
+  page: number;
+  totalPages: number;
+  limit: number;
+};
+
+export const DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE = 30;
+
 export type PostCommentPrefetchState = {
   status: "idle" | "loading" | "ready" | "error";
-  comments: PostCommentItem[] | null;
+  pageData: PostCommentPageData | null;
   error: string | null;
 };
 
 export function shouldAutoLoadPostComments({
-  comments,
+  pageData,
   error,
   isLoading,
   prefetchStatus,
 }: {
-  comments: PostCommentItem[] | null;
+  pageData: PostCommentPageData | null;
   error: string | null;
   isLoading: boolean;
   prefetchStatus?: PostCommentPrefetchState["status"];
 }) {
-  if (comments !== null || error || isLoading) {
+  if (pageData !== null || error || isLoading) {
     return false;
   }
 

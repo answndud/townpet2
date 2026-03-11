@@ -6,7 +6,11 @@ import { PostType } from "@prisma/client";
 
 import { BackToFeedButton } from "@/components/posts/back-to-feed-button";
 import { PostBoardLinkChip } from "@/components/posts/post-board-link-chip";
-import type { PostCommentItem, PostCommentPrefetchState } from "@/components/posts/post-comment-load-state";
+import {
+  DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
+  type PostCommentItem,
+  type PostCommentPrefetchState,
+} from "@/components/posts/post-comment-load-state";
 import {
   PostDetailInfoItem,
   PostDetailInfoSection,
@@ -20,7 +24,7 @@ import { PostReportForm } from "@/components/posts/post-report-form";
 import { PostShareControls } from "@/components/posts/post-share-controls";
 import { PostCommentSectionClient } from "@/components/posts/post-comment-section-client";
 import { PostViewTracker } from "@/components/posts/post-view-tracker";
-import { fetchPostComments } from "@/lib/comment-client";
+import { fetchPostCommentPage } from "@/lib/comment-client";
 import { getGuestPostMeta } from "@/lib/post-guest-meta";
 import { UserRelationControls } from "@/components/user/user-relation-controls";
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
@@ -256,7 +260,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
   const [loadVersion, setLoadVersion] = useState(0);
   const [commentLoadState, setCommentLoadState] = useState<PostCommentPrefetchState>({
     status: "idle",
-    comments: null,
+    pageData: null,
     error: null,
   });
 
@@ -328,17 +332,20 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
       setData(null);
       setCommentLoadState({
         status: "loading",
-        comments: null,
+        pageData: null,
         error: null,
       });
 
       void (async () => {
         try {
-          const nextComments = (await fetchPostComments(postId)) as PostCommentItem[];
+          const nextCommentPage = await fetchPostCommentPage<PostCommentItem>(postId, {
+            page: 1,
+            limit: DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
+          });
           if (!cancelled) {
             setCommentLoadState({
               status: "ready",
-              comments: nextComments,
+              pageData: nextCommentPage,
               error: null,
             });
           }
@@ -346,7 +353,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
           if (!cancelled) {
             setCommentLoadState({
               status: "error",
-              comments: null,
+              pageData: null,
               error: "댓글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
             });
           }

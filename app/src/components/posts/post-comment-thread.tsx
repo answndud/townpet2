@@ -49,18 +49,21 @@ type CommentItem = {
 type PostCommentThreadProps = {
   postId: string;
   comments: CommentItem[];
+  totalCommentCount: number;
+  totalRootCount: number;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
   currentUserId?: string;
   canInteract?: boolean;
   loginHref?: string;
-  onCommentsChanged?: () => Promise<void>;
+  onCommentsChanged?: (page?: number) => Promise<void>;
   interactionDisabledMessage?: string;
 };
 
 type CommentFormState = {
   [key: string]: string;
 };
-
-const ROOTS_PER_PAGE = 30;
 
 function formatCommentDate(value: Date | string) {
   const parsed = value instanceof Date ? value : new Date(value);
@@ -89,6 +92,11 @@ function buildPaginationItems(currentPage: number, totalPages: number) {
 export function PostCommentThread({
   postId,
   comments,
+  totalCommentCount,
+  totalRootCount,
+  currentPage,
+  totalPages,
+  pageSize,
   currentUserId,
   canInteract = true,
   loginHref = "/login",
@@ -104,7 +112,6 @@ export function PostCommentThread({
   const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
   const [guestActionPassword, setGuestActionPassword] = useState<Record<string, string>>({});
   const [guestActionPrompt, setGuestActionPrompt] = useState<Record<string, "EDIT" | "DELETE" | null>>({});
-  const [page, setPage] = useState(1);
   const [guestDisplayName, setGuestDisplayName] = useState("");
   const [guestPassword, setGuestPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -139,10 +146,7 @@ export function PostCommentThread({
 
   const roots = useMemo(() => comments.filter((comment) => comment.parentId === null), [comments]);
 
-  const totalPages = Math.max(1, Math.ceil(roots.length / ROOTS_PER_PAGE));
-  const currentPage = Math.min(page, totalPages);
   const pageItems = buildPaginationItems(currentPage, totalPages);
-  const pagedRoots = roots.slice((currentPage - 1) * ROOTS_PER_PAGE, currentPage * ROOTS_PER_PAGE);
 
   const handleCreate = (parentId?: string) => {
     if (actionLockRef.current) {
@@ -228,18 +232,16 @@ export function PostCommentThread({
           return;
         }
 
-        if (!parentId) {
-          const nextRootCount = roots.length + 1;
-          setPage(Math.max(1, Math.ceil(nextRootCount / ROOTS_PER_PAGE)));
-        }
-
         setReplyContent((prev) => ({ ...prev, [parentId ?? "root"]: "" }));
         if (parentId) {
           setReplyOpen((prev) => ({ ...prev, [parentId]: false }));
           setCollapsedReplies((prev) => ({ ...prev, [parentId]: false }));
         }
         if (onCommentsChanged) {
-          await onCommentsChanged();
+          const nextPage = parentId
+            ? currentPage
+            : Math.max(1, Math.ceil((totalRootCount + 1) / Math.max(pageSize, 1)));
+          await onCommentsChanged(nextPage);
         }
         router.refresh();
       } finally {
@@ -307,7 +309,7 @@ export function PostCommentThread({
 
         setEditOpen((prev) => ({ ...prev, [commentId]: false }));
         if (onCommentsChanged) {
-          await onCommentsChanged();
+          await onCommentsChanged(currentPage);
         }
         router.refresh();
       } finally {
@@ -374,7 +376,7 @@ export function PostCommentThread({
 
         setGuestActionPrompt((prev) => ({ ...prev, [commentId]: null }));
         if (onCommentsChanged) {
-          await onCommentsChanged();
+          await onCommentsChanged(currentPage);
         }
         router.refresh();
       } finally {
@@ -731,7 +733,7 @@ export function PostCommentThread({
   return (
     <div className={POST_COMMENT_THREAD_CARD_CLASS_NAME}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="tp-text-section-title tp-text-heading">댓글 {comments.length}</h2>
+        <h2 className="tp-text-section-title tp-text-heading">댓글 {totalCommentCount}</h2>
         {totalPages > 1 ? <span className="tp-text-label text-[11px]">{currentPage} / {totalPages}</span> : null}
       </div>
       {message ? <p className="tp-text-subtle mt-2 text-[11px]">{message}</p> : null}
@@ -740,7 +742,7 @@ export function PostCommentThread({
         <p className="tp-text-subtle mt-4 text-[13px]">댓글이 없습니다.</p>
       ) : (
         <div className="tp-border-soft mt-3 divide-y rounded-md border bg-white sm:mt-4">
-          {pagedRoots.map((comment) => renderComment(comment))}
+          {roots.map((comment) => renderComment(comment))}
         </div>
       )}
 
@@ -749,7 +751,7 @@ export function PostCommentThread({
           <button
             type="button"
             className={`rounded-lg ${currentPage <= 1 ? "tp-btn-disabled" : "tp-btn-soft"} tp-btn-xs`}
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            onClick={() => void onCommentsChanged?.(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1}
           >
             이전
@@ -764,7 +766,7 @@ export function PostCommentThread({
                 key={`bottom-${item}`}
                 type="button"
                 className={`min-w-7 rounded-lg ${item === currentPage ? "tp-btn-primary" : "tp-btn-soft"} tp-btn-xs`}
-                onClick={() => setPage(item)}
+                onClick={() => void onCommentsChanged?.(item)}
               >
                 {item}
               </button>
@@ -773,7 +775,7 @@ export function PostCommentThread({
           <button
             type="button"
             className={`rounded-lg ${currentPage >= totalPages ? "tp-btn-disabled" : "tp-btn-soft"} tp-btn-xs`}
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() => void onCommentsChanged?.(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage >= totalPages}
           >
             다음

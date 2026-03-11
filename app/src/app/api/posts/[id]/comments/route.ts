@@ -32,6 +32,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id: postId } = await params;
     const userId = await getCurrentUserId();
     const viewerId = userId ?? undefined;
+    const requestUrl = new URL(request.url);
+    const pageParam = Number(requestUrl.searchParams.get("page") ?? "1");
+    const limitParam = Number(requestUrl.searchParams.get("limit") ?? "30");
     const post = await getPostReadAccessById(postId, viewerId);
     if (!post) {
       return jsonError(404, {
@@ -42,7 +45,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     await assertPostReadable(post, viewerId);
 
-    const comments = await listComments(postId, viewerId);
+    const comments = await listComments(postId, viewerId, {
+      page: Number.isFinite(pageParam) ? pageParam : 1,
+      limit: Number.isFinite(limitParam) ? limitParam : 30,
+    });
     return jsonOk(comments, {
       headers: {
         "cache-control": "no-store",

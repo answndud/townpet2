@@ -101,7 +101,14 @@ describe("POST /api/posts/[id]/comments contract", () => {
       difficulty: 2,
       riskLevel: "NORMAL",
     } as never);
-    mockListComments.mockResolvedValue([]);
+    mockListComments.mockResolvedValue({
+      comments: [],
+      totalCount: 0,
+      totalRootCount: 0,
+      page: 1,
+      totalPages: 1,
+      limit: 30,
+    } as never);
     mockAssertPostReadable.mockResolvedValue();
   });
 
@@ -136,12 +143,32 @@ describe("POST /api/posts/[id]/comments contract", () => {
   });
 
   it("disables caching for comments GET", async () => {
-    mockListComments.mockResolvedValue([{ id: "comment-1" }] as never);
+    mockListComments.mockResolvedValue({
+      comments: [{ id: "comment-1" }],
+      totalCount: 1,
+      totalRootCount: 1,
+      page: 1,
+      totalPages: 1,
+      limit: 30,
+    } as never);
     const request = new Request("http://localhost/api/posts/post-1/comments") as NextRequest;
 
     const response = await GET(request, { params: Promise.resolve({ id: "post-1" }) });
 
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("forwards page and limit query params to comment list query", async () => {
+    const request = new Request(
+      "http://localhost/api/posts/post-1/comments?page=3&limit=12",
+    ) as NextRequest;
+
+    await GET(request, { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(mockListComments).toHaveBeenCalledWith("post-1", undefined, {
+      page: 3,
+      limit: 12,
+    });
   });
 
   it("returns GUEST_PASSWORD_REQUIRED for guest without password", async () => {

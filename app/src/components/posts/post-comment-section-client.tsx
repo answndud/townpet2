@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { fetchPostComments } from "@/lib/comment-client";
+import { fetchPostCommentPage } from "@/lib/comment-client";
 import { emitPostCommentCountSync } from "@/lib/post-comment-count-sync";
 import { subscribeViewerShellSync } from "@/lib/viewer-shell-sync";
 import {
-  shouldAutoLoadPostComments,
+  DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
   type PostCommentItem,
+  type PostCommentPageData,
+  shouldAutoLoadPostComments,
   type PostCommentPrefetchState,
 } from "@/components/posts/post-comment-load-state";
 import { POST_COMMENT_SECTION_STATE_CLASS_NAME } from "@/components/posts/post-comment-layout-class";
@@ -36,9 +38,12 @@ export function PostCommentSectionClient({
   onCommentCountChange,
   initialLoadState,
 }: PostCommentSectionClientProps) {
-  const [comments, setComments] = useState<PostCommentItem[] | null>(initialLoadState?.comments ?? null);
+  const [commentPage, setCommentPage] = useState<PostCommentPageData | null>(
+    initialLoadState?.pageData ?? null,
+  );
   const [error, setError] = useState<string | null>(initialLoadState?.error ?? null);
   const [isLoading, setIsLoading] = useState(initialLoadState?.status === "loading");
+  const [page, setPage] = useState(() => initialLoadState?.pageData?.page ?? 1);
   const [forcedGuestMode, setForcedGuestMode] = useState(false);
   const mountedRef = useRef(true);
   const baseViewerState = useMemo(
@@ -49,6 +54,8 @@ export function PostCommentSectionClient({
     ? syncPostCommentViewerState(baseViewerState, { reason: "auth-logout" })
     : baseViewerState;
 
+  const comments = commentPage?.comments ?? null;
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -56,20 +63,24 @@ export function PostCommentSectionClient({
     };
   }, []);
 
-  const reloadComments = useCallback(async () => {
+  const reloadComments = useCallback(async (nextPage = page) => {
     if (mountedRef.current) {
       setIsLoading(true);
       setError(null);
     }
 
     try {
-      const nextComments = (await fetchPostComments(postId)) as PostCommentItem[];
+      const nextCommentPage = await fetchPostCommentPage<PostCommentItem>(postId, {
+        page: nextPage,
+        limit: DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
+      });
       if (mountedRef.current) {
-        setComments(nextComments);
+        setCommentPage(nextCommentPage);
+        setPage(nextCommentPage.page);
         setError(null);
         setIsLoading(false);
-        onCommentCountChange?.(nextComments.length);
-        emitPostCommentCountSync({ postId, count: nextComments.length });
+        onCommentCountChange?.(nextCommentPage.totalCount);
+        emitPostCommentCountSync({ postId, count: nextCommentPage.totalCount });
       }
     } catch {
       if (mountedRef.current) {
@@ -77,7 +88,7 @@ export function PostCommentSectionClient({
         setIsLoading(false);
       }
     }
-  }, [onCommentCountChange, postId]);
+  }, [onCommentCountChange, page, postId]);
 
   useEffect(() => {
     if (!initialLoadState) {
@@ -85,22 +96,30 @@ export function PostCommentSectionClient({
     }
     const timer = window.setTimeout(() => {
       if (initialLoadState.status === "loading") {
-        setComments(null);
+        setCommentPage(null);
         setError(null);
         setIsLoading(true);
         return;
       }
       if (initialLoadState.status === "ready") {
-        const nextComments = initialLoadState.comments ?? [];
-        setComments(nextComments);
+        const nextCommentPage = initialLoadState.pageData ?? {
+          comments: [],
+          totalCount: 0,
+          totalRootCount: 0,
+          page: 1,
+          totalPages: 1,
+          limit: DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
+        };
+        setCommentPage(nextCommentPage);
+        setPage(nextCommentPage.page);
         setError(null);
         setIsLoading(false);
-        onCommentCountChange?.(nextComments.length);
-        emitPostCommentCountSync({ postId, count: nextComments.length });
+        onCommentCountChange?.(nextCommentPage.totalCount);
+        emitPostCommentCountSync({ postId, count: nextCommentPage.totalCount });
         return;
       }
       if (initialLoadState.status === "error") {
-        setComments(null);
+        setCommentPage(null);
         setError(initialLoadState.error ?? "댓글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         setIsLoading(false);
       }
@@ -112,7 +131,7 @@ export function PostCommentSectionClient({
   useEffect(() => {
     if (
       !shouldAutoLoadPostComments({
-        comments,
+        pageData: commentPage,
         error,
         isLoading,
         prefetchStatus: initialLoadState?.status,
@@ -122,11 +141,11 @@ export function PostCommentSectionClient({
     }
 
     const timer = window.setTimeout(() => {
-      void reloadComments();
+      void reloadComments(page);
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [comments, error, initialLoadState?.status, isLoading, reloadComments]);
+  }, [commentPage, error, initialLoadState?.status, isLoading, page, reloadComments]);
 
   useEffect(() => {
     return subscribeViewerShellSync((payload) => {
@@ -167,10 +186,24 @@ export function PostCommentSectionClient({
     );
   }
 
+  const resolvedCommentPage = commentPage ?? {
+    comments,
+    totalCount: comments.length,
+    totalRootCount: comments.filter((comment) => comment.parentId === null).length,
+    page,
+    totalPages: 1,
+    limit: DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
+  };
+
   return (
     <PostCommentThread
       postId={postId}
       comments={comments as unknown as Parameters<typeof PostCommentThread>[0]["comments"]}
+      totalCommentCount={resolvedCommentPage.totalCount}
+      totalRootCount={resolvedCommentPage.totalRootCount}
+      currentPage={resolvedCommentPage.page}
+      totalPages={resolvedCommentPage.totalPages}
+      pageSize={resolvedCommentPage.limit}
       currentUserId={viewerState.currentUserId}
       canInteract={viewerState.canInteract}
       loginHref={loginHref}
