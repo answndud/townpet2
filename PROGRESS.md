@@ -17,6 +17,129 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-11: Cycle 323 완료 (게스트 반응 로그인 유도 프롬프트 UX 적용)
+- 완료 내용
+  - `app/src/components/posts/reaction-login-prompt.tsx`를 추가해 게시글/댓글 반응이 guest 상태일 때 공통으로 쓰는 로그인 유도 UI를 분리했다. 데스크톱에서는 버튼 옆 popover, 모바일에서는 하단 고정 sheet 형태로 같은 CTA를 제공한다.
+  - `app/src/components/posts/post-reaction-controls.tsx`와 `app/src/components/posts/comment-reaction-controls.tsx`는 guest 상태에서 버튼을 `disabled`로 막는 대신 `aria-disabled`만 부여하고 클릭을 인터셉트해 `ReactionLoginPrompt`를 띄우도록 바꿨다.
+  - 두 반응 컴포넌트는 기존 `auth-logout` sync와 `AUTH_REQUIRED` fallback을 유지해 stale auth 상태에서도 optimistic 반응 수는 원복되고, 그 뒤에는 로그인 유도 프롬프트가 표시되도록 맞췄다.
+  - `app/src/components/posts/reaction-login-prompt.test.tsx`, `app/src/components/posts/post-reaction-controls.test.tsx`, `app/src/components/posts/comment-reaction-controls.test.tsx`는 공용 로그인 프롬프트 CTA와 guest `aria-disabled` 렌더링을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/reaction-login-prompt.tsx src/components/posts/reaction-login-prompt.test.tsx src/components/posts/post-reaction-controls.tsx src/components/posts/post-reaction-controls.test.tsx src/components/posts/comment-reaction-controls.tsx src/components/posts/comment-reaction-controls.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/reaction-login-prompt.test.tsx src/components/posts/post-reaction-controls.test.tsx src/components/posts/comment-reaction-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경으로 게스트는 반응 버튼을 눌러 로그인 필요성을 명확히 인지할 수 있고, 모바일에서는 작은 tooltip 대신 하단 고정 CTA로 안내받는다.
+
+### 2026-03-11: Cycle 322 완료 (게시글/댓글 반응 auth gate 공통 하드닝)
+- 완료 내용
+  - `app/src/components/posts/post-reaction-controls.tsx`는 `canReact=false`일 때 like/dislike 버튼을 직접 `disabled` 처리하도록 바꿨고, `viewer-shell-sync`의 `auth-logout` 이벤트를 받아 stale auth 상태에서도 즉시 잠기도록 했다.
+  - 같은 컴포넌트는 서버 action이 `AUTH_REQUIRED`를 돌려주면 optimistic 반응 수를 원복하고 `authBlocked`를 켜서 이후 버튼이 다시 비활성화되도록 보강했다.
+  - `app/src/components/posts/comment-reaction-controls.tsx`에도 같은 `auth-logout` sync 차단을 넣어, 부모가 stale auth 상태를 잠시 들고 있어도 댓글 반응 버튼이 공통 기준으로 잠기게 맞췄다.
+  - `app/src/components/posts/post-reaction-controls.test.tsx`를 추가해 게스트 게시글 반응 버튼 disabled 렌더링을 고정했고, 기존 `comment-reaction-controls.test.tsx`와 함께 post/comment guest 반응 비활성화 회귀를 갖추었다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-reaction-controls.tsx src/components/posts/post-reaction-controls.test.tsx src/components/posts/comment-reaction-controls.tsx src/components/posts/comment-reaction-controls.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-reaction-controls.test.tsx src/components/posts/comment-reaction-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경으로 guest 상세(`/posts/[id]/guest`)와 로그아웃 직후 stale 상태 양쪽 모두에서 게시글/댓글 반응 버튼은 눌릴 수 없는 상태가 된다.
+
+### 2026-03-11: Cycle 321 완료 (비로그인 댓글 반응 버튼 비활성화)
+- 완료 내용
+  - `app/src/components/posts/comment-reaction-controls.tsx`에서 댓글 `좋아요/싫어요` 버튼의 `disabled` 조건을 `!canReact || isPending`으로 바꿔, 비로그인/비상호작용 상태에서는 버튼 자체가 눌리지 않도록 수정했다.
+  - 같은 컴포넌트의 기존 `AUTH_REQUIRED` fallback은 유지해, stale 상태로 잘못 눌린 경우에도 optimistic 반응 수는 즉시 원복되게 두었다.
+  - `app/src/components/posts/comment-reaction-controls.test.tsx`는 guest compact 렌더링에서 두 반응 버튼 모두 `disabled` 속성을 가지는지 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/comment-reaction-controls.tsx src/components/posts/comment-reaction-controls.test.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/comment-reaction-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 수정으로 비로그인 상태에서는 댓글 반응 버튼 클릭 자체가 불가능해졌고, 로그인 유도 tooltip은 더 이상 기본 경로로 열리지 않는다.
+
+### 2026-03-11: Cycle 320 완료 (댓글 반응 auth logout stale-state 차단)
+- 완료 내용
+  - `app/src/components/posts/post-comment-section-client.tsx`에 `getPostCommentViewerState`, `syncPostCommentViewerState` helper를 추가하고 `viewer-shell-sync`의 `auth-logout` 이벤트를 구독하도록 바꿨다. 이제 상세 페이지를 새로고침하지 않아도 로그아웃 이벤트가 오면 댓글 섹션의 `currentUserId/canInteract`가 즉시 guest 상태로 내려간다.
+  - 같은 컴포넌트는 `auth-logout` 시 댓글 목록을 다시 불러오도록 바꿔, 로그인 시점에 포함됐던 내 반응 정보도 게스트 기준 데이터로 새로 정리되게 했다.
+  - `app/src/components/posts/comment-reaction-controls.tsx`는 서버 action이 `AUTH_REQUIRED`를 돌려주면 optimistic 반응 수를 원복한 뒤 로그인 힌트를 다시 띄우도록 보강했다.
+  - `app/src/components/posts/post-comment-section-client.test.ts`를 추가해 댓글 섹션 viewer state 계산과 `auth-logout` sync 후 guest 전환을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-section-client.tsx src/components/posts/post-comment-section-client.test.ts src/components/posts/comment-reaction-controls.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-section-client.test.ts src/components/posts/comment-reaction-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 로그아웃 직후 stale auth 상태 차단이 목적이라, 댓글 작성/수정/신고 UI의 guest 허용 정책 자체는 변경하지 않았다.
+
+### 2026-03-11: Cycle 319 완료 (댓글 반응 UI 우측 메타 정렬 + 싫어요 노출)
+- 완료 내용
+  - `app/src/components/posts/comment-reaction-controls.tsx`에서 compact 댓글 반응 버튼이 `좋아요/싫어요` 모두 아이콘+숫자만 보이도록 바꿨고, 접근성용 `aria-label`과 우측 정렬용 login hint 옵션을 추가했다.
+  - 같은 파일에 `canUseCommentReaction` helper를 추가해 댓글 반응 가능 조건을 `로그인 사용자 + 상호작용 가능 + ACTIVE 댓글`로 명시하고, 비회원/차단/비활성 댓글에서는 반응이 불가하도록 UI 판단 기준을 고정했다.
+  - `app/src/components/posts/post-comment-thread.tsx`는 반응 컨트롤을 댓글 내용 아래 액션 row에서 제거하고, 작성자/시간 오른쪽 메타 그룹으로 옮겼다. 이제 아래 row에는 `답글/신고/접기`만 남고, 반응 수는 첨부 이미지처럼 우측 상단에서 바로 보인다.
+  - `app/src/components/posts/comment-reaction-controls.test.tsx`를 추가해 compact 모드의 like/dislike 아이콘+숫자 렌더링과 비로그인 반응 차단 helper를 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/comment-reaction-controls.tsx src/components/posts/comment-reaction-controls.test.tsx src/components/posts/post-comment-thread.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/comment-reaction-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 현재 댓글 반응은 비로그인 사용자가 클릭하면 로그인 힌트만 보이고 서버 액션은 호출되지 않는다.
+
+### 2026-03-11: Cycle 318 완료 (댓글 작성 패널 wrapper 흰 배경 고정)
+- 완료 내용
+  - `app/src/app/globals.css`의 `tp-form-panel-page-soft` 배경을 `#ffffff`로 바꿔, 사용자가 확인한 댓글 작성 wrapper(`tp-form-panel tp-form-panel-page-soft p-2.5 sm:p-2.5`)가 실제로 흰색 panel이 되도록 고정했다.
+  - `app/src/app/globals-css.test.ts`는 `.tp-form-panel-page-soft` block 안에 `background: #ffffff;`가 존재하는지 직접 검증하도록 보강해 같은 회귀를 잡게 했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/globals-css.test.ts` 통과
+  - `pnpm -C app test -- src/app/globals-css.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 댓글 작성 wrapper 배경색만 바로잡은 후속 수정이며, 댓글 리스트 카드와 입력 field border/spacing은 그대로 유지했다.
+
+### 2026-03-11: Cycle 317 완료 (게시글 상세 댓글 작성 패널 surface 밝기 조정)
+- 완료 내용
+  - `app/src/app/globals.css`에 `tp-form-panel-page-soft`, `tp-form-field-page-soft`를 추가해 댓글 작성 섹터 전용으로 더 밝은 panel/field surface를 공용 semantic class로 분리했다.
+  - `app/src/components/posts/post-comment-layout-class.ts`는 댓글 작성 섹터에서 재사용할 `POST_COMMENT_FORM_PANEL_CLASS_NAME`, `POST_COMMENT_FORM_FIELD_CLASS_NAME`, `POST_COMMENT_FORM_MUTED_CLASS_NAME`를 추가해 댓글 카드와 작성 panel의 surface 역할을 분리했다.
+  - `app/src/components/posts/post-comment-thread.tsx`는 루트 댓글 작성 박스, 답글 폼, 비회원 비밀번호 입력, 수정 폼, 댓글 신고 wrapper와 disabled 안내 박스에 새 panel/field class를 적용해 사용자가 지적한 `tp-form-panel p-2.5 sm:p-2.5` 섹터와 그 안쪽 필드가 모두 더 밝은 톤을 사용하도록 맞췄다.
+  - `app/src/app/globals-css.test.ts`와 `app/src/components/posts/post-comment-layout-class.test.ts`는 새 semantic class와 댓글 작성 panel class 조합을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/globals-css.test.ts src/components/posts/post-comment-layout-class.ts src/components/posts/post-comment-layout-class.test.ts src/components/posts/post-comment-thread.tsx` 통과
+  - `pnpm -C app test -- src/app/globals-css.test.ts src/components/posts/post-comment-layout-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 댓글 작성 섹터에 한정된 surface 조정이며, 게시글 작성 폼의 `tp-form-panel`이나 다른 전역 폼 패널 스타일은 건드리지 않았다.
+
+### 2026-03-11: Cycle 316 완료 (게시글 상세 댓글 surface 밝기 재조정)
+- 완료 내용
+  - `app/src/components/posts/post-comment-layout-class.ts`에서 댓글 thread card의 `tp-surface-page-soft`를 제거해 `tp-card` 기본 흰 배경을 그대로 사용하도록 바꿨다.
+  - 같은 파일의 댓글 상태 박스 base class에서도 tint surface를 제거해, 실제 렌더링 시 loading/empty 상태가 더 밝은 흰 background override를 자연스럽게 쓰도록 정리했다.
+  - `app/src/components/posts/post-comment-thread.tsx`의 댓글 목록 wrapper는 `tp-surface-page-soft` 대신 `bg-white`를 사용하도록 바꿔, 댓글 리스트도 상단 카드와 같은 밝기 톤으로 맞췄다.
+  - `app/src/components/posts/post-comment-layout-class.test.ts`는 댓글 카드/상태 class에서 `tp-surface-page-soft`가 다시 들어오지 않도록 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-comment-layout-class.ts src/components/posts/post-comment-layout-class.test.ts src/components/posts/post-comment-thread.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-layout-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 댓글 영역 밝기만 한 단계 올린 후속 조정이며, 본문 카드의 `tp-surface-page-soft` 적용은 그대로 유지했다.
+
+### 2026-03-11: Cycle 315 완료 (게시글 상세 내용/댓글 surface 톤 정리)
+- 완료 내용
+  - `app/src/app/globals.css`에 `tp-surface-page-soft`를 추가해 게시글 상세에서 페이지 배경과 가까운 연한 surface를 공용 semantic class로 재사용할 수 있게 했다.
+  - `app/src/components/posts/post-detail-client.tsx`의 본문 카드가 기존 `tp-surface-alt` 대신 `tp-surface-page-soft`를 사용하도록 바뀌어, 내용 영역이 페이지 배경과 더 자연스럽게 이어지도록 맞췄다.
+  - `app/src/components/posts/post-comment-layout-class.ts`와 `app/src/components/posts/post-comment-thread.tsx`는 댓글 카드, 상태 박스, 댓글 목록 wrapper에 같은 `tp-surface-page-soft`를 적용해 내용 카드와 댓글 카드의 표면 톤을 통일했다.
+  - `app/src/app/globals-css.test.ts`와 `app/src/components/posts/post-comment-layout-class.test.ts`는 새 surface class 존재와 댓글 레이아웃 class의 적용을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/app/globals-css.test.ts src/components/posts/post-detail-client.tsx src/components/posts/post-comment-layout-class.ts src/components/posts/post-comment-layout-class.test.ts src/components/posts/post-comment-thread.tsx` 통과
+  - `pnpm -C app test -- src/app/globals-css.test.ts src/components/posts/post-comment-layout-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `143 files / 715 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 이번 변경은 게시글 상세의 내용/댓글 surface 톤만 조정했고, 댓글 작성/답글/좋아요 로직과 카드 spacing 구조는 그대로 유지했다.
+
 ### 2026-03-11: Cycle 314 완료 (전역 페이지 배경 톤 미세 조정)
 - 완료 내용
   - `app/src/app/globals.css`의 `tp-page-bg` gradient를 `#fbfdff -> #f8fbff -> #f3f8ff`로 더 밝게 조정해, 이전보다 체감되는 수준으로 화면 배경을 연하게 맞췄다.

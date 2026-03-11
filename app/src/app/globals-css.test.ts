@@ -23,6 +23,7 @@ describe("globals.css semantic color roles", () => {
     expect(css).toContain(".tp-surface-muted");
     expect(css).toContain(".tp-surface-danger-soft");
     expect(css).toContain(".tp-surface-alt");
+    expect(css).toContain(".tp-surface-page-soft");
     expect(css).toContain(".tp-text-disabled");
     expect(css).toContain(".tp-text-danger-soft");
     expect(css).toContain(".tp-btn-disabled");
@@ -32,6 +33,9 @@ describe("globals.css semantic color roles", () => {
     expect(css).toContain(".tp-form-note");
     expect(css).toContain(".tp-form-panel");
     expect(css).toContain(".tp-form-panel-muted");
+    expect(css).toContain(".tp-form-panel-page-soft");
+    expect(css).toContain(".tp-form-field-page-soft");
+    expect(css).toMatch(/\.tp-form-panel-page-soft\s*\{[^}]*background:\s*#ffffff;/);
     expect(css).toContain(".tp-editor-toolbar");
     expect(css).toContain(".tp-editor-toolbar-soft");
     expect(css).toContain(".tp-editor-surface");

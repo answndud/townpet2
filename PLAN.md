@@ -26,6 +26,51 @@
 
 ## Active Plan
 
+### Cycle 323: 게스트 반응 로그인 유도 프롬프트 UX 적용 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 비로그인 사용자가 게시글/댓글 반응 버튼을 누르면 모바일/데스크톱 모두에서 로그인 유도 프롬프트를 보여주기 | Codex | P1 | `done` | 게시글/댓글 반응 버튼은 guest 상태에서 `disabled` 대신 `aria-disabled`와 클릭 인터셉트로 로그인 유도 프롬프트를 띄우고, 공용 `ReactionLoginPrompt`가 데스크톱 popover + 모바일 bottom sheet CTA를 제공하며, 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/reaction-login-prompt.tsx`, `app/src/components/posts/reaction-login-prompt.test.tsx`, `app/src/components/posts/post-reaction-controls.tsx`, `app/src/components/posts/post-reaction-controls.test.tsx`, `app/src/components/posts/comment-reaction-controls.tsx`, `app/src/components/posts/comment-reaction-controls.test.tsx` |
+
+### Cycle 322: 게시글/댓글 반응 auth gate 공통 하드닝 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글과 댓글 반응 컨트롤이 guest 상태에서 버튼 자체를 비활성화하고 `auth-logout` sync에도 즉시 잠기도록 공통 하드닝 | Codex | P1 | `done` | `PostReactionControls`, `CommentReactionControls`가 `!canReact` 또는 `auth-logout` sync 상태에서 버튼을 직접 `disabled` 처리하고, post/comment reaction action이 `AUTH_REQUIRED`일 때 optimistic 상태를 원복하며, 게스트 disabled 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-reaction-controls.tsx`, `app/src/components/posts/post-reaction-controls.test.tsx`, `app/src/components/posts/comment-reaction-controls.tsx`, `app/src/components/posts/comment-reaction-controls.test.tsx` |
+
+### Cycle 321: 비로그인 댓글 반응 버튼 비활성화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 비로그인/비상호작용 상태에서는 댓글 좋아요/싫어요 버튼 자체가 눌리지 않도록 비활성화 | Codex | P1 | `done` | `CommentReactionControls`의 like/dislike 버튼이 `!canReact`일 때 `disabled` 속성을 직접 가지며, guest 렌더링 회귀 테스트가 두 버튼의 disabled 상태를 고정하고, lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/comment-reaction-controls.tsx`, `app/src/components/posts/comment-reaction-controls.test.tsx` |
+
+### Cycle 320: 댓글 반응 auth logout stale-state 차단 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 로그아웃 후 상세 페이지를 새로고침하지 않아도 댓글 반응이 게스트 상태로 즉시 차단되도록 동기화 | Codex | P1 | `done` | 댓글 섹션이 `viewer-shell-sync`의 `auth-logout` 이벤트를 받아 `currentUserId/canInteract`를 즉시 guest 상태로 내리고 댓글을 다시 불러오며, 댓글 반응 action이 `AUTH_REQUIRED`일 때 optimistic state를 되돌리고 로그인 힌트를 띄우고, 관련 helper 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-section-client.tsx`, `app/src/components/posts/post-comment-section-client.test.ts`, `app/src/components/posts/comment-reaction-controls.tsx` |
+
+### Cycle 319: 댓글 반응 UI 우측 메타 정렬 + 싫어요 노출 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 반응 컨트롤에 `좋아요/싫어요`를 모두 아이콘+숫자로 노출하고 댓글 우측 메타 영역으로 이동 | Codex | P2 | `done` | `CommentReactionControls` compact 모드가 like/dislike 아이콘과 숫자를 함께 렌더링하고, `PostCommentThread`가 반응 컨트롤을 본문 아래가 아니라 헤더 우측 메타 그룹으로 배치하며, 비로그인 사용자는 댓글 반응이 불가하고 관련 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/comment-reaction-controls.tsx`, `app/src/components/posts/comment-reaction-controls.test.tsx`, `app/src/components/posts/post-comment-thread.tsx` |
+
+### Cycle 318: 댓글 작성 패널 wrapper 흰 배경 고정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세 댓글 작성 wrapper의 `tp-form-panel-page-soft` 배경을 흰색으로 고정 | Codex | P2 | `done` | `tp-form-panel-page-soft`가 `#ffffff` 배경을 사용하고, globals CSS 회귀 테스트가 해당 class의 흰 배경을 직접 검증하며, lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts` |
+
+### Cycle 317: 게시글 상세 댓글 작성 패널 surface 밝기 조정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세 댓글 작성 섹터의 `tp-form-panel`과 내부 입력 field를 더 밝은 page-soft surface로 조정 | Codex | P2 | `done` | 전역에 댓글 작성 섹터가 재사용할 `tp-form-panel-page-soft` / `tp-form-field-page-soft`가 추가되고, 댓글 작성/답글/수정/신고 wrapper와 입력 field가 이를 사용하며, globals/comment layout 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts`, `app/src/components/posts/post-comment-layout-class.ts`, `app/src/components/posts/post-comment-layout-class.test.ts`, `app/src/components/posts/post-comment-thread.tsx` |
+
+### Cycle 316: 게시글 상세 댓글 surface 밝기 재조정 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세 댓글 카드와 댓글 목록 배경을 더 밝은 흰 surface로 조정 | Codex | P2 | `done` | 댓글 thread card가 `tp-card` 기본 흰 배경을 사용하고, 댓글 목록 wrapper가 `bg-white`로 렌더링되며, comment layout 회귀 테스트가 tint surface 제거를 고정하고, lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-layout-class.ts`, `app/src/components/posts/post-comment-layout-class.test.ts`, `app/src/components/posts/post-comment-thread.tsx` |
+
+### Cycle 315: 게시글 상세 내용/댓글 surface 톤 정리 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세의 내용 카드와 댓글 카드 배경을 페이지 배경에 더 가까운 연한 surface로 정리 | Codex | P2 | `done` | 전역 `tp-surface-page-soft` class가 추가되고, 게시글 상세 내용 카드와 댓글 스레드/상태 박스가 같은 surface를 재사용하며, globals/comment layout 회귀 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/components/posts/post-comment-layout-class.ts`, `app/src/components/posts/post-comment-layout-class.test.ts`, `app/src/components/posts/post-comment-thread.tsx` |
+
 ### Cycle 314: 전역 페이지 배경 톤 미세 조정 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

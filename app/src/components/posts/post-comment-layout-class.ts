@@ -7,3 +7,9 @@ export const POST_COMMENT_SECTION_STATE_CLASS_NAME = [
   "py-2.5",
   "text-[13px]",
 ].join(" ");
+
+export const POST_COMMENT_FORM_PANEL_CLASS_NAME = "tp-form-panel tp-form-panel-page-soft";
+
+export const POST_COMMENT_FORM_FIELD_CLASS_NAME = "tp-form-field-page-soft";
+
+export const POST_COMMENT_FORM_MUTED_CLASS_NAME = "tp-form-panel-muted tp-form-field-page-soft";

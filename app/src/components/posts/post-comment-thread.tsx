@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 import { PostStatus, ReportTarget } from "@prisma/client";
 import { useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 
-import { CommentReactionControls } from "@/components/posts/comment-reaction-controls";
+import {
+  canUseCommentReaction,
+  CommentReactionControls,
+} from "@/components/posts/comment-reaction-controls";
 import { LinkifiedContent } from "@/components/content/linkified-content";
-import { POST_COMMENT_THREAD_CARD_CLASS_NAME } from "@/components/posts/post-comment-layout-class";
+import {
+  POST_COMMENT_FORM_FIELD_CLASS_NAME,
+  POST_COMMENT_FORM_MUTED_CLASS_NAME,
+  POST_COMMENT_FORM_PANEL_CLASS_NAME,
+  POST_COMMENT_THREAD_CARD_CLASS_NAME,
+} from "@/components/posts/post-comment-layout-class";
 import { PostReportForm } from "@/components/posts/post-report-form";
 import { getClientFingerprint, getGuestFingerprint } from "@/lib/guest-client";
 import { getGuestWriteHeaders } from "@/lib/guest-step-up.client";
@@ -409,6 +417,11 @@ export function PostCommentThread({
     const canOpenMenu = !isDeleted && canEdit;
     const canReply = canComment && comment.status === "ACTIVE";
     const canReport = Boolean(currentUserId) && comment.status === "ACTIVE" && !isAuthor;
+    const canReactToComment = canUseCommentReaction({
+      currentUserId,
+      canInteract,
+      isCommentActive: comment.status === "ACTIVE",
+    });
     const displayName = isGuestComment
       ? `${guestAuthorName} (${comment.guestIpLabel ?? "아이피"} ${guestIpDisplay})`
       : resolveUserDisplayName(comment.author.nickname);
@@ -428,8 +441,8 @@ export function PostCommentThread({
           </div>
 
           <div className="min-w-0 flex-1">
-            <header className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            <header className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
                 {isGuestComment ? (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <p className="tp-text-heading truncate text-[13px] font-semibold">{displayName}</p>
@@ -452,46 +465,63 @@ export function PostCommentThread({
                 )}
               </div>
 
-              {canOpenMenu ? (
-                <details className="relative">
-                  <summary className="tp-text-muted list-none rounded-md px-1.5 py-0.5 text-[15px] leading-none hover:bg-[#f1f5fb]">
-                    ···
-                  </summary>
-                  <div className="tp-border-muted absolute right-0 z-20 mt-1.5 min-w-24 rounded-md border bg-white p-1 shadow-[0_8px_18px_rgba(16,40,74,0.08)]">
-                    {canEdit ? (
-                      <>
-                        <button
-                          type="button"
-                          className="tp-text-heading block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-[#f5f9ff]"
-                          onClick={() => {
-                            if (isGuestComment) {
-                              setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
-                              return;
-                            }
-                            setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
-                          }}
-                          disabled={isPending}
-                        >
-                          수정
-                        </button>
-                        <button
-                          type="button"
-                          className="block w-full rounded px-2 py-1 text-left text-[11px] text-rose-700 hover:bg-rose-50"
-                          onClick={() => {
-                            if (isGuestComment) {
-                              setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
-                              return;
-                            }
-                            void handleDelete(comment.id, false);
-                          }}
-                          disabled={isPending}
-                        >
-                          삭제
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </details>
+              {!isDeleted ? (
+                <div className="ml-auto flex shrink-0 items-start gap-1.5">
+                  <CommentReactionControls
+                    key={`${comment.id}:${comment.likeCount}:${comment.dislikeCount}:${comment.reactions?.[0]?.type ?? "NONE"}`}
+                    postId={postId}
+                    commentId={comment.id}
+                    likeCount={comment.likeCount}
+                    dislikeCount={comment.dislikeCount}
+                    currentReaction={comment.reactions?.[0]?.type ?? null}
+                    canReact={canReactToComment}
+                    loginHref={loginHref}
+                    compact
+                    className="justify-end"
+                    loginHintAlign="end"
+                  />
+                  {canOpenMenu ? (
+                    <details className="relative">
+                      <summary className="tp-text-muted list-none rounded-md px-1.5 py-0.5 text-[15px] leading-none hover:bg-[#f1f5fb]">
+                        ···
+                      </summary>
+                      <div className="tp-border-muted absolute right-0 z-20 mt-1.5 min-w-24 rounded-md border bg-white p-1 shadow-[0_8px_18px_rgba(16,40,74,0.08)]">
+                        {canEdit ? (
+                          <>
+                            <button
+                              type="button"
+                              className="tp-text-heading block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-[#f5f9ff]"
+                              onClick={() => {
+                                if (isGuestComment) {
+                                  setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "EDIT" }));
+                                  return;
+                                }
+                                setEditOpen((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }));
+                              }}
+                              disabled={isPending}
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              className="block w-full rounded px-2 py-1 text-left text-[11px] text-rose-700 hover:bg-rose-50"
+                              onClick={() => {
+                                if (isGuestComment) {
+                                  setGuestActionPrompt((prev) => ({ ...prev, [comment.id]: "DELETE" }));
+                                  return;
+                                }
+                                void handleDelete(comment.id, false);
+                              }}
+                              disabled={isPending}
+                            >
+                              삭제
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
               ) : null}
             </header>
 
@@ -502,21 +532,9 @@ export function PostCommentThread({
               />
             </div>
 
-            {!isDeleted ? (
+            {!isDeleted && (canReply || canReport || (depth === 0 && replies.length > 0)) ? (
               <div className="mt-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <CommentReactionControls
-                    key={`${comment.id}:${comment.likeCount}:${comment.dislikeCount}:${comment.reactions?.[0]?.type ?? "NONE"}`}
-                    postId={postId}
-                    commentId={comment.id}
-                    likeCount={comment.likeCount}
-                    dislikeCount={comment.dislikeCount}
-                    currentReaction={comment.reactions?.[0]?.type ?? null}
-                    canReact={canInteract && comment.status === "ACTIVE"}
-                    loginHref={loginHref}
-                    compact
-                    showDislike={false}
-                  />
                   {canReply ? (
                     <button
                       type="button"
@@ -557,12 +575,11 @@ export function PostCommentThread({
                     </button>
                   ) : null}
                 </div>
-
               </div>
             ) : null}
 
             {reportOpen[comment.id] ? (
-              <div className="tp-form-panel mt-2 p-2.5">
+              <div className={`${POST_COMMENT_FORM_PANEL_CLASS_NAME} mt-2 p-2.5`}>
                 <PostReportForm
                   targetId={comment.id}
                   targetType={ReportTarget.COMMENT}
@@ -573,18 +590,18 @@ export function PostCommentThread({
             ) : null}
 
             {canReply && replyOpen[comment.id] ? (
-              <div className="tp-form-panel mt-2 p-2">
+              <div className={`${POST_COMMENT_FORM_PANEL_CLASS_NAME} mt-2 p-2`}>
                 {!currentUserId ? (
                   <div className="mb-2 grid gap-1.5 sm:grid-cols-2">
                     <input
-                      className="tp-input-soft w-full bg-white px-2.5 py-1.5 text-[13px]"
+                      className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} w-full px-2.5 py-1.5 text-[13px]`}
                       value={guestDisplayName}
                       onChange={(event) => setGuestDisplayName(event.target.value)}
                       placeholder="비회원 닉네임"
                       maxLength={24}
                     />
                     <input
-                      className="tp-input-soft w-full bg-white px-2.5 py-1.5 text-[13px]"
+                      className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} w-full px-2.5 py-1.5 text-[13px]`}
                       type="password"
                       value={guestPassword}
                       onChange={(event) => setGuestPassword(event.target.value)}
@@ -594,7 +611,7 @@ export function PostCommentThread({
                   </div>
                 ) : null}
                 <textarea
-                  className="tp-input-soft min-h-[64px] w-full bg-white px-2.5 py-1.5 text-[13px]"
+                  className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} min-h-[64px] w-full px-2.5 py-1.5 text-[13px]`}
                   value={replyContent[comment.id] ?? ""}
                   onChange={(event) =>
                     setReplyContent((prev) => ({
@@ -635,11 +652,11 @@ export function PostCommentThread({
             ) : null}
 
             {isGuestComment && guestActionPrompt[comment.id] ? (
-              <div className="tp-form-panel mt-2 p-2">
+              <div className={`${POST_COMMENT_FORM_PANEL_CLASS_NAME} mt-2 p-2`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="password"
-                    className="tp-input-soft h-8 bg-white px-2.5 text-[12px]"
+                    className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} h-8 px-2.5 text-[12px]`}
                     placeholder="댓글 비밀번호"
                     value={guestActionPassword[comment.id] ?? ""}
                     onChange={(event) =>
@@ -675,9 +692,9 @@ export function PostCommentThread({
             ) : null}
 
             {(canInteract || isGuestComment) && editOpen[comment.id] && canEdit ? (
-              <div className="tp-form-panel mt-2 p-2">
+              <div className={`${POST_COMMENT_FORM_PANEL_CLASS_NAME} mt-2 p-2`}>
                 <textarea
-                  className="tp-input-soft min-h-[72px] w-full bg-white px-3 py-2 text-[13px]"
+                  className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} min-h-[72px] w-full px-3 py-2 text-[13px]`}
                   value={editContent[comment.id] ?? comment.content}
                   onChange={(event) =>
                     setEditContent((prev) => ({
@@ -765,20 +782,20 @@ export function PostCommentThread({
       ) : null}
 
       <div className="tp-border-soft mt-3 border-t pt-2.5 sm:mt-4 sm:pt-3">
-        <div className="tp-form-panel p-2.5 sm:p-2.5">
+        <div className={`${POST_COMMENT_FORM_PANEL_CLASS_NAME} p-2.5 sm:p-2.5`}>
           {canComment ? (
             <>
               {!currentUserId ? (
                 <div className="mb-1.5 grid gap-1.5 sm:grid-cols-2">
                   <input
-                    className="tp-input-soft w-full bg-white px-2.5 py-1.5 text-[13px]"
+                    className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} w-full px-2.5 py-1.5 text-[13px]`}
                     value={guestDisplayName}
                     onChange={(event) => setGuestDisplayName(event.target.value)}
                     placeholder="비회원 닉네임"
                     maxLength={24}
                   />
                   <input
-                    className="tp-input-soft w-full bg-white px-2.5 py-1.5 text-[13px]"
+                    className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} w-full px-2.5 py-1.5 text-[13px]`}
                     type="password"
                     value={guestPassword}
                     onChange={(event) => setGuestPassword(event.target.value)}
@@ -788,7 +805,7 @@ export function PostCommentThread({
                 </div>
               ) : null}
               <textarea
-                className="tp-input-soft min-h-[72px] w-full bg-white px-2.5 py-1.5 text-[13px] sm:min-h-[84px]"
+                className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} min-h-[72px] w-full px-2.5 py-1.5 text-[13px] sm:min-h-[84px]`}
                 value={replyContent.root ?? ""}
                 onChange={(event) =>
                   setReplyContent((prev) => ({ ...prev, root: event.target.value }))
@@ -809,7 +826,7 @@ export function PostCommentThread({
               </div>
             </>
           ) : (
-            <div className="tp-form-panel-muted tp-text-accent px-3 py-2 text-[13px]">
+            <div className={`${POST_COMMENT_FORM_MUTED_CLASS_NAME} tp-text-accent px-3 py-2 text-[13px]`}>
               {interactionDisabledMessage ? (
                 interactionDisabledMessage
               ) : (

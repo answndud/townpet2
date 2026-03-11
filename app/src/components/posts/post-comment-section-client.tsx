@@ -1,11 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { unwrapCommentListResponse } from "@/lib/comment-client";
 import { emitPostCommentCountSync } from "@/lib/post-comment-count-sync";
+import { subscribeViewerShellSync } from "@/lib/viewer-shell-sync";
 import { POST_COMMENT_SECTION_STATE_CLASS_NAME } from "@/components/posts/post-comment-layout-class";
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
+import {
+  getPostCommentViewerState,
+  syncPostCommentViewerState,
+} from "@/components/posts/post-comment-viewer-state";
 
 type CommentItem = {
   id: string;
@@ -55,8 +60,16 @@ export function PostCommentSectionClient({
   const [shouldLoad, setShouldLoad] = useState(
     () => typeof window !== "undefined" && !("IntersectionObserver" in window),
   );
+  const [forcedGuestMode, setForcedGuestMode] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mountedRef = useRef(true);
+  const baseViewerState = useMemo(
+    () => getPostCommentViewerState({ currentUserId, canInteract, canInteractWithPostOwner }),
+    [currentUserId, canInteract, canInteractWithPostOwner],
+  );
+  const viewerState = forcedGuestMode
+    ? syncPostCommentViewerState(baseViewerState, { reason: "auth-logout" })
+    : baseViewerState;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -128,6 +141,20 @@ export function PostCommentSectionClient({
     };
   }, [reloadComments, shouldLoad]);
 
+  useEffect(() => {
+    return subscribeViewerShellSync((payload) => {
+      if (payload.reason === "auth-logout") {
+        setForcedGuestMode(true);
+        void reloadComments();
+        return;
+      }
+
+      if (payload.reason === "auth-login") {
+        setForcedGuestMode(false);
+      }
+    });
+  }, [reloadComments]);
+
   if (!shouldLoad) {
     return (
       <div
@@ -168,12 +195,12 @@ export function PostCommentSectionClient({
     <PostCommentThread
       postId={postId}
       comments={comments as unknown as Parameters<typeof PostCommentThread>[0]["comments"]}
-      currentUserId={currentUserId}
-      canInteract={canInteract && canInteractWithPostOwner}
+      currentUserId={viewerState.currentUserId}
+      canInteract={viewerState.canInteract}
       loginHref={loginHref}
       onCommentsChanged={reloadComments}
       interactionDisabledMessage={
-        canInteract && !canInteractWithPostOwner
+        viewerState.currentUserId && canInteract && !canInteractWithPostOwner
           ? "차단 관계에서는 댓글 작성/답글/신고를 사용할 수 없습니다."
           : undefined
       }

@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { ReactionLoginPrompt } from "@/components/posts/reaction-login-prompt";
+import { subscribeViewerShellSync } from "@/lib/viewer-shell-sync";
 import {
   calculatePostReactionScore,
   getPostReactionScoreMagnitude,
@@ -99,6 +100,7 @@ export function PostReactionControls({
   const [dislikes, setDislikes] = useState(initialDislikeCount);
   const [loginIntent, setLoginIntent] = useState<ReactionType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authBlocked, setAuthBlocked] = useState(false);
   const [isPending, startTransition] = useTransition();
   const actionLockRef = useRef(false);
 
@@ -138,17 +140,34 @@ export function PostReactionControls({
 
     const timer = window.setTimeout(() => {
       setLoginIntent(null);
-    }, 2600);
+    }, 3200);
 
     return () => {
       window.clearTimeout(timer);
     };
   }, [loginIntent]);
 
+  useEffect(
+    () =>
+      subscribeViewerShellSync((payload) => {
+        if (payload.reason === "auth-logout") {
+          setAuthBlocked(true);
+          return;
+        }
+
+        if (payload.reason === "auth-login") {
+          setAuthBlocked(false);
+        }
+      }),
+    [],
+  );
+
   const effectiveReaction = hasInteracted ? reaction : (currentReaction ?? reaction);
+  const effectiveCanReact = canReact && !authBlocked;
+  const loginPromptMessage = "좋아요/싫어요는 로그인 후 이용할 수 있어요.";
 
   useEffect(() => {
-    if (!canReact || reactionLoaded) {
+    if (!effectiveCanReact || reactionLoaded) {
       return;
     }
 
@@ -183,7 +202,7 @@ export function PostReactionControls({
     return () => {
       cancelled = true;
     };
-  }, [canReact, hasInteracted, postId, reactionLoaded]);
+  }, [effectiveCanReact, hasInteracted, postId, reactionLoaded]);
 
   const buttonClass = compact
     ? "inline-flex tp-btn-xs min-w-[60px] items-center justify-center rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-60"
@@ -213,7 +232,7 @@ export function PostReactionControls({
       return;
     }
 
-    if (!canReact) {
+    if (!effectiveCanReact) {
       setLoginIntent(target);
       return;
     }
@@ -242,6 +261,10 @@ export function PostReactionControls({
           setReaction(previous.reaction);
           setLikes(previous.likeCount);
           setDislikes(previous.dislikeCount);
+          if (result.code === "AUTH_REQUIRED") {
+            setAuthBlocked(true);
+            setLoginIntent(target);
+          }
           setError(result.message);
           onStateChange?.(previous);
           return;
@@ -268,6 +291,7 @@ export function PostReactionControls({
           type="button"
           onClick={() => handleToggle(REACTION_TYPE.LIKE)}
           disabled={isPending}
+          aria-disabled={!effectiveCanReact || isPending}
           aria-label={`좋아요 ${likes.toLocaleString()}개`}
           title={`좋아요 ${likes.toLocaleString()}개`}
           className={`${buttonClass} ${
@@ -278,17 +302,14 @@ export function PostReactionControls({
         >
           좋아요
         </button>
-        {!canReact && showLoginHint && loginIntent === REACTION_TYPE.LIKE ? (
-          <div
-            className={`absolute left-0 top-[calc(100%+8px)] z-10 max-w-[min(86vw,260px)] rounded-lg border border-[#dbe6f6] bg-white px-2.5 py-1.5 text-[#355988] shadow-[0_8px_18px_rgba(16,40,74,0.12)] sm:left-1/2 sm:-translate-x-1/2 ${
-              compact ? "text-[11px]" : "text-xs"
-            }`}
-          >
-            로그인 후 좋아요 누르기 가능.{" "}
-            <Link href={loginHref} className="font-semibold text-[#2f5da4] underline underline-offset-2">
-              로그인하기
-            </Link>
-          </div>
+        {!effectiveCanReact && showLoginHint && loginIntent === REACTION_TYPE.LIKE ? (
+          <ReactionLoginPrompt
+            isOpen
+            message={loginPromptMessage}
+            loginHref={loginHref}
+            align="center"
+            onClose={() => setLoginIntent(null)}
+          />
         ) : null}
       </div>
       <div
@@ -305,6 +326,7 @@ export function PostReactionControls({
           type="button"
           onClick={() => handleToggle(REACTION_TYPE.DISLIKE)}
           disabled={isPending}
+          aria-disabled={!effectiveCanReact || isPending}
           aria-label={`싫어요 ${dislikes.toLocaleString()}개`}
           title={`싫어요 ${dislikes.toLocaleString()}개`}
           className={`${buttonClass} ${
@@ -315,17 +337,14 @@ export function PostReactionControls({
         >
           싫어요
         </button>
-        {!canReact && showLoginHint && loginIntent === REACTION_TYPE.DISLIKE ? (
-          <div
-            className={`absolute right-0 top-[calc(100%+8px)] z-10 max-w-[min(86vw,260px)] rounded-lg border border-[#dbe6f6] bg-white px-2.5 py-1.5 text-[#355988] shadow-[0_8px_18px_rgba(16,40,74,0.12)] sm:left-1/2 sm:right-auto sm:-translate-x-1/2 ${
-              compact ? "text-[11px]" : "text-xs"
-            }`}
-          >
-            로그인 후 싫어요 누르기 가능.{" "}
-            <Link href={loginHref} className="font-semibold text-[#2f5da4] underline underline-offset-2">
-              로그인하기
-            </Link>
-          </div>
+        {!effectiveCanReact && showLoginHint && loginIntent === REACTION_TYPE.DISLIKE ? (
+          <ReactionLoginPrompt
+            isOpen
+            message={loginPromptMessage}
+            loginHref={loginHref}
+            align="center"
+            onClose={() => setLoginIntent(null)}
+          />
         ) : null}
       </div>
       {!compact && error ? (

@@ -552,7 +552,7 @@ export function PostDetailClient({ postId, cspNonce }: PostDetailClientProps) {
               </div>
             </div>
 
-            <section className="tp-border-soft tp-surface-alt mt-3 rounded-xl border px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
+            <section className="tp-border-soft tp-surface-page-soft mt-3 rounded-xl border px-3 py-3.5 sm:mt-4 sm:px-5 sm:py-4">
               <h2 className="tp-text-label mb-2 text-[11px] font-semibold tracking-[0.14em]">내용</h2>
               <article className="tp-text-body tp-text-primary">
                 {shouldUsePlainFallback ? (

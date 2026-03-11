@@ -336,6 +336,10 @@ body {
   background: #f7fbff;
 }
 
+.tp-surface-page-soft {
+  background: #fbfdff;
+}
+
 .tp-text-disabled {
   color: #91a6c6;
 }
@@ -392,6 +396,14 @@ body {
   border: 1px solid #dbe6f6;
   border-radius: 0.75rem;
   background: #ffffff;
+}
+
+.tp-form-panel-page-soft {
+  background: #ffffff;
+}
+
+.tp-form-field-page-soft {
+  background: #fcfeff;
 }
 
 .tp-editor-toolbar {
