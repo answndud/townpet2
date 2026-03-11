@@ -418,10 +418,10 @@ export function PostDetailEditForm({
       className="tp-card w-full p-5 sm:p-6"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[#153a6a]">게시물 수정</h2>
+        <h2 className="tp-text-page-title-sm tp-text-heading">게시물 수정</h2>
         <button
           type="submit"
-          className="tp-btn-primary px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
+          className="tp-btn-primary tp-btn-sm disabled:cursor-not-allowed disabled:border-[#9fb9e0] disabled:bg-[#9fb9e0]"
           disabled={isPending}
         >
           {isPending ? "저장 중..." : "수정 저장"}
@@ -429,7 +429,7 @@ export function PostDetailEditForm({
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+        <label className="tp-form-label">
           제목
           <input
             className="tp-input-soft px-3 py-2 text-sm"
@@ -442,7 +442,7 @@ export function PostDetailEditForm({
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+        <label className="tp-form-label">
           범위
           <select
             className="tp-input-soft px-3 py-2 text-sm"
@@ -463,7 +463,7 @@ export function PostDetailEditForm({
           </select>
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-[#355988]">
+        <label className="tp-form-label">
           동네
           <select
             className="tp-input-soft px-3 py-2 text-sm"
@@ -488,7 +488,7 @@ export function PostDetailEditForm({
       </div>
 
       {!isAuthenticated ? (
-        <label className="mt-4 flex flex-col gap-2 text-sm font-medium text-[#355988]">
+        <label className="tp-form-label mt-4">
           글 비밀번호
           <input
             type="password"
@@ -505,47 +505,40 @@ export function PostDetailEditForm({
       ) : null}
 
       <div className="tp-card mt-6">
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#dbe6f6] bg-[#f8fbff] px-3 py-2 text-xs">
+        <div className="tp-editor-toolbar-soft">
+          <span className="tp-form-section-title">본문</span>
           <button
             type="button"
             onClick={applyLink}
             onMouseDown={preserveToolbarSelection}
-            className="tp-btn-soft inline-flex h-8 items-center px-3 font-semibold"
+            className="tp-btn-soft tp-btn-sm inline-flex items-center px-3 font-semibold"
           >
             링크
           </button>
           <button
             type="button"
             onClick={() => setEditorTab("write")}
-            className={`inline-flex h-8 items-center border px-3 font-semibold transition ${
-              editorTab === "write"
-                ? "border-[#3567b5] bg-[#3567b5] text-white"
-                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-            }`}
+            className={`inline-flex items-center rounded-lg px-3 transition ${editorTab === "write" ? "tp-btn-primary" : "tp-btn-soft"} tp-btn-sm`}
           >
             작성
           </button>
           <button
             type="button"
             onClick={() => setEditorTab("preview")}
-            className={`inline-flex h-8 items-center border px-3 font-semibold transition ${
-              editorTab === "preview"
-                ? "border-[#3567b5] bg-[#3567b5] text-white"
-                : "border-[#cbdcf5] bg-white text-[#315b9a] hover:bg-[#f5f9ff]"
-            }`}
+            className={`inline-flex items-center rounded-lg px-3 transition ${editorTab === "preview" ? "tp-btn-primary" : "tp-btn-soft"} tp-btn-sm`}
           >
             미리보기
           </button>
           <span
             className={`ml-auto ${
-              formState.content.length > POST_CONTENT_MAX_LENGTH ? "text-rose-600" : "text-[#5a7398]"
+              formState.content.length > POST_CONTENT_MAX_LENGTH ? "text-rose-600" : "tp-text-subtle"
             }`}
           >
             {formState.content.length.toLocaleString("ko-KR")} / {POST_CONTENT_MAX_LENGTH.toLocaleString("ko-KR")}자
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#dbe6f6] bg-white px-3 py-2 text-xs">
+        <div className="tp-editor-toolbar">
           <button
             type="button"
             onClick={() => runEditorCommand("bold")}
@@ -610,7 +603,7 @@ export function PostDetailEditForm({
           >
             인용
           </button>
-          <div className="mx-1 h-5 w-px bg-[#d8e3f4]" />
+          <div className="tp-divider-soft mx-1" />
           <button
             type="button"
             onClick={() => applyStyledSelection("size", "small")}
@@ -643,6 +636,7 @@ export function PostDetailEditForm({
           >
             매우 크게
           </button>
+          <div className="tp-divider-soft mx-1" />
           <button
             type="button"
             onClick={() => applyStyledSelection("color", "blue")}
@@ -684,12 +678,12 @@ export function PostDetailEditForm({
             suppressContentEditableWarning
             onInput={syncEditorToFormState}
             onBlur={syncEditorToFormState}
-            className="min-h-[260px] w-full border-0 bg-[#fcfdff] px-4 py-3 text-sm leading-relaxed text-[#1f3f71] outline-none [&_img]:h-auto [&_img]:max-w-full"
+            className="tp-editor-surface min-h-[260px] w-full border-0 px-4 py-3 text-sm leading-relaxed outline-none [&_img]:h-auto [&_img]:max-w-full"
           />
         ) : (
-          <div className="min-h-[260px] bg-[#fcfdff] px-4 py-3 text-sm text-[#1f3f71]">
+          <div className="tp-editor-surface min-h-[260px] px-4 py-3 text-sm">
             <div
-              className="prose prose-sm max-w-none space-y-2 text-[#1f3f71]"
+              className="prose prose-sm max-w-none space-y-2 tp-text-primary"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </div>

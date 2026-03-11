@@ -26,10 +26,10 @@
 
 ## Active Plan
 
-### Cycle 307: 댓글/글쓰기 폼 semantic 패널 정리 (완료)
+### Cycle 307: 댓글/글쓰기/수정 폼 semantic 패널 정리 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|
-| 댓글 스레드와 글쓰기 구조화 섹션에 semantic form/panel role을 확장 적용 | Codex | P2 | `done` | `globals.css`에 form/panel/editor semantic role class가 추가되고, 댓글 스레드와 글쓰기 구조화 섹션이 같은 role class를 재사용하며, globals role 회귀 테스트가 새 class 존재를 고정한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-create-form.tsx` |
+| 댓글 스레드와 글쓰기/수정 폼에 semantic form/panel role을 확장 적용 | Codex | P2 | `done` | `globals.css`에 form/panel/editor semantic role class가 추가되고, 댓글 스레드와 게시글 작성/수정 폼이 같은 role class를 재사용하며, globals role 회귀 테스트가 새 class 존재를 고정한다 | `PLAN.md`, `PROGRESS.md`, `app/src/app/globals.css`, `app/src/app/globals-css.test.ts`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-create-form.tsx`, `app/src/components/posts/post-detail-edit-form.tsx` |
 
 ### Cycle 306: 게시글 상세 정보 카드 공통화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
