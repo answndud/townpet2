@@ -25,6 +25,11 @@
 7. 보안 하드닝 트랙 분리 운영: `docs/security/*` 백로그/리스크/진행 로그 상시 동기화
 
 ## Active Plan
+### Cycle 365: post-moderation-controls 누락으로 인한 배포 빌드 복구 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `post-detail-client.tsx`가 참조하는 `post-moderation-controls` 컴포넌트를 저장소에 추적 파일로 추가하고, 관련 회귀 테스트를 더해 배포 빌드의 module-not-found를 복구 | Codex | P1 | `done` | `post-moderation-controls.tsx`와 관련 테스트가 저장소에 포함되고, lint/test/typecheck가 통과하며, 로컬 `next build`는 module-not-found 없이 컴파일 단계를 통과하고 남은 실패가 있으면 `PROGRESS.md`에 환경 변수 이슈로 분리 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-moderation-controls.tsx`, `app/src/components/posts/post-moderation-controls.test.tsx`, `app/src/components/posts/post-detail-client.tsx` |
+
 ### Cycle 364: 게시글 작성자 이름에도 프로필/뮤트 메뉴 적용 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

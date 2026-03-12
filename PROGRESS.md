@@ -17,6 +17,18 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-12: Cycle 365 완료 (post-moderation-controls 누락으로 인한 배포 빌드 복구)
+- 완료 내용
+  - Vercel 배포 로그에서 `app/src/components/posts/post-detail-client.tsx`가 `@/components/posts/post-moderation-controls`를 찾지 못해 build가 중단되는 것을 확인했다.
+  - 누락돼 있던 `app/src/components/posts/post-moderation-controls.tsx`를 저장소에 추가했고, response parsing failure-path를 검증할 수 있도록 `parsePostModerationResponsePayload()`를 export했다.
+  - `app/src/components/posts/post-moderation-controls.test.tsx`를 추가해 ACTIVE 게시글 렌더와 moderation API 실패 payload 처리 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/posts/post-moderation-controls.tsx src/components/posts/post-moderation-controls.test.tsx src/components/posts/post-detail-client.tsx` 통과
+  - `pnpm -C app test -- src/components/posts/post-moderation-controls.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `168 files / 807 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+  - `pnpm -C app build`는 module-not-found 없이 컴파일을 통과했고, 이후 local 보안 env 부족(`AUTH_SECRET_OR_NEXTAUTH_SECRET_WEAK`, `CSP_ENFORCE_STRICT`, `GUEST_HASH_PEPPER`, `UPSTASH_REDIS_REST_URL_AND_TOKEN_PAIR`, `RESEND_API_KEY`)으로 page-data 단계에서 중단됨
+
 ### 2026-03-12: Cycle 364 완료 (게시글 작성자 이름에도 프로필/뮤트 메뉴 적용)
 - 완료 내용
   - `app/src/components/user/user-action-menu.tsx`를 추가해 작성자 이름 클릭 시 열리는 공용 `프로필 보기 / 뮤트(해제)` 메뉴를 분리했다. signed-in 여부, 자기 자신 여부, 외부 클릭 닫힘, 뮤트/해제 action과 메시지 처리 로직을 이 컴포넌트로 모았다.
