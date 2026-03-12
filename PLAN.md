@@ -25,6 +25,11 @@
 7. 보안 하드닝 트랙 분리 운영: `docs/security/*` 백로그/리스크/진행 로그 상시 동기화
 
 ## Active Plan
+### Cycle 364: 게시글 작성자 이름에도 프로필/뮤트 메뉴 적용 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세에서 작성자 닉네임 클릭 시 댓글 작성자와 같은 `프로필 보기 / 뮤트(해제)` 메뉴가 열리도록 공용 메뉴 컴포넌트를 적용하고, 관련 회귀 테스트를 추가 | Codex | P2 | `done` | 공용 `UserActionMenu`가 추가되어 댓글 스레드와 게시글 상세가 같은 작성자 메뉴를 공유하고, 상세 화면은 클릭 메뉴로 프로필 보기와 뮤트/해제를 수행하며, 관련 테스트와 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/user/user-action-menu.tsx`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-detail-client.tsx`, 관련 테스트 |
+
 
 ### Cycle 359: 어드민 헤더 버튼 wrapper 제거로 완전 통일 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |

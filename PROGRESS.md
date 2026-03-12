@@ -17,6 +17,18 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-12: Cycle 364 완료 (게시글 작성자 이름에도 프로필/뮤트 메뉴 적용)
+- 완료 내용
+  - `app/src/components/user/user-action-menu.tsx`를 추가해 작성자 이름 클릭 시 열리는 공용 `프로필 보기 / 뮤트(해제)` 메뉴를 분리했다. signed-in 여부, 자기 자신 여부, 외부 클릭 닫힘, 뮤트/해제 action과 메시지 처리 로직을 이 컴포넌트로 모았다.
+  - `app/src/components/posts/post-comment-thread.tsx`는 기존 로컬 댓글 작성자 메뉴를 제거하고 새 `UserActionMenu`를 재사용하도록 정리했다. 댓글 뮤트 후에는 기존처럼 현재 댓글 페이지를 다시 불러와 같은 위치를 유지한다.
+  - `app/src/components/posts/post-detail-client.tsx`에서는 게시글 작성자 이름을 더 이상 직접 프로필 링크로 렌더하지 않고, 일반 회원 작성글이면 같은 `UserActionMenu`를 열도록 바꿨다. 상세 헤더의 기존 relation control row는 제거하고, 메뉴에서 뮤트/해제 시 relation state와 안내 메시지를 로컬로 즉시 갱신한다.
+  - `app/src/components/user/user-action-menu.test.tsx`를 추가해 메뉴 렌더, 뮤트 해제 라벨, 비로그인 plain text fallback, helper guard를 회귀로 고정했고, `app/src/components/posts/post-comment-thread.test.tsx`의 relation action mock도 공용 메뉴에 맞게 보강했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/user/user-action-menu.tsx src/components/user/user-action-menu.test.tsx src/components/posts/post-comment-thread.tsx src/components/posts/post-comment-thread.test.tsx src/components/posts/post-detail-client.tsx` 통과
+  - `pnpm -C app test -- src/components/user/user-action-menu.test.tsx src/components/posts/post-comment-thread.test.tsx` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-12: Cycle 359 완료 (어드민 헤더 버튼 wrapper 제거로 완전 통일)
 - 완료 내용
   - 어드민 헤더의 `신고 큐`, `인증 로그`, `권한 정책`이 같은 `nav link`를 쓰더라도 별도 둥근 wrapper 안에 묶여 있어 다른 상단 버튼과 실루엣이 달라 보이던 문제를 정리했다.
