@@ -82,6 +82,20 @@
   - `pnpm -C app typecheck` 통과
   - `git diff --check` 통과
 
+### 2026-03-12: Cycle 360 완료 (피드 기간 필터 petType 전체선택 정규화)
+- 완료 내용
+  - `app/src/lib/feed-pet-type-filter.ts`를 추가해 feed에서 쓰는 petType 목록을 공통 정규화하도록 만들었고, 선택값이 전체 커뮤니티 집합과 같으면 `[]`로 돌려 `필터 없음`으로 취급하게 했다.
+  - `app/src/app/api/feed/guest/route.ts`는 더 이상 guest 기본 피드에서 `petType` 미지정 상태를 전체 커뮤니티 `IN (...)` 필터로 바꾸지 않으며, `period=3/7/30` 요청에서도 전체 선택 query를 빈 필터로 정규화한 뒤 조회한다.
+  - `app/src/app/feed/page.tsx`도 인증 피드에서 저장된 관심 동물/쿼리 petType를 같은 규칙으로 정규화하고, 전체 petType가 URL에 반복된 경우 렌더 전에 canonical `/feed?...`로 redirect 하도록 보강했다.
+  - `app/src/components/posts/guest-feed-page-client.tsx`는 guest feed 응답 상태 기준 canonical href를 다시 계산해, 기존처럼 `petType`가 전부 붙은 이상 URL이 남아 있으면 `/feed?period=7` 같은 공개 URL로 즉시 replace 한다.
+  - `app/src/components/navigation/feed-hover-menu.tsx`와 `app/src/lib/validations/user.ts`는 관심 동물 `전체 선택` 저장을 빈 필터 의미로 다룰 수 있게 맞췄다. guest 쿠키/push URL은 전부 선택 시 `petType`를 쓰지 않고, auth 저장도 빈 배열을 허용해 `전체 선택`과 `필터 없음` 의미를 일치시켰다.
+  - `app/src/lib/feed-pet-type-filter.test.ts`, `app/src/app/api/feed/guest/route.test.ts`에 전체 선택 정규화와 `period=7` 회귀를 추가했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/feed-pet-type-filter.ts src/lib/feed-pet-type-filter.test.ts src/lib/validations/user.ts src/components/navigation/feed-hover-menu.tsx src/app/feed/page.tsx src/app/api/feed/guest/route.ts src/components/posts/guest-feed-page-client.tsx src/app/api/feed/guest/route.test.ts` 통과
+  - `pnpm -C app test -- src/lib/feed-pet-type-filter.test.ts src/app/api/feed/guest/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `159 files / 778 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-12: Cycle 359 완료 (어드민 헤더 버튼 wrapper 제거로 완전 통일)
 - 완료 내용
   - 어드민 헤더의 `신고 큐`, `인증 로그`, `권한 정책`이 같은 `nav link`를 쓰더라도 별도 둥근 wrapper 안에 묶여 있어 다른 상단 버튼과 실루엣이 달라 보이던 문제를 정리했다.

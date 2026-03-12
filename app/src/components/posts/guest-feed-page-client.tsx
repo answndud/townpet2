@@ -74,6 +74,118 @@ type GuestFeedResponse =
   | { ok: true; data: GuestFeedGate | GuestFeedView }
   | { ok: false; error: { code: string; message: string } };
 
+function buildGuestFeedHref({
+  type,
+  reviewBoard,
+  reviewCategory,
+  petTypeIds,
+  query,
+  mode,
+  bestDays,
+  periodDays,
+  selectedSort,
+  selectedSearchIn,
+  density,
+  resolvedPage,
+  nextType,
+  nextPetTypeId,
+  nextReviewCategory,
+  nextQuery,
+  nextPage,
+  nextMode,
+  nextDays,
+  nextPeriod,
+  nextSort,
+  nextSearchIn,
+  nextDensity,
+}: {
+  type: PostType | null;
+  reviewBoard: boolean;
+  reviewCategory: ReviewCategory | null;
+  petTypeIds: string[];
+  query: string;
+  mode: FeedMode;
+  bestDays: BestDay;
+  periodDays: FeedPeriod | null;
+  selectedSort: FeedSort;
+  selectedSearchIn: FeedSearchIn;
+  density: FeedDensity;
+  resolvedPage: number;
+  nextType?: PostType | null;
+  nextPetTypeId?: string | null;
+  nextReviewCategory?: ReviewCategory | null;
+  nextQuery?: string | null;
+  nextPage?: number | null;
+  nextMode?: FeedMode | null;
+  nextDays?: BestDay | null;
+  nextPeriod?: FeedPeriod | null;
+  nextSort?: FeedSort | null;
+  nextSearchIn?: FeedSearchIn | null;
+  nextDensity?: FeedDensity | null;
+}) {
+  const params = new URLSearchParams();
+  const resolvedType = nextType === undefined ? type : nextType;
+  const resolvedPetTypeIds =
+    nextPetTypeId === undefined
+      ? petTypeIds
+      : nextPetTypeId
+        ? [nextPetTypeId]
+        : [];
+  const resolvedReviewCategory =
+    nextReviewCategory === undefined ? reviewCategory : nextReviewCategory;
+  const resolvedQuery = nextQuery === undefined ? query : nextQuery;
+  const resolvedMode = nextMode === undefined ? mode : nextMode;
+  const resolvedDays = nextDays === undefined ? bestDays : nextDays;
+  const resolvedPeriod = nextPeriod === undefined ? periodDays : nextPeriod;
+  const resolvedSort = nextSort == null ? selectedSort : nextSort;
+  const resolvedSearchIn = nextSearchIn == null ? selectedSearchIn : nextSearchIn;
+  const resolvedDensity = nextDensity == null ? density : nextDensity;
+  const effectivePage = nextPage === undefined ? resolvedPage : nextPage;
+  const shouldKeepReviewBoard =
+    reviewBoard && resolvedType === null && !resolvedReviewCategory;
+  const normalizedType = shouldKeepReviewBoard ? PostType.PRODUCT_REVIEW : resolvedType;
+
+  if (normalizedType) {
+    params.set("type", normalizedType);
+  }
+  const canUseCommunityFilter =
+    !normalizedType ||
+    (!isCommonBoardPostType(normalizedType) && !isFreeBoardPostType(normalizedType));
+  if (canUseCommunityFilter) {
+    for (const value of resolvedPetTypeIds) {
+      params.append("petType", value);
+    }
+  }
+  if (resolvedReviewCategory) {
+    params.set("review", resolvedReviewCategory);
+  }
+  if (resolvedQuery) {
+    params.set("q", resolvedQuery);
+  }
+  if (resolvedSearchIn !== "ALL") {
+    params.set("searchIn", resolvedSearchIn);
+  }
+  if (resolvedDensity === "ULTRA") {
+    params.set("density", "ULTRA");
+  }
+  if (resolvedMode === "BEST") {
+    params.set("mode", "BEST");
+    params.set("days", String(resolvedDays));
+  } else if (resolvedSort !== "LATEST") {
+    params.set("sort", resolvedSort);
+    if (resolvedPeriod) {
+      params.set("period", String(resolvedPeriod));
+    }
+  } else if (resolvedPeriod) {
+    params.set("period", String(resolvedPeriod));
+  }
+  if (effectivePage && effectivePage > 1) {
+    params.set("page", String(effectivePage));
+  }
+  const serialized = params.toString();
+  return serialized ? `/feed?${serialized}` : "/feed";
+}
+
 export function GuestFeedPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -182,6 +294,31 @@ export function GuestFeedPageClient() {
         : "최신";
   }, [data]);
 
+  useEffect(() => {
+    if (data?.view !== "feed" || typeof window === "undefined") {
+      return;
+    }
+
+    const canonicalHref = buildGuestFeedHref({
+      type: data.feed.type,
+      reviewBoard: data.feed.reviewBoard,
+      reviewCategory: data.feed.reviewCategory,
+      petTypeIds: data.feed.petTypeIds,
+      query: data.feed.query,
+      mode: data.feed.mode,
+      bestDays: data.feed.bestDays,
+      periodDays: data.feed.periodDays,
+      selectedSort: data.feed.selectedSort,
+      selectedSearchIn: data.feed.selectedSearchIn,
+      density: data.feed.density,
+      resolvedPage: data.feed.resolvedPage,
+    });
+    const currentHref = `${window.location.pathname}${window.location.search}`;
+    if (canonicalHref !== currentHref) {
+      router.replace(canonicalHref);
+    }
+  }, [data, queryString, router]);
+
   if (data?.view === "gate") {
     return (
       <NeighborhoodGateNotice
@@ -266,69 +403,32 @@ export function GuestFeedPageClient() {
     nextSort?: FeedSort | null;
     nextSearchIn?: FeedSearchIn | null;
     nextDensity?: FeedDensity | null;
-  }) => {
-    const params = new URLSearchParams();
-    const resolvedType = nextType === undefined ? type : nextType;
-    const resolvedPetTypeIds =
-      nextPetTypeId === undefined
-        ? petTypeIds
-        : nextPetTypeId
-          ? [nextPetTypeId]
-          : [];
-    const resolvedReviewCategory =
-      nextReviewCategory === undefined ? reviewCategory : nextReviewCategory;
-    const resolvedQuery = nextQuery === undefined ? query : nextQuery;
-    const resolvedMode = nextMode === undefined ? mode : nextMode;
-    const resolvedDays = nextDays === undefined ? bestDays : nextDays;
-    const resolvedPeriod = nextPeriod === undefined ? periodDays : nextPeriod;
-    const resolvedSort = nextSort == null ? selectedSort : nextSort;
-    const resolvedSearchIn = nextSearchIn == null ? selectedSearchIn : nextSearchIn;
-    const resolvedDensity = nextDensity == null ? density : nextDensity;
-    const effectivePage = nextPage === undefined ? resolvedPage : nextPage;
-    const shouldKeepReviewBoard =
-      reviewBoard && resolvedType === null && !resolvedReviewCategory;
-    const normalizedType = shouldKeepReviewBoard ? PostType.PRODUCT_REVIEW : resolvedType;
-
-    if (normalizedType) {
-      params.set("type", normalizedType);
-    }
-    const canUseCommunityFilter =
-      !normalizedType ||
-      (!isCommonBoardPostType(normalizedType) && !isFreeBoardPostType(normalizedType));
-    if (canUseCommunityFilter) {
-      for (const value of resolvedPetTypeIds) {
-        params.append("petType", value);
-      }
-    }
-    if (resolvedReviewCategory) {
-      params.set("review", resolvedReviewCategory);
-    }
-    if (resolvedQuery) {
-      params.set("q", resolvedQuery);
-    }
-    if (resolvedSearchIn !== "ALL") {
-      params.set("searchIn", resolvedSearchIn);
-    }
-    if (resolvedDensity === "ULTRA") {
-      params.set("density", "ULTRA");
-    }
-    if (resolvedMode === "BEST") {
-      params.set("mode", "BEST");
-      params.set("days", String(resolvedDays));
-    } else if (resolvedSort !== "LATEST") {
-      params.set("sort", resolvedSort);
-      if (resolvedPeriod) {
-        params.set("period", String(resolvedPeriod));
-      }
-    } else if (resolvedPeriod) {
-      params.set("period", String(resolvedPeriod));
-    }
-    if (effectivePage && effectivePage > 1) {
-      params.set("page", String(effectivePage));
-    }
-    const serialized = params.toString();
-    return serialized ? `/feed?${serialized}` : "/feed";
-  };
+  }) =>
+    buildGuestFeedHref({
+      type,
+      reviewBoard,
+      reviewCategory,
+      petTypeIds,
+      query,
+      mode,
+      bestDays,
+      periodDays,
+      selectedSort,
+      selectedSearchIn,
+      density,
+      resolvedPage,
+      nextType,
+      nextPetTypeId,
+      nextReviewCategory,
+      nextQuery,
+      nextPage,
+      nextMode,
+      nextDays,
+      nextPeriod,
+      nextSort,
+      nextSearchIn,
+      nextDensity,
+    });
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#ffffff_0%,#fdfefe_55%,#fbfdff_100%)] pb-16">

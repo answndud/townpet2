@@ -87,7 +87,7 @@ export const profileImageUpdateSchema = z.object({
 
 export const preferredPetTypesSchema = z
   .object({
-    petTypeIds: z.array(z.string().cuid()).min(1).max(50),
+    petTypeIds: z.array(z.string().cuid()).max(50),
   })
   .transform((value) => ({
     petTypeIds: Array.from(new Set(value.petTypeIds)),

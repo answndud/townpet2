@@ -51,6 +51,11 @@
 |---|---|---|---|---|---|
 | 신고 없이도 운영자가 스팸/분탕 사용자를 직접 단계적 제재하고, 같은 사용자의 최근 ACTIVE 글/댓글을 일괄 숨길 수 있는 moderator 전용 API와 관리자 UI를 추가 | Codex | P1 | `done` | direct moderation validation/service가 사용자 ID 또는 이메일을 해석해 일반 사용자 계정만 대상으로 직접 제재/최근 콘텐츠 숨김을 수행하고, moderator 전용 `/api/admin/moderation/users/sanction`, `/api/admin/moderation/users/hide-content`, `/admin/moderation/direct`가 추가되며, 신고 큐/모더레이션 로그/헤더에서 새 화면으로 이동할 수 있고, 관련 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/validations/direct-moderation.ts`, `app/src/server/services/direct-moderation.service.ts`, `app/src/app/api/admin/moderation/users/**`, `app/src/app/admin/moderation/direct/page.tsx`, `app/src/components/admin/direct-moderation-panel.tsx`, 관련 테스트 |
 
+### Cycle 360: 피드 기간 필터 petType 전체선택 정규화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `/feed`와 guest feed에서 `period(3/7/30)` 선택 시 전체 petType 목록이 URL/실제 조회 조건으로 고정되어 최근 글이 비는 문제를 수정하고, `전체 선택 = 필터 없음` 정규화와 회귀 테스트를 추가 | Codex | P1 | `done` | 인증 `/feed`, guest `/api/feed/guest`, guest `/feed` 링크 생성, 관심 동물 저장 push 경로가 전체 petType 선택을 빈 필터로 정규화하고, `period=7` 회귀 테스트 및 lint/test/typecheck/diff check 결과가 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/feed-pet-type-filter.ts`, `app/src/app/feed/page.tsx`, `app/src/app/api/feed/guest/route.ts`, `app/src/components/posts/guest-feed-page-client.tsx`, `app/src/components/navigation/feed-hover-menu.tsx`, 관련 테스트 |
+
 ### Cycle 359: 어드민 헤더 버튼 wrapper 제거로 완전 통일 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

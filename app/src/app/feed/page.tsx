@@ -30,6 +30,7 @@ import {
   PET_TYPE_PREFERENCE_COOKIE,
   parsePetTypePreferenceCookie,
 } from "@/lib/pet-type-preference-cookie";
+import { normalizeFeedPetTypeIds } from "@/lib/feed-pet-type-filter";
 import { isFreeBoardPostType } from "@/lib/post-type-groups";
 import { postTypeMeta } from "@/lib/post-presenter";
 import { REVIEW_CATEGORY, type ReviewCategory } from "@/lib/review-category";
@@ -342,19 +343,46 @@ export default async function Home({ searchParams }: HomePageProps) {
     (requestedType === PostType.PLACE_REVIEW ? REVIEW_CATEGORY.PLACE : undefined);
   const reviewBoard = isLegacyReviewType || Boolean(reviewCategory);
   const requestedPetTypeId = listInput?.petTypeId;
-  const requestedPetTypeIds =
+  const requestedPetTypeIds = normalizeFeedPetTypeIds(
     normalizedPetTypeValues.length > 0
-      ? Array.from(new Set(normalizedPetTypeValues)).filter((id) => allPetTypeIds.includes(id))
+      ? normalizedPetTypeValues
       : requestedPetTypeId
-        ? [requestedPetTypeId].filter((id) => allPetTypeIds.includes(id))
-        : [];
+        ? [requestedPetTypeId]
+        : [],
+    allPetTypeIds,
+  );
+  const uniqueRequestedPetTypeIds = Array.from(new Set(normalizedPetTypeValues));
+  const shouldCanonicalizePetTypeQuery =
+    normalizedPetTypeValues.length > 0 &&
+    (uniqueRequestedPetTypeIds.length !== requestedPetTypeIds.length ||
+      uniqueRequestedPetTypeIds.some((value, index) => requestedPetTypeIds[index] !== value));
+  if (shouldCanonicalizePetTypeQuery) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(resolvedParams)) {
+      if (key === "petType") {
+        continue;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item.length > 0) {
+            params.append(key, item);
+          }
+        }
+        continue;
+      }
+      if (typeof value === "string" && value.length > 0) {
+        params.set(key, value);
+      }
+    }
+    for (const petTypeId of requestedPetTypeIds) {
+      params.append("petType", petTypeId);
+    }
+    const serialized = params.toString();
+    redirect(serialized ? `/feed?${serialized}` : "/feed");
+  }
   const defaultPetTypeIds = isAuthenticated
-    ? preferredPetTypeIds.filter((id) => allPetTypeIds.includes(id)).length > 0
-      ? preferredPetTypeIds.filter((id) => allPetTypeIds.includes(id))
-      : allPetTypeIds
-    : cookiePetTypeIds.length > 0
-      ? cookiePetTypeIds
-      : allPetTypeIds;
+    ? normalizeFeedPetTypeIds(preferredPetTypeIds, allPetTypeIds)
+    : normalizeFeedPetTypeIds(cookiePetTypeIds, allPetTypeIds);
   const isCommonBoardType = type ? isCommonBoardPostType(type) : false;
   const isFreeBoardType = type ? isFreeBoardPostType(type) : false;
   const isLocalRequiredType = isLocalRequiredPostType(type);

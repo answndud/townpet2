@@ -17,6 +17,7 @@ import {
   parsePetTypePreferenceCookie,
   serializePetTypePreferenceCookie,
 } from "@/lib/pet-type-preference-cookie";
+import { normalizeFeedPetTypeIds } from "@/lib/feed-pet-type-filter";
 import { buildBoardListingHref, buildFeedHref } from "@/lib/community-board";
 import { getPostTypeMeta } from "@/lib/post-presenter";
 import { groupPetTypeCommunities } from "@/lib/pet-type-taxonomy";
@@ -34,6 +35,10 @@ type FeedHoverMenuProps = {
   initialPreferredPetTypeIds: string[];
 };
 
+function writePetTypePreferenceCookie(petTypeIds: string[]) {
+  document.cookie = `${PET_TYPE_PREFERENCE_COOKIE}=${encodeURIComponent(serializePetTypePreferenceCookie(petTypeIds))}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function FeedHoverMenu({
   communities,
   isAuthenticated,
@@ -41,6 +46,7 @@ export function FeedHoverMenu({
 }: FeedHoverMenuProps) {
   const groupedCommunities = groupPetTypeCommunities(communities);
   const selectableCommunities = groupedCommunities.flatMap((group) => group.items);
+  const allPetTypeIds = selectableCommunities.map((item) => item.id);
   const boardPostTypes = [
     ...PRIMARY_POST_TYPES.filter(
       (value) => value !== PostType.PLACE_REVIEW && value !== PostType.WALK_ROUTE,
@@ -104,8 +110,13 @@ export function FeedHoverMenu({
       return;
     }
 
+    const normalizedSelectedPetTypeIds = normalizeFeedPetTypeIds(
+      selectedPetTypeIds,
+      allPetTypeIds,
+    );
+
     if (!isAuthenticated) {
-      document.cookie = `${PET_TYPE_PREFERENCE_COOKIE}=${encodeURIComponent(serializePetTypePreferenceCookie(selectedPetTypeIds))}; path=/; max-age=31536000; samesite=lax`;
+      writePetTypePreferenceCookie(normalizedSelectedPetTypeIds);
       setMessage("관심 동물 설정을 저장했습니다.");
       if (pathname?.startsWith("/feed")) {
         const params = new URLSearchParams(
@@ -113,7 +124,7 @@ export function FeedHoverMenu({
         );
         params.delete("petType");
         params.delete("page");
-        for (const petTypeId of selectedPetTypeIds) {
+        for (const petTypeId of normalizedSelectedPetTypeIds) {
           params.append("petType", petTypeId);
         }
         const nextPath = params.toString() ? `/feed?${params.toString()}` : "/feed";
@@ -125,7 +136,7 @@ export function FeedHoverMenu({
     setMessage(null);
     startTransition(async () => {
       const result = await updatePreferredPetTypesAction({
-        petTypeIds: selectedPetTypeIds,
+        petTypeIds: normalizedSelectedPetTypeIds,
       });
 
       if (!result.ok) {

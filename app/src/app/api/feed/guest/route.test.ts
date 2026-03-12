@@ -190,6 +190,36 @@ describe("GET /api/feed/guest", () => {
     );
   });
 
+  it("treats an all-petType query as no filter for period feed requests", async () => {
+    mockCountPosts.mockResolvedValue(1);
+    mockListPosts.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    } as never);
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/feed/guest?petType=c000000000000000000000201&petType=c000000000000000000000202&period=7",
+      ) as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockCountPosts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        days: 7,
+        petTypeId: undefined,
+        petTypeIds: [],
+      }),
+    );
+    expect(mockListPosts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        days: 7,
+        petTypeId: undefined,
+        petTypeIds: [],
+      }),
+    );
+  });
+
   it("returns 500 on unexpected errors", async () => {
     mockListCommunityNavItems.mockRejectedValue(new Error("boom"));
 

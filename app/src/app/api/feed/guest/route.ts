@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { FEED_PAGE_SIZE } from "@/lib/feed";
 import { isCommonBoardPostType } from "@/lib/community-board";
+import { normalizeFeedPetTypeIds } from "@/lib/feed-pet-type-filter";
 import { isLoginRequiredPostType } from "@/lib/post-access";
 import { isFreeBoardPostType } from "@/lib/post-type-groups";
 import { REVIEW_CATEGORY, REVIEW_CATEGORY_VALUES } from "@/lib/review-category";
@@ -223,12 +224,14 @@ export async function GET(request: NextRequest) {
       (requestedType === PostType.PLACE_REVIEW ? REVIEW_CATEGORY.PLACE : undefined);
     const reviewBoard = isLegacyReviewType || Boolean(reviewCategory);
     const requestedPetTypeId = listInput?.petTypeId;
-    const requestedPetTypeIds =
+    const requestedPetTypeIds = normalizeFeedPetTypeIds(
       parsedPetTypes.data.length > 0
-        ? Array.from(new Set(parsedPetTypes.data)).filter((id) => allPetTypeIds.includes(id))
+        ? parsedPetTypes.data
         : requestedPetTypeId
-          ? [requestedPetTypeId].filter((id) => allPetTypeIds.includes(id))
-          : [];
+          ? [requestedPetTypeId]
+          : [],
+      allPetTypeIds,
+    );
     const isCommonBoardType = type ? isCommonBoardPostType(type) : false;
     const isFreeBoardType = type ? isFreeBoardPostType(type) : false;
     const petTypeIds =
@@ -236,7 +239,7 @@ export async function GET(request: NextRequest) {
         ? []
         : requestedPetTypeIds.length > 0
           ? requestedPetTypeIds
-          : allPetTypeIds;
+          : [];
     const petTypeId = petTypeIds[0] ?? null;
     const effectiveScope = PostScope.GLOBAL;
     const mode = toFeedMode(parsed.data.mode);
@@ -282,8 +285,8 @@ export async function GET(request: NextRequest) {
             reviewBoard,
             reviewCategory,
             scope: effectiveScope,
-            petTypeId: requestedPetTypeId ?? undefined,
-            petTypeIds: parsedPetTypes.data,
+            petTypeId: requestedPetTypeIds[0] ?? undefined,
+            petTypeIds: requestedPetTypeIds,
             q: query || undefined,
             searchIn: selectedSearchIn,
             days: periodDays ?? undefined,
