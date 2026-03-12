@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
+import { UserRole } from "@prisma/client";
 
 import { buildGuestIpMeta } from "@/lib/guest-ip-display";
-import { getCurrentUserIdFromRequest } from "@/server/auth";
+import { getCurrentUserIdFromRequest, getCurrentUserRole } from "@/server/auth";
 import { enforceAuthenticatedWriteRateLimit } from "@/server/authenticated-write-throttle";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { assertGuestStepUp } from "@/server/guest-step-up";
@@ -33,6 +34,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const forceGuestMode = request.headers.get("x-guest-mode") === "1";
     const userId = forceGuestMode ? null : await getCurrentUserIdFromRequest(request);
     const viewerId = userId ?? undefined;
+    const viewerRole =
+      userId && !forceGuestMode ? (await getCurrentUserRole())?.role ?? null : null;
     const requestUrl = new URL(request.url);
     const pageParam = Number(requestUrl.searchParams.get("page") ?? "1");
     const limitParam = Number(requestUrl.searchParams.get("limit") ?? "30");
@@ -44,7 +47,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    await assertPostReadable(post, viewerId);
+    await assertPostReadable(post, viewerId, {
+      viewerRole,
+      allowModeratorHiddenRead:
+        viewerRole === UserRole.ADMIN || viewerRole === UserRole.MODERATOR,
+    });
 
     const comments = await listComments(postId, viewerId, {
       page: Number.isFinite(pageParam) ? pageParam : 1,

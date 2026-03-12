@@ -41,6 +41,47 @@
   - `pnpm -C app typecheck` 통과
   - `git diff --check` 통과
 
+### 2026-03-12: Cycle 363 완료 (게시글 상세 관리자 직접 숨김/해제 추가)
+- 완료 내용
+  - `app/src/server/services/post-read-access.service.ts`에 moderator hidden-read 옵션을 추가해, 관리자/모더레이터는 숨김된 게시글과 타동네 `LOCAL` 게시글도 상세 검토용으로 열 수 있게 했다. 일반 사용자와 `DELETED` 게시글 정책은 그대로 유지했다.
+  - `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`는 현재 viewer role을 함께 전달해 moderator hidden-read를 허용하고, 상세 응답에 `canModerate`를 포함하도록 보강했다. 이로써 운영자는 숨김된 게시글 상세와 댓글을 다시 열어 확인할 수 있다.
+  - `app/src/lib/validations/direct-moderation.ts`, `app/src/server/services/direct-moderation.service.ts`에 단건 게시글 visibility 토글 입력과 `toggleDirectPostVisibility()`를 추가했다. 이 경로는 일반 사용자 작성 게시글만 대상으로 하고, `TARGET_HIDDEN`/`TARGET_UNHIDDEN` moderation log와 cache bump를 함께 남긴다.
+  - moderator 전용 API `PATCH /api/admin/moderation/posts/[id]/visibility`를 추가했고, `app/src/components/posts/post-moderation-controls.tsx`, `app/src/components/posts/post-detail-client.tsx`를 보강해 게시글 상세 화면에서 관리자 전용 `게시글 직접 숨김/해제` 패널을 바로 사용할 수 있게 했다.
+  - 숨김 상태 게시글에서는 `PostViewTracker`, personalization dwell, 반응/북마크/신고/댓글 작성 UI를 내리고, 운영자 검토 배너와 moderation 패널만 남겨 운영 동작이 사용자 상호작용과 섞이지 않도록 정리했다.
+  - `app/src/server/services/post-read-access.service.test.ts`, `app/src/server/services/direct-moderation.service.test.ts`, `app/src/app/api/admin/moderation/posts/[id]/visibility/route.test.ts`, `app/src/app/api/posts/[id]/detail/route.test.ts`, `app/src/app/api/posts/[id]/comments/route.test.ts`, validation 테스트를 추가/보강해 moderator hidden-read와 게시글 직접 숨김/해제 계약을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/validations/direct-moderation.ts src/lib/validations/direct-moderation.test.ts src/server/services/post-read-access.service.ts src/server/services/post-read-access.service.test.ts src/server/services/direct-moderation.service.ts src/server/services/direct-moderation.service.test.ts 'src/app/api/admin/moderation/posts/[id]/visibility/route.ts' 'src/app/api/admin/moderation/posts/[id]/visibility/route.test.ts' 'src/app/api/posts/[id]/detail/route.ts' 'src/app/api/posts/[id]/detail/route.test.ts' 'src/app/api/posts/[id]/comments/route.ts' 'src/app/api/posts/[id]/comments/route.test.ts' src/components/posts/post-moderation-controls.tsx src/components/posts/post-detail-client.tsx` 통과
+  - `pnpm -C app test -- src/lib/validations/direct-moderation.test.ts src/server/services/post-read-access.service.test.ts src/server/services/direct-moderation.service.test.ts 'src/app/api/admin/moderation/posts/[id]/visibility/route.test.ts' 'src/app/api/posts/[id]/detail/route.test.ts' 'src/app/api/posts/[id]/comments/route.test.ts'` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `166 files / 801 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-12: Cycle 362 완료 (직접 숨김 safe restore 경로 추가)
+- 완료 내용
+  - `app/src/lib/validations/direct-moderation.ts`에 restore schema를 추가하고, 공용 scope label의 `ALL_ACTIVE` 문구를 `전체 범위`로 정리해 숨김/복구 화면 모두에서 같은 범위 선택을 자연스럽게 쓰도록 맞췄다.
+  - `app/src/server/services/direct-moderation.service.ts`는 `restoreDirectUserContent()`를 추가해 현재 `HIDDEN` 게시글, `DELETED` 댓글 중 마지막 moderation action이 `TARGET_HIDDEN + sourceAction=DIRECT_HIDE_USER_CONTENT`인 대상만 복구하도록 구현했다.
+  - 이 복구 경로는 신고 숨김, 다른 운영 숨김, 이미 복구된 대상은 자동으로 건너뛴다. 복구 시 게시글/댓글 상태를 `ACTIVE`로 되돌리고, 댓글 수 재집계, `TARGET_UNHIDDEN` 로그 기록, 피드/검색/상세/댓글 cache bump를 함께 수행한다.
+  - moderator 전용 API `POST /api/admin/moderation/users/restore-content`를 추가했고, `/admin/moderation/direct`의 direct moderation panel에 `직접 숨김 복구` 섹션과 매크로 endpoint 안내를 보강했다.
+  - `app/src/server/services/direct-moderation.service.test.ts`, `app/src/app/api/admin/moderation/users/restore-content/route.test.ts`, validation 테스트를 확장해 direct hide만 복구되는지와 API 계약을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/validations/direct-moderation.ts src/lib/validations/direct-moderation.test.ts src/server/services/direct-moderation.service.ts src/server/services/direct-moderation.service.test.ts src/app/api/admin/moderation/users/restore-content/route.ts src/app/api/admin/moderation/users/restore-content/route.test.ts src/components/admin/direct-moderation-panel.tsx src/app/admin/moderation/direct/page.tsx` 통과
+  - `pnpm -C app test -- src/server/services/direct-moderation.service.test.ts src/app/api/admin/moderation/users/restore-content/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `164 files / 793 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-12: Cycle 361 완료 (직접 모더레이션 API/UI 추가)
+- 완료 내용
+  - `app/src/lib/validations/direct-moderation.ts`를 추가해 direct moderation 입력을 공통 검증하도록 만들었고, `userKey(userId/email)`, `reason`, `scope(LAST_24H/LAST_7D/ALL_ACTIVE)`를 정규화했다.
+  - `app/src/server/services/direct-moderation.service.ts`는 사용자 ID 또는 이메일로 일반 사용자 계정만 해석한 뒤, `applyDirectUserSanction()`으로 기존 단계적 제재를 재사용하고 `hideDirectUserContent()`로 같은 사용자의 ACTIVE 게시글은 `HIDDEN`, 댓글은 `DELETED` 처리하면서 댓글 수 재집계, moderation action log 기록, 피드/검색/상세/댓글 캐시 bump를 함께 수행하도록 구현했다.
+  - direct moderation은 자기 자신과 `ADMIN`/`MODERATOR` 계정을 대상으로 삼지 못하게 막았다. 현재 제재 가드는 `USER` 권한에만 적용되므로, 일반 사용자 전용으로 제한하는 것이 맞다.
+  - moderator 전용 API `POST /api/admin/moderation/users/sanction`, `POST /api/admin/moderation/users/hide-content`를 추가해 매크로가 신고 API를 우회하지 않고 직접 모더레이션 경로만 호출할 수 있게 했다.
+  - `/admin/moderation/direct` 페이지와 `app/src/components/admin/direct-moderation-panel.tsx`를 추가해, 관리자 화면에서 사용자 식별자 기준 직접 제재와 최근 글/댓글 일괄 숨김을 실행할 수 있게 했다. 신고 큐, 모더레이션 로그, 헤더에도 새 진입 링크를 연결했다.
+  - `app/src/lib/validations/direct-moderation.test.ts`, `app/src/server/services/direct-moderation.service.test.ts`, 두 admin moderation route 테스트를 추가해 입력 검증, 일반 사용자 제한, 직접 제재, 콘텐츠 숨김 API 계약을 회귀로 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/validations/direct-moderation.ts src/lib/validations/direct-moderation.test.ts src/server/services/direct-moderation.service.ts src/server/services/direct-moderation.service.test.ts src/app/api/admin/moderation/users/sanction/route.ts src/app/api/admin/moderation/users/sanction/route.test.ts src/app/api/admin/moderation/users/hide-content/route.ts src/app/api/admin/moderation/users/hide-content/route.test.ts src/components/admin/direct-moderation-panel.tsx src/app/admin/moderation/direct/page.tsx src/app/admin/reports/page.tsx src/app/admin/moderation-logs/page.tsx src/components/navigation/app-shell-header.tsx` 통과
+  - `pnpm -C app test -- src/lib/validations/direct-moderation.test.ts src/server/services/direct-moderation.service.test.ts src/app/api/admin/moderation/users/sanction/route.test.ts src/app/api/admin/moderation/users/hide-content/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `163 files / 789 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-12: Cycle 359 완료 (어드민 헤더 버튼 wrapper 제거로 완전 통일)
 - 완료 내용
   - 어드민 헤더의 `신고 큐`, `인증 로그`, `권한 정책`이 같은 `nav link`를 쓰더라도 별도 둥근 wrapper 안에 묶여 있어 다른 상단 버튼과 실루엣이 달라 보이던 문제를 정리했다.

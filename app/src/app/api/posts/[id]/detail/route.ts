@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
+import { UserRole } from "@prisma/client";
 
 import { renderLiteMarkdown } from "@/lib/markdown-lite";
-import { getCurrentUserIdFromRequest } from "@/server/auth";
+import { getCurrentUserIdFromRequest, getCurrentUserRole } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getPostById } from "@/server/queries/post.queries";
 import { getUserRelationState } from "@/server/queries/user-relation.queries";
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id: postId } = await params;
     const userId = await getCurrentUserIdFromRequest(request);
     const viewerId = userId ?? undefined;
+    const viewerRole = userId ? (await getCurrentUserRole())?.role ?? null : null;
+    const canModerate =
+      viewerRole === UserRole.ADMIN || viewerRole === UserRole.MODERATOR;
     const post = await getPostById(postId, viewerId);
     if (!post) {
       return jsonError(404, {
@@ -26,7 +30,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    await assertPostReadable(post, viewerId);
+    await assertPostReadable(post, viewerId, {
+      viewerRole,
+      allowModeratorHiddenRead: true,
+    });
 
     const renderedContentHtml = renderLiteMarkdown(post.content);
     const renderedContentText = renderedContentHtml
@@ -50,6 +57,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           renderedContentText,
         },
         viewerId: userId,
+        canModerate,
         relationState,
       },
       {

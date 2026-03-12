@@ -1,4 +1,4 @@
-import { PostScope, PostStatus, PostType } from "@prisma/client";
+import { PostScope, PostStatus, PostType, UserRole } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { canGuestReadPost } from "@/lib/post-access";
@@ -46,6 +46,22 @@ describe("assertPostReadable", () => {
       code: "POST_NOT_FOUND",
       status: 404,
     });
+  });
+
+  it("allows moderator to read hidden posts when hidden-read option is enabled", async () => {
+    await expect(
+      assertPostReadable(
+        {
+          ...globalActivePost,
+          status: PostStatus.HIDDEN,
+        },
+        "mod-1",
+        {
+          viewerRole: UserRole.ADMIN,
+          allowModeratorHiddenRead: true,
+        },
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it("throws AUTH_REQUIRED for guest when read policy denies", async () => {
@@ -125,5 +141,24 @@ describe("assertPostReadable", () => {
         "user-1",
       ),
     ).resolves.toBeUndefined();
+  });
+
+  it("allows moderator to bypass local neighborhood check when hidden-read option is enabled", async () => {
+    await expect(
+      assertPostReadable(
+        {
+          status: PostStatus.ACTIVE,
+          scope: PostScope.LOCAL,
+          type: PostType.MEETUP,
+          neighborhoodId: "neighborhood-1",
+        },
+        "mod-1",
+        {
+          viewerRole: UserRole.MODERATOR,
+          allowModeratorHiddenRead: true,
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(mockGetUserWithNeighborhoods).not.toHaveBeenCalled();
   });
 });

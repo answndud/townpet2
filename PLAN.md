@@ -36,6 +36,21 @@
 | 게시글 상세에서 작성자 닉네임 클릭 시 댓글 작성자와 같은 `프로필 보기 / 뮤트(해제)` 메뉴가 열리도록 공용 메뉴 컴포넌트를 적용하고, 관련 회귀 테스트를 추가 | Codex | P2 | `done` | 공용 `UserActionMenu`가 추가되어 댓글 스레드와 게시글 상세가 같은 작성자 메뉴를 공유하고, 상세 화면은 클릭 메뉴로 프로필 보기와 뮤트/해제를 수행하며, 관련 테스트와 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/user/user-action-menu.tsx`, `app/src/components/posts/post-comment-thread.tsx`, `app/src/components/posts/post-detail-client.tsx`, 관련 테스트 |
 
 
+### Cycle 363: 게시글 상세 관리자 직접 숨김/해제 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 게시글 상세 화면에서 운영자가 해당 게시글을 직접 숨기거나 숨김 해제할 수 있는 moderator 전용 API/UI를 추가하고, 숨김된 게시글도 운영자가 다시 열람해 검토할 수 있도록 읽기 가드를 보강 | Codex | P1 | `done` | 게시글 상세 API/댓글 GET은 moderator hidden-read를 허용해 숨김/타동네 LOCAL 게시글도 운영자가 검토할 수 있고, `direct moderation` validation/service에 단건 게시글 숨김/해제 경로와 `/api/admin/moderation/posts/[id]/visibility`가 추가되며, 상세 화면에 관리자 전용 `게시글 직접 숨김/해제` 패널이 노출되고, 관련 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/services/post-read-access.service.ts`, `app/src/server/services/direct-moderation.service.ts`, `app/src/app/api/posts/[id]/detail/route.ts`, `app/src/app/api/posts/[id]/comments/route.ts`, `app/src/app/api/admin/moderation/posts/[id]/visibility/route.ts`, `app/src/components/posts/post-detail-client.tsx`, `app/src/components/posts/post-moderation-controls.tsx`, 관련 테스트 |
+
+### Cycle 362: 직접 숨김 safe restore 경로 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| direct moderation으로 숨긴 콘텐츠만 안전하게 되돌릴 수 있도록 moderator 전용 restore API와 관리자 UI를 추가하고, 마지막 moderation 상태가 direct hide인 대상만 복구되게 보강 | Codex | P1 | `done` | direct moderation validation/service가 restore 입력을 검증하고, 현재 `HIDDEN/DELETED` 대상 중 마지막 moderation action이 direct hide인 post/comment만 `ACTIVE`로 복구하며 commentCount/cache/log를 갱신하고, `/api/admin/moderation/users/restore-content`와 `/admin/moderation/direct` 복구 UI 및 회귀 테스트, lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/validations/direct-moderation.ts`, `app/src/server/services/direct-moderation.service.ts`, `app/src/app/api/admin/moderation/users/restore-content/route.ts`, `app/src/components/admin/direct-moderation-panel.tsx`, 관련 테스트 |
+
+### Cycle 361: 직접 모더레이션 API/UI 추가 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 신고 없이도 운영자가 스팸/분탕 사용자를 직접 단계적 제재하고, 같은 사용자의 최근 ACTIVE 글/댓글을 일괄 숨길 수 있는 moderator 전용 API와 관리자 UI를 추가 | Codex | P1 | `done` | direct moderation validation/service가 사용자 ID 또는 이메일을 해석해 일반 사용자 계정만 대상으로 직접 제재/최근 콘텐츠 숨김을 수행하고, moderator 전용 `/api/admin/moderation/users/sanction`, `/api/admin/moderation/users/hide-content`, `/admin/moderation/direct`가 추가되며, 신고 큐/모더레이션 로그/헤더에서 새 화면으로 이동할 수 있고, 관련 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/validations/direct-moderation.ts`, `app/src/server/services/direct-moderation.service.ts`, `app/src/app/api/admin/moderation/users/**`, `app/src/app/admin/moderation/direct/page.tsx`, `app/src/components/admin/direct-moderation-panel.tsx`, 관련 테스트 |
+
 ### Cycle 359: 어드민 헤더 버튼 wrapper 제거로 완전 통일 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

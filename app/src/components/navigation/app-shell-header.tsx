@@ -173,6 +173,9 @@ export function AppShellHeader({ communities }: AppShellHeaderProps) {
                 <Link href="/admin/reports" className={APP_SHELL_NAV_LINK_CLASS_NAME}>
                   신고 큐
                 </Link>
+                <Link href="/admin/moderation/direct" className={APP_SHELL_NAV_LINK_CLASS_NAME}>
+                  직접 모더레이션
+                </Link>
                 <Link href="/admin/auth-audits" className={APP_SHELL_NAV_LINK_CLASS_NAME}>
                   인증 로그
                 </Link>

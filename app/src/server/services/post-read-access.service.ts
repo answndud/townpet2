@@ -1,4 +1,4 @@
-import { PostScope, PostStatus, PostType } from "@prisma/client";
+import { PostScope, PostStatus, PostType, UserRole } from "@prisma/client";
 
 import { canGuestReadPost } from "@/lib/post-access";
 import { getGuestReadLoginRequiredPostTypes } from "@/server/queries/policy.queries";
@@ -13,8 +13,27 @@ type ReadablePost = {
   neighborhoodId?: string | null;
 };
 
-export async function assertPostReadable(post: ReadablePost, viewerId?: string) {
-  if (post.status !== PostStatus.ACTIVE) {
+type PostReadAccessOptions = {
+  viewerRole?: UserRole | null;
+  allowModeratorHiddenRead?: boolean;
+};
+
+function canModeratorReadHiddenPost(options?: PostReadAccessOptions) {
+  if (!options?.allowModeratorHiddenRead) {
+    return false;
+  }
+
+  return options.viewerRole === UserRole.ADMIN || options.viewerRole === UserRole.MODERATOR;
+}
+
+export async function assertPostReadable(
+  post: ReadablePost,
+  viewerId?: string,
+  options?: PostReadAccessOptions,
+) {
+  const allowModeratorHiddenRead = canModeratorReadHiddenPost(options);
+
+  if (post.status !== PostStatus.ACTIVE && !(allowModeratorHiddenRead && post.status === PostStatus.HIDDEN)) {
     throw new ServiceError("게시글을 찾을 수 없습니다.", "POST_NOT_FOUND", 404);
   }
 
@@ -33,6 +52,10 @@ export async function assertPostReadable(post: ReadablePost, viewerId?: string) 
         401,
       );
     }
+    return;
+  }
+
+  if (allowModeratorHiddenRead) {
     return;
   }
 

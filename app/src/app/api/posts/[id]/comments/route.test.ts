@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { UserRole } from "@prisma/client";
 
 import { GET, POST } from "@/app/api/posts/[id]/comments/route";
-import { getCurrentUserIdFromRequest } from "@/server/auth";
+import { getCurrentUserIdFromRequest, getCurrentUserRole } from "@/server/auth";
 import { monitorUnhandledError } from "@/server/error-monitor";
 import { getGuestPostPolicy } from "@/server/queries/policy.queries";
 import { getPostReadAccessById } from "@/server/queries/post.queries";
@@ -18,7 +19,10 @@ import {
   getOrCreateGuestSystemUserId,
 } from "@/server/services/guest-author.service";
 import { ServiceError } from "@/server/services/service-error";
-vi.mock("@/server/auth", () => ({ getCurrentUserIdFromRequest: vi.fn() }));
+vi.mock("@/server/auth", () => ({
+  getCurrentUserIdFromRequest: vi.fn(),
+  getCurrentUserRole: vi.fn(),
+}));
 vi.mock("@/server/error-monitor", () => ({ monitorUnhandledError: vi.fn() }));
 vi.mock("@/server/queries/policy.queries", () => ({ getGuestPostPolicy: vi.fn() }));
 vi.mock("@/server/queries/post.queries", () => ({ getPostReadAccessById: vi.fn() }));
@@ -54,6 +58,7 @@ vi.mock("@/lib/guest-ip-display", () => ({
 }));
 
 const mockGetCurrentUserIdFromRequest = vi.mocked(getCurrentUserIdFromRequest);
+const mockGetCurrentUserRole = vi.mocked(getCurrentUserRole);
 const mockMonitorUnhandledError = vi.mocked(monitorUnhandledError);
 const mockGetGuestPostPolicy = vi.mocked(getGuestPostPolicy);
 const mockGetPostReadAccessById = vi.mocked(getPostReadAccessById);
@@ -70,6 +75,7 @@ const mockGetOrCreateGuestSystemUserId = vi.mocked(getOrCreateGuestSystemUserId)
 describe("POST /api/posts/[id]/comments contract", () => {
   beforeEach(() => {
     mockGetCurrentUserIdFromRequest.mockReset();
+    mockGetCurrentUserRole.mockReset();
     mockMonitorUnhandledError.mockReset();
     mockGetGuestPostPolicy.mockReset();
     mockGetPostReadAccessById.mockReset();
@@ -83,6 +89,7 @@ describe("POST /api/posts/[id]/comments contract", () => {
     mockGetOrCreateGuestSystemUserId.mockReset();
 
     mockGetCurrentUserIdFromRequest.mockResolvedValue(null);
+    mockGetCurrentUserRole.mockResolvedValue(null);
     mockGetGuestPostPolicy.mockResolvedValue({
       postRateLimit10m: 5,
       postRateLimit1h: 10,
@@ -189,6 +196,34 @@ describe("POST /api/posts/[id]/comments contract", () => {
       page: 1,
       limit: 30,
     });
+  });
+
+  it("passes moderator hidden-read access options on comments GET", async () => {
+    mockGetCurrentUserIdFromRequest.mockResolvedValue("mod-1");
+    mockGetCurrentUserRole.mockResolvedValue({
+      id: "mod-1",
+      role: UserRole.MODERATOR,
+    } as never);
+    mockGetPostReadAccessById.mockResolvedValue({
+      id: "post-1",
+      type: "FREE_POST",
+      scope: "LOCAL",
+      status: "HIDDEN",
+      neighborhoodId: "neighborhood-2",
+    } as never);
+    const request = new Request("http://localhost/api/posts/post-1/comments") as NextRequest;
+
+    const response = await GET(request, { params: Promise.resolve({ id: "post-1" }) });
+
+    expect(response.status).toBe(200);
+    expect(mockAssertPostReadable).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "post-1", status: "HIDDEN" }),
+      "mod-1",
+      {
+        viewerRole: UserRole.MODERATOR,
+        allowModeratorHiddenRead: true,
+      },
+    );
   });
 
   it("returns GUEST_PASSWORD_REQUIRED for guest without password", async () => {

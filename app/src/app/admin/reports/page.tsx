@@ -224,6 +224,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-[#5a7398]">
           <Link href="/admin/moderation-logs">모더레이션 로그</Link>
+          <Link href="/admin/moderation/direct">직접 모더레이션</Link>
           <Link href="/admin/hospital-review-flags">병원 후기 의심 신호</Link>
           <Link href="/admin/auth-audits">인증 감사 로그</Link>
         </div>
