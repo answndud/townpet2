@@ -31,6 +31,11 @@
 |---|---|---|---|---|---|
 | query cache bypass health 노출 이후 로그인 세션 전환과 댓글 auth sync 브라우저 플로우를 더 안정적으로 검증할 수 있게 login helper를 보강하고, 댓글 작성자/guest 입력 testid를 정리하며, 관련 Playwright 시나리오를 추가/갱신 | Codex | P1 | `blocked` | credentials login helper는 성공 시 세션 쿠키를 확인한 뒤 최종 페이지를 재요청하고, 댓글 composer는 auth/guest 상태를 구분할 수 있는 test id를 제공하며, `post-comment-auth-sync`와 `auth-session-hardening` Playwright 시나리오가 green으로 고정되고 검증 로그가 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/e2e/support/auth-helpers.ts`, `app/e2e/auth-session-hardening.spec.ts`, `app/e2e/post-comment-auth-sync.spec.ts`, `app/src/components/auth/login-form.tsx`, `app/src/components/posts/post-comment-thread.tsx` |
 
+### Cycle 354: 검색 자동완성에 구조화 후보 통합 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 메인 검색 suggestion API가 제목/작성자뿐 아니라 구조화 필드 canonical alias와 type별 structured 후보를 함께 반환하도록 확장하고 회귀 테스트를 추가 | Codex | P2 | `done` | `listPostSearchSuggestions()`는 `ALL` 검색에서 canonical structured alias suggestion을 우선 추가하고, 구조화 리뷰/입양/봉사의 canonical 필드를 suggestion 후보로 포함하며, 관련 query 회귀 테스트와 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/queries/post.queries.ts`, `app/src/server/queries/post.queries.test.ts` |
+
 ### Cycle 352: query cache bypass 상태 운영 가시화 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

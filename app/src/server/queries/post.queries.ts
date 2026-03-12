@@ -883,6 +883,62 @@ function buildPostSearchWhere(
   };
 }
 
+type PostSearchSuggestionRow = {
+  title: string;
+  animalTags?: string[];
+  author: {
+    nickname: string | null;
+  };
+  hospitalReview?: {
+    hospitalName?: string | null;
+    treatmentType?: string | null;
+  } | null;
+  placeReview?: {
+    placeName?: string | null;
+    placeType?: string | null;
+    address?: string | null;
+  } | null;
+  walkRoute?: {
+    routeName?: string | null;
+    safetyTags?: string[] | null;
+  } | null;
+  adoptionListing?: {
+    shelterName?: string | null;
+    region?: string | null;
+    animalType?: string | null;
+    breed?: string | null;
+    ageLabel?: string | null;
+    sizeLabel?: string | null;
+  } | null;
+  volunteerRecruitment?: {
+    shelterName?: string | null;
+    region?: string | null;
+    volunteerType?: string | null;
+  } | null;
+};
+
+function listStructuredSuggestionCandidates(row: PostSearchSuggestionRow) {
+  return [
+    ...(row.animalTags ?? []),
+    row.hospitalReview?.hospitalName,
+    row.hospitalReview?.treatmentType,
+    row.placeReview?.placeName,
+    row.placeReview?.placeType,
+    row.placeReview?.address,
+    row.walkRoute?.routeName,
+    ...(row.walkRoute?.safetyTags ?? []),
+    row.adoptionListing?.shelterName,
+    row.adoptionListing?.region,
+    row.adoptionListing?.animalType,
+    row.adoptionListing?.breed,
+    row.adoptionListing?.ageLabel,
+    row.adoptionListing?.sizeLabel,
+    row.volunteerRecruitment?.shelterName,
+    row.volunteerRecruitment?.region,
+    row.volunteerRecruitment?.volunteerType,
+  ];
+}
+
 function buildPostListWhere({
   type,
   reviewBoard,
@@ -4115,6 +4171,13 @@ export async function listPostSearchSuggestions({
   }
 
   const resolvedSearchIn = searchIn ?? DEFAULT_POST_SEARCH_IN;
+  const canonicalSuggestionCandidates =
+    resolvedSearchIn === "ALL"
+      ? buildStructuredSearchVariants(trimmedQuery).filter(
+          (candidate) => candidate.toLowerCase() !== trimmedQuery.toLowerCase(),
+        )
+      : [];
+  const includeStructuredSuggestionFields = resolvedSearchIn === "ALL";
   const hiddenAuthorIds = await listHiddenAuthorIdsForViewer(viewerId);
 
   const runSuggestions = async () =>
@@ -4143,11 +4206,52 @@ export async function listPostSearchSuggestions({
       },
       select: {
         title: true,
+        ...(includeStructuredSuggestionFields ? { animalTags: true } : {}),
         author: {
           select: {
             nickname: true,
           },
         },
+        ...(includeStructuredSuggestionFields
+          ? {
+              hospitalReview: {
+                select: {
+                  hospitalName: true,
+                  treatmentType: true,
+                },
+              },
+              placeReview: {
+                select: {
+                  placeName: true,
+                  placeType: true,
+                  address: true,
+                },
+              },
+              walkRoute: {
+                select: {
+                  routeName: true,
+                  safetyTags: true,
+                },
+              },
+              adoptionListing: {
+                select: {
+                  shelterName: true,
+                  region: true,
+                  animalType: true,
+                  breed: true,
+                  ageLabel: true,
+                  sizeLabel: true,
+                },
+              },
+              volunteerRecruitment: {
+                select: {
+                  shelterName: true,
+                  region: true,
+                  volunteerType: true,
+                },
+              },
+            }
+          : {}),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: Math.min(Math.max(limit * 3, limit), 30),
@@ -4175,19 +4279,27 @@ export async function listPostSearchSuggestions({
   const lowerQuery = trimmedQuery.toLowerCase();
   const suggestions: string[] = [];
   const seen = new Set<string>();
-  const addSuggestion = (value?: string | null) => {
+  const addSuggestion = (value?: string | null, options?: { requireContains?: boolean }) => {
+    const requireContains = options?.requireContains ?? true;
     const normalized = value?.trim();
     if (!normalized) {
       return;
     }
     const lower = normalized.toLowerCase();
-    if (!lower.includes(lowerQuery) || seen.has(lower)) {
+    if ((requireContains && !lower.includes(lowerQuery)) || seen.has(lower)) {
       return;
     }
 
     seen.add(lower);
     suggestions.push(normalized);
   };
+
+  for (const canonicalSuggestion of canonicalSuggestionCandidates) {
+    addSuggestion(canonicalSuggestion, { requireContains: false });
+    if (suggestions.length >= limit) {
+      return suggestions.slice(0, limit);
+    }
+  }
 
   for (const row of rows) {
     if (resolvedSearchIn === "AUTHOR") {
@@ -4196,6 +4308,9 @@ export async function listPostSearchSuggestions({
       addSuggestion(row.title);
       if (resolvedSearchIn === "ALL") {
         addSuggestion(row.author.nickname);
+        for (const candidate of listStructuredSuggestionCandidates(row as PostSearchSuggestionRow)) {
+          addSuggestion(candidate);
+        }
       }
     }
 

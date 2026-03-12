@@ -1310,6 +1310,47 @@ describe("post queries", () => {
     expect(items).toEqual(["강남 산책 코스 추천", "주말 산책 후기", "산책러버"]);
   });
 
+  it("adds canonical structured alias suggestions before row values", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([]);
+
+    const items = await listPostSearchSuggestions({
+      q: "코숏",
+      limit: 5,
+      scope: PostScope.GLOBAL,
+      searchIn: "ALL",
+    });
+
+    expect(items).toContain("코리안 숏헤어");
+  });
+
+  it("includes structured field matches in autocomplete results", async () => {
+    mockPrisma.post.findMany.mockResolvedValue([
+      {
+        title: "수술 후기",
+        animalTags: ["중성화 수술"],
+        author: { nickname: "튼튼견주" },
+        hospitalReview: {
+          hospitalName: "튼튼동물병원",
+          treatmentType: "중성화 수술",
+        },
+        placeReview: null,
+        walkRoute: null,
+        adoptionListing: null,
+        volunteerRecruitment: null,
+      },
+    ]);
+
+    const items = await listPostSearchSuggestions({
+      q: "튼튼",
+      limit: 5,
+      type: PostType.HOSPITAL_REVIEW,
+      scope: PostScope.GLOBAL,
+      searchIn: "ALL",
+    });
+
+    expect(items).toEqual(["튼튼견주", "튼튼동물병원"]);
+  });
+
   it("keeps autocomplete suggestions limited to active posts with stable ordering", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
@@ -1345,6 +1386,14 @@ describe("post queries", () => {
           },
         }),
       ]),
+    );
+    expect(args.select.hospitalReview).toEqual(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          hospitalName: true,
+          treatmentType: true,
+        }),
+      }),
     );
   });
 

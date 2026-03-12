@@ -17,6 +17,17 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-12: Cycle 354 완료 (검색 자동완성에 구조화 후보 통합)
+- 완료 내용
+  - `app/src/server/queries/post.queries.ts`의 `listPostSearchSuggestions()`가 `ALL` 검색일 때 `buildStructuredSearchVariants(query)`로 나온 canonical alias suggestion을 DB row보다 먼저 추가하도록 보강했다.
+  - 같은 query 경로가 제목/작성자 외에도 `animalTags`, 병원후기, 장소후기, 산책코스, 입양, 봉사 구조화 필드를 suggestion 후보로 읽어 오도록 확장했다.
+  - 이 변경으로 병원명/보호소명/품종/치료유형처럼 구조화 필드에만 걸리는 검색도 자동완성에서 더 자연스럽게 canonical 후보를 보여줄 수 있게 됐다.
+- 검증 결과
+  - `pnpm -C app lint src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts` 통과
+  - `pnpm -C app test -- src/server/queries/post.queries.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `155 files / 763 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-12: Cycle 353 진행 중 (로그인 세션/댓글 auth sync 브라우저 검증 보강)
 - 완료 내용
   - `app/e2e/support/auth-helpers.ts`의 credentials login helper가 로그인 성공 시 세션 쿠키 존재를 확인하고 최종 페이지를 다시 로드하도록 보강했고, `loginWithCredentialsApi()`를 추가해 UI/HMR에 덜 흔들리는 credentials 세션 주입 경로를 마련했다.
