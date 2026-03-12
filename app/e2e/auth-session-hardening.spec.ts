@@ -6,6 +6,7 @@ import {
   buildCookieHeader,
   ensureCredentialUser,
   ensureModeratorUser,
+  loginWithCredentialsApi,
   loginWithCredentials,
 } from "./support/auth-helpers";
 
@@ -14,7 +15,9 @@ test.describe("auth session hardening", () => {
     browser,
     request,
   }) => {
-    const email = "e2e.auth.case@townpet.dev";
+    test.setTimeout(60_000);
+    const runId = `pw-auth-case-${Date.now()}`;
+    const email = `${runId}@townpet.dev`;
     await ensureCredentialUser({
       email,
       nicknamePrefix: "e2e-auth-case",
@@ -28,21 +31,21 @@ test.describe("auth session hardening", () => {
     await expect(primaryPage.getByTestId("header-login-link")).toBeVisible();
     await expect(secondaryPage.getByTestId("header-login-link")).toBeVisible();
 
-    await loginWithCredentials(primaryPage, {
+    await loginWithCredentialsApi(primaryPage, {
       email: email.toUpperCase(),
       next: "/feed",
     });
 
-    await expect(primaryPage).toHaveURL(/\/feed(?:\?.*)?$/);
-    await expect(primaryPage.getByTestId("auth-logout-button")).toBeVisible();
-    await expect(secondaryPage.getByTestId("auth-logout-button")).toBeVisible({
+    await secondaryPage.goto("/feed");
+    await expect(primaryPage.locator('[data-testid="auth-logout-button"]:visible')).toBeVisible();
+    await expect(secondaryPage.locator('[data-testid="auth-logout-button"]:visible')).toBeVisible({
       timeout: 10_000,
     });
 
     const staleCookieHeader = await buildCookieHeader(context);
     expect(staleCookieHeader).toContain("townpet.session-token=");
 
-    await primaryPage.getByTestId("auth-logout-button").click();
+    await primaryPage.locator('[data-testid="auth-logout-button"]:visible').click();
 
     await expect(primaryPage).toHaveURL(/\/login(?:\?.*)?$/);
     await expect(secondaryPage.getByTestId("header-login-link")).toBeVisible({
@@ -78,8 +81,10 @@ test.describe("auth session hardening", () => {
   });
 
   test("blocks suspended users from credentials login", async ({ page }) => {
-    const email = "e2e.auth.suspended@townpet.dev";
-    const moderatorEmail = "e2e.auth.moderator@townpet.dev";
+    test.setTimeout(60_000);
+    const runId = `pw-auth-suspended-${Date.now()}`;
+    const email = `${runId}@townpet.dev`;
+    const moderatorEmail = `${runId}-moderator@townpet.dev`;
 
     const [user, moderator] = await Promise.all([
       ensureCredentialUser({

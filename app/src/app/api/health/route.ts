@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { runtimeEnv, validateRuntimeEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { getQueryCacheHealth } from "@/server/cache/query-cache";
 import { logger } from "@/server/logger";
 import { checkModerationControlPlaneHealth } from "@/server/moderation-control-plane";
 import { checkRateLimitHealth } from "@/server/rate-limit";
@@ -80,6 +81,7 @@ export async function GET(request: Request) {
 
   const rateLimitState = await checkRateLimitHealth();
   const controlPlaneState = await checkModerationControlPlaneHealth();
+  const queryCacheHealth = getQueryCacheHealth();
   const envState: CheckState = envValidation.ok ? "ok" : "error";
   const status =
     dbState === "ok" &&
@@ -127,6 +129,12 @@ export async function GET(request: Request) {
           ? controlPlaneState
           : {
               state: controlPlaneState.state,
+            },
+        cache: includeDetailedHealth
+          ? queryCacheHealth
+          : {
+              state: queryCacheHealth.state,
+              backend: queryCacheHealth.backend,
             },
         ...(includeDetailedHealth && dbState === "ok"
           ? {

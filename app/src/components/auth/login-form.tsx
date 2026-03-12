@@ -77,6 +77,10 @@ export function LoginForm({
       }
 
       emitViewerShellSync({ reason: "auth-login" });
+      if (typeof window !== "undefined") {
+        window.location.assign(callbackUrl);
+        return;
+      }
       router.push(callbackUrl);
       router.refresh();
     });

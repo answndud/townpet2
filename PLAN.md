@@ -26,6 +26,16 @@
 
 ## Active Plan
 
+### Cycle 353: 로그인 세션/댓글 auth sync 브라우저 검증 보강
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| query cache bypass health 노출 이후 로그인 세션 전환과 댓글 auth sync 브라우저 플로우를 더 안정적으로 검증할 수 있게 login helper를 보강하고, 댓글 작성자/guest 입력 testid를 정리하며, 관련 Playwright 시나리오를 추가/갱신 | Codex | P1 | `blocked` | credentials login helper는 성공 시 세션 쿠키를 확인한 뒤 최종 페이지를 재요청하고, 댓글 composer는 auth/guest 상태를 구분할 수 있는 test id를 제공하며, `post-comment-auth-sync`와 `auth-session-hardening` Playwright 시나리오가 green으로 고정되고 검증 로그가 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/e2e/support/auth-helpers.ts`, `app/e2e/auth-session-hardening.spec.ts`, `app/e2e/post-comment-auth-sync.spec.ts`, `app/src/components/auth/login-form.tsx`, `app/src/components/posts/post-comment-thread.tsx` |
+
+### Cycle 352: query cache bypass 상태 운영 가시화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| Redis query cache가 bypass/fail-open 상태로 전환됐을 때 운영자가 `/api/health`에서 즉시 볼 수 있도록 cache health를 노출하고, 관련 회귀 테스트를 추가 | Codex | P1 | `done` | `query-cache`는 현재 backend/bypassActive/remaining/lastFailure를 health-friendly shape로 export하고, `/api/health`는 public 최소 상태와 internal token 경로의 상세 cache 상태를 반환하며, 관련 health/query-cache 테스트와 lint/test/typecheck/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/server/cache/query-cache.ts`, `app/src/server/cache/query-cache.test.ts`, `app/src/app/api/health/route.ts`, `app/src/app/api/health/route.test.ts` |
+
 ### Cycle 351: 댓글 auth sync와 검색/캐시/사이트맵 정합성 보강 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

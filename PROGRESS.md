@@ -17,6 +17,35 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-12: Cycle 353 진행 중 (로그인 세션/댓글 auth sync 브라우저 검증 보강)
+- 완료 내용
+  - `app/e2e/support/auth-helpers.ts`의 credentials login helper가 로그인 성공 시 세션 쿠키 존재를 확인하고 최종 페이지를 다시 로드하도록 보강했고, `loginWithCredentialsApi()`를 추가해 UI/HMR에 덜 흔들리는 credentials 세션 주입 경로를 마련했다.
+  - `app/src/components/posts/post-comment-thread.tsx`에 root 댓글 입력/전송, guest 닉네임/비밀번호, 로그인 프롬프트를 식별할 수 있는 test id를 정리했고, `app/e2e/post-comment-auth-sync.spec.ts`를 추가해 탭 간 로그인/로그아웃 후 댓글 composer가 guest/auth 상태로 전환되는 시나리오를 작성했다.
+  - `app/e2e/auth-session-hardening.spec.ts`는 고정 이메일 재사용을 제거하고 각 테스트가 고유 계정으로 돌아가도록 정리했으며, `app/src/components/auth/login-form.tsx`는 credentials 로그인 성공 후 viewer shell sync와 브라우저 location 이동을 즉시 수행하도록 보강했다.
+- 검증 결과
+  - `pnpm -C app lint e2e/auth-session-hardening.spec.ts e2e/support/auth-helpers.ts e2e/post-comment-auth-sync.spec.ts src/app/api/health/route.ts src/app/api/health/route.test.ts src/components/auth/login-form.tsx src/components/posts/post-comment-thread.tsx src/server/cache/query-cache.ts src/server/cache/query-cache.test.ts` 통과
+  - `pnpm -C app test -- src/server/cache/query-cache.test.ts src/app/api/health/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `155 files / 761 tests` 통과
+  - `pnpm -C app typecheck` 통과
+- 블로커
+  - `pnpm -C app test:e2e -- e2e/auth-session-hardening.spec.ts --project=chromium`의 첫 시나리오는 UI login 대신 API 세션 주입 helper를 쓰도록 바꿨지만, 이 세션의 Playwright Chromium launch permission 오류가 섞여 브라우저 기준 green 상태를 다시 확정하지 못했다.
+  - `pnpm -C app test:e2e -- e2e/post-comment-auth-sync.spec.ts --project=chromium`는 한 차례 통과했지만, 후속 재실행에서는 30초 timeout 또는 이 세션의 Playwright Chromium launch permission 오류(`bootstrap_check_in ... Permission denied (1100)`)가 섞여 브라우저 기준 green 상태를 확정하지 못했다.
+  - 따라서 이번 사이클은 코드 변경은 반영됐지만, Playwright 실행 환경이 안정화될 때까지 `blocked` 상태로 유지한다.
+
+### 2026-03-12: Cycle 352 완료 (query cache bypass 상태 운영 가시화)
+- 완료 내용
+  - `app/src/server/cache/query-cache.ts`에 `getQueryCacheHealth()`를 추가해 query cache backend, bypass 활성 여부, 남은 bypass 시간, 마지막 Redis 실패 시각을 health 응답용 shape로 노출했다.
+  - Upstash 장애로 fail-open bypass가 걸리면 `state: warn`, `backend: upstash`, `bypassActive: true`로 표시되고, cache disabled/process-local 경로도 각각 구분된다.
+  - `app/src/app/api/health/route.ts`는 `checks.cache`를 추가해 public 요청에는 `state/backend`만, internal token 요청에는 bypass 상세 정보와 메시지까지 반환하도록 정리했다.
+  - `app/src/server/cache/query-cache.test.ts`는 Upstash 장애 시 cache bypass 후 health shape가 `warn`으로 노출되는 회귀를 추가했고, `app/src/app/api/health/route.test.ts`는 public/detailed health 모두 cache 상태를 포함하는지와 bypass warning을 검증하도록 확장했다.
+- 검증 결과
+  - `pnpm -C app lint src/server/cache/query-cache.ts src/server/cache/query-cache.test.ts src/app/api/health/route.ts src/app/api/health/route.test.ts` 통과
+  - `pnpm -C app test -- src/server/cache/query-cache.test.ts src/app/api/health/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 전체 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+- 메모
+  - 배포 상태 확인 시점 기준 `d53c9c2`의 `quality-gate`는 아직 `in_progress`였고, 로컬 환경에서는 production `api/health`에 대한 직접 curl 응답을 받지 못했다.
+  - 이번 사이클은 운영 관측 보강만 수행했고, 다음 우선순위는 댓글 auth sync E2E 또는 검색 shadow document 고도화다.
+
 ### 2026-03-12: Cycle 351 완료 (댓글 auth sync와 검색/캐시/사이트맵 정합성 보강)
 - 완료 내용
   - `app/src/components/posts/post-comment-viewer-state.ts`에 현재 fetch guest mode 계산 helper를 추가하고, `app/src/components/posts/post-comment-section-client.tsx`가 더 이상 초기 prop `forceGuestMode`에 고정되지 않도록 바꿨다.

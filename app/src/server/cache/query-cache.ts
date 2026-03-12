@@ -31,6 +31,18 @@ const VERSION_SNAPSHOT_TTL_MS = 5_000;
 const REDIS_CACHE_BYPASS_TTL_MS = 60_000;
 let redisFailureLoggedAt = 0;
 let redisCacheBypassUntil = 0;
+let lastRedisFailureAt = 0;
+
+export type QueryCacheHealth = {
+  state: "ok" | "warn";
+  enabled: boolean;
+  backend: "disabled" | "memory" | "upstash";
+  bypassActive: boolean;
+  bypassRemainingMs: number;
+  bypassUntil: string | null;
+  lastFailureAt: string | null;
+  message: string;
+};
 
 function shouldUseCache() {
   return runtimeEnv.queryCacheEnabled;
@@ -54,6 +66,7 @@ function shouldBypassDistributedCache(now = getNow()) {
 
 function markDistributedCacheUnavailable(error: unknown, message: string) {
   const now = getNow();
+  lastRedisFailureAt = now;
   redisCacheBypassUntil = Math.max(redisCacheBypassUntil, now + REDIS_CACHE_BYPASS_TTL_MS);
   if (now - redisFailureLoggedAt > 60_000) {
     redisFailureLoggedAt = now;
@@ -62,6 +75,57 @@ function markDistributedCacheUnavailable(error: unknown, message: string) {
       bypassMs: REDIS_CACHE_BYPASS_TTL_MS,
     });
   }
+}
+
+export function getQueryCacheHealth(now = getNow()): QueryCacheHealth {
+  const enabled = shouldUseCache();
+  const bypassActive = shouldBypassDistributedCache(now);
+  const bypassRemainingMs = bypassActive ? Math.max(redisCacheBypassUntil - now, 0) : 0;
+  const backend: QueryCacheHealth["backend"] = !enabled
+    ? "disabled"
+    : shouldUseUpstashAtRuntime()
+      ? "upstash"
+      : "memory";
+
+  if (!enabled) {
+    return {
+      state: "ok",
+      enabled,
+      backend,
+      bypassActive: false,
+      bypassRemainingMs: 0,
+      bypassUntil: null,
+      lastFailureAt: null,
+      message: "query cache disabled",
+    };
+  }
+
+  if (bypassActive) {
+    return {
+      state: "warn",
+      enabled,
+      backend,
+      bypassActive,
+      bypassRemainingMs,
+      bypassUntil: new Date(redisCacheBypassUntil).toISOString(),
+      lastFailureAt: lastRedisFailureAt > 0 ? new Date(lastRedisFailureAt).toISOString() : null,
+      message: "Redis cache bypass active; distributed query cache temporarily disabled.",
+    };
+  }
+
+  return {
+    state: "ok",
+    enabled,
+    backend,
+    bypassActive,
+    bypassRemainingMs: 0,
+    bypassUntil: null,
+    lastFailureAt: lastRedisFailureAt > 0 ? new Date(lastRedisFailureAt).toISOString() : null,
+    message:
+      backend === "upstash"
+        ? "distributed query cache healthy"
+        : "process-local query cache active",
+  };
 }
 
 function normalizePartValue(value: CacheKeyParts[string]) {

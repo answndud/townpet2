@@ -1208,6 +1208,7 @@ export function PostCommentThread({
               {!currentUserId ? (
                 <div className="mb-1.5 grid gap-1.5 sm:grid-cols-2">
                   <input
+                    data-testid="post-comment-guest-name"
                     className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} w-full px-2.5 py-1.5 text-[13px]`}
                     value={guestDisplayName}
                     onChange={(event) => setGuestDisplayName(event.target.value)}
@@ -1215,6 +1216,7 @@ export function PostCommentThread({
                     maxLength={24}
                   />
                   <input
+                    data-testid="post-comment-guest-password"
                     className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} w-full px-2.5 py-1.5 text-[13px]`}
                     type="password"
                     value={guestPassword}
@@ -1225,6 +1227,7 @@ export function PostCommentThread({
                 </div>
               ) : null}
               <textarea
+                data-testid="post-comment-root-input"
                 className={`tp-input-soft ${POST_COMMENT_FORM_FIELD_CLASS_NAME} min-h-[72px] w-full px-2.5 py-1.5 text-[13px] sm:min-h-[84px]`}
                 value={replyContent.root ?? ""}
                 onChange={(event) =>
@@ -1236,6 +1239,7 @@ export function PostCommentThread({
               />
               <div className="mt-1.5 flex justify-end">
                 <button
+                  data-testid="post-comment-root-submit"
                   type="button"
                   className="tp-btn-primary tp-btn-sm"
                   onClick={() => handleCreate()}
@@ -1247,6 +1251,7 @@ export function PostCommentThread({
             </>
           ) : (
             <div className={`${POST_COMMENT_FORM_MUTED_CLASS_NAME} tp-text-accent px-3 py-2 text-[13px]`}>
+              <div data-testid="post-comment-login-prompt">
               {interactionDisabledMessage ? (
                 interactionDisabledMessage
               ) : (
@@ -1260,6 +1265,7 @@ export function PostCommentThread({
                   </Link>
                 </>
               )}
+              </div>
             </div>
           )}
         </div>

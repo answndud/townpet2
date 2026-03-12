@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from "@playwright/test";
+import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { UserRole } from "@prisma/client";
 
 import { prisma } from "../../src/lib/prisma";
@@ -8,6 +8,15 @@ export const DEFAULT_E2E_PASSWORD =
   process.env.E2E_LOGIN_PASSWORD ??
   process.env.SEED_DEFAULT_PASSWORD ??
   "Password123!";
+
+const SESSION_COOKIE_NAMES = [
+  "townpet.session-token",
+  "__Secure-townpet.session-token",
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
 
 type EnsureCredentialUserParams = {
   email: string;
@@ -97,10 +106,115 @@ export async function loginWithCredentials(
   },
 ) {
   const nextPath = params.next ?? "/feed";
+  const targetPathname = new URL(nextPath, "http://localhost").pathname;
   await page.goto(`/login?next=${encodeURIComponent(nextPath)}`);
   await page.getByTestId("login-email").fill(params.email);
   await page.getByTestId("login-password").fill(params.password ?? DEFAULT_E2E_PASSWORD);
   await page.getByTestId("login-submit").click();
+  const errorMessage = page.getByText(
+    "로그인에 실패했습니다. 입력 정보를 확인하고 다시 시도해 주세요.",
+  );
+
+  await Promise.race([
+    page.waitForURL(
+      (url) => {
+        return url.pathname === targetPathname;
+      },
+      { timeout: 10_000 },
+    ),
+    errorMessage.waitFor({ state: "visible", timeout: 10_000 }),
+  ]);
+
+  if (await errorMessage.isVisible()) {
+    return;
+  }
+
+  await expect
+    .poll(
+      async () => {
+        const cookies = await page.context().cookies();
+        return cookies.some((cookie) => SESSION_COOKIE_NAMES.includes(cookie.name));
+      },
+      {
+        timeout: 10_000,
+        message: "expected authenticated session cookie to exist after credentials login",
+      },
+    )
+    .toBe(true);
+
+  if (new URL(page.url()).pathname !== targetPathname) {
+    await page.goto(nextPath);
+    return;
+  }
+
+  await page.reload();
+}
+
+export async function loginWithCredentialsApi(
+  page: Page,
+  params: {
+    email: string;
+    password?: string;
+    next?: string;
+  },
+) {
+  const nextPath = params.next ?? "/feed";
+  await page.goto(`/login?next=${encodeURIComponent(nextPath)}`);
+
+  const baseUrl = new URL(page.url());
+  const csrfResponse = await page.context().request.get(
+    new URL("/api/auth/csrf", baseUrl).toString(),
+  );
+  if (!csrfResponse.ok()) {
+    throw new Error(`Failed to load CSRF token (${csrfResponse.status()})`);
+  }
+
+  const csrfPayload = (await csrfResponse.json()) as { csrfToken?: string };
+  if (!csrfPayload.csrfToken) {
+    throw new Error("CSRF token was missing from auth csrf response.");
+  }
+
+  const callbackResponse = await page.context().request.post(
+    new URL("/api/auth/callback/credentials", baseUrl).toString(),
+    {
+      headers: {
+        "X-Auth-Return-Redirect": "1",
+      },
+      form: {
+        email: params.email,
+        password: params.password ?? DEFAULT_E2E_PASSWORD,
+        csrfToken: csrfPayload.csrfToken,
+        callbackUrl: nextPath,
+        json: "true",
+      },
+    },
+  );
+
+  if (!callbackResponse.ok()) {
+    throw new Error(`Credentials callback failed (${callbackResponse.status()})`);
+  }
+
+  const callbackBody = (await callbackResponse.json().catch(() => null)) as
+    | { url?: string }
+    | null;
+  if (callbackBody?.url?.includes("/login?error=")) {
+    throw new Error(`Credentials login was rejected: ${callbackBody.url}`);
+  }
+
+  await expect
+    .poll(
+      async () => {
+        const cookies = await page.context().cookies();
+        return cookies.some((cookie) => SESSION_COOKIE_NAMES.includes(cookie.name));
+      },
+      {
+        timeout: 10_000,
+        message: "expected authenticated session cookie to exist after API credentials login",
+      },
+    )
+    .toBe(true);
+
+  await page.goto(nextPath);
 }
 
 export async function loginWithSocialDev(
