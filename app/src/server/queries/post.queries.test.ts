@@ -315,14 +315,9 @@ describe("post queries", () => {
     expect(args.where.OR).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          adoptionListing: {
-            is: {
-              OR: expect.arrayContaining([
-                expect.objectContaining({
-                  breed: { contains: "코리안 숏헤어", mode: "insensitive" },
-                }),
-              ]),
-            },
+          structuredSearchText: {
+            contains: "코리안 숏헤어",
+            mode: "insensitive",
           },
         }),
       ]),
@@ -1330,7 +1325,7 @@ describe("post queries", () => {
     expect(args.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
   });
 
-  it("includes structured review fields in post search suggestions query", async () => {
+  it("routes structured review suggestions through the post structuredSearchText shadow column", async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
 
     await listPostSearchSuggestions({
@@ -1344,14 +1339,9 @@ describe("post queries", () => {
     expect(args.where.OR).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          hospitalReview: {
-            is: {
-              OR: expect.arrayContaining([
-                expect.objectContaining({
-                  treatmentType: { contains: "중성화 수술", mode: "insensitive" },
-                }),
-              ]),
-            },
+          structuredSearchText: {
+            contains: "중성화 수술",
+            mode: "insensitive",
           },
         }),
       ]),
@@ -1375,7 +1365,8 @@ describe("post queries", () => {
     const statement = sql.strings ? Array.from(sql.strings).join(" ") : "";
     expect(statement).toContain(`p."status" = 'ACTIVE'::"PostStatus"`);
     expect(statement).toContain(`p."id" DESC`);
-    expect(statement).toContain(`LEFT JOIN "HospitalReview" hr`);
+    expect(statement).not.toContain(`LEFT JOIN "HospitalReview" hr`);
+    expect(statement).toContain(`p."structuredSearchText"`);
   });
 
   it("skips structured joins for title-only ranked search", async () => {

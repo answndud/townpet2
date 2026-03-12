@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
 import { RouteRefreshOnReturn } from "@/components/ui/route-refresh-on-return";
 import { PublicProfileSummaryStats } from "@/components/user/public-profile-summary-stats";
@@ -40,6 +41,12 @@ type UserProfilePageProps = {
 
 type ActivityTab = "posts" | "comments" | "reactions";
 
+const getCachedSession = cache(async () => auth());
+const getCachedPublicUserProfile = cache(async (id: string) => getPublicUserProfileById(id));
+const getCachedUserRelationState = cache(async (viewerId: string, profileId: string) =>
+  getUserRelationState(viewerId, profileId),
+);
+
 function toTab(value?: string): ActivityTab {
   if (value === "comments" || value === "reactions") {
     return value;
@@ -59,7 +66,7 @@ export async function generateMetadata({
   params,
 }: UserProfilePageProps): Promise<Metadata> {
   const resolvedParams = await params;
-  const session = await auth();
+  const session = await getCachedSession();
   if (!session?.user?.id) {
     return {
       title: "로그인이 필요합니다",
@@ -67,7 +74,7 @@ export async function generateMetadata({
       robots: { index: false, follow: false },
     };
   }
-  const profile = await getPublicUserProfileById(resolvedParams.id);
+  const profile = await getCachedPublicUserProfile(resolvedParams.id);
 
   if (!profile) {
     return {
@@ -76,7 +83,7 @@ export async function generateMetadata({
     };
   }
 
-  const relationState = await getUserRelationState(session.user.id, profile.id);
+  const relationState = await getCachedUserRelationState(session.user.id, profile.id);
   if (relationState.isBlockedByMe || relationState.hasBlockedMe) {
     return {
       title: "사용자를 찾을 수 없습니다",
@@ -126,7 +133,7 @@ export default async function PublicUserProfilePage({
     (resolvedSearchParams as { page?: string } | undefined)?.page,
   );
 
-  const session = await auth();
+  const session = await getCachedSession();
   const viewerId = session?.user?.id;
   if (!viewerId) {
     redirect(buildPublicProfileLoginHref(id));
@@ -140,13 +147,13 @@ export default async function PublicUserProfilePage({
     redirect("/profile");
   }
 
-  const profile = await getPublicUserProfileById(id);
+  const profile = await getCachedPublicUserProfile(id);
   if (!profile) {
     notFound();
   }
   const displayName = resolveUserDisplayName(profile.nickname, "익명 사용자");
 
-  const relationState = await getUserRelationState(viewerId, profile.id);
+  const relationState = await getCachedUserRelationState(viewerId, profile.id);
   if (relationState.isBlockedByMe || relationState.hasBlockedMe) {
     notFound();
   }

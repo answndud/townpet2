@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getPostCommentViewerState,
+  resolvePostCommentFetchGuestMode,
   syncPostCommentViewerState,
 } from "@/components/posts/post-comment-viewer-state";
 import { shouldAutoLoadPostComments } from "@/components/posts/post-comment-load-state";
@@ -46,6 +47,29 @@ describe("PostCommentSectionClient viewer sync", () => {
       currentUserId: undefined,
       canInteract: false,
     });
+  });
+
+  it("uses forced guest mode whenever the initial guest route or auth-logout state requires it", () => {
+    expect(
+      resolvePostCommentFetchGuestMode({
+        initialForceGuestMode: false,
+        forcedGuestMode: true,
+      }),
+    ).toBe(true);
+
+    expect(
+      resolvePostCommentFetchGuestMode({
+        initialForceGuestMode: true,
+        forcedGuestMode: false,
+      }),
+    ).toBe(true);
+
+    expect(
+      resolvePostCommentFetchGuestMode({
+        initialForceGuestMode: false,
+        forcedGuestMode: false,
+      }),
+    ).toBe(false);
   });
 });
 

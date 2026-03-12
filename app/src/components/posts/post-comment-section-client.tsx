@@ -16,6 +16,7 @@ import { POST_COMMENT_SECTION_STATE_CLASS_NAME } from "@/components/posts/post-c
 import { PostCommentThread } from "@/components/posts/post-comment-thread";
 import {
   getPostCommentViewerState,
+  resolvePostCommentFetchGuestMode,
   syncPostCommentViewerState,
 } from "@/components/posts/post-comment-viewer-state";
 
@@ -55,6 +56,10 @@ export function PostCommentSectionClient({
   const viewerState = forcedGuestMode
     ? syncPostCommentViewerState(baseViewerState, { reason: "auth-logout" })
     : baseViewerState;
+  const effectiveForceGuestMode = resolvePostCommentFetchGuestMode({
+    initialForceGuestMode: forceGuestMode,
+    forcedGuestMode,
+  });
 
   const comments = commentPage?.comments ?? null;
 
@@ -65,7 +70,10 @@ export function PostCommentSectionClient({
     };
   }, []);
 
-  const reloadComments = useCallback(async (nextPage = page) => {
+  const reloadComments = useCallback(async (
+    nextPage = page,
+    options?: { forceGuestMode?: boolean },
+  ) => {
     if (mountedRef.current) {
       setIsLoading(true);
       setError(null);
@@ -75,7 +83,7 @@ export function PostCommentSectionClient({
       const nextCommentPage = await fetchPostCommentPage<PostCommentItem>(postId, {
         page: nextPage,
         limit: DEFAULT_POST_COMMENT_ROOT_PAGE_SIZE,
-        forceGuestMode,
+        forceGuestMode: options?.forceGuestMode ?? effectiveForceGuestMode,
       });
       if (mountedRef.current) {
         setCommentPage(nextCommentPage);
@@ -91,7 +99,7 @@ export function PostCommentSectionClient({
         setIsLoading(false);
       }
     }
-  }, [forceGuestMode, onCommentCountChange, page, postId]);
+  }, [effectiveForceGuestMode, onCommentCountChange, page, postId]);
 
   useEffect(() => {
     if (!initialLoadState) {
@@ -155,15 +163,16 @@ export function PostCommentSectionClient({
     return subscribeViewerShellSync((payload) => {
       if (payload.reason === "auth-logout") {
         setForcedGuestMode(true);
-        void reloadComments();
+        void reloadComments(page, { forceGuestMode: true });
         return;
       }
 
       if (payload.reason === "auth-login") {
         setForcedGuestMode(false);
+        void reloadComments(page, { forceGuestMode: false });
       }
     });
-  }, [reloadComments]);
+  }, [page, reloadComments]);
 
   if (error && !comments) {
     return (

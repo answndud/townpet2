@@ -17,6 +17,26 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-12: Cycle 351 완료 (댓글 auth sync와 검색/캐시/사이트맵 정합성 보강)
+- 완료 내용
+  - `app/src/components/posts/post-comment-viewer-state.ts`에 현재 fetch guest mode 계산 helper를 추가하고, `app/src/components/posts/post-comment-section-client.tsx`가 더 이상 초기 prop `forceGuestMode`에 고정되지 않도록 바꿨다.
+  - 댓글 섹션은 로그인/로그아웃 custom event를 받으면 현재 viewer state에 맞는 guest mode로 즉시 다시 불러오고, 이후 pagination reload도 동일 state를 기준으로 동작한다.
+  - `app/src/server/cache/query-cache.ts`는 Upstash read/write/version bump 실패 시 process-local memory version fallback으로 계속 캐시를 쓰지 않고, 일정 시간 distributed cache를 우회하는 fail-open 모드로 전환하도록 바꿨다.
+  - `app/src/server/cache/query-cache.test.ts`에는 Redis 장애 시 캐시를 우회하고 fetcher가 두 번 실행되는 회귀를 추가했다.
+  - `app/src/app/users/[id]/page.tsx`는 `cache()` 기반 loader로 session/profile/relation 조회를 감싸 `generateMetadata()`와 page 본문이 같은 요청 스코프 결과를 재사용하도록 정리했다.
+  - `app/src/app/sitemap.ts`는 `generateSitemaps()` 기반 page 분할 구조로 바꾸고, static route와 breed route의 `lastModified`에서 `new Date()` churn을 제거했다.
+  - `app/src/lib/post-structured-search.ts`를 추가하고 `Post.structuredSearchText` shadow column을 `app/prisma/schema.prisma`와 `app/prisma/migrations/20260312101500_add_post_structured_search_text/migration.sql`에 반영했다.
+  - `app/src/server/services/post.service.ts`는 게시글 생성 시 구조화 필드와 animal tags를 shadow search text로 저장하고, `app/src/server/queries/post.queries.ts`는 메인 검색/랭킹 검색에서 구조화 relation filter/join 대신 `structuredSearchText`를 사용하도록 바꿨다.
+  - `app/src/server/queries/post.queries.test.ts`와 `app/src/lib/post-structured-search.test.ts`에 구조화 shadow search 경로 회귀를 추가했다.
+- 검증 결과
+  - `pnpm -C app exec prisma format` 통과
+  - `pnpm -C app exec prisma generate` 통과
+  - `pnpm -C app exec prisma validate` 통과
+  - `pnpm -C app test -- src/components/posts/post-comment-section-client.test.ts src/server/cache/query-cache.test.ts src/lib/post-structured-search.test.ts src/server/queries/post.queries.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `155 files / 760 tests` 통과
+  - `pnpm -C app lint src/components/posts/post-comment-section-client.tsx src/components/posts/post-comment-section-client.test.ts src/components/posts/post-comment-viewer-state.ts src/server/cache/query-cache.ts src/server/cache/query-cache.test.ts 'src/app/users/[id]/page.tsx' src/app/sitemap.ts src/lib/post-structured-search.ts src/lib/post-structured-search.test.ts src/server/services/post.service.ts src/server/queries/post.queries.ts src/server/queries/post.queries.test.ts` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-12: Cycle 350 완료 (베스트 댓글 thread context 추가 round-trip 축소)
 - 완료 내용
   - `app/src/server/queries/comment.queries.ts`에 `listRootCommentPages()`를 추가해, 베스트 댓글이 속한 root 댓글들의 페이지 번호를 `ROW_NUMBER() OVER (ORDER BY createdAt DESC, id DESC)` 기반 raw SQL 한 번으로 계산하도록 바꿨다.

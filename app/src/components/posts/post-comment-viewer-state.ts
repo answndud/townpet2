@@ -7,6 +7,16 @@ export type PostCommentViewerState = {
   canInteract: boolean;
 };
 
+export function resolvePostCommentFetchGuestMode({
+  initialForceGuestMode,
+  forcedGuestMode,
+}: {
+  initialForceGuestMode: boolean;
+  forcedGuestMode: boolean;
+}) {
+  return initialForceGuestMode || forcedGuestMode;
+}
+
 export function getPostCommentViewerState({
   currentUserId,
   canInteract,

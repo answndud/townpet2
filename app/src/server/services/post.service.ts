@@ -26,6 +26,7 @@ import {
   normalizeHospitalReviewFields,
   normalizeVolunteerRecruitmentFields,
 } from "@/lib/structured-field-normalization";
+import { buildPostStructuredSearchText } from "@/lib/post-structured-search";
 import { getUploadProxyPath } from "@/lib/upload-url";
 import {
   evaluateAdminOnlyPostWritePolicy,
@@ -859,13 +860,19 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     }
   }
 
+  const commonBoardAnimalTags =
+    mappedBoard.boardScope === "COMMON" ? normalizedAnimalTags : [];
+
   const commonCreateData = {
     ...postData,
+    structuredSearchText: buildPostStructuredSearchText({
+      animalTags: commonBoardAnimalTags,
+    }),
     scope: effectiveScope,
     boardScope: mappedBoard.boardScope,
     petTypeId: mappedBoard.boardScope === "COMMUNITY" ? (petTypeId ?? null) : null,
     commonBoardType: mappedBoard.commonBoardType,
-    animalTags: mappedBoard.boardScope === "COMMON" ? normalizedAnimalTags : [],
+    animalTags: commonBoardAnimalTags,
     authorId: resolvedAuthorId,
     ...(guestCreateMeta ?? {}),
     ...(normalizedImageUrls.length > 0
@@ -888,6 +895,10 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     const created = await prisma.post.create({
       data: {
         ...commonCreateData,
+        structuredSearchText: buildPostStructuredSearchText({
+          animalTags: commonBoardAnimalTags,
+          hospitalReview: reviewInput,
+        }),
         ...(shouldCreateReview
           ? {
               hospitalReview: {
@@ -993,6 +1004,10 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     const created = await prisma.post.create({
       data: {
         ...commonCreateData,
+        structuredSearchText: buildPostStructuredSearchText({
+          animalTags: commonBoardAnimalTags,
+          placeReview: reviewInput.data,
+        }),
         ...(shouldCreateReview
           ? {
               placeReview: {
@@ -1047,6 +1062,13 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     const created = await prisma.post.create({
       data: {
         ...commonCreateData,
+        structuredSearchText: buildPostStructuredSearchText({
+          animalTags: commonBoardAnimalTags,
+          walkRoute: {
+            routeName: routeInput.data.routeName,
+            safetyTags: routeInput.data.safetyTags ?? [],
+          },
+        }),
         ...(shouldCreateReview
           ? {
               walkRoute: {
@@ -1111,6 +1133,10 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     const created = await prisma.post.create({
       data: {
         ...commonCreateData,
+        structuredSearchText: buildPostStructuredSearchText({
+          animalTags: commonBoardAnimalTags,
+          adoptionListing: listingInput,
+        }),
         ...(shouldCreateListing
           ? {
               adoptionListing: {
@@ -1158,6 +1184,10 @@ export async function createPost({ authorId, input, guestIdentity }: CreatePostP
     const created = await prisma.post.create({
       data: {
         ...commonCreateData,
+        structuredSearchText: buildPostStructuredSearchText({
+          animalTags: commonBoardAnimalTags,
+          volunteerRecruitment: recruitmentInput,
+        }),
         ...(shouldCreateRecruitment
           ? {
               volunteerRecruitment: {

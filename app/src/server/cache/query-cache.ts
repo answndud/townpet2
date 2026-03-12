@@ -28,7 +28,9 @@ const memoryVersionSnapshot = new Map<
 >();
 const DEFAULT_VERSION = 1;
 const VERSION_SNAPSHOT_TTL_MS = 5_000;
+const REDIS_CACHE_BYPASS_TTL_MS = 60_000;
 let redisFailureLoggedAt = 0;
+let redisCacheBypassUntil = 0;
 
 function shouldUseCache() {
   return runtimeEnv.queryCacheEnabled;
@@ -44,6 +46,22 @@ function shouldUseUpstashAtRuntime() {
 
 function getNow() {
   return Date.now();
+}
+
+function shouldBypassDistributedCache(now = getNow()) {
+  return shouldUseUpstashAtRuntime() && redisCacheBypassUntil > now;
+}
+
+function markDistributedCacheUnavailable(error: unknown, message: string) {
+  const now = getNow();
+  redisCacheBypassUntil = Math.max(redisCacheBypassUntil, now + REDIS_CACHE_BYPASS_TTL_MS);
+  if (now - redisFailureLoggedAt > 60_000) {
+    redisFailureLoggedAt = now;
+    logger.warn(message, {
+      error: serializeError(error),
+      bypassMs: REDIS_CACHE_BYPASS_TTL_MS,
+    });
+  }
 }
 
 function normalizePartValue(value: CacheKeyParts[string]) {
@@ -115,19 +133,18 @@ async function getCacheValue(key: string) {
     return null;
   }
 
+  if (shouldBypassDistributedCache()) {
+    return null;
+  }
+
   if (shouldUseUpstashAtRuntime()) {
     try {
       const payload = await runUpstashPipeline([["GET", key]]);
       const raw = payload[0]?.result;
       return typeof raw === "string" ? raw : null;
     } catch (error) {
-      const now = getNow();
-      if (now - redisFailureLoggedAt > 60_000) {
-        redisFailureLoggedAt = now;
-        logger.warn("Redis cache read failed; using memory fallback.", {
-          error: serializeError(error),
-        });
-      }
+      markDistributedCacheUnavailable(error, "Redis cache read failed; bypassing query cache.");
+      return null;
     }
   }
 
@@ -148,18 +165,17 @@ async function setCacheValue(key: string, value: string, ttlSeconds: number) {
   }
 
   const ttlMs = Math.max(ttlSeconds, 1) * 1000;
+  if (shouldBypassDistributedCache()) {
+    return;
+  }
+
   if (shouldUseUpstashAtRuntime()) {
     try {
       await runUpstashPipeline([["SET", key, value, "PX", ttlMs]]);
       return;
     } catch (error) {
-      const now = getNow();
-      if (now - redisFailureLoggedAt > 60_000) {
-        redisFailureLoggedAt = now;
-        logger.warn("Redis cache write failed; using memory fallback.", {
-          error: serializeError(error),
-        });
-      }
+      markDistributedCacheUnavailable(error, "Redis cache write failed; bypassing query cache.");
+      return;
     }
   }
 
@@ -172,6 +188,9 @@ export async function getCacheVersion(bucket: string) {
   }
 
   const now = getNow();
+  if (shouldBypassDistributedCache(now)) {
+    return DEFAULT_VERSION;
+  }
   const versionSnapshot = memoryVersionSnapshot.get(bucket);
   if (versionSnapshot && versionSnapshot.expiresAt > now) {
     return versionSnapshot.value;
@@ -189,17 +208,7 @@ export async function getCacheVersion(bucket: string) {
       });
       return resolvedVersion;
     } catch (error) {
-      const now = getNow();
-      if (now - redisFailureLoggedAt > 60_000) {
-        redisFailureLoggedAt = now;
-        logger.warn("Redis cache version read failed; using default.", {
-          error: serializeError(error),
-        });
-      }
-      memoryVersionSnapshot.set(bucket, {
-        value: DEFAULT_VERSION,
-        expiresAt: now + VERSION_SNAPSHOT_TTL_MS,
-      });
+      markDistributedCacheUnavailable(error, "Redis cache version read failed; bypassing query cache.");
       return DEFAULT_VERSION;
     }
   }
@@ -219,18 +228,17 @@ export async function bumpCacheVersion(bucket: string) {
 
   memoryVersionSnapshot.delete(bucket);
 
+  if (shouldBypassDistributedCache()) {
+    return;
+  }
+
   if (shouldUseUpstashAtRuntime()) {
     try {
       await runUpstashPipeline([["INCR", `cache:version:${bucket}`]]);
       return;
     } catch (error) {
-      const now = getNow();
-      if (now - redisFailureLoggedAt > 60_000) {
-        redisFailureLoggedAt = now;
-        logger.warn("Redis cache version bump failed; using memory fallback.", {
-          error: serializeError(error),
-        });
-      }
+      markDistributedCacheUnavailable(error, "Redis cache version bump failed; bypassing query cache.");
+      return;
     }
   }
 
@@ -255,6 +263,10 @@ export async function withQueryCache<T>(params: {
   cacheNull?: boolean;
 }) {
   if (!shouldUseCache()) {
+    return params.fetcher();
+  }
+
+  if (shouldBypassDistributedCache()) {
     return params.fetcher();
   }
 

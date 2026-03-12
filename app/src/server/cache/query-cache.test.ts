@@ -74,4 +74,32 @@ describe("query cache build/runtime behavior", () => {
     expect(second).toBe("fresh-value");
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it("bypasses cache instead of falling back to process memory when Upstash is unavailable", async () => {
+    stubCacheEnv();
+    vi.stubEnv("NEXT_PHASE", "phase-production-server");
+    const fetchSpy = vi.fn().mockRejectedValue(new Error("upstash down"));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { withQueryCache } = await loadQueryCacheModule();
+    const fetcher = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValueOnce("first")
+      .mockResolvedValueOnce("second");
+
+    const first = await withQueryCache({
+      key: "cache:test:upstash-bypass",
+      ttlSeconds: 60,
+      fetcher,
+    });
+    const second = await withQueryCache({
+      key: "cache:test:upstash-bypass",
+      ttlSeconds: 60,
+      fetcher,
+    });
+
+    expect(first).toBe("first");
+    expect(second).toBe("second");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });

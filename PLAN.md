@@ -26,6 +26,11 @@
 
 ## Active Plan
 
+### Cycle 351: 댓글 auth sync와 검색/캐시/사이트맵 정합성 보강 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 댓글 섹션이 로그인/로그아웃 직후 현재 viewer 상태로 재조회되도록 auth sync 버그를 수정하고, Redis query cache 장애 시 process-local fallback 대신 cache bypass fail-open으로 전환하며, 공개 프로필 metadata/page 중복 조회를 request cache로 줄이고, sitemap을 page 단위로 분할하며, 구조화 검색을 `Post.structuredSearchText` shadow column 기반으로 바꾸고 관련 인덱스/마이그레이션/회귀 테스트를 추가 | Codex | P1 | `done` | 댓글 reload는 현재 guest mode state를 기준으로 동작하고 auth 이벤트에서 즉시 재조회되며, query cache는 Upstash 실패 시 distributed cache를 일정 시간 우회하고 process-local stale fallback을 사용하지 않으며, `/users/[id]`는 metadata/page가 같은 cached loader를 재사용하고, sitemap은 `generateSitemaps()` 기반 분할 구조로 바뀌며 static route `lastModified` churn이 제거되고, `Post.structuredSearchText` 컬럼/백필/검색 인덱스가 추가되어 메인 검색과 랭킹 검색이 구조화 relation join 없이 shadow column을 사용하고, lint/test/typecheck/Prisma validate/diff check 검증이 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/posts/post-comment-section-client.tsx`, `app/src/components/posts/post-comment-viewer-state.ts`, `app/src/server/cache/query-cache.ts`, `app/src/app/users/[id]/page.tsx`, `app/src/app/sitemap.ts`, `app/src/lib/post-structured-search.ts`, `app/src/server/services/post.service.ts`, `app/src/server/queries/post.queries.ts`, `app/prisma/schema.prisma`, `app/prisma/migrations/20260312101500_add_post_structured_search_text/migration.sql`, 관련 테스트 |
+
 ### Cycle 350: 베스트 댓글 thread context 추가 round-trip 축소 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

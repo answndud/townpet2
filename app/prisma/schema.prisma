@@ -285,6 +285,7 @@ model Post {
   status                    PostStatus                    @default(ACTIVE)
   title                     String
   content                   String                        @db.Text
+  structuredSearchText      String                        @default("") @db.Text
   viewCount                 Int                           @default(0)
   likeCount                 Int                           @default(0)
   dislikeCount              Int                           @default(0)
