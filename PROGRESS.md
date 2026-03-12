@@ -17,6 +17,30 @@
 - Cycle 22 잔여: 업로드 재시도 UX + 업로드 E2E + 느린 네트워크 skeleton 확인까지 완료
 
 ## 실행 로그
+### 2026-03-12: Cycle 359 완료 (어드민 헤더 버튼 wrapper 제거로 완전 통일)
+- 완료 내용
+  - 어드민 헤더의 `신고 큐`, `인증 로그`, `권한 정책`이 같은 `nav link`를 쓰더라도 별도 둥근 wrapper 안에 묶여 있어 다른 상단 버튼과 실루엣이 달라 보이던 문제를 정리했다.
+  - `app/src/components/navigation/app-shell-header.tsx`에서 어드민 버튼 wrapper를 `APP_SHELL_DESKTOP_GROUP_CLASS_NAME` 대신 `APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME`으로 바꿔, `게시판`, `관심 동물`, `내 프로필`처럼 개별 링크들이 같은 리듬으로 놓이도록 맞췄다.
+  - `app/src/components/navigation/app-shell-header-class.ts`에서는 더 이상 쓰지 않는 desktop group 클래스를 제거했고, `app/src/components/navigation/app-shell-header-class.test.ts`도 공용 nav/link 기준만 검증하도록 정리했다.
+- 검증 결과
+  - `pnpm -C app lint src/components/navigation/app-shell-header.tsx src/components/navigation/app-shell-header-class.ts src/components/navigation/app-shell-header-class.test.ts` 통과
+  - `pnpm -C app test -- src/components/navigation/app-shell-header-class.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
+### 2026-03-12: Cycle 358 완료 (대표 이메일 가입 차단 + 로그인 rate limit 강화)
+- 완료 내용
+  - `app/src/lib/auth-identifier-policy.ts`를 추가해 `admin`, `administrator`, `support`, `security`, `owner` 같은 운영/대표형 이메일 local-part를 공통 판별하도록 만들었고, separator(`.`, `_`, `-`)와 plus alias를 제거한 뒤 비교하도록 했다.
+  - `app/src/server/services/auth.service.ts`의 credentials 가입은 reserved 이메일이면 `RESERVED_LOGIN_IDENTIFIER`로 즉시 거절하고, `app/src/app/api/auth/register/route.ts`는 이를 사용자에게 명확한 안내 문구로 반환하면서 `REGISTER_REJECTED` audit에 reason code를 남기도록 정리했다.
+  - `app/src/server/auth-login-rate-limit.ts`는 reserved identifier에 대해 account+IP 한도를 `5 -> 3`, account 일일 한도를 `30 -> 12`로 낮춰 로그인 추측 시도를 더 빠르게 막도록 조정했다.
+  - `app/src/lib/auth.ts`도 social-dev 신규 계정 생성과 NextAuth adapter 신규 user 생성 시 같은 reserved 이메일 정책을 따르도록 보강했고, 어드민 인증 로그 페이지에는 `RESERVED_LOGIN_IDENTIFIER` 사유 라벨을 추가했다.
+  - `app/src/lib/auth-identifier-policy.test.ts`, `app/src/server/auth-login-rate-limit.test.ts`, `app/src/server/services/auth-register.service.test.ts`, `app/src/app/api/auth/register/route.test.ts`를 추가/보강해 helper, 가입 거절, stricter rate limit 회귀를 고정했다.
+- 검증 결과
+  - `pnpm -C app lint src/lib/auth-identifier-policy.ts src/lib/auth-identifier-policy.test.ts src/lib/auth.ts src/server/auth-login-rate-limit.ts src/server/auth-login-rate-limit.test.ts src/server/services/auth.service.ts src/server/services/auth-register.service.test.ts src/app/api/auth/register/route.ts src/app/api/auth/register/route.test.ts src/app/admin/auth-audits/page.tsx` 통과
+  - `pnpm -C app test -- src/lib/auth-identifier-policy.test.ts src/server/auth-login-rate-limit.test.ts src/server/services/auth-register.service.test.ts src/app/api/auth/register/route.test.ts` 실행 시 현재 환경에서는 Vitest 전체 suite로 확장되어 `158 files / 774 tests` 통과
+  - `pnpm -C app typecheck` 통과
+  - `git diff --check` 통과
+
 ### 2026-03-12: Cycle 357 완료 (어드민 헤더 액션 버튼 문법 재통일)
 - 완료 내용
   - 어드민 계정 헤더의 `신고 큐`, `인증 로그`, `권한 정책` 버튼이 warm-tone 전용 스타일로 분리돼 `내 프로필`, `게시판`, `관심 동물`과 따로 노는 문제를 다시 정리했다.

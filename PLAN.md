@@ -26,6 +26,16 @@
 
 ## Active Plan
 
+### Cycle 359: 어드민 헤더 버튼 wrapper 제거로 완전 통일 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| 어드민 계정 헤더의 `신고 큐`, `인증 로그`, `권한 정책` 버튼이 별도 둥근 wrapper 없이 다른 상단 링크와 동일한 nav cluster 문법을 사용하도록 정리 | Codex | P2 | `done` | 어드민 헤더 버튼은 `APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME`와 `APP_SHELL_NAV_LINK_CLASS_NAME`만 사용하고, 별도 desktop group wrapper는 제거되며, 관련 class 회귀 테스트와 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/components/navigation/app-shell-header.tsx`, `app/src/components/navigation/app-shell-header-class.ts`, `app/src/components/navigation/app-shell-header-class.test.ts` |
+
+### Cycle 358: 대표 이메일 가입 차단 + 로그인 rate limit 강화 (완료)
+| 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
+|---|---|---|---|---|---|
+| `admin@gmail.com` 같은 운영/대표형 이메일 local-part를 신규 가입에서 차단하고, 같은 식별자에 대한 로그인 시도는 더 엄격한 account-scoped rate limit으로 제어하며, 감사 로그와 회귀 테스트를 보강 | Codex | P1 | `done` | 공통 auth identifier policy가 대표 이메일 alias를 판별하고, credentials 가입은 `RESERVED_LOGIN_IDENTIFIER`로 거절되며, OAuth/social-dev 신규 계정 생성도 같은 정책을 따르고, reserved identifier 로그인은 stricter rate limit을 사용하고, 관련 lint/test/typecheck/diff check 검증이 `PROGRESS.md`에 기록된다 | `PLAN.md`, `PROGRESS.md`, `app/src/lib/auth-identifier-policy.ts`, `app/src/lib/auth.ts`, `app/src/server/auth-login-rate-limit.ts`, `app/src/server/services/auth.service.ts`, `app/src/app/api/auth/register/route.ts`, 관련 테스트 |
+
 ### Cycle 357: 어드민 헤더 액션 버튼 문법 재통일 (완료)
 | 작업명 | 담당 에이전트 | 우선순위 | 상태 | 완료기준(DoD) | 의존성 |
 |---|---|---|---|---|---|

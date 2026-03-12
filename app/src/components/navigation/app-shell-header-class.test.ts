@@ -4,7 +4,6 @@ import {
   APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME,
   APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME,
   APP_SHELL_HEADER_CLASS_NAME,
-  APP_SHELL_DESKTOP_GROUP_CLASS_NAME,
   APP_SHELL_MOBILE_PANEL_CLASS_NAME,
   APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME,
   APP_SHELL_NAV_LINK_CLASS_NAME,
@@ -31,13 +30,12 @@ describe("app shell header classes", () => {
     expect(APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME).toContain("rounded-md");
   });
 
-  it("uses grouped desktop actions and softer mobile panels for header navigation", () => {
+  it("uses shared desktop link sizing and softer mobile panels for header navigation", () => {
     expect(APP_SHELL_NAV_LINK_CLASS_NAME).toContain("rounded-md");
     expect(APP_SHELL_NAV_LINK_CLASS_NAME).toContain("px-2.5");
     expect(APP_SHELL_DESKTOP_NAV_CLUSTER_CLASS_NAME).toContain("gap-1.5");
     expect(APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME).toContain("rounded-md");
     expect(APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME).toContain("h-8");
-    expect(APP_SHELL_DESKTOP_GROUP_CLASS_NAME).toContain("rounded-full");
     expect(APP_SHELL_MOBILE_PANEL_CLASS_NAME).toContain("rounded-xl");
   });
 });

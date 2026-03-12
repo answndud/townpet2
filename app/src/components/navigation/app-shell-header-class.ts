@@ -47,18 +47,6 @@ export const APP_SHELL_DESKTOP_SEARCH_INPUT_CLASS_NAME = [
   "sm:w-[190px]",
 ].join(" ");
 
-export const APP_SHELL_DESKTOP_GROUP_CLASS_NAME = [
-  "items-center",
-  "gap-1",
-  "rounded-full",
-  "border",
-  "border-[#dbe6f6]",
-  "bg-white/88",
-  "px-1.5",
-  "py-1",
-  "shadow-[0_8px_18px_rgba(16,40,74,0.06)]",
-].join(" ");
-
 export const APP_SHELL_MOBILE_QUICK_LINK_CLASS_NAME = [
   "inline-flex",
   "h-7",
